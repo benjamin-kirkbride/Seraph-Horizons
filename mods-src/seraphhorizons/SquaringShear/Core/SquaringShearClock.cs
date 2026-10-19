@@ -3,42 +3,8 @@ using SeraphHorizons.Mod.Machines.Core;
 namespace SeraphHorizons.Mod.SquaringShear.Core;
 
 /// <summary>
-/// What the squaring shear's renderer reads of the shear, and nothing else: its facing, the parts
-/// fitted and their metals, the plate on the table (class k and the server's W), and whether someone
-/// works the treadle. The block entity implements it; the renderer turns it into the rig's inputs
-/// through <see cref="SquaringShearClock"/>.
-/// </summary>
-public interface ISquaringShearView
-{
-    Side Side { get; }
-
-    /// <summary>Whether a part needing a stage's <c>requires</c> (or null) is drawn. The plates are
-    /// the clock's (<see cref="SquaringShearClock.ShowsPlate"/>).</summary>
-    bool PartFitted(string? requires);
-
-    /// <summary>The fitted blades' metal (<c>iron</c>, <c>steel</c>), or null.</summary>
-    string? BladeMetal { get; }
-
-    /// <summary>The fitted gauge's and hold-down's metal (<c>iron</c>, <c>meteoriciron</c>, <c>steel</c>), or null.</summary>
-    string? GaugeMetal { get; }
-
-    /// <summary>The plate on the table: 1 lead, 2 copper, 0 none.</summary>
-    int PlateClass { get; }
-
-    /// <summary>The server's W: the plate's cut cycle, synced in steps.</summary>
-    double CutWork { get; }
-
-    /// <summary>Someone works the treadle (the server's word, or this client's own player holding
-    /// right-click on it).</summary>
-    bool Held { get; }
-
-    /// <summary>Treadle strokes a plate of class k takes, as the server runs.</summary>
-    double StrokesPerPlate(int k);
-}
-
-/// <summary>
-/// The renderer's own treadle clock θ, W, presence and class, from the view each frame (the model's
-/// contract, "The work"). While the treadle is worked with a plate on, θ turns at
+/// The renderer's own treadle clock θ, W, presence and class, from the shear each frame (the model's
+/// contract, "The work"; <c>BESquaringShear.FrameInput</c>). While the treadle is worked with a plate on, θ turns at
 /// <see cref="Cutting.StrokeRadiansPerSecond"/>, and W is predicted at the plate's pace and eased
 /// toward the server's (<see cref="HeldWorkFollower"/>), so the model moves at frame rate rather
 /// than in the server's synced steps; with no plate on, W is held at the end, 1, while p eases out and k is held; a new

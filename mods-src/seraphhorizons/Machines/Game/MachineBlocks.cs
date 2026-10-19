@@ -32,6 +32,11 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
     /// <summary>The machine's id (<c>attributes.machine.machine</c>), or the code's first part.</summary>
     public string Machine => Attributes?["machine"]?["machine"]?.AsString(null) ?? Code.FirstCodePart();
 
+    /// <summary>Whether the machine stands on the block below its controller and needs that block's solid top
+    /// (<c>attributes.machine.needsSolidGround</c>: the rocker on its rockers): it is placed only there, and
+    /// breaks when the top goes.</summary>
+    public bool NeedsSolidGround => Attributes?["machine"]?["needsSolidGround"]?.AsBool(false) ?? false;
+
     /// <summary>An ore machine's own part requires (<c>attributes.machine.extraRequires</c>).</summary>
     public string[] ExtraRequires => Attributes?["machine"]?["extraRequires"]?.AsArray<string>([])?.OfType<string>().ToArray() ?? [];
 
@@ -61,6 +66,11 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
         if (Rig is not { } rig || !Sides.TryParse(Variant["side"], out var side))
         {
             failureCode = "__ignore__";
+            return false;
+        }
+        if (NeedsSolidGround && !SolidUnder(world.BlockAccessor, blockSel.Position))
+        {
+            failureCode = "requiresolidground";
             return false;
         }
         foreach (var cell in rig.OtherCells())
@@ -95,6 +105,23 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
         if (!block.CanPlaceBlock(world, byPlayer, at, ref failureCode))
             return false;
         return block.DoPlaceBlock(world, byPlayer, at, itemstack);
+    }
+
+    private static bool SolidUnder(IBlockAccessor ba, BlockPos pos) => ba.GetBlock(pos.DownCopy()).SideSolid[BlockFacing.UP.Index];
+
+    /// <summary>The ground going from under a machine that needs it breaks the machine; a block set against a
+    /// controller that takes the axle itself (the amalgam pan's, from below) on its power face connects it.</summary>
+    public override void OnNeighbourBlockChange(IWorldAccessor world, BlockPos pos, BlockPos neibpos)
+    {
+        base.OnNeighbourBlockChange(world, pos, neibpos);
+        if (world.Side == EnumAppSide.Server && NeedsSolidGround && neibpos.Equals(pos.DownCopy()) && !SolidUnder(world.BlockAccessor, pos))
+        {
+            world.BlockAccessor.BreakBlock(pos, null);
+            return;
+        }
+        if (world.BlockAccessor.GetBlockEntity(pos) is BEMachine { PowerAtController: true } machine
+            && neibpos.Equals(pos.AddCopy(machine.PowerFace)))
+            machine.GetBehavior<BEBehaviorMPBase>()?.tryConnect(machine.PowerFace);
     }
 
     public override void OnBlockPlaced(IWorldAccessor world, BlockPos blockPos, ItemStack? byItemStack = null)

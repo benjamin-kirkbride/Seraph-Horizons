@@ -32,7 +32,7 @@ public static class SquaringShearExport
     public static readonly AssetLocation RigAsset = new(GearChain.Mod, "config/squaringshear-rig.json");
     public const string FrameCode = "seraphhorizons:squaringshear-frame-north";
 
-    // SquaringShear/Core/SquaringShearParts.cs: what each kept stage takes.
+    // config/builds/squaringshear.json (the shared staged build): what each kept stage takes.
     public static readonly (string Template, string[] Codes)[] KeptStages =
     [
         ("game:metalplate-iron", ["game:metalplate-iron", "game:metalplate-steel"]),

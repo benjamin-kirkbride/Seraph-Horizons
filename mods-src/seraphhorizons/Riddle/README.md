@@ -350,9 +350,16 @@ viewer in a browser, or in a client.
 ## Gameplay
 
 #714, switch `Riddle` (with `OreProcessing`: without crushed ore there is nothing to riddle), figures in
-`RiddleSettings` (`ModConfig/seraphhorizons.json`). The rules are `Core/` (`Riddling`, `RiddleJob`, `RiddleParts`,
-`RiddleConfig`, `RiddleRig`, the renderer's `RiddleClock`), the game side `Game/` (`RiddleSystem`, `BlockRiddle`,
-`BERiddle`, `RiddleRenderer`, `RiddleOre`).
+`RiddleSettings` (`ModConfig/seraphhorizons.json`). The rules are `Core/` (`Riddling` with the charge's job, a
+`MachineJob` of class 1; `RiddleBuild`, the mesh and the `requires` vocabulary; `RiddleConfig`, `RiddleRig`, the
+renderer's `RiddleClock`), and its build is data, `assets/seraphhorizons/config/builds/riddle.json`. The game side
+is the shared machine base (`../Machines/Game/`, docs/modeling/machine-base.md), as the press brake's: the frame
+is `BlockMachine` (one cell, so no other cells), the parts are drawn by `MachineRenderer`; `Game/` holds
+`RiddleSystem` (its settings and rig, which it names to `MachinesSystem`), `BERiddle : BEMachine`, a hand machine
+(`HandWorked`: the base's `HandHolds`, 600 ms) with no power anchor, no oil and no inventory a hopper or chute can
+reach, and `RiddleOre`. A riddle saved before the shared base loads as a bare frame. The block info is the shared
+layout: the build, the state (riddling with its percent), the charge, oversize and fines; a wrench adds W and the
+shakes a charge takes.
 
 - **Building.** The frame is a grid recipe (six oak planks, one nails and strips of iron, meteoric iron or steel, a
   hammer) and is placed with its operator's side toward the player. Its one stage, the riddle, is fitted by

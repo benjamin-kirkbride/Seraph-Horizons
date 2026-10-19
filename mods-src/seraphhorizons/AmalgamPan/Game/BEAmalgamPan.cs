@@ -1,6 +1,6 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.AmalgamPan.Core;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
@@ -12,107 +12,80 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using Vintagestory.GameContent.Mechanics;
 
 namespace SeraphHorizons.Mod.AmalgamPan;
 
 /// <summary>
-/// The amalgam pan's block entity (#718). Holds the staged build (the muller, then its shoes), the
-/// batch (<see cref="AmalgamPanBatch"/>: mercury, the charge's count, water, turns), the charge's
+/// The amalgam pan's controller (#718), on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/amalgampan.json</c>, the muller then its shoes; its axle, its block info, its renderer).
+/// It keeps the batch (<see cref="AmalgamPanBatch"/>: mercury, the charge's count, water, turns), the charge's
 /// quartz as its item stack, a worked charge's amalgam waiting to be taken out, and the fraction of an
-/// amalgam item carried to the next charge (<see cref="UnitCarry"/>). The muller turns by hand while a
-/// player holds right-click, as the quern's stone, or from an axle in the block below, with no player;
-/// either way a charge with its water and mercury is worked a turn at a time, and when done ore
-/// processing's recovery (<see cref="OreRecovery.Amalgamate"/>) says what amalgam it makes and what the
-/// quartz carries on (amalgamated, so the rocker no longer loses its free metal at × 0.7). Nothing goes
-/// in or out but by hand. The client draws it (<see cref="AmalgamPanRenderer"/>).
+/// amalgam item carried to the next charge (<see cref="UnitCarry"/>). The muller turns by hand while a player
+/// holds right-click (<see cref="BEMachine.HandWorked"/>), as the quern's stone, or from an axle in the block
+/// below through the shared <see cref="BEBehaviorMachineMP"/>, with no player; either way a charge with its
+/// water and mercury is worked a turn at a time, and when done ore processing's recovery
+/// (<see cref="OreRecovery.Amalgamate"/>) says what amalgam it makes and what the quartz carries on
+/// (amalgamated, so the rocker no longer loses its free metal at × 0.7). It takes no oil. Nothing goes in or
+/// out but by hand: it has no inventory a hopper or chute can reach.
 /// </summary>
-public class BEAmalgamPan : BlockEntity, IMachinePower
+public class BEAmalgamPan : BEMachine
 {
     /// <summary>Expanded Matter's mercury, as the still's retort names it (<c>retort.mercury</c>).</summary>
     public const string MercuryCode = "em:mercuryportion";
     private const string WaterCode = "game:waterportion";
     private static readonly AssetLocation LoadSound = new("game", "sounds/block/gravel");
-    private static readonly AssetLocation PourSound = new("game", "sounds/effect/water-pour");
     private static readonly AssetLocation GrindSound = new("game", "sounds/block/quern");
-    private const string BuildKey = "build";
-    // A client's own player holding right-click counts as working for this long after its last step.
-    private const long LocalHoldMs = 250;
     // The server syncs the turns at least this often (a share of the charge).
     private const double SyncStep = 0.05;
+    private static readonly Float3 PanFallback = new(0.5f, 0.4f, 0.5f);
 
-    private MachineAssembly? _assembly;
     private AmalgamPanBatch _batch = new();
     private ItemStack? _charge;
     private ItemStack? _amalgam;
     private readonly UnitCarry _carry = new();
-    private readonly HandHolds _holds = new();
-    private bool _held;
-    private long _localHeldAt = long.MinValue / 2;
-    private float _lastAngle = float.NaN;
     private float _grindSeconds;
     private int _syncedNeed;
-    private AmalgamPanRenderer? _renderer;
+    private readonly AmalgamPanClock _clock = new();
 
-    public Side Side { get; private set; } = Side.North;
-    /// <summary>The muller and its shoes, fitted in order (the shared machine build, #711). An empty
-    /// build stands in when the build file is missing: such a pan is never complete.</summary>
-    public MachineAssembly Assembly => _assembly ??= new MachineAssembly(Spec);
     public AmalgamPanBatch Batch => _batch;
-    public bool Complete => _assembly is { Built: true } a && a.Build.Stages.Count > 0;
     public ItemStack? Charge => _charge;
     public ItemStack? Amalgam => _amalgam;
     public AmalgamPanConfig Config => System.Config;
 
     private AmalgamPanSystem System => AmalgamPanSystem.Of(Api);
+    private new AmalgamPanRig? Rig => base.Rig as AmalgamPanRig;
 
-    // the pan's build, or one with no stages (never complete) when its file is missing
-    private MachineBuild Spec => System.Build ?? new MachineBuild(AmalgamPanSystem.MachineId, null, FeedMode.Batch, [], []);
-
-    /// <summary>The axle below, as the shared machine behaviour sees it.</summary>
-    public BEBehaviorMachineMP? Power => GetBehavior<BEBehaviorMachineMP>();
-
-    /// <summary>An axle below turns the pan.</summary>
-    public bool Powered => Power?.Network is { } net && Math.Abs(net.Speed * Power.GearedRatio) > 0.001f;
-
-    /// <summary>Someone holds right-click on the pan (the server's word, or this client's own player).</summary>
-    public bool HandHeld =>
-        _held || Api is { Side: EnumAppSide.Client } && Api.World.ElapsedMilliseconds - _localHeldAt <= LocalHoldMs;
+    /// <summary>An axle below turns the pan (at the old threshold, any turning at all: <see cref="ConfigMinSpeed"/>).</summary>
+    public bool ShaftTurning => Powered && MachineRun.Turning(ShaftSpeed, MinSpeed);
 
     /// <summary>The muller is turning on a charge it can work: the pan is working.</summary>
-    public bool Working => (Powered || _held) && CanWork() == PanRefusal.None;
-
-    // IMachinePower
-    public BlockFacing PowerFace => BlockFacing.DOWN;
-    public float Resistance => !Complete ? Config.IdleResistance
-        : CanWork() == PanRefusal.None ? Config.WorkingResistance : Config.IdleResistance;
+    public bool Working => Running;
 
     /// <summary>The shoes' metal (<c>iron</c>, <c>steel</c>) for the renderer, or null.</summary>
     public string? ShoeMetal
     {
         get
         {
-            foreach (var drop in Assembly.Returns())
+            foreach (var drop in Assembly?.Returns() ?? [])
                 if (drop.Code.StartsWith("game:metalplate-", StringComparison.Ordinal))
                     return drop.Code["game:metalplate-".Length..];
             return null;
         }
     }
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        _ = Assembly;
-        if (api.Side == EnumAppSide.Server)
-            RegisterGameTickListener(OnTick, 100);
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 100);
-            if (api is ICoreClientAPI capi && System.Rig is { } rig)
-                _renderer = new AmalgamPanRenderer(capi, this, rig);
-        }
-    }
+    // Worked by hand or by its axle: the base's running rules for a hand machine that also takes a shaft.
+    protected override bool HandWorked => true;
+    protected override float ConfigMinSpeed => 0.001f;
+    protected override int ClientTickMs => 100;
+    public override int RenderRange => 48;
+
+    /// <summary>A charge it can work now: with its water and its amalgam's mercury.</summary>
+    public override bool HasWork => CanWork() == PanRefusal.None;
+    public override double? WorkProgress => _batch.Charged && !_batch.Worked ? _batch.Progress(Config) : null;
+
+    /// <summary>Its own load, whether it is built or not: idle, or working on a charge it can work.</summary>
+    protected override bool LoadsShaft => true;
+    protected override double ShaftLoad => Built && HasWork ? Config.WorkingResistance : Config.IdleResistance;
 
     // ---- Recovery ----
 
@@ -149,144 +122,52 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
     public int MercuryNeeded() =>
         Api?.Side == EnumAppSide.Client ? _syncedNeed : AmalgamPanBatch.MercuryNeeded(AmalgamItemsDue(), AmalgamMercury);
 
-    public PanRefusal CanWork() => _batch.CanWork(Complete, MercuryNeeded(), Config);
+    public PanRefusal CanWork() => _batch.CanWork(Built, MercuryNeeded(), Config);
 
     // ---- Interaction ----
 
-    /// <summary>
-    /// Right-click on the pan. Ctrl in creative mode on an unbuilt pan fits its next stage; Ctrl with
-    /// an untouched charge takes the quartz back. A stage's part is fitted. A container of mercury pours
-    /// it in, of water pours the charge's water, an empty one takes the mercury back out (no charge in).
-    /// Crushed or ground gold or silver quartz is loaded. With a worked charge, an empty hand takes out
-    /// the amalgam and the quartz. Otherwise, on a built pan with a charge, right-click held turns the
-    /// muller (<see cref="OnWorkStep"/>). Shift lets a held block be placed against it. Decided on the
-    /// server; the client says whether the click is the pan's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    /// <summary>The pan's own right-click, before its build's: Shift lets a held block be placed against it;
+    /// Ctrl with an empty hand (but for the creative shortcut) takes back an untouched charge's quartz.</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
-        var held = slot?.Itemstack;
         var controls = byPlayer.Entity.Controls;
-        bool server = Api.Side == EnumAppSide.Server;
-        bool ctrl = controls.CtrlKey && !controls.ShiftKey;
-        if (ctrl && CreativeShortcutApplies(byPlayer))
-            return !server || FitNext();
-        if (ctrl && held == null && _batch.Charged && _batch.Untouched)
-            return !server || TakeCharge(byPlayer);
-        if (controls.ShiftKey)
-            return false;
+        if (controls is { CtrlKey: true, ShiftKey: false } && slot.Itemstack == null && _batch.Charged && _batch.Untouched
+            && !CreativeShortcut(byPlayer))
+            return Api.Side != EnumAppSide.Server || TakeCharge(byPlayer);
+        return controls.ShiftKey ? false : null;
+    }
+
+    /// <summary>
+    /// The pan's own right-click, after its build's. A container of mercury pours it in, of water pours the
+    /// charge's water, an empty one takes the mercury back out (no charge in). Crushed or ground gold or
+    /// silver quartz is loaded. With a worked charge, an empty hand takes out the amalgam and the quartz.
+    /// Otherwise, on a built pan with a charge it can work, right-click held turns the muller
+    /// (<see cref="BEMachine.OnInteractStep"/>).
+    /// </summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
+    {
+        var held = slot.Itemstack;
         string? code = held?.Collectible?.Code?.ToString();
-        if (code != null && !Complete && Assembly.Check(code, held!.StackSize, held.Collectible.MaxStackSize).Verdict != AssemblyVerdict.NotAPart)
-            return !server || TryFit(slot!, byPlayer);
+        bool server = Api.Side == EnumAppSide.Server;
         if (held?.Collectible is ILiquidSource or BlockLiquidContainerBase)
-            return !server || Liquid(slot!, byPlayer);
+            return !server || Liquid(slot, byPlayer);
         if (held != null && Quartz(held).Stream != null)
-            return !server || TryLoad(slot!, byPlayer);
+            return !server || TryLoad(slot, byPlayer);
         if (_batch.Worked)
             return !server || (held == null ? TakeOut(byPlayer) : Error(byPlayer, "worked"));
-        if (!Complete)
+        if (!Built)
             return code == null && (!server || Error(byPlayer, "incomplete", NextName()));
         if (!_batch.Charged)
             return held == null && (!server || Error(byPlayer, "nocharge"));
         if (!server)
             return true;
         var why = CanWork();
-        if (why != PanRefusal.None)
-            return Refuse(byPlayer, why);
-        _holds.Hold(byPlayer.PlayerUID, Api.World.ElapsedMilliseconds);
-        UpdateHeld();
-        return true;
+        return why != PanRefusal.None ? Refuse(byPlayer, why) : StartHold(byPlayer);
     }
 
-    /// <summary>Right-click still held (both sides, every tick, as the quern's grinding).</summary>
-    public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
-    {
-        long now = Api.World.ElapsedMilliseconds;
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = now;
-            return Complete && (_batch.Charged || secondsUsed < 0.5f);
-        }
-        if (CanWork() != PanRefusal.None)
-        {
-            Release(byPlayer);
-            return false;
-        }
-        _holds.Hold(byPlayer.PlayerUID, now);
-        UpdateHeld();
-        return true;
-    }
-
-    public void Release(IPlayer byPlayer)
-    {
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = long.MinValue / 2;
-            return;
-        }
-        _holds.Release(byPlayer.PlayerUID);
-        UpdateHeld();
-    }
-
-    private void UpdateHeld()
-    {
-        bool held = _holds.Any(Api.World.ElapsedMilliseconds) && CanWork() == PanRefusal.None;
-        if (held == _held)
-            return;
-        _held = held;
-        MarkDirty(false);
-    }
-
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
-    {
-        var controls = byPlayer.Entity.Controls;
-        return !Complete && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fills the next stage, nothing taken.</summary>
-    public bool FitNext()
-    {
-        if (!Assembly.FillNext())
-            return false;
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25);
-        MarkDirty(true);
-        return true;
-    }
-
-    /// <summary>Fits what <paramref name="slot"/> holds into the next stage (server side); false, with
-    /// an error to the player, when the rules say no.</summary>
-    public bool TryFit(ItemSlot slot, IPlayer? byPlayer)
-    {
-        var stack = slot.Itemstack;
-        if (stack == null)
-            return false;
-        var fit = Assembly.Fit(stack.Collectible.Code.ToString(), stack.StackSize, stack.Collectible.MaxStackSize);
-        switch (fit.Verdict)
-        {
-            case AssemblyVerdict.Fitted:
-                break;
-            case AssemblyVerdict.OutOfOrder:
-                return Error(byPlayer, "order", NextName());
-            case AssemblyVerdict.AlreadyFitted:
-                return Error(byPlayer, "part-fitted");
-            case AssemblyVerdict.TooFew:
-                return Error(byPlayer, "toofew", NextName());
-            default:
-                return Error(byPlayer, "not-a-part");
-        }
-        if (byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(fit.Take);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        return true;
-    }
-
-    /// <summary>The next stage's name, as the info and the errors show it.</summary>
+    /// <summary>The next stage's name, as the errors show it.</summary>
     public string NextName() =>
-        Assembly.Build.Next is { } next ? Lang.Get(AmalgamPanSystem.Domain + ":amalgampan-info-stage-" + Assembly.Build.Stages[next].Id) : "";
+        Assembly is { } a && a.Build.Next is { } next ? MachineText.StageName(Machine, a.Build.Stages[next]) : "";
 
     private bool Liquid(ItemSlot slot, IPlayer byPlayer)
     {
@@ -298,12 +179,12 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         string mercury = Recovery?.Retort.Mercury ?? MercuryCode;
         if (liquid == mercury)
         {
-            var why = _batch.CanPourMercury(Complete, Config);
+            var why = _batch.CanPourMercury(Built, Config);
             return why != PanRefusal.None ? Refuse(byPlayer, why) : Pour(slot, byPlayer, _batch.MercuryRoom(Config), taken => _batch.AddMercury(taken));
         }
         if (liquid == WaterCode)
         {
-            var why = _batch.CanPourWater(Complete, Config);
+            var why = _batch.CanPourWater(Built, Config);
             if (why == PanRefusal.None && !_batch.Charged)
                 why = PanRefusal.NoCharge;
             if (why != PanRefusal.None)
@@ -367,7 +248,7 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         var (stream, free) = Quartz(held);
         bool amalgamated = stream != null && stream.State.HasFlag(OreState.Amalgamated);
         bool same = _charge == null || _charge.Equals(Api.World, held, GlobalConstants.IgnoredStackAttributes);
-        var why = _batch.CanLoad(Complete, free, amalgamated, same, Config);
+        var why = _batch.CanLoad(Built, free, amalgamated, same, Config);
         if (why != PanRefusal.None)
             return Refuse(byPlayer, why);
         int n = _batch.LoadCount(held.StackSize, Config);
@@ -427,8 +308,9 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         _ => Error(byPlayer, why.ToString().ToLowerInvariant()),
     };
 
-    private static string Num(double v) => v.ToString("0.#", global::System.Globalization.CultureInfo.InvariantCulture);
+    private static string Num(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
 
+    /// <summary>The pan's own message (<c>seraphhorizons:amalgampan-error-{key}</c>) to the player; false.</summary>
     private bool Error(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
@@ -436,33 +318,59 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         return false;
     }
 
+    /// <summary>The help once built: a worked charge comes out; else mercury, quartz and its water go in, the
+    /// muller is turned, and Ctrl takes an untouched charge back.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => AmalgamPanSystem.Domain + ":blockhelp-amalgampan-" + action;
+        if (_batch.Worked)
+        {
+            help.Add(new WorldInteraction { ActionLangCode = Key("takeout"), MouseButton = EnumMouseButton.Right, RequireFreeHand = true });
+            return;
+        }
+        if (LiquidHelp(Api.World, Recovery?.Retort.Mercury ?? MercuryCode) is { Length: > 0 } mercury)
+            help.Add(new WorldInteraction { ActionLangCode = Key("mercury"), MouseButton = EnumMouseButton.Right, Itemstacks = mercury });
+        if (_batch.Items < Config.ChargeItems && _batch.Untouched)
+            help.Add(new WorldInteraction { ActionLangCode = Key("charge"), MouseButton = EnumMouseButton.Right });
+        if (_batch.Items > 0 && _batch.WaterRoom(Config) > 0 && LiquidHelp(Api.World, WaterCode) is { Length: > 0 } water)
+            help.Add(new WorldInteraction { ActionLangCode = Key("water"), MouseButton = EnumMouseButton.Right, Itemstacks = water });
+        if (_batch.Items > 0)
+            help.Add(new WorldInteraction { ActionLangCode = Key("work"), MouseButton = EnumMouseButton.Right });
+        if (_batch.Items > 0 && _batch.Untouched)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takecharge"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
+    /// <summary>A bucket of the liquid, for the interaction help.</summary>
+    private static ItemStack[] LiquidHelp(IWorldAccessor world, string liquid)
+    {
+        if (world.GetBlock(new AssetLocation("game:woodbucket")) is not BlockLiquidContainerBase bucket
+            || world.GetItem(new AssetLocation(liquid)) is not { } item)
+            return [];
+        var stack = new ItemStack(bucket);
+        bucket.SetContent(stack, new ItemStack(item, 1000));
+        return [stack];
+    }
+
     // ---- Working ----
 
-    private void OnTick(float dt)
+    /// <summary>The axle's turn: the radians it advanced, in turns of the muller.</summary>
+    protected override bool Work(double radians)
     {
-        UpdateHeld();
-        double turns = 0;
-        if (Power is { } mp && Powered)
-        {
-            float angle = mp.ShaftAngle;
-            if (!float.IsNaN(_lastAngle))
-                turns = ShaftClock.AngleAdvance(_lastAngle, angle, mp.Network!.Speed * mp.GearedRatio, dt) / (2 * Math.PI);
-            _lastAngle = angle;
-        }
-        else
-        {
-            _lastAngle = float.NaN;
-            if (_held)
-                turns = Config.HandTurnsPerSecond * dt;
-        }
-        if (turns > 0 && CanWork() == PanRefusal.None)
-            Work(turns);
+        Turn(radians / (2 * Math.PI));
+        return false;
+    }
+
+    /// <summary>By hand, with no axle turning it: the hand's pace.</summary>
+    protected override bool WorkUnpowered(float dt)
+    {
+        Turn(Config.HandTurnsPerSecond * dt);
+        return false;
     }
 
     /// <summary>Works the charge by <paramref name="turns"/> of the muller (server side): at the
     /// charge's turns it is done, the amalgam made and the quartz amalgamated. Returns the amalgam
     /// items made when it finished, else 0.</summary>
-    public int Work(double turns)
+    public int Turn(double turns)
     {
         if (CanWork() != PanRefusal.None)
             return 0;
@@ -485,25 +393,18 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         _batch.Finish(items, AmalgamMercury);
         OreStreamAttributes.Write(_charge, pass.After);
         _amalgam = items > 0 && Api.World.GetItem(new AssetLocation(code)) is { } amalgam ? new ItemStack(amalgam, items) : null;
-        _holds.Clear();
-        _held = false;
-        var at = MachinePoints.WorldPoint(Pos, System.Rig?.Pan ?? new Float3(0.5f, 0.4f, 0.5f), Side);
+        var at = WorldPoint(Rig?.Pan ?? PanFallback);
         Api.World.PlaySoundAt(LoadSound, at.X, at.Y, at.Z);
         MarkDirty(true);
+        RefreshState();
         return items;
     }
 
-    // The client's own: a working pan grinds.
-    private void OnClientTick(float dt)
+    // A turning pan grinds.
+    protected override void OnClientTick(float dt)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockAmalgamPan)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
-        bool working = (Powered || HandHeld) && _batch.Charged && Complete;
-        if (!working)
+        bool turning = (ShaftTurning || Held) && _batch.Charged && Built;
+        if (!turning)
         {
             _grindSeconds = 0;
             return;
@@ -511,54 +412,65 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         if ((_grindSeconds -= dt) <= 0)
         {
             _grindSeconds = 1.5f;
-            var at = MachinePoints.WorldPoint(Pos, System.Rig?.Pan ?? new Float3(0.5f, 0.4f, 0.5f), Side);
+            var at = WorldPoint(Rig?.Pan ?? PanFallback);
             Api.World.PlaySoundAt(GrindSound, at.X, at.Y, at.Z, null, true, 12, 0.4f);
         }
+    }
+
+    // ---- The renderer's ----
+
+    /// <summary>The muller and the shoes as their stages are fitted; one of the contents as the batch stands,
+    /// the water film over the charge, on a built pan.</summary>
+    public override bool ShowsPart(string? requires) =>
+        AmalgamPanRequires.IsContents(requires) ? Built && _batch.Shows(requires) : base.ShowsPart(requires);
+
+    /// <summary>The shoes' texture follows their plate's metal.</summary>
+    public override string TextureKey => ShoeMetal ?? "";
+
+    /// <summary>The block's textures with the shoes' metal in place of <c>shoe</c>: the game's plate texture,
+    /// inserted in the block atlas if it is not there yet (the shoes are cut from a plate).</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi) =>
+        new ShoeTextureSource(base.PartTextures(capi), PlateTexture(capi, ShoeMetal));
+
+    private static TextureAtlasPosition? PlateTexture(ICoreClientAPI capi, string? metal)
+    {
+        if (metal == null)
+            return null;
+        var loc = new AssetLocation("game", "block/metal/plate/" + metal);
+        var pos = capi.BlockTextureAtlas[loc];
+        if (pos == null && capi.Assets.Exists(loc.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png")))
+            capi.BlockTextureAtlas.GetOrInsertTexture(loc, out _, out pos);
+        return pos;
+    }
+
+    /// <summary>θ: the axle's angle while one turns the pan (the quern's top stone takes it as it is), else the
+    /// hand's clock while held on a built pan (<see cref="AmalgamPanClock"/>).</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        _clock.Advance(dt, ShaftTurning ? ShaftAngle : null, Held && Built, Config.HandTurnsPerSecond);
+        return _clock.Input();
+    }
+
+    /// <summary>The block's textures with the shoes' metal in place of <c>shoe</c>.</summary>
+    private sealed class ShoeTextureSource(ITexPositionSource inner, TextureAtlasPosition? shoe) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+        public TextureAtlasPosition this[string textureCode] =>
+            textureCode == "shoe" && shoe != null ? shoe : inner[textureCode]!;
     }
 
     // ---- Breaking ----
 
     /// <summary>What breaking the pan gives besides the frame: the muller and shoes, the quartz and any
     /// amalgam. The mercury and the water run out and are lost.</summary>
-    public IEnumerable<ItemStack> BreakDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        foreach (var drop in Assembly.Returns())
-            if (StackOf(Api.World, drop.Code) is { } stack)
-            {
-                stack.StackSize = drop.Count;
-                yield return stack;
-            }
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (_charge != null)
             yield return _charge.Clone();
         if (_amalgam != null)
             yield return _amalgam.Clone();
-    }
-
-    /// <summary>One of an item or block by its code; null when the game has neither.</summary>
-    public static ItemStack? StackOf(IWorldAccessor world, string code)
-    {
-        var loc = new AssetLocation(code);
-        if (world.GetItem(loc) is { } item)
-            return new ItemStack(item);
-        return world.GetBlock(loc) is { Id: > 0 } block ? new ItemStack(block) : null;
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -566,10 +478,6 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        var build = new TreeAttribute();
-        foreach (var (key, count) in Assembly.Build.Snapshot())
-            build.SetInt(key, count);
-        tree[BuildKey] = build;
         tree.SetInt("mercury", _batch.Mercury);
         tree.SetInt("items", _batch.Items);
         tree.SetDouble("water", _batch.Water);
@@ -581,7 +489,6 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         foreach (var (code, units) in _carry.Held)
             carry.SetDouble(code, units);
         tree["carry"] = carry;
-        tree.SetBool("held", _held);
         if (Api?.Side == EnumAppSide.Server)
             tree.SetInt("need", MercuryNeeded());
     }
@@ -597,14 +504,6 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        var snapshot = new Dictionary<string, int>();
-        if (tree[BuildKey] is ITreeAttribute build)
-            foreach (var (key, value) in build)
-                if (value is IntAttribute n)
-                    snapshot[key] = n.value;
-        var spec = AmalgamPanSystem.Of(worldForResolving.Api).Build
-                   ?? new MachineBuild(AmalgamPanSystem.MachineId, null, FeedMode.Batch, [], []);
-        _assembly = MachineAssembly.Restore(spec, snapshot, new Dictionary<string, (string Code, double Left)>(), out _);
         _charge = Resolve(tree.GetItemstack("charge"), worldForResolving);
         _amalgam = Resolve(tree.GetItemstack("amalgam"), worldForResolving);
         _batch = AmalgamPanBatch.Restore(tree.GetInt("mercury"), _charge?.StackSize ?? 0, tree.GetDouble("water"),
@@ -616,10 +515,7 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
                     carry[code] = d.value;
         _carry.Restore(carry);
         if (worldForResolving.Side == EnumAppSide.Client)
-        {
-            _held = tree.GetBool("held");
             _syncedNeed = tree.GetInt("need");
-        }
     }
 
     private static ItemStack? Resolve(ItemStack? stack, IWorldAccessor world) =>
@@ -642,15 +538,13 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The mercury, then a worked charge's amalgam, or the charge, its water and the mercury its
+    /// amalgam takes, and while it cannot be worked how far it is (the state says it is not working).</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        string L(string key, params object[] args) => Lang.Get(AmalgamPanSystem.Domain + ":amalgampan-" + key, args);
-        if (!Complete)
-        {
-            dsc.AppendLine(L("info-next", NextName()));
+        if (!Built)
             return;
-        }
+        string L(string key, params object[] args) => Lang.Get(AmalgamPanSystem.Domain + ":amalgampan-" + key, args);
         dsc.AppendLine(L("info-mercury", _batch.Mercury, Config.MercuryCapacityPortions));
         if (_batch.Worked)
         {
@@ -667,10 +561,15 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
         int need = MercuryNeeded();
         if (need > 0)
             dsc.AppendLine(L("info-needs", need));
-        int percent = (int)Math.Floor(_batch.Progress(Config) * 100 + 1e-9);
-        var why = CanWork();
-        dsc.AppendLine(why != PanRefusal.None ? L("info-waiting", percent)
-            : Working ? L("info-working", percent)
-            : L("info-ready", percent));
+        if (CanWork() != PanRefusal.None)
+            dsc.AppendLine(L("info-waiting", (int)Math.Floor(_batch.Progress(Config) * 100 + 1e-9)));
+    }
+
+    /// <summary>For a wrench: the muller's turns on the charge, of the turns it takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (_batch.Charged && !_batch.Worked)
+            dsc.AppendLine(Lang.Get(AmalgamPanSystem.Domain + ":amalgampan-info-turns",
+                _batch.Turns.ToString("0.##", CultureInfo.InvariantCulture), Config.TurnsFor(_batch.Items).ToString("0.##", CultureInfo.InvariantCulture)));
     }
 }

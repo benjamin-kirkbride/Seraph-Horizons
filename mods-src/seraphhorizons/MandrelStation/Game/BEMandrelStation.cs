@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.MandrelStation.Core;
@@ -13,65 +13,56 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.MandrelStation;
 
 /// <summary>
-/// The mandrel station's controller. Holds the fitted mandrel (its code), the hollow section on it as
-/// its item stack, and the forging (<see cref="ForgeJob"/>: the blows struck and W, 0..1). The player
-/// forges as on the anvil: each right-click with a hammer is a blow (the anvil's sound and sparks at
-/// <c>strike.pos</c>, the hammer's durability paid; a hammer of a higher tool tier forges more a blow),
-/// and at the blow that finishes the hollow two pipe sections of the
-/// hollow's metal drop beyond the tip. With right-click held after a hollow is finished, a blow on
-/// the bare mandrel puts another of the same on from the player's hotbar. The mandrel, once fitted, comes out only by breaking. The server keeps the ghost cell stamped; the client
-/// draws the station (<see cref="MandrelStationRenderer"/>, through <see cref="IMandrelStationView"/>).
-/// <para>Its second job winds a spring (<see cref="Winding"/>): a hot steel rod goes on a fitted, bare
-/// mandrel, and the player winds it by holding right-click with tongs, as on the quern; it winds only
-/// while the rod is at working temperature (the anvil's rule), and the spring comes off at the rod's
+/// The mandrel station's controller, on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/mandrelstation.json</c>, the mandrel, its cell, its block info, its renderer). It
+/// keeps the hollow section on the mandrel as its item stack and the forging (<see cref="MachineJob"/>: W,
+/// 0..1, its steps the blows struck). The player forges as on the anvil: each right-click with a hammer is
+/// a blow (the anvil's sound and sparks at <c>strike.pos</c>, the hammer's durability paid; a hammer of a
+/// higher tool tier forges more a blow), and at the blow that finishes the hollow two pipe sections of the
+/// hollow's metal drop beyond the tip. With right-click held after a hollow is finished, a blow on the bare
+/// mandrel puts another of the same on from the player's hotbar. The mandrel, once fitted, comes out only
+/// by breaking.
+/// <para>Its second job winds a spring (<see cref="Winding"/>), and that is the station's hand work
+/// (<see cref="BEMachine.HandWorked"/>): a hot steel rod goes on a fitted, bare mandrel, and the player
+/// winds it by holding right-click with tongs, as on the quern; it winds only while the rod is at working
+/// temperature (the anvil's rule), its parts glowing by it, and the spring comes off at the rod's
 /// temperature. Ctrl + right-click takes the rod back, straight, at any time (to reheat it).</para>
 /// The rules are MandrelStation/Core's.
 /// </summary>
-public class BEMandrelStation : BlockEntity, IMandrelStationView
+public class BEMandrelStation : BEMachine
 {
-    private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation HollowSound = new("game", "sounds/block/chute");
     private static readonly AssetLocation BlowSound = new("game", "sounds/effect/anvilhit");
     private static readonly AssetLocation SectionSound = new("game", "sounds/block/chute");
     private static readonly AssetLocation RodSound = new("game", "sounds/block/ingot");
     // The server syncs the winding's W at least this often; the renderer follows the held clock between.
     private const double WindSyncStep = 0.02;
-    // A client's own player holding right-click counts as winding for this long after its last step.
-    private const long LocalHoldMs = 250;
+    private static readonly Float3 StrikeFallback = new(0.5f, 0.75f, 1f);
 
-    private string? _mandrel;
     private ItemStack? _hollow;
-    private ForgeJob _job = ForgeJob.None;
+    private MachineJob _job = MachineJob.None;
     private ItemStack? _rod;
-    private WindJob _wind = WindJob.None;
-    private readonly WindHolds _holds = new();
-    private bool _held;
+    private MachineJob _wind = MachineJob.None;
     private string? _lastWinder;
     private bool _toldCold;
-    private long _localHeldAt = long.MinValue / 2;
     private double? _serverTurnsPerRod;
     private long _lastBlowAt = long.MinValue / 2;
     private string? _lastFinished;
     private string? _lastClickBy;
     private long _lastClickAt = long.MinValue / 2;
     private int? _serverBlowsNeeded;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private Dictionary<Int3, Cuboidf[]>? _collision;
-    private MandrelStationRenderer? _renderer;
+    private readonly MandrelStationClock _clock = new();
 
-    public Side Side { get; private set; } = Side.North;
     /// <summary>The fitted mandrel's code, or null.</summary>
-    public string? Mandrel => _mandrel;
-    /// <summary>The mandrel is fitted: the station works.</summary>
-    public bool Complete => _mandrel != null;
+    public string? Mandrel => Assembly is { Built: true } a ? a.Build.CodeIn(0, 0) : null;
     /// <summary>A hollow is on the mandrel.</summary>
     public bool HollowOn => _job.On && _hollow != null;
     public ItemStack? Hollow => _hollow;
-    public ForgeJob Job => _job;
+    public MachineJob Job => _job;
     /// <summary>A steel rod is on the mandrel, being wound into a spring.</summary>
     public bool RodOn => _wind.On && _rod != null;
     public ItemStack? Rod => _rod;
-    public WindJob Wind => _wind;
+    public MachineJob Wind => _wind;
     /// <summary>Work is on the mandrel: a hollow or a rod.</summary>
     public bool WorkOn => HollowOn || RodOn;
     /// <summary>The hollow on: 1 lead, 2 copper, 0 none (a rod is not a hollow).</summary>
@@ -81,237 +72,81 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// with none); a better hammer takes fewer.</summary>
     public int BlowsNeeded => _job.On ? _serverBlowsNeeded ?? Config.BlowsPerHollow(_job.Class) : 0;
 
-    // IMandrelStationView
-    public bool PartFitted(string? requires) => MandrelPart.Fitted(requires, _mandrel);
-    public string? MandrelMetal => MandrelPart.MetalOf(_mandrel);
+    /// <summary>The fitted mandrel's metal (<c>iron</c>, <c>meteoriciron</c>, <c>steel</c>), or null.</summary>
+    public string? MandrelMetal => MandrelPart.MetalOf(Mandrel);
+    /// <summary>The job on the mandrel: 1 a lead hollow, 2 a copper one, 3 a rod being wound, 0 none.</summary>
     public int JobClass => HollowOn ? _job.Class : RodOn ? Winding.SpringClass : 0;
+    /// <summary>The server's W: the forging of the hollow on, or the winding of the rod, 0..1.</summary>
     public double JobWork => RodOn ? _wind.Work : _job.Work;
-    public int Blows => _job.Blows;
-    public bool Held =>
-        _held || Api is { Side: EnumAppSide.Client } && Api.World.ElapsedMilliseconds - _localHeldAt <= LocalHoldMs;
+    /// <summary>The blows struck on the hollow on so far.</summary>
+    public int Blows => _job.Steps;
     public double TurnsPerRod => _serverTurnsPerRod ?? Config.TurnsPerRod;
     public float RodTemperature => _rod is { } rod && Api != null ? rod.Collectible.GetTemperature(Api.World, rod) : 0;
 
     private MandrelStationSystem System => MandrelStationSystem.Of(Api);
     private MandrelStationConfig Config => System.Config;
-    private MandrelStationRig? Rig => System.Rig;
+    private new MandrelStationRig? Rig => base.Rig as MandrelStationRig;
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-        {
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(_ => EnsureGhosts(), 1000);
-            RegisterGameTickListener(OnWindTick, 50);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 250);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockMandrelStation)
-                _renderer = new MandrelStationRenderer(capi, this, this, rig);
-        }
-    }
+    // The winding is the station's hand work; a hammer's blows are clicks of their own.
+    protected override bool HandWorked => true;
+    protected override int TickMs => 50;
+    public override int RenderRange => 48;
 
-    // ---- Footprint ----
-
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
-
-    /// <summary>Every ghost cell's world position.</summary>
-    public IEnumerable<BlockPos> GhostCells() =>
-        Rig is { } rig ? rig.GhostCells.Select(c => CellPos(c.Pos)) : [];
-
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Lookup(_cells, cellPos);
-
-    /// <summary>A cell's selection boxes and the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Lookup(_collision, cellPos);
-
-    private Cuboidf[]? Lookup(Dictionary<Int3, Cuboidf[]>? table, BlockPos cellPos) =>
-        table?.GetValueOrDefault(Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
-            return;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
-        foreach (var c in rig.Cells)
-            if (c.LidBox is { } lid)
-                collision[c.Pos] = [.. cells[c.Pos], World(lid)];
-        _cells = cells;
-        _collision = collision;
-    }
-
-    private Block? GhostBlock() => Api.World.GetBlock(new AssetLocation(MandrelStationSystem.Domain, "mandrelstation-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock() is not { } ghost)
-            return;
-        foreach (var pos in GhostCells())
-            StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEMandrelStationGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores the ghost cell if it went missing, and points it back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock() is not { } expected)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEMandrelStationGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockMandrelStationGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-            if (ba.GetBlock(pos) is BlockMandrelStationGhost && ba.GetBlockEntity(pos) is BEMandrelStationGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
-    }
+    /// <summary>Work on the mandrel, a hollow to strike or a rod to wind; only the rod is worked by holding.</summary>
+    public override bool HasWork => WorkOn;
+    public override double? WorkProgress => RodOn ? _wind.Progress : HollowOn ? _job.Progress : null;
 
     // ---- Interaction ----
 
     /// <summary>
-    /// Right-click on the station or its ghost. Ctrl takes back: in creative mode with no mandrel it
-    /// fits an iron one with nothing taken; else a hollow not yet struck comes off, or a rod at any time
-    /// (the mandrel is a part, not a consumable: it comes out only by breaking the station). With a rod
-    /// on, any other click (Shift aside) starts winding it, held as on the quern, with tongs in either
-    /// hand (<see cref="OnWorkStep"/>). A rod of iron, meteoric iron or steel is fitted as the mandrel on
-    /// a bare station; on a fitted, bare mandrel a hot steel rod goes on to be wound (a cold one is
-    /// refused); a lead or copper hollow section goes on a bare mandrel; a hammer strikes a blow. Anything else is the item's own business.
-    /// Decided and done on the server; the client says whether the click is the station's.
+    /// The station's own right-click, before its build's. Ctrl (Shift aside) takes back, but for the
+    /// creative shortcut: a rod at any time, else a hollow not yet struck (the mandrel is a part, not a
+    /// consumable: it comes out only by breaking the station). With a rod on, any other click (Shift aside)
+    /// starts winding it, held as on the quern, with tongs in either hand (<see cref="OnInteractStep"/>).
+    /// On a fitted station any mandrel rod is the rod's business (<see cref="OfferRod"/>): a hot steel rod on
+    /// a bare mandrel to be wound, else refused with a message.
     /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
-        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
         bool server = Api.Side == EnumAppSide.Server;
-        if (take)
+        if (controls.CtrlKey && !controls.ShiftKey && !CreativeShortcut(byPlayer))
         {
-            if (!server)
-                return true;
-            if (CreativeShortcutApplies(byPlayer))
-                FitCreativeMandrel(byPlayer);
-            else if (RodOn)
-                TakeRod(byPlayer);
-            else
-                TakeBack(byPlayer);
+            if (server)
+            {
+                if (RodOn)
+                    TakeRod(byPlayer);
+                else
+                    TakeBack(byPlayer);
+            }
             return true;
         }
         if (RodOn && !controls.ShiftKey)
             return StartWinding(byPlayer);
-        if (MandrelPart.IsMandrel(code))
+        if (Built && MandrelPart.IsMandrel(slot.Itemstack?.Collectible?.Code?.ToString()))
         {
             if (server)
-                OfferRod(slot!, byPlayer);
+                OfferRod(slot, byPlayer);
             return true;
         }
+        return null;
+    }
+
+    /// <summary>The station's own right-click, after its build's: a lead or copper hollow section goes on a
+    /// bare mandrel; a hammer strikes a blow. Anything else is the item's own business.</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
+    {
+        string? code = slot.Itemstack?.Collectible?.Code?.ToString();
+        bool server = Api.Side == EnumAppSide.Server;
         if (Forging.ClassOfHollow(code) != 0 && !WorkOn)
-            return !server || TryLoadHollow(slot!, byPlayer);
-        if (Forging.IsHammer(code) && !controls.ShiftKey)
+            return !server || TryLoadHollow(slot, byPlayer);
+        if (Forging.IsHammer(code) && !byPlayer.Entity.Controls.ShiftKey)
         {
             if (server)
-                StrikeBy(byPlayer, slot!);
+                StrikeBy(byPlayer, slot);
             return true;
         }
         return false;
-    }
-
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a station with no mandrel.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
-    {
-        var controls = byPlayer.Entity.Controls;
-        return !Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fits an iron mandrel with nothing taken.</summary>
-    public bool FitCreativeMandrel(IPlayer? byPlayer)
-    {
-        if (Complete)
-            return false;
-        if (Api.World.GetItem(new AssetLocation(MandrelPart.Codes[0])) is not { } item)
-        {
-            Api.Logger.Warning("[seraphhorizons] Mandrel station: no {0} for the creative shortcut", MandrelPart.Codes[0]);
-            return false;
-        }
-        return TryFitMandrel(new DummySlot(new ItemStack(item)), byPlayer, free: true);
-    }
-
-    /// <summary>Fits the rod in <paramref name="slot"/> as the mandrel (server side); false, with an
-    /// error to the player, when one is already in. One item is taken from the slot unless the player
-    /// is in creative mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitMandrel(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        switch (MandrelPart.CanFit(code, _mandrel))
-        {
-            case MandrelFitVerdict.Fits:
-                break;
-            case MandrelFitVerdict.AlreadyFitted:
-                return Error(byPlayer, "error-mandrel-fitted");
-            default:
-                return false;
-        }
-        _mandrel = MandrelPart.Normalise(code);
-        if (!free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(1);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(LatchSound, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        return true;
     }
 
     /// <summary>Ctrl + right-click (server side): a hollow not yet struck comes off. A hollow being
@@ -337,7 +172,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// (<see cref="TryLoadHollow"/>). Returns whether one went on.</summary>
     public bool RefillFromHotbar(IPlayer byPlayer)
     {
-        if (Api.Side != EnumAppSide.Server || WorkOn || !Complete
+        if (Api.Side != EnumAppSide.Server || WorkOn || !Built
             || byPlayer.InventoryManager?.GetHotbarInventory() is not { } hotbar)
             return false;
         var codes = Enumerable.Range(0, hotbar.Count).Select(i => hotbar[i]?.Itemstack?.Collectible?.Code?.ToString()).ToList();
@@ -354,7 +189,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     public bool TryLoadHollow(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        switch (Forging.CanLoad(code, Complete, WorkOn))
+        switch (Forging.CanLoad(code, Built, WorkOn))
         {
             case HollowLoadVerdict.Loads:
                 break;
@@ -375,8 +210,8 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     private void Load(ItemStack hollow)
     {
         _hollow = hollow;
-        _job = new ForgeJob(Forging.ClassOfHollow(hollow.Collectible.Code.ToString()), 0, 0);
-        var at = WorldPoint(Rig?.Strike ?? new Float3(0.5f, 0.75f, 1f));
+        _job = Forging.Start(Forging.ClassOfHollow(hollow.Collectible.Code.ToString()));
+        var at = WorldPoint(Rig?.Strike ?? StrikeFallback);
         Api.World.PlaySoundAt(HollowSound, at.X, at.Y, at.Z);
         MarkDirty(true);
     }
@@ -384,7 +219,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     private void ClearJob()
     {
         _hollow = null;
-        _job = ForgeJob.None;
+        _job = MachineJob.None;
     }
 
     private void Give(IPlayer byPlayer, ItemStack stack)
@@ -393,11 +228,34 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
     }
 
+    /// <summary>The station's own message (<c>seraphhorizons:mandrelstation-{key}</c>) to the player; false.</summary>
     private bool Error(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
             sp.SendIngameError("mandrelstation-" + key, Lang.GetL(sp.LanguageCode, MandrelStationSystem.Domain + ":mandrelstation-" + key, args));
         return false;
+    }
+
+    /// <summary>The help once built: a hollow or a hot rod goes on a bare mandrel; a hammer strikes the hollow,
+    /// and Ctrl takes it back while it is unstruck; tongs wind the rod, and Ctrl takes it back.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => MandrelStationSystem.Domain + ":blockhelp-mandrelstation-" + action;
+        var world = Api.World;
+        if (!WorkOn && Stacks(world, [Forging.LeadHollow, Forging.CopperHollow], 1) is { Length: > 0 } hollows)
+            help.Add(new WorldInteraction { ActionLangCode = Key("loadhollow"), MouseButton = EnumMouseButton.Right, Itemstacks = hollows });
+        if (!WorkOn && SpringItem() != null && Stacks(world, [Winding.SteelRod], 1) is { Length: > 0 } rods)
+            help.Add(new WorldInteraction { ActionLangCode = Key("loadrod"), MouseButton = EnumMouseButton.Right, Itemstacks = rods });
+        if (HollowOn && Stacks(world, ["game:hammer-*"], 1) is { Length: > 0 } hammers)
+            help.Add(new WorldInteraction { ActionLangCode = Key("strike"), MouseButton = EnumMouseButton.Right, Itemstacks = hammers });
+        if (HollowOn && _job.Untouched)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takehollow"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+        if (RodOn)
+        {
+            var tongs = world.Items.Where(i => i?.Code != null && !i.IsMissing && i.Tool == EnumTool.Tongs).Select(i => new ItemStack(i)).ToArray();
+            help.Add(new WorldInteraction { ActionLangCode = Key("wind"), MouseButton = EnumMouseButton.Right, Itemstacks = tongs.Length > 0 ? tongs : null });
+            help.Add(new WorldInteraction { ActionLangCode = Key("takerod"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+        }
     }
 
     // ---- Winding ----
@@ -419,18 +277,16 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         return (t, workable, melt > 0 && t >= workable);
     }
 
-    /// <summary>A rod right-clicked on the station (server side): fitted as the mandrel on a bare
-    /// station, put on to be wound when it is a hot steel rod on a fitted, bare mandrel
-    /// (<see cref="Winding.ForRod"/>), else refused with a message.</summary>
+    /// <summary>A rod right-clicked on the fitted station (server side): put on to be wound when it is a hot
+    /// steel rod on a bare mandrel (<see cref="Winding.ForRod"/>), else refused with a message. On a bare
+    /// station a rod is the build's: it is fitted as the mandrel.</summary>
     public bool OfferRod(ItemSlot slot, IPlayer? byPlayer)
     {
         var stack = slot.Itemstack;
         string? code = stack?.Collectible?.Code?.ToString();
         var heat = stack != null && Winding.IsRod(code) ? Heat(stack) : default;
-        switch (Winding.ForRod(code, _mandrel, WorkOn, SpringItem() != null, heat.Hot))
+        switch (Winding.ForRod(code, Mandrel, WorkOn, SpringItem() != null, heat.Hot))
         {
-            case RodVerdict.Mandrel:
-                return TryFitMandrel(slot, byPlayer);
             case RodVerdict.AlreadyFitted:
                 return Error(byPlayer, "error-mandrel-fitted");
             case RodVerdict.Occupied:
@@ -448,15 +304,15 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// its stack (and so its temperature) kept: no checks but that the station takes one now.</summary>
     public bool TryLoadRod(ItemSlot slot, IPlayer? byPlayer)
     {
-        if (!Complete || WorkOn || slot.Itemstack is not { } stack || !Winding.IsRod(stack.Collectible?.Code?.ToString()))
+        if (!Built || WorkOn || slot.Itemstack is not { } stack || !Winding.IsRod(stack.Collectible?.Code?.ToString()))
             return false;
         if (SpringItem() == null)
             return Error(byPlayer, "error-mandrel-fitted");
         _rod = slot.TakeOut(1);
         slot.MarkDirty();
-        _wind = WindJob.Start;
+        _wind = Winding.Start();
         _toldCold = false;
-        var at = WorldPoint(Rig?.Strike ?? new Float3(0.5f, 0.75f, 1f));
+        var at = WorldPoint(Rig?.Strike ?? StrikeFallback);
         Api.World.PlaySoundAt(RodSound, at.X, at.Y, at.Z, null, true, 16, 0.6f);
         MarkDirty(true);
         return true;
@@ -479,9 +335,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     private void ClearRod()
     {
         _rod = null;
-        _wind = WindJob.None;
-        _holds.Clear();
-        _held = false;
+        _wind = MachineJob.None;
     }
 
     /// <summary>Whether <paramref name="player"/> holds tongs in either hand (the game's tongs, any
@@ -501,71 +355,37 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     private bool StartWinding(IPlayer byPlayer)
     {
         if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = Api.World.ElapsedMilliseconds;
             return true;
-        }
         if (!HasTongs(byPlayer))
             return Error(byPlayer, "error-no-tongs");
-        _holds.Hold(byPlayer.PlayerUID, Api.World.ElapsedMilliseconds);
         _lastWinder = byPlayer.PlayerUID;
-        UpdateHeld();
-        return true;
+        return StartHold(byPlayer);
     }
 
     /// <summary>
-    /// Right-click still held on the station (both sides, every tick, as the quern's grinding): the server
-    /// counts the player as winding while a rod is on and they hold tongs; the client marks its own player
-    /// as winding for the renderer. Whether the player goes on: while a rod is on.
+    /// Right-click still held on the station: the base's hand hold, the winding, only while a rod is on and
+    /// (on the server) the player holds tongs. A hammer's blows are clicks, not held: with no rod on the
+    /// step ends here and the client repeats the click.
     /// </summary>
-    public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
+    public override bool OnInteractStep(IPlayer byPlayer, float secondsUsed)
     {
-        long now = Api.World.ElapsedMilliseconds;
-        if (Api.Side == EnumAppSide.Client)
+        bool server = Api.Side == EnumAppSide.Server;
+        if (!RodOn || server && !HasTongs(byPlayer))
         {
-            if (!RodOn)
-                return false;
-            _localHeldAt = now;
-            return true;
-        }
-        if (!RodOn || !HasTongs(byPlayer))
-        {
-            Release(byPlayer);
+            if (server)
+                OnInteractStop(byPlayer);
             return false;
         }
-        _holds.Hold(byPlayer.PlayerUID, now);
-        _lastWinder = byPlayer.PlayerUID;
-        UpdateHeld();
-        return true;
+        if (server)
+            _lastWinder = byPlayer.PlayerUID;
+        return base.OnInteractStep(byPlayer, secondsUsed);
     }
 
-    /// <summary>The player let go.</summary>
-    public void Release(IPlayer byPlayer)
+    // The winding syncs itself as it goes (WindSyncStep), so the base's full sync is not asked for.
+    protected override bool WorkUnpowered(float dt)
     {
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = long.MinValue / 2;
-            return;
-        }
-        _holds.Release(byPlayer.PlayerUID);
-        UpdateHeld();
-    }
-
-    // The server's "someone is winding", synced when it changes.
-    private void UpdateHeld()
-    {
-        bool held = _holds.Any(Api.World.ElapsedMilliseconds) && RodOn && Complete;
-        if (held == _held)
-            return;
-        _held = held;
-        MarkDirty(false);
-    }
-
-    private void OnWindTick(float dt)
-    {
-        UpdateHeld();
-        if (_held)
-            WindBy(Winding.RadiansPerSecond * dt);
+        WindBy(Winding.RadiansPerSecond * dt);
+        return false;
     }
 
     /// <summary>Winds the rod by <paramref name="radians"/> of the held clock (server side): W advances by
@@ -575,7 +395,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// <c>TongsWearPerRod</c>. Returns the springs delivered.</summary>
     public int WindBy(double radians)
     {
-        if (!RodOn || !Complete)
+        if (!RodOn || !Built)
             return 0;
         var heat = Heat(_rod!);
         if (!heat.Hot)
@@ -587,7 +407,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         }
         _toldCold = false;
         var before = _wind;
-        (_wind, bool finished) = _wind.Advance(radians, Config.TurnsPerRod, heat.Hot);
+        (_wind, bool finished) = Winding.Advance(_wind, radians, Config.TurnsPerRod, heat.Hot);
         if (finished)
         {
             var spring = SpringItem();
@@ -625,7 +445,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         bool held = byPlayer.PlayerUID == _lastClickBy && Forging.Held(now - _lastClickAt);
         _lastClickBy = byPlayer.PlayerUID;
         _lastClickAt = now;
-        if (!Complete)
+        if (!Built)
             return Error(byPlayer, "error-no-mandrel");
         if (!HollowOn)
         {
@@ -654,11 +474,11 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// </summary>
     public int Blow(IPlayer? byPlayer = null, ItemSlot? hammer = null)
     {
-        if (!HollowOn || !Complete)
+        if (!HollowOn || !Built)
             return 0;
         int tier = hammer?.Itemstack?.Collectible?.ToolTier ?? 0;
-        (_job, bool finished) = _job.Strike(Config.BlowsPerHollow(_job.Class), tier, Config.BaseHammerTier);
-        var at = WorldPoint(Rig?.Strike ?? new Float3(0.5f, 0.75f, 1f));
+        (_job, bool finished) = Forging.Strike(_job, Config.BlowsPerHollow(_job.Class), tier, Config.BaseHammerTier);
+        var at = WorldPoint(Rig?.Strike ?? StrikeFallback);
         Api.World.PlaySoundAt(BlowSound, at.X, at.Y, at.Z, null, true, 16, 0.8f);
         Sparks(at);
         if (hammer?.Itemstack is { } stack && Config.HammerWearPerBlow > 0
@@ -675,6 +495,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
             if (SectionItem(k) is { } section)
                 Deliver(new ItemStack(section, Forging.SectionsPerHollow));
             MarkDirty(true);
+            RefreshState();
             return Forging.SectionsPerHollow;
         }
         MarkDirty(false);
@@ -707,15 +528,46 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         Api.World.PlaySoundAt(SectionSound, at.X, at.Y, at.Z);
     }
 
-    // The client's own: the client removes a broken station at once, and an update the server sent
-    // before it heard of the break then brings the block entity back over air: drop it.
-    private void OnClientTick(float dt)
+    // ---- The renderer's ----
+
+    /// <summary>The work (<c>hollowlead</c>, <c>hollowcopper</c>, <c>rodsteel</c>) while that job is on, as the
+    /// clock shows it; the mandrel as its stage is fitted.</summary>
+    public override bool ShowsPart(string? requires) =>
+        MandrelRequires.IsWork(requires) ? _clock.ShowsWork(requires!) : base.ShowsPart(requires);
+
+    /// <summary>The mandrel's texture follows its metal.</summary>
+    public override string TextureKey => MandrelMetal ?? "";
+
+    /// <summary>The block's textures with the mandrel's metal in place of <c>mandrel</c>.</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi) =>
+        new MandrelTextureSource(base.PartTextures(capi), MachineMeshes.MetalTexture(capi, MandrelMetal));
+
+    /// <summary>The rig's hot parts (its <c>wind.hot</c>) glow by the rod's temperature while one is wound,
+    /// the vanilla way (<c>AnvilWorkItemRenderer</c> and the like).</summary>
+    public override (Vec4f Colour, int Extra)? PartGlow(string? requires)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockMandrelStation)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-        }
+        if (requires == null || _clock.JobOn != Winding.SpringClass || Rig?.Wind?.Hot is not { } hot || !hot.Contains(requires))
+            return null;
+        int temp = (int)RodTemperature;
+        float[] glow = ColorUtil.GetIncandescenceColorAsColor4f(temp);
+        int extra = Winding.ExtraGlow(temp);
+        return (new Vec4f(glow[0], glow[1], glow[2], extra / 255f), extra);
+    }
+
+    /// <summary>The hammer's or the winding's clock θ, W eased to the server's after each blow or predicted
+    /// while wound, k and p (<see cref="MandrelStationClock"/>).</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        _clock.Advance(dt, JobClass, JobWork, Blows, Held, TurnsPerRod);
+        return _clock.Input();
+    }
+
+    /// <summary>The block's textures with the mandrel's metal in place of <c>mandrel</c>.</summary>
+    private sealed class MandrelTextureSource(ITexPositionSource inner, TextureAtlasPosition? mandrel) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+        public TextureAtlasPosition this[string textureCode] =>
+            textureCode == "mandrel" && mandrel != null ? mandrel : inner[textureCode]!;
     }
 
     // ---- Breaking ----
@@ -723,33 +575,14 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// <summary>What breaking the frame gives besides the frame: the mandrel, and the hollow if it has
     /// not been struck yet, or the rod if it has not been wound yet (once work has begun, it is lost with
     /// the station).</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        if (_mandrel != null && Api.World.GetItem(new AssetLocation(_mandrel)) is { } item)
-            yield return new ItemStack(item);
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (HollowOn && _job.Untouched)
             yield return _hollow!.Clone();
         if (RodOn && _wind.Untouched)
             yield return _rod!.Clone();
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -757,23 +590,18 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        if (_mandrel != null)
-            tree.SetString("mandrel", _mandrel);
-        else
-            tree.RemoveAttribute("mandrel");
         if (HollowOn)
             tree.SetItemstack("hollow", _hollow);
         else
             tree.RemoveAttribute("hollow");
         tree.SetInt("class", _job.Class);
-        tree.SetInt("blows", _job.Blows);
+        tree.SetInt("blows", _job.Steps);
         tree.SetDouble("work", _job.Work);
         if (RodOn)
             tree.SetItemstack("rod", _rod);
         else
             tree.RemoveAttribute("rod");
         tree.SetDouble("wound", _wind.Work);
-        tree.SetBool("held", _held);
         if (Api?.Side == EnumAppSide.Server)
         {
             tree.SetInt("needed", Config.BlowsPerHollow(_job.Class));
@@ -784,22 +612,21 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        _mandrel = MandrelPart.Restore(tree.GetString("mandrel"));
+        bool built = Built;
         _hollow = tree.GetItemstack("hollow");
         if (_hollow != null && !_hollow.ResolveBlockOrItem(worldForResolving))
             _hollow = null;
-        _job = _hollow == null || _mandrel == null ? ForgeJob.None : ForgeJob.Restore(tree.GetInt("class"), tree.GetInt("blows"), tree.GetDouble("work"));
+        _job = _hollow == null || !built ? MachineJob.None : Forging.Restore(tree.GetInt("class"), tree.GetInt("blows"), tree.GetDouble("work"));
         if (!_job.On)
             _hollow = null;
         _rod = tree.GetItemstack("rod");
-        if (_rod != null && (!_rod.ResolveBlockOrItem(worldForResolving) || _job.On || _mandrel == null))
+        if (_rod != null && (!_rod.ResolveBlockOrItem(worldForResolving) || _job.On || !built))
             _rod = null;
-        _wind = WindJob.Restore(_rod != null, tree.GetDouble("wound"));
+        _wind = Winding.Restore(_rod != null, tree.GetDouble("wound"));
         if (worldForResolving.Side == EnumAppSide.Client)
         {
             _serverBlowsNeeded = tree.TryGetInt("needed") is > 0 and var n ? n : null;
             _serverTurnsPerRod = tree.TryGetDouble("turnsPerRod") is > 0 and var t ? t : null;
-            _held = tree.GetBool("held") && RodOn;
         }
     }
 
@@ -820,20 +647,28 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The hollow on the mandrel, its blows and how far it is forged; or the rod, its heat and how far
+    /// it is wound.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
         string L(string key, params object[] args) => Lang.Get(MandrelStationSystem.Domain + ":mandrelstation-" + key, args);
-        if (!Complete)
-            dsc.AppendLine(L("info-next"));
-        else if (HollowOn)
-            dsc.AppendLine(L("info-hollow", L("metal-" + Forging.MetalOf(_job.Class)), _job.Blows, (int)Math.Floor(_job.Work * 100 + 1e-6)));
+        if (HollowOn)
+            dsc.AppendLine(L("info-hollow", L("metal-" + Forging.MetalOf(_job.Class)), _job.Steps, (int)Math.Floor(_job.Work * 100 + 1e-6)));
         else if (RodOn)
         {
             var heat = Heat(_rod!);
             dsc.AppendLine(L(heat.Hot ? "info-rod" : "info-rod-cold", (int)Math.Floor(_wind.Work * 100 + 1e-6), (int)heat.Temperature, (int)heat.Workable));
         }
-        else
-            dsc.AppendLine(L("info-empty"));
+    }
+
+    /// <summary>For a wrench: the forging's W exactly and the blows a hollow of its metal takes with the base
+    /// hammer, or the winding's W and the turns a rod takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        string F(double v, string format) => v.ToString(format, CultureInfo.InvariantCulture);
+        if (HollowOn)
+            dsc.AppendLine(Lang.Get(MandrelStationSystem.Domain + ":mandrelstation-info-forge", F(_job.Work, "0.000"), BlowsNeeded));
+        else if (RodOn)
+            dsc.AppendLine(Lang.Get(MandrelStationSystem.Domain + ":mandrelstation-info-wind", F(_wind.Work, "0.000"), F(TurnsPerRod, "0.##")));
     }
 }

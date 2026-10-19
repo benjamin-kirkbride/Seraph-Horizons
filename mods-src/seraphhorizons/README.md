@@ -2800,19 +2800,20 @@ plate into an angle; two angles, two solder bars and a soldering iron make a hol
 grid; the brake takes nothing else, so the shear is the only way to an angle. Its model, rig and
 generator are described in `SquaringShear/README.md`, which also records the
 gameplay's decisions; this is the gameplay, in `SquaringShear/` (rules in `SquaringShear/Core/`, the
-game side in `SquaringShear/Game/`). A hand machine: no mechanical power, no oil, and nothing on it
-wears.
+game side in `SquaringShear/Game/`, on the shared machine base: docs/modeling/machine-base.md). A hand
+machine: no mechanical power, no oil, and nothing on it wears.
 
 **Blocks and item.** `seraphhorizons:squaringshear-frame-{side}` is the controller: the table end, the
 block the player clicks, with the shear running two blocks away from them along their line of sight
-and a ghost in the far cell (`squaringshear-ghost`). The frame is a grid recipe: three oak planks (the
+and the shared machine cell in the far cell (`machine-cell`). The frame is a grid recipe: three oak planks (the
 table, the crosshead, the treadle), two oak logs (the cheeks and housings), four nails and strips of
 iron, meteoric iron or steel (the treadle's pivots, the links, the crosshead's shoes) and a hammer.
 The half plate (`itemtypes/halfplate.json`) is made only on the shear, stacks to 16 and melts back into
 one ingot.
 
-**Stages.** Fitted by right-click on the frame or the ghost with the item, one item each, in this
-order only; the gauge before the blades is refused with a message naming the next:
+**Stages.** Fitted by right-click on the frame or the cell with the item, one item each, in this
+order only (`config/builds/squaringshear.json`, the shared staged build); the gauge before the blades is
+refused with a message naming the next:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
@@ -2832,7 +2833,10 @@ cut cycle W (0..1) advances by its strokes over the plate's `StrokesPerPlateLead
 hold-down clamps the plate, the treadle brings the blade down through it (the cut is heard at the
 bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal drop just
 outside the output face (native north, in front of the table end). Plates go on by hand only: the
-shear never takes from or puts into a chest or other container beside it. The block info shows the next stage and the plate on, how far cut.
+shear never takes from or puts into a chest or other container beside it. The block info is the shared
+layout: the next stage and what it takes, the state (empty, ready to be worked, cutting with its
+percent) and the plate on, how far cut; a wrench adds the cut's W and the treadle strokes a plate of its
+metal takes, and the shear's facing.
 
 **Drawn.** The block draws `squaringshear_frame.json`; the renderer splits `squaringshear.json` into the
 rig's parts and draws each whose stage is fitted (the blades, the gauge and the hold-down in their
@@ -2845,7 +2849,7 @@ while worked: the frame creaks.
 | `StrokesPerPlateLead` | 1 | Treadle strokes (seconds held) a lead plate takes; the rig's `cut.strokesPerPlate.thin` (a test holds them together) |
 | `StrokesPerPlateCopper` | 1.5 | Treadle strokes a copper plate takes; the rig's `cut.strokesPerPlate.thick` |
 
-With the switch off the server marks both block types, the half plate's item type and the recipe file
+With the switch off the server marks its block type, the half plate's item type and the recipe file
 disabled before the game loads them, so none of it exists and shears already placed and half plates
 already made are lost; the mod's own text no longer links the shear or the half plate. The plates and
 the parts it takes are the game's and exist either way. With the shear off, the press brake has nothing
@@ -2929,17 +2933,19 @@ is hammered down, blow by blow, into two pipe sections (`seraphhorizons:pipesect
 `UnifiedPipes`' item). Two angles and solder make a hollow; the draw bench makes four pipe sections of
 one; a pipe section and solder make a pipe. Its model, rig and generator are described in
 `MandrelStation/README.md`, which also records the gameplay's decisions; this is the gameplay, in
-`MandrelStation/` (rules in `MandrelStation/Core/`, the game side in `MandrelStation/Game/`). A hand
-station: no mechanical power, no oil, and nothing of it wears.
+`MandrelStation/` (rules in `MandrelStation/Core/`, the game side in `MandrelStation/Game/`, on the shared
+machine base: docs/modeling/machine-base.md). A hand station: no mechanical power, no oil, and nothing of
+it wears.
 
 **Blocks.** `seraphhorizons:mandrelstation-frame-{side}` is the controller: the stump, the block the
-player clicks, with the station running two blocks away from them along their line of sight and a ghost
-in the far cell, under the mandrel's tip (`mandrelstation-ghost`). The frame is a grid recipe: an oak log
+player clicks, with the station running two blocks away from them along their line of sight and the
+shared machine cell in the far cell, under the mandrel's tip (`machine-cell`). The frame is a grid recipe: an oak log
 (the stump), an iron or steel plate (the bracket and the swage), two nails and strips of iron, meteoric
 iron or steel (the hoop and the straps) and a hammer.
 
-**The mandrel.** Fitted by right-click on the stump or the ghost: `game:rod-iron`, `-meteoriciron` or
-`-steel` (smithing, the game's). In creative mode Ctrl + right-click on a station with no mandrel fits an
+**The mandrel.** Fitted by right-click on the stump or the cell: `game:rod-iron`, `-meteoriciron` or
+`-steel` (smithing, the game's), the one stage of `config/builds/mandrelstation.json` (the shared staged
+build). In creative mode Ctrl + right-click on a station with no mandrel fits an
 iron one with nothing taken. Once fitted, the mandrel stays in: the station has no consumable part to
 take out, and breaking the frame drops the frame, the mandrel and a hollow not yet struck (one being
 forged is lost). **Ctrl + right-click** takes a hollow back off before its first blow.
@@ -2955,8 +2961,11 @@ and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
 and two pipe sections of its metal drop just past the tip (native south). The station never takes
 from or puts into a chest or other container beside it. Right-click held
 with the hammer as a hollow is finished puts the next of the same item on from the player's hotbar (not
-the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
-station needs and the hollow on, its blows struck and how far it is forged.
+the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info is the
+shared layout: what the station needs, its state (bare, ready to be struck or wound, winding with its
+percent) and the hollow on, its blows struck and how far it is forged, or the rod, its heat and how far it
+is wound; a wrench adds W and the blows a hollow takes with the base hammer, or the turns a rod takes, and
+the station's facing.
 
 **Springs (`MandrelSprings`).** The station's second job winds a **steel spring**
 (`seraphhorizons:spring-steel`, `itemtypes/spring.json`: a square coil of six turns of steel wire, the
@@ -2995,7 +3004,7 @@ sides grow by stretching gauges, whole at p 0), W following the held clock, and 
 | `TurnsPerRod` | 8 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
 | `TongsWearPerRod` | 1 | Durability a spring costs the tongs it is wound with |
 
-With the switch off the server marks both block types and the recipe file disabled before the game
+With the switch off the server marks its block type and the recipe file disabled before the game
 loads them, so none of it exists and stations already placed are lost; the mod's own text no longer
 links it, and there are no springs. The hollows and the pipe sections exist either way (the sections are `UnifiedPipes`'; with
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
@@ -6023,8 +6032,10 @@ materials: four oak planks a slot for the box, its rockers, riffles, rails and h
 meteoric iron or steel for the riddle plate, plain linen for the apron, nails and strips and a hammer).
 The side is the way the placing player looks, so the handle is theirs (the native operator side is
 north) and the open foot is on their right. Its rockers stand on the block below: it needs a solid top
-there to be placed, and breaks when that goes. Nothing of it stands still, so its block draws nothing
-(`shapes/block/rocker_empty.json`) and `RockerRenderer` draws every rig part of `rocker.json`: the
+there to be placed, and breaks when that goes (the shared machine block's `attributes.machine.needsSolidGround`).
+It is on the shared machine base (docs/modeling/machine-base.md), a hand machine whose build has no stages.
+Nothing of it stands still, so its block draws nothing (`shapes/block/rocker_empty.json`) and the shared
+`MachineRenderer` draws every rig part of `rocker.json`: the
 cradle rocking (θ a turn a rock, coming to rest level at the next multiple of π when let go,
 `RockerClock`), the water while worked, the charge and the concentrate in the items' own textures, and
 splashes at the foot. The item is `rocker_item.json`.
@@ -6055,8 +6066,10 @@ it stops until they are cleaned. **Ctrl + empty-hand right-click** takes the cha
 the top is untouched. Each item washed is a rock of **tailings** (#694, the shared tailings code): the
 rocker's rule (`OreMachinesSettings.Tailings.rocker`, gravel, a layer a rock) in the feed's rock, as
 layered gravel heaped on the ground in the cell beyond the foot (the rig's `tailings` point). Breaking it
-drops the rocker, the charge (less an item half washed) and what is behind the riffles. The block info
-shows the charge and how far the item at the top is washed, and what lies behind the riffles.
+drops the rocker, the charge (less an item half washed) and what is behind the riffles. The block info is
+the shared layout: the state (rocking with its percent), the charge and how far the item at the top is
+washed, and what lies behind the riffles; a wrench adds the washing exactly, the rocks a second and the
+water poured not yet taken from the bucket.
 
 | Setting | Default | |
 |---|---|---|
@@ -6072,8 +6085,8 @@ a requirement, the outputs fractional; `RecipeSection.Rocker.cs`, `Recipes/Rocke
 `RockerSystem.YieldOf` by reflection). With `Rocker` (or `OreProcessing`) off the server marks the block
 type and the recipe disabled, so neither exists and rockers already placed are lost. Code:
 `Rocker/Core/` (`RockerConfig`, `RockerRig`, `Rocking.cs`: the feed, the state and the placer yield,
-`RockerClock`), `Rocker/Game/` (`RockerSystem`, `BlockRocker`, `BERocker`, `RockerWater`,
-`RockerRenderer`). Tests: `tests/Rocker/RockerGameplayTests.cs`, `RockerRigTests.cs`;
+`RockerClock`), `Rocker/Game/` (`RockerSystem`, `BERocker : BEMachine`, `RockerWater`; the block is the
+shared `BlockMachine`, drawn by the shared `MachineRenderer`). Tests: `tests/Rocker/RockerGameplayTests.cs`, `RockerRigTests.cs`;
 `tests/PackTests/RockerScenarios.cs` (Atlas: the block and recipe, solid ground and no transfer, crushed
 ore washed while held with water into its concentrate with the rest carried and tailings beyond the
 foot, riddled ore at the full figure and an untouched charge returned, rich gravel into the pan's
@@ -6088,13 +6101,15 @@ and recipe do not exist). How it plays, builds and draws is in `Riddle/README.md
 
 - **Building.** The frame (`seraphhorizons:riddle-frame-{side}`) is a grid recipe of six oak planks, one nails and
   strips of iron, meteoric iron or steel and a hammer; the riddle is fitted on it by right-click with two nails and
-  strips at once (its wire mesh). Breaking returns everything that went in and whatever it holds.
+  strips at once (its wire mesh; the one stage of `config/builds/riddle.json`, on the shared machine base:
+  docs/modeling/machine-base.md). Breaking returns everything that went in and whatever it holds.
 - **Riddling.** A charge is `LumpsPerCharge` (3) unclassified crushed ore of one kind, on in one click; holding
   right-click riddles it, a shake every 0.75 s, `ShakesPerCharge` (12) a charge. At the end `OversizePerCharge` (1)
   stays on the mesh as raw ore of its ore and grade (in its rock, the rock under the station, or granite), back to
   spalling, and the rest falls into the box as the same crushed ore with ore-core's classified flag (`oreState` 1,
   #765). Nothing is lost. An empty hand takes the oversize out, then the fines; the next charge waits until both are
-  out.
+  out. The block info is the shared layout (the build, the state, what it holds; a wrench adds W and the shakes a
+  charge takes).
 - **Recipe browser.** A `riddle` record per crushed ore (power `hand`, `work` in shakes).
 
 Code: `Riddle/Core/`, `Riddle/Game/`. Tests: `tests/Riddle/`; `tests/PackTests/RiddleScenarios.cs`,
@@ -6348,7 +6363,8 @@ client's and is not tested headless.
 
 The hand station of amalgamation (#718; machine form: the amalgamation plates, #917). Its model, rig
 and generator are described in `AmalgamPan/README.md`, which also records the model's decisions; this
-is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`).
+is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`, on the
+shared machine base: docs/modeling/machine-base.md, a hand machine that also takes an axle, with no oil).
 It needs `OreProcessing` too: with either switch off its block and recipe are left out
 (`AmalgamPanSystem.Disable`), and the mod's own text names it without a link.
 

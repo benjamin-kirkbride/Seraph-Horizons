@@ -10,9 +10,10 @@ namespace SeraphHorizons.Mod.Riddle.Core;
 /// operator to the north, one cell, the controller's (0,0,0), blocks. The keys are the model's contract
 /// with gameplay (Riddle/README.md, "Rig schema"); unknown keys are ignored. A hand station with no
 /// automated input or output: a rig naming a power cell or face, or an infeed or output side, face, cell
-/// or point, is refused. Throws <see cref="FormatException"/> naming what is wrong.
+/// or point, is refused, and it has no anchors for the shared machine base (<see cref="IMachineRig"/>).
+/// Throws <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class RiddleRig
+public sealed class RiddleRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     /// <summary>Where the operator stands.</summary>
@@ -27,6 +28,13 @@ public sealed class RiddleRig
     /// <summary>Shakes a charge, as the model is drawn (<c>riddling.shakesPerCharge.thin</c>).</summary>
     public float ShakesPerCharge { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>None: a hand station takes no axle, chute or pipe.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+
+    public MachineAnchor? Anchor(string name) => null;
 
     public RiddleRig(IReadOnlyList<RigCell> cells, Side operatorSide, Float3 fines, Float3 charge, WorkQuantity work,
                      int lumpsPerCharge, float shakesPerCharge, RigParts? movingParts = null)

@@ -8,6 +8,9 @@ namespace SeraphHorizons.Tests.Riddle;
 /// split into fines and oversize with nothing lost, the settings' bounds and the renderer's clock.</summary>
 public class RiddleGameplayTests
 {
+    private static MachineBuild Build() =>
+        MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "riddle.json")));
+
     private const string Crushed = "seraphhorizons:crushedore-hematite-medium";
 
     [Fact]
@@ -43,54 +46,65 @@ public class RiddleGameplayTests
     [Fact]
     public void A_charge_is_riddled_in_its_shakes_and_no_further()
     {
-        var job = RiddleJob.Start;
+        var job = Riddling.Start();
         Assert.True(job.Untouched);
         double shake = 2 * Math.PI;
         bool finished = false;
         for (int i = 0; i < 11; i++)
         {
-            (job, finished) = job.Advance(shake, 12);
+            (job, finished) = Riddling.Advance(job, shake, 12);
             Assert.False(finished);
         }
         Assert.False(job.Untouched);
         Assert.Equal(11.0 / 12, job.Work, 6);
-        (job, finished) = job.Advance(shake, 12);
+        (job, finished) = Riddling.Advance(job, shake, 12);
         Assert.True(finished);
         Assert.True(job.Done);
-        (job, finished) = job.Advance(shake, 12);
+        (job, finished) = Riddling.Advance(job, shake, 12);
         Assert.False(finished);
         Assert.Equal(1, job.Work);
         // the pace: twelve shakes at 0.75 s are 9 s of holding
         Assert.Equal(1.0 / 9, Riddling.ChargesFor(Riddling.ShakeRadiansPerSecond, 12), 6);
-        Assert.Equal(1, RiddleJob.ShakesCrossed(0.08, 0.09, 12));
-        Assert.Equal(0, RiddleJob.ShakesCrossed(0.09, 0.1, 12));
-        Assert.Equal(RiddleJob.None, RiddleJob.Restore(false, 0.5));
-        Assert.Equal(0.5, RiddleJob.Restore(true, 0.5).Work);
-        Assert.Equal(1, RiddleJob.Restore(true, 7).Work);
-        Assert.Equal(0, RiddleJob.Restore(true, double.NaN).Work);
+        Assert.Equal(1, Riddling.ShakesCrossed(0.08, 0.09, 12));
+        Assert.Equal(0, Riddling.ShakesCrossed(0.09, 0.1, 12));
+        Assert.Equal(MachineJob.None, Riddling.Restore(false, 0.5));
+        Assert.Equal(0.5, Riddling.Restore(true, 0.5).Work);
+        Assert.Equal(1, Riddling.Restore(true, 7).Work);
+        Assert.Equal(0, Riddling.Restore(true, double.NaN).Work);
     }
 
     [Fact]
     public void The_riddle_is_fitted_with_two_nails_and_strips_and_kept()
     {
-        var parts = new RiddleParts();
-        Assert.False(parts.Complete);
-        Assert.True(parts.Draws(null));
-        Assert.False(parts.Draws(RiddleRequires.Riddle));
-        Assert.Equal(RiddleFitVerdict.NotAPart, parts.CanFit("game:metalnailsandstrips-copper"));
-        Assert.Equal(RiddleFitVerdict.NotAPart, parts.CanFit("game:plank-oak"));
-        Assert.Equal(RiddleFitVerdict.TooFew, parts.Fit("game:metalnailsandstrips-iron", 1));
-        Assert.False(parts.Complete);
-        Assert.Equal("game:metalnailsandstrips-iron", parts.NextPart);
-        Assert.Equal(RiddleFitVerdict.Fits, parts.Fit("metalnailsandstrips-steel", 2));
-        Assert.True(parts.Complete);
-        Assert.True(parts.Draws(RiddleRequires.Riddle));
-        Assert.False(parts.Draws(RiddleRequires.Charge));
-        Assert.Equal(RiddleFitVerdict.AlreadyFitted, parts.CanFit("game:metalnailsandstrips-iron"));
-        Assert.Equal(("game:metalnailsandstrips-steel", 2), parts.Returns());
-        Assert.True(RiddleParts.Restore(parts.Fitted).Complete);
-        Assert.False(RiddleParts.Restore("game:plank-oak").Complete);
-        Assert.Null(new RiddleParts().Returns());
+        var build = Build();
+        Assert.Equal(["riddle"], build.Stages.Select(s => s.Id));
+        Assert.Equal([RiddleRequires.Riddle], Assert.Single(build.Stages).Adds);
+        var material = Assert.Single(Assert.Single(build.Stages).Materials);
+        Assert.Equal(RiddleBuild.MeshCodes, material.Codes);
+        Assert.Equal(RiddleBuild.Needed, material.Quantity);
+        Assert.Null(build.Block);   // its records are its own in the export
+        var parts = new MachineAssembly(build);
+        Assert.False(parts.Built);
+        Assert.True(parts.Shows(null));
+        Assert.False(parts.Shows(RiddleRequires.Riddle));
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Check("game:metalnailsandstrips-copper", 2).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Check("game:plank-oak", 2).Verdict);
+        Assert.Equal(AssemblyVerdict.TooFew, parts.Fit("game:metalnailsandstrips-iron", 1).Verdict);
+        Assert.False(parts.Built);
+        var fit = parts.Fit("metalnailsandstrips-steel", 5);   // two from the stack, all at once
+        Assert.Equal((AssemblyVerdict.Fitted, 2), (fit.Verdict, fit.Take));
+        Assert.True(parts.Built);
+        Assert.True(parts.Shows(RiddleRequires.Riddle));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, parts.Check("game:metalnailsandstrips-iron", 2).Verdict);
+        Assert.Equal([new StageDrop("game:metalnailsandstrips-steel", 2)], parts.Returns());
+        var (snapshot, wearing) = parts.Snapshot();
+        Assert.True(MachineAssembly.Restore(build, snapshot, wearing, out _).Built);
+        Assert.False(MachineAssembly.Restore(build, new Dictionary<string, int> { ["0/0/game:plank-oak"] = 2 }, wearing, out _).Built);
+        Assert.Empty(new MachineAssembly(build).Returns());
+        // the creative shortcut fits iron
+        var creative = new MachineAssembly(build);
+        Assert.True(creative.FillNext());
+        Assert.Equal([new StageDrop("game:metalnailsandstrips-iron", 2)], creative.Returns());
     }
 
     [Fact]
@@ -106,17 +120,6 @@ public class RiddleGameplayTests
         var all = new RiddleConfig { LumpsPerCharge = 2, OversizePerCharge = 2 };
         Assert.Single(all.Sanitise());
         Assert.Equal(1, all.OversizePerCharge);
-    }
-
-    private sealed class View : IRiddleView
-    {
-        public Side Side => Side.North;
-        public bool RiddleFitted { get; set; } = true;
-        public bool ChargeOn { get; set; }
-        public double RiddleWork { get; set; }
-        public bool BoxHoldsFines { get; set; }
-        public bool Held { get; set; }
-        public double ShakesPerCharge => 12;
     }
 
     [Fact]
@@ -145,24 +148,22 @@ public class RiddleGameplayTests
         Assert.Equal(0, clock.Class);
         Assert.Equal(0, clock.Input().Presence);
 
-        var view = new View { RiddleFitted = false, ChargeOn = true, BoxHoldsFines = true };
-        Assert.True(RiddleClock.Shows(view, null));
-        Assert.False(RiddleClock.Shows(view, RiddleRequires.Riddle));
-        Assert.False(RiddleClock.Shows(view, RiddleRequires.Charge));
-        Assert.True(RiddleClock.Shows(view, RiddleRequires.Fines));
-        view.RiddleFitted = true;
-        Assert.True(RiddleClock.Shows(view, RiddleRequires.Charge));
-        view.BoxHoldsFines = false;
-        Assert.False(RiddleClock.Shows(view, RiddleRequires.Fines));
+        Assert.True(RiddleClock.Shows(null, riddleFitted: false, chargeOn: true, boxHoldsFines: true));
+        Assert.False(RiddleClock.Shows(RiddleRequires.Riddle, false, true, true));
+        Assert.False(RiddleClock.Shows(RiddleRequires.Charge, false, true, true));
+        Assert.True(RiddleClock.Shows(RiddleRequires.Fines, false, true, true));
+        Assert.True(RiddleClock.Shows(RiddleRequires.Charge, true, true, true));
+        Assert.False(RiddleClock.Shows(RiddleRequires.Fines, true, true, false));
     }
 
     [Fact]
     public void Holds_time_out()
     {
-        var holds = new RiddleHolds();
+        // the shared hand holds (BEMachine.HandWorked), at the quern's 600 ms
+        var holds = new HandHolds();
         holds.Hold("a", 0);
-        Assert.True(holds.Any(Riddling.HoldTimeoutMs));
-        Assert.False(holds.Any(Riddling.HoldTimeoutMs + 1));
+        Assert.True(holds.Any(HandHolds.DefaultTimeoutMs));
+        Assert.False(holds.Any(HandHolds.DefaultTimeoutMs + 1));
         holds.Hold("a", 0);
         holds.Release("a");
         Assert.False(holds.Any(0));

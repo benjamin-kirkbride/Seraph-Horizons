@@ -100,12 +100,35 @@ public class MachineRenderer : IRenderer
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
+        bool glowing = false;
         for (int i = 0; i < _meshes.Length; i++)
-            if (_meshes[i] is { Disposed: false } mesh && _be.ShowsPart(_parts.Parts[i].Requires))
-                MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
+        {
+            var requires = _parts.Parts[i].Requires;
+            if (_meshes[i] is not { Disposed: false } mesh || !_be.ShowsPart(requires))
+                continue;
+            if (prog != null)
+            {
+                // a hot part glows (BEMachine.PartGlow); the uniforms are set only around one
+                var glow = _be.PartGlow(requires);
+                if (glow != null || glowing)
+                {
+                    prog.RgbaGlowIn = glow?.Colour ?? NoGlow;
+                    prog.ExtraGlow = glow?.Extra ?? 0;
+                    glowing = glow != null;
+                }
+            }
+            MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
+        }
+        if (prog != null && glowing)
+        {
+            prog.RgbaGlowIn = NoGlow;
+            prog.ExtraGlow = 0;
+        }
         prog?.Stop();
         rapi.GlEnableCullFace();
     }
+
+    private static readonly Vec4f NoGlow = new(0, 0, 0, 0);
 
     public void Dispose()
     {
