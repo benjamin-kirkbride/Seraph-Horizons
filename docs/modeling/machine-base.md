@@ -4,7 +4,8 @@ Every machine in the Seraph Horizons mod is to sit on one game-side base in
 [`mods-src/seraphhorizons/Machines/`](../../mods-src/seraphhorizons/Machines/), as it already sits on one maths
 and generator layer (`Machines/Core`, `Machines/tools/machinegen`). The ore machines were the first on it (their
 `BEOreMachine` was lifted into it), the press brake (a hand machine) and the draw bench (a powered, oiled one) the
-pilots that proved it covers both kinds. This page says what the base gives, how a machine moves onto it, and what
+pilots that proved it covers both kinds; the gear cutter and the cylinder borer (powered, oiled, their dry tank
+wearing their cutter) followed in wave 2. This page says what the base gives, how a machine moves onto it, and what
 went wrong on the way. [Animated machine models](animated-machine-models.md) is the model side; this is the
 game side.
 
@@ -16,7 +17,7 @@ game side.
 | `BlockMachine` | `Game/MachineBlocks.cs` | The frame (`class: "seraphhorizons.Machine"`): placement with room for every cell, the side the player looks, stamping the cells, forwarding a click and right-click held (start, step, stop, cancel) to the block entity, drops, pick block, boxes, the built name, help, fire. One class for every machine: no `Block{X}` of its own. |
 | `BlockMachineCell`, `BlockMachineCellPower`, `BEMachineCell` | `Game/MachineBlocks.cs`, `Game/BEMachineCell.cs` | The other cells (`seraphhorizons:machine-cell`) and the power cell (`machine-cellpower-{face}`, the axle's world face), in place of every machine's own ghost pair. A cell forwards everything to its controller (`IMachineGhost`, so a trunk feeder or taker finds the controller through it); the power cell carries `BEBehaviorMachineMP`. An ore machine's infeed cell is a container a chute pushes into (`BEMachine.CellTakes`). |
 | `BEBehaviorMachineMP` | `Game/BEBehaviorMachineMP.cs` | The one mechanical power consumer (`seraphhorizons.MachineMP`): finds its network through the power face and puts `BEMachine.Resistance` on it. The oil is in `Resistance`, so every machine's dry rule is the same code. |
-| `MachineRenderer` | `Game/MachineRenderer.cs` | Draws the rig's parts from `shapes/block/{machine}.json`, each while `ShowsPart`, posed every frame from `BEMachine.FrameInput`, lit from the cell above the footprint's middle, rebuilding its meshes when `TextureKey` changes. |
+| `MachineRenderer` | `Game/MachineRenderer.cs` | Draws the rig's parts from `shapes/block/{machine}.json`, each while `ShowsPart`, posed every frame from `BEMachine.FrameInput`, lit from the cell above the footprint's middle. Its meshes are `MachinePartMeshes`' session cache, one tessellation for every machine of the kind and `TextureKey` (taken again when it changes), never disposed by a renderer. |
 | `MachineText` | `Game/MachineText.cs` | The block info in one layout (below), with the wrench's detail and hint. |
 | `MachinesSystem` | `Game/MachinesSystem.cs` | Registers the above, loads and checks the build files (`Build(machine)`, resolved against the game's items once they are known), holds the rigs of machines whose rig file is their own dialect (`RegisterRig`), and `Disable` for a switch. |
 | `MachineOiling` | `Game/MachineOiling.cs` | One machine's oil, a piece any owner composes: the tank and its tree key, pouring by right-click, the drain a job, the dry effect on the shaft's load, the block info's oil lines with the wrench's detail, the smoke. `BEMachine` keeps one; the game's and Immersive Woodworking's machines one beside theirs (`MachineOil/ForeignMachines.cs`, which only hooks their methods to it). |
@@ -45,10 +46,15 @@ do not:
   material. `MachinesSystem.Build` leaves it out once the world's items are known (`MachineBuild.Resolve`).
 - **A wearing part** (renewed when worn out): `wearing[]`. Fitted with a stage (`"stage": "die"`, with that stage's
   `"materials": []`) it is that stage's last material. `"requires"` hides its rig part while none is fitted.
-- **A part that carries durability and comes back out** (the bench's die): `"durable": true`, `count` 1. It goes in
+- **A part that carries durability and comes back out** (the bench's die, the gear cutter's kit, the borer's head):
+  `"durable": true`, `count` 1. It goes in
   with the held item's durability left (`BEMachine` passes it), `MachineAssembly.Take(id)` takes it back out with
   what is left, breaking gives it back with that durability, a spent one is gone. Its `uses` from a setting:
-  override `BuildSpec` and return `base.BuildSpec(world)?.WithUses(id, setting)`.
+  override `BuildSpec` and return `base.BuildSpec(world)?.WithUses(id, setting)` (the gear cutter and the borer
+  take their item's `Durability`, so the two cannot drift).
+- **A stage that comes back off** (the gear cutter's master, changed for the other size): keep it the build's
+  last stage and take it with `Assembly.Build.TakeStage(index)`, which refuses unless the stage is complete and
+  nothing after it holds anything. What chooses among its items' parts is a `picks` (`master`, `masterlarge`).
 - **No `block`** for a workshop machine whose construction record the recipe export writes by hand (the press
   brake, the draw bench): with a `block` the exporter's generic ore-machine pass would add a second construction
   record and a power consumer (`RecipeSection.OreMachines.cs`, `Power/OreMachineConsumers.cs`). Reworking the
@@ -81,7 +87,9 @@ A machine not registered is read as an ore machine's rig (`OreMachinesSystem.Rig
 ### The frame block type
 
 `class: "seraphhorizons.Machine"`, `entityClass` the machine's block entity class. The machine's id is the code's
-first part (`drawbench-frame-north` is `drawbench`) or `attributes.machine.machine`. Delete the ghost block types
+first part (`drawbench-frame-north` is `drawbench`) or `attributes.machine.machine`. It is placed with its native
+north facing the player (`side` the way they look); a machine placed as the mills are, its native west end farthest
+(`Footprint.PlacedFacing`: the gear cutter), says `attributes.machine.placement: "mill"`. Delete the ghost block types
 and drop them from the system's `TypeAssets`, and their `block-{x}-ghost*` lang lines.
 
 ### The block entity
@@ -95,6 +103,7 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | Be worked by hand | `HandWorked => true`, `HoldTimeoutMs` if not 600 (the rocker's 400), `StartHold(byPlayer)` from `InteractWork` on a work click, `HasWork`, and `WorkUnpowered(dt)` while held. The base forwards the steps and the stop, keeps the holds, syncs `Held`, and gives the state `Unworked` ("hold right mouse") while work is on and no one holds. |
 | Hold water | `WaterPerItem`, `ReservoirCapacity`, `WaterIntakePerSecond`, a `water` anchor on the rig; `SpendWater` per item. |
 | Hold items | `NewInventory()` (the base's is empty), `CellTakes` for a chute into a cell. |
+| Box its work | `CellBoxes`, `CollisionBoxes` (the base's from the rig): the borer adds its casting's while one is in the cradle, its tables built once in `Initialize` after the base's. |
 | Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`. |
 | Take its work | `InteractContent` (before the build: take the work back, a bucket), `InteractWork` (after it: load the work, start a hold). Return whether the click was the machine's; act on the server. `CreativeShortcut(player)` tells a creative Ctrl from the machine's own Ctrl. |
 | Say when it is whole | `Complete` (the name), `CreativeFills` (the creative shortcut), `LoadsShaft`: each `Built` by default; `Ready` (built and every wearing part in) for a machine that stops without its wearing part. |
@@ -126,9 +135,8 @@ The settings block is the same for every machine: `MachineOilSettings.{Machine}`
 `{ "Tank": points, "DrainPerJob": points }` (100 points to the litre), with `DryResistanceMultiplier` (3) and the
 oils (`OilLiquids`, `OilLumps`) shared. A new entry changes the config defaults, so regenerate the snapshot
 (docs/config-defaults.md), and give the machine's power entry its `oil` in the recipe export (`Spec.Oil`, or the
-ore machines' pass). The bucking mill, rosser, gear cutter and cylinder borer still use `Oil`'s older "own
-machine" helpers (`NewOwn`, `LoadOwn`, `Interact`, `Info`, `Drain`); they move to the piece with the base, and
-those helpers go.
+ore machines' pass). The bucking mill and the rosser still use `Oil`'s older "own machine" helpers (`NewOwn`,
+`LoadOwn`, `Interact`, `Info`, `Drain`); they move to the piece with the base, and those helpers go.
 
 ### The block info
 
@@ -193,13 +201,26 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
   for that load, must fill its tank first (`OilUp` in `OreMachinesScenarios.cs`). An ore machine whose job is
   the default `Work` (an item at a time) drains in `BEOreMachine.WorkItem`, a job an item; one with its own
   `Work` calls `DrainOil` itself (the arrastra's charge, the roaster's item by weight, the kettle's charge).
+- **A machine whose dry tank wears its cutter** (`OilDryEffect.Wear`: the gear cutter, the borer) reads `OilFill`
+  when its job finishes, before `DrainOil`: the wear is the fill the job ran at. The shared oil lines say "Dry: it
+  wears its cutter fast" and never the dry multiplier; the machine says what the next job does to the cutter itself.
+- **The shared messages are the build's view.** A material two stages take (the gear cutter's spindle and index
+  bill) held before the later stage is next reads as the earlier stage's, "already fitted", not "not yet". A wearing
+  part held while a stage after its own is open (the cutter kit with the master off) reads "already fitted" too: say
+  what to fit first in `InteractContent` (the gear cutter does).
+- **`Error` and a machine's own message helper.** The base's `Error(player, message, code)` takes three strings; a
+  machine's own `Error(player, key, params object[] args)` hides it for a three-argument call (C# drops base
+  candidates when a derived one applies) and sends the message as a lang key. Name the machine's own differently
+  (`Say`), and call `base.Error` for a shared message.
+- **The renderer's cache key.** The shared renderer's meshes are cached by shape and `TextureKey` alone: anything
+  else `PartTextures` depends on must be in `TextureKey`, or every machine of the kind shows the first one's.
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 
 ## Still to move
 
-Wave 2 moves the rest onto the base: the bucking sawmill, the rosser, the gear cutter, the cylinder borer (their
-own `BEBehavior{X}MP` and oil; the gear cutter and borer with `DryEffect.Wear`), the squaring shear and the mandrel
+Wave 2 moves the rest onto the base: the bucking sawmill and the rosser (their own `BEBehavior{X}MP` and oil; the
+gear cutter and the cylinder borer, with `DryEffect.Wear`, are on it), the squaring shear and the mandrel
 station (hand machines: their `TreadleHolds` and `WindHolds` become `HandHolds`), the eidolon gantry, the crucible
 furnace (its own build model, `FurnaceBuild`), the hand stations (riddle, rocker, amalgam pan), and oil for every
 shaft-powered ore machine (the jaw breaker, stamp battery, arrastra, ball mill, jig, shaking table, vanner, and the

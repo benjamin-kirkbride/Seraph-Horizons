@@ -3,41 +3,8 @@ using SeraphHorizons.Mod.Machines.Core;
 namespace SeraphHorizons.Mod.CylinderBorer.Core;
 
 /// <summary>
-/// What the cylinder borer's renderer reads of the borer, and nothing else: its facing, the parts
-/// fitted, the job in the cradle (class k and the server's W), whether it runs, the shaft and the
-/// oil. The block entity implements it; the renderer turns it into the rig's inputs through
-/// <see cref="CylinderBorerClock"/>.
-/// </summary>
-public interface ICylinderBorerView
-{
-    Side Side { get; }
-
-    /// <summary>Whether a part needing a stage's <c>requires</c> (or null) is drawn. The castings
-    /// are the clock's (<see cref="CylinderBorerClock.ShowsBlank"/>).</summary>
-    bool PartFitted(string? requires);
-
-    /// <summary>The casting in the cradle: 1 iron, 2 steel, 0 none.</summary>
-    int JobClass { get; }
-
-    /// <summary>The server's W: the head's travel through this casting, blocks, synced in steps.</summary>
-    double JobWork { get; }
-
-    /// <summary>Complete, a casting in and the shaft fast enough.</summary>
-    bool Running { get; }
-
-    float ShaftAngle { get; }
-    float ShaftSpeed { get; }
-
-    /// <summary>The oil tank's fill, 0..1 (1 without MachineOil).</summary>
-    double OilFill { get; }
-
-    /// <summary>Axle turns per block of class k, as the server runs.</summary>
-    double TurnsPerBlock(int k);
-}
-
-/// <summary>
-/// The renderer's own W, presence and class, from the view each frame (the model's contract, README
-/// "Rig"): W advances with the shaft while the borer runs, never behind the server's and at most
+/// The renderer's own W, presence and class, from the borer each frame (<c>BECylinderBorer.FrameInput</c>; the
+/// model's contract, README "Rig"): W advances with the shaft while the borer runs, never behind the server's and at most
 /// <see cref="Snap"/> ahead of it. A casting is drawn only while it is in the cradle; once it is gone
 /// (bored and handed out, or taken back) W is held where it was and k with it while p eases out, so
 /// the cutter head, the crosshead and the weight come back to their rest with the cradle empty; a new

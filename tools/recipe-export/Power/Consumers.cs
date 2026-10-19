@@ -178,9 +178,9 @@ public static class Consumers
             Mod = Seraph, Id = "seraphhorizons:rosser", ItemPrefix = "seraphhorizons:rosser-frame", Name = "Rosser",
             Idle = SeraphIdle, Oil = "Rosser",
         },
-        new("BEBehaviorGearCutterMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.GearCutter.GearCutterSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (GearCutterSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.GearCutter.GearCutterSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (GearCutterSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:gearcutter", ItemPrefix = "seraphhorizons:gearcutter-frame", Name = "Gear cutter",
+            Mod = Seraph, Id = "seraphhorizons:gearcutter", ItemPrefix = "seraphhorizons:gearcutter-frame", Name = "Gear cutter", ByFrame = true,
             Idle = SeraphIdle, Oil = "GearCutter", OilDryLoadFixed = true,
             Note = "a dry tank does not raise its load: it wears the cutter kit faster instead",
         },
@@ -191,9 +191,9 @@ public static class Consumers
             Idle = SeraphIdle, Oil = "DrawBench",
             Note = "ResistanceLead empty or drawing lead, ResistanceCopper drawing copper",
         },
-        new("BEBehaviorCylinderBorerMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem", "Config.Resistance", 0.3, "ModConfig/seraphhorizons.json (CylinderBorerSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem", "Config.Resistance", 0.3, "ModConfig/seraphhorizons.json (CylinderBorerSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:cylinderborer", ItemPrefix = "seraphhorizons:cylinderborer-frame", Name = "Cylinder borer",
+            Mod = Seraph, Id = "seraphhorizons:cylinderborer", ItemPrefix = "seraphhorizons:cylinderborer-frame", Name = "Cylinder borer", ByFrame = true,
             Idle = SeraphIdle, Oil = "CylinderBorer", OilDryLoadFixed = true,
             Note = "a dry tank does not raise its load: it wears the cutter head faster instead",
         },

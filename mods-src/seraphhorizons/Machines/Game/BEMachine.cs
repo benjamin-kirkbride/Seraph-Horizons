@@ -428,10 +428,11 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// through <paramref name="face"/> into its buffer (<see cref="BEMachineCell"/>): never, by default.</summary>
     public virtual bool CellTakes(BlockPos cell, BlockFacing face, ItemStack stack) => false;
 
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
+    /// <summary>A cell's selection boxes: the rig's, by default (the cylinder borer adds its casting's while one is in).</summary>
+    public virtual Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
 
     /// <summary>A cell's selection boxes and the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
+    public virtual Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
 
     // The boxes never change: built once, then only read (collision lookups can run off the main thread).
     private void BuildBoxes()

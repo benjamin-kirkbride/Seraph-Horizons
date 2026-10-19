@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.GearCutter.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -14,333 +14,123 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.GearCutter;
 
 /// <summary>
-/// The gear cutter's controller (#480, #481). Holds the fitted parts (<see cref="GearCutterParts"/>:
-/// every item's code and the cutter kit's durability), the blank on the arbor as its item stack and
-/// the cut (<see cref="CutJob"/>: W, the teeth cut), and its MachineOil tank. The server cuts from
-/// the power ghost's shaft angle, wears the kit by the tank's fill when a gear is done, drops the
-/// gear at the output face, and keeps the ghost cells stamped; the client draws it
-/// (<see cref="GearCutterRenderer"/>). The rules are GearCutter/Core's.
+/// The gear cutter's controller (#480, #481), on the shared machine base (<see cref="BEMachine"/>: its build
+/// from <c>config/builds/gearcutter.json</c> with the cutter kit its durable wearing part and the master its last
+/// stage, its cells and power cell, its oil (<see cref="OilMachine.GearCutter"/>, whose dry tank wears the kit,
+/// never the load: <see cref="OilDryEffect.Wear"/>), its block info, its renderer). It keeps the blank on the
+/// arbor as its item stack and the cut (<see cref="CutJob"/>: W, the teeth cut). The server cuts from the power
+/// cell's shaft angle, wears the kit by the tank's fill when a gear is done, drains a gear's oil and drops the
+/// gear at the output face; the client poses the rig from the shaft and its own W (<see cref="GearCutterClock"/>).
+/// The rules are GearCutter/Core's.
 /// </summary>
-public class BEGearCutter : BlockEntity
+public class BEGearCutter : BEMachine
 {
     private static readonly AssetLocation BreakSound = new("game", "sounds/effect/toolbreak");
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation GearSound = new("game", "sounds/block/ingot");
-    private const string PartKeyPrefix = "part-";
-    // The material stages' counts (the spindle's, the index's), keyed as GearCutterParts.MaterialSnapshot keys them.
-    private const string MaterialsKey = "materials";
     // The server syncs W at least this often (teeth); the renderer follows the shaft between.
     private const double SyncStep = 0.1;
+    private const float ChipInterval = 0.12f;
+    private const float SprayInterval = 0.2f;
 
-    private GearCutterParts _parts = new();
     private ItemStack? _blank;
     private CutJob _job = CutJob.None;
-    private OilState? _oil;
-    private float _lastAngle;
-    private bool _angleSeeded;
-    private float _smokeSeconds;
-    private float? _serverMinSpeed;
     private float? _serverTurnsPerTooth;
     private int? _serverWearPerGear;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private Dictionary<Int3, Cuboidf[]>? _collision;
-    private GearCutterRenderer? _renderer;
+    private readonly GearCutterClock _clock = new();
+    private double _lastPsi;
+    private float _chipTimer;
+    private float _sprayTimer;
 
-    public Side Side { get; private set; } = Side.North;
-    public GearCutterParts Parts => _parts;
-    public bool Complete => _parts.Complete;
     public bool BlankOn => _job.On && _blank != null;
     public ItemStack? Blank => _blank;
     public CutJob Job => _job;
-    /// <summary>The cutter's oil, or null without the <c>MachineOil</c> switch.</summary>
-    public OilState? Oiling => _oil;
-    /// <summary>The tank's fill, 0..1: 1 without a tank (MachineOil off), so the kit wears at its base rate.</summary>
-    public double OilFill => _oil == null ? 1 : OilDrain.Fill(_oil.Tank);
-    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
+
+    /// <summary>The master's class: 1 small, 2 large, 0 none.</summary>
+    public int Master => Assembly is { } a ? GearCutterBuild.Master(a) : 0;
+
+    /// <summary>The fitted kit: its code and durability left; null without one (taken out, or spent).</summary>
+    public (string Code, double Left)? Kit => Assembly?.Wearing.Fitted(GearCutterBuild.KitPart);
+
+    /// <summary>The kit's durability left; 0 without a kit.</summary>
+    public int KitLeft => Kit is { } k ? (int)Math.Round(k.Left) : 0;
+
     public float TurnsPerTooth => _serverTurnsPerTooth ?? Config.TurnsPerTooth;
     private int WearPerGear => _serverWearPerGear ?? Config.CutterWearPerGear;
-    public float ShaftAngle => Power?.AngleRad ?? 0;
-    public float ShaftSpeed => Math.Abs(Power?.TrueSpeed ?? 0);
-    /// <summary>Complete, a blank on and the shaft fast enough: the cut runs.</summary>
-    public bool Running => GearCut.Running(_parts.Complete, BlankOn, ShaftSpeed, MinSpeed);
 
-    private GearCutterSystem System => GearCutterSystem.Of(Api);
-    private GearCutterConfig Config => System.Config;
-    private GearCutterRig? Rig => System.Rig;
+    private GearCutterConfig Config => GearCutterSystem.Of(Api).Config;
+    private new GearCutterRig? Rig => base.Rig as GearCutterRig;
 
-    /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn: the parts' rule,
-    /// and each blank while it is on the arbor.</summary>
-    public bool Fitted(string? requires) => requires switch
-    {
-        GearCutterRequires.BlankSmall => BlankOn && _job.Class == 1,
-        GearCutterRequires.BlankLarge => BlankOn && _job.Class == 2,
-        _ => _parts.Fitted(requires),
-    };
+    /// <summary>The kit's uses are the kit item's durability.</summary>
+    protected override MachineBuild? BuildSpec(IWorldAccessor world) =>
+        base.BuildSpec(world) is { } spec && world.GetItem(new AssetLocation(GearCutterBuild.KitCode)) is { Durability: > 0 } kit
+            ? spec.WithUses(GearCutterBuild.KitPart, kit.Durability)
+            : base.BuildSpec(world);
 
-    /// <summary>The power ghost's mechanical power behavior, looked up afresh each time.</summary>
-    public BEBehaviorGearCutterMP? Power =>
-        Api != null && Rig is { } rig
-            ? Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.PowerCell))?.GetBehavior<BEBehaviorGearCutterMP>()
-            : null;
+    protected override OilMachine? OilKind => OilMachine.GearCutter;
+    protected override OilDryEffect DryEffect => OilDryEffect.Wear;
+    protected override float ConfigMinSpeed => Config.MinSpeed;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 200;
+    public override int RenderRange => 48;
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-        {
-            _oil ??= Oil.NewOwn(api, OilMachine.GearCutter);
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(OnTick, 50);
-            RegisterGameTickListener(OnSlowTick, 1000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 200);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockGearCutter)
-                _renderer = new GearCutterRenderer(capi, this, rig);
-        }
-    }
+    /// <summary>Whole with its kit in: until then it puts the token load on its shaft (the master is a stage, so
+    /// <see cref="BEMachine.Built"/> already needs it).</summary>
+    public override bool Complete => Ready;
+    protected override bool LoadsShaft => Ready;
+    protected override bool CreativeFills => !Ready;
 
-    // ---- Footprint ----
+    /// <summary>The configured resistance, oiled or dry (#481: its oil wears the kit, never the load).</summary>
+    protected override double ShaftLoad => Config.Resistance;
 
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
-
-    /// <summary>Every ghost cell's world position, and whether it is the power ghost.</summary>
-    public IEnumerable<(BlockPos Pos, bool Power)> GhostCells() =>
-        Rig is { } rig ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell)) : [];
-
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Lookup(_cells, cellPos);
-
-    /// <summary>A cell's selection boxes and, on a column's top cell, the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Lookup(_collision, cellPos);
-
-    private Cuboidf[]? Lookup(Dictionary<Int3, Cuboidf[]>? table, BlockPos cellPos) =>
-        table?.GetValueOrDefault(Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
-            return;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
-        foreach (var c in rig.Cells)
-            if (c.LidBox is { } lid)
-                collision[c.Pos] = [.. cells[c.Pos], World(lid)];
-        _cells = cells;
-        _collision = collision;
-    }
-
-    private Block? GhostBlock(bool power) =>
-        Api.World.GetBlock(new AssetLocation(GearCutterSystem.Domain, power ? "gearcutter-ghostpower-" + Side.Code() : "gearcutter-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        foreach (var (pos, power) in GhostCells())
-            if (GhostBlock(power) is { } ghost)
-                StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEGearCutterGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, power) in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null || GhostBlock(power) is not { } expected)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEGearCutterGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockGearCutterGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, _) in GhostCells())
-            if (ba.GetBlock(pos) is BlockGearCutterGhost && ba.GetBlockEntity(pos) is BEGearCutterGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
-    }
+    public override bool HasWork => BlankOn;
+    public override double? WorkProgress => BlankOn ? _job.Work / _job.End : null;
+    protected override Float3? SmokePoint => Rig?.Chips;
 
     // ---- Interaction ----
 
-    /// <summary>
-    /// Right-click on the cutter or any ghost. Holding oil, it pours (MachineOil). In creative mode,
-    /// Ctrl on an incomplete cutter fits its next stage with nothing taken. Ctrl takes back the
-    /// cutter kit, else the blank on the arbor, else the master. A part in hand is fitted if it is
-    /// the next stage's; a blank goes on the arbor. Anything else held is the item's own business.
-    /// Decided and done on the server; the client only says whether the click is the cutter's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
-    {
-        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
-            return oiled;
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
-        var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
-        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
-        bool part = GearCutterParts.IsPart(code);
-        bool blank = GearCut.ClassOfBlank(code) != 0;
-        if (!take && !part && !blank)
-            return false;
-        if (Api.Side != EnumAppSide.Server)
-            return true;
-        if (CreativeShortcutApplies(byPlayer))
-            FitNextPart(byPlayer);
-        else if (take)
-            TakeBack(byPlayer);
-        else if (part)
-            TryFitPart(slot!, byPlayer);
-        else
-            TryLoadBlank(slot!, byPlayer);
-        return true;
-    }
-
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a cutter with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
+    /// <summary>Ctrl + right-click takes back the kit, else the blank on the arbor, else the master (the creative
+    /// shortcut comes first while a stage or the kit is missing). A kit held while the master is off goes on
+    /// after it, so the click says so.</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
         var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fits the next stage's first item (the small
-    /// master, a new kit), or puts in all a material stage still takes, with nothing taken from the
-    /// player.</summary>
-    public bool FitNextPart(IPlayer? byPlayer)
-    {
-        if (_parts.FillNextMaterials())
+        if (controls.CtrlKey && !controls.ShiftKey && !CreativeShortcut(byPlayer))
         {
-            Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-            MarkDirty(true);
+            if (Api.Side == EnumAppSide.Server)
+                TakeBack(byPlayer);
             return true;
         }
-        if (_parts.NextPart is not { } next)
-            return false;
-        if (Api.World.GetItem(new AssetLocation(next)) is not { } item)
+        if (Assembly is { Built: false } a && Kit == null && GearCutterBuild.MasterIndex(a.Build) == a.Build.Next
+            && CodePattern.Normalise(slot.Itemstack?.Collectible?.Code?.ToString()) == GearCutterBuild.KitCode)
         {
-            Api.Logger.Warning("[seraphhorizons] Gear cutter: no {0} for the creative shortcut", next);
-            return false;
+            if (Api.Side == EnumAppSide.Server)
+                base.Error(byPlayer, MachineText.Error(new AssemblyClick(AssemblyVerdict.OutOfOrder, 0, -1), Api.World, Machine, a), null);
+            return true;
         }
-        return TryFitPart(new DummySlot(new ItemStack(item)), byPlayer, free: true);
+        return null;
     }
 
-    /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
-    /// false, with an error to the player, when the rules say no. A part is one item from the slot,
-    /// a material stage's material all the stage still needs of it (or a full stack); nothing is taken
-    /// when the player is in creative mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
+    /// <summary>A stainless gear blank of the master's size goes on the arbor.</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var stack = slot.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack == null)
+        if (GearCut.ClassOfBlank(slot.Itemstack?.Collectible?.Code?.ToString()) == 0)
             return false;
-        int left = 0, capacity = 0;
-        if (GearCutterParts.StagesOf(code).Contains(GearCutterStage.Cutter))
-        {
-            capacity = Math.Max(1, stack.Collectible.GetMaxDurability(stack));
-            left = stack.Collectible.GetRemainingDurability(stack);
-        }
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
-        int held = consumes ? stack.StackSize : int.MaxValue;
-        var fit = _parts.CanFit(code, capacity > 0 ? left : 1, held, stack.Collectible.MaxStackSize);
-        if (fit.Verdict != GearCutterFitVerdict.Fits)
-        {
-            switch (fit.Verdict)
-            {
-                case GearCutterFitVerdict.OutOfOrder when _parts.NextNeeds().Count > 0:
-                    Error(byPlayer, "error-order-needs", StageName(_parts.Next), Needs());
-                    break;
-                case GearCutterFitVerdict.OutOfOrder:
-                    Error(byPlayer, "error-order", StageName(_parts.Next));
-                    break;
-                case GearCutterFitVerdict.TooFew:
-                    Error(byPlayer, "error-toofew", StageName(_parts.Next), Needs());
-                    break;
-                case GearCutterFitVerdict.AlreadyFitted:
-                    Error(byPlayer, "error-part-fitted");
-                    break;
-                case GearCutterFitVerdict.KitSpent:
-                    Error(byPlayer, "error-kit-spent");
-                    break;
-                default:
-                    Error(byPlayer, "error-not-a-part");
-                    break;
-            }
-            return false;
-        }
-        _parts.Fit(code, left, capacity, held, stack.Collectible.MaxStackSize);
-        if (consumes)
-        {
-            slot.TakeOut(fit.Take);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
+        if (Api.Side == EnumAppSide.Server)
+            TryLoadBlank(slot, byPlayer);
         return true;
     }
-
-    /// <summary>What a material stage still takes, as "2 × Steel rod, 1 × Metal parts" (the ore machines' way).</summary>
-    private string Needs() =>
-        string.Join(", ", _parts.NextNeeds().Select(n => $"{n.Missing} × {MachineText.MaterialName(Api.World, n.Material)}"));
-
-    /// <summary>A stage's name as the block info and the errors show it.</summary>
-    public static string StageName(GearCutterStage? stage) =>
-        stage is { } s ? Lang.Get(GearCutterSystem.Domain + ":gearcutter-info-stage-" + GearCutterRequires.Name(s)) : "";
 
     /// <summary>Ctrl + right-click (server side): the kit (with what durability it has left), else
     /// the blank on the arbor (its cut lost), else the master.</summary>
     public bool TakeBack(IPlayer byPlayer)
     {
-        switch (_parts.TakeBack(BlankOn))
+        if (Assembly is not { } assembly)
+            return false;
+        switch (GearCutterBuild.TakeBack(assembly, BlankOn))
         {
             case GearCutterTakeBack.Kit:
-                if (_parts.RemoveKit() is not { } kit || KitStack(kit.Left) is not { } stack)
+                if (assembly.Take(GearCutterBuild.KitPart) is not { } kit || StackOf(new StageDrop(kit.Code, 1, kit.Left)) is not { } stack)
                     return false;
                 Give(byPlayer, stack);
                 break;
@@ -350,9 +140,9 @@ public class BEGearCutter : BlockEntity
                 Give(byPlayer, blank);
                 break;
             case GearCutterTakeBack.Master:
-                if (_parts.RemoveMaster() is not { } code || Api.World.GetItem(new AssetLocation(code)) is not { } item)
+                if (GearCutterBuild.TakeMaster(assembly) is not { } code || StackOf(new StageDrop(code, 1)) is not { } master)
                     return false;
-                Give(byPlayer, new ItemStack(item));
+                Give(byPlayer, master);
                 break;
             default:
                 return false;
@@ -362,31 +152,20 @@ public class BEGearCutter : BlockEntity
         return true;
     }
 
-    /// <summary>A cutter kit with <paramref name="left"/> durability.</summary>
-    private ItemStack? KitStack(int left)
-    {
-        if (Api.World.GetItem(new AssetLocation(GearCutterParts.KitCode)) is not { } item)
-            return null;
-        var stack = new ItemStack(item);
-        if (left < item.GetMaxDurability(stack))
-            stack.Attributes.SetInt("durability", Math.Max(1, left));
-        return stack;
-    }
-
     /// <summary>Puts a blank from <paramref name="slot"/> on the arbor, if the cutter takes it now.</summary>
     public bool TryLoadBlank(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        switch (GearCut.CanLoad(code, _parts.Complete, BlankOn, _parts.Master))
+        switch (GearCut.CanLoad(code, Ready, BlankOn, Master))
         {
             case GearCutterBlankVerdict.Loads:
                 break;
             case GearCutterBlankVerdict.Incomplete:
-                return Error(byPlayer, _parts.Next == GearCutterStage.Cutter && _parts.Has(GearCutterStage.Master) ? "error-no-kit" : "error-incomplete");
+                return Say(byPlayer, Built ? "error-no-kit" : "error-incomplete");
             case GearCutterBlankVerdict.Occupied:
-                return Error(byPlayer, "error-occupied");
+                return Say(byPlayer, "error-occupied");
             case GearCutterBlankVerdict.WrongSize:
-                return Error(byPlayer, _parts.Master == 1 ? "error-wrong-size-small" : "error-wrong-size-large");
+                return Say(byPlayer, Master == 1 ? "error-wrong-size-small" : "error-wrong-size-large");
             default:
                 return false;
         }
@@ -415,36 +194,51 @@ public class BEGearCutter : BlockEntity
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
     }
 
-    private bool Error(IPlayer? byPlayer, string key, params object[] args)
+    /// <summary>The cutter's own message (<c>seraphhorizons:gearcutter-{key}</c>) to the player; false.</summary>
+    private bool Say(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
             sp.SendIngameError("gearcutter-" + key, Lang.GetL(sp.LanguageCode, GearCutterSystem.Domain + ":gearcutter-" + key, args));
         return false;
     }
 
+    /// <summary>The help once built: a blank of the master's size on an empty arbor, and what Ctrl takes back.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => GearCutterSystem.Domain + ":blockhelp-gearcutter-" + action;
+        if (Ready && !BlankOn && GearCut.BlankFor(Master) is { } blankCode)
+        {
+            var blanks = Stacks(Api.World, [blankCode], 1);
+            if (blanks.Length > 0)
+                help.Add(new WorldInteraction { ActionLangCode = Key("loadblank"), MouseButton = EnumMouseButton.Right, Itemstacks = blanks });
+        }
+        string? take = Assembly is { } a ? GearCutterBuild.TakeBack(a, BlankOn) switch
+        {
+            GearCutterTakeBack.Kit => "takekit",
+            GearCutterTakeBack.Blank => "takeblank",
+            GearCutterTakeBack.Master => "takemaster",
+            _ => null,
+        } : null;
+        bool creative = forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
+        if (take != null && !(creative && CreativeFills))
+            help.Add(new WorldInteraction { ActionLangCode = Key(take), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
     // ---- The cut ----
 
-    private void OnTick(float dt)
+    // The cut syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool Work(double radians)
     {
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = Math.Abs(power?.TrueSpeed ?? 0);
-        if (!GearCut.Running(_parts.Complete, BlankOn, speed, Config.MinSpeed) || !_angleSeeded)
-        {
-            _lastAngle = angle;
-            _angleSeeded = true;
-            return;
-        }
-        float advance = ShaftClock.AngleAdvance(_lastAngle, angle, speed, dt);
-        _lastAngle = angle;
-        Cut(advance);
+        Cut(radians);
+        return false;
     }
 
     /// <summary>Cuts by <paramref name="radians"/> of shaft rotation (server side; call only while
-    /// running). At the end of the gear the kit wears by the oil's fill, the tank drains, the gear
-    /// goes out and the next blank comes in. Returns whether a gear was finished.</summary>
+    /// running). At the end of the gear the kit wears by the oil's fill, the tank drains, and the gear
+    /// goes out. Returns whether a gear was finished.</summary>
     public bool Cut(double radians)
     {
-        if (!BlankOn || !_parts.Complete)
+        if (!BlankOn || !Ready)
             return false;
         var before = _job;
         (_job, bool finished) = _job.Advance(radians, Config.TurnsPerTooth);
@@ -464,9 +258,9 @@ public class BEGearCutter : BlockEntity
     private void Finish()
     {
         int k = _job.Class;
-        int wear = GearCutterWear.WearFor(Config.CutterWearPerGear, GearCut.Teeth(k), OilFill, _parts.KitLeft);
-        Oil.Drain(_oil, Oil.DrainPerJob(Api, OilMachine.GearCutter) * (k == 2 ? 2 : 1));
-        if (_parts.WearKit(wear))
+        int wear = GearCutterWear.WearFor(Config.CutterWearPerGear, GearCut.Teeth(k), OilFill, KitLeft);
+        DrainOil(k == 2 ? 2 : 1);
+        if (Assembly!.Wearing.Wear(GearCutterBuild.KitPart, wear))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         ClearBlank();
         if (GearCut.GearFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { } gear)
@@ -485,75 +279,75 @@ public class BEGearCutter : BlockEntity
         Api.World.PlaySoundAt(GearSound, at.X, at.Y, at.Z);
     }
 
-    // Once a second: the ghosts. A ghost can vanish without being broken (an explosion, another
-    // mod), the power ghost included.
-    private void OnSlowTick(float dt) => EnsureGhosts();
+    // ---- The renderer's ----
 
-    // The client's own: the client removes a broken cutter at once, and an update the server sent
-    // before it heard of the break then brings the block entity back over air: drop it. A dry
-    // cutter smokes while it cuts.
-    private void OnClientTick(float dt)
+    /// <summary>Each blank while it is on the arbor; every other part as its stage (the cutter, its kit) is
+    /// fitted, each master while it is the one fitted, and the cover always.</summary>
+    public override bool ShowsPart(string? requires) => requires switch
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockGearCutter)
+        GearCutterRequires.BlankSmall => BlankOn && _job.Class == 1,
+        GearCutterRequires.BlankLarge => BlankOn && _job.Class == 2,
+        GearCutterRequires.Cover => true,
+        _ => base.ShowsPart(requires),
+    };
+
+    /// <summary>θ and ψ the shaft's (about the entry shaft's native x axis), W, k and p from the clock, and the
+    /// oil's fill for the reservoir's level; while the cut runs, chips and sparks at the cutter and, with oil in
+    /// the tank, a spray from the injection valve's nozzle.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var (theta, psi) = AdvanceShaft();
+        double turned = Math.Max(0, psi - _lastPsi);
+        _lastPsi = psi;
+        bool running = Running;
+        _clock.Advance(dt, turned, Master, BlankOn, _job.Work, _job.End, running, TurnsPerTooth);
+        if (!far && running && Rig is { } rig)
         {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
+            if ((_chipTimer += dt) >= ChipInterval)
+            {
+                _chipTimer = 0;
+                SpawnChips(rig);
+            }
+            if (OilFill > 0 && (_sprayTimer += dt) >= SprayInterval)
+            {
+                _sprayTimer = 0;
+                SpawnSpray(rig);
+            }
         }
-        if ((_smokeSeconds += dt) >= 0.4f)
-        {
-            _smokeSeconds = 0;
-            if (_oil is { Dry: true } && Running && Api is ICoreClientAPI capi && Rig is { } rig)
-                Oil.Smoke(capi, WorldPoint(rig.Chips));
-        }
+        return _clock.Input(theta, psi, OilFill);
+    }
+
+    private void SpawnChips(GearCutterRig rig)
+    {
+        var at = WorldPoint(rig.Chips);
+        // steel chips, and now and then a spark
+        Api.World.SpawnParticles(2, ColorUtil.ToRgba(255, 150, 150, 160),
+            at.AddCopy(-0.04, -0.04, -0.04), at.AddCopy(0.04, 0.04, 0.04),
+            new Vec3f(-0.8f, -0.2f, -0.8f), new Vec3f(0.8f, 0.6f, 0.8f), 0.8f, 1f, 0.25f, EnumParticleModel.Cube, null);
+        if (Api.World.Rand.NextDouble() < 0.3)
+            Api.World.SpawnParticles(1, ColorUtil.ToRgba(255, 60, 190, 255),
+                at, at.AddCopy(0.02, 0.02, 0.02),
+                new Vec3f(-1.5f, 0.2f, -1.5f), new Vec3f(1.5f, 1.2f, 1.5f), 0.3f, 1f, 0.15f, EnumParticleModel.Quad, null);
+    }
+
+    private void SpawnSpray(GearCutterRig rig)
+    {
+        var at = WorldPoint(rig.Drip);
+        Api.World.SpawnParticles(2, ColorUtil.ToRgba(170, 40, 140, 190),
+            at.AddCopy(-0.02, -0.05, -0.02), at.AddCopy(0.02, 0, 0.02),
+            new Vec3f(-0.15f, -0.6f, -0.15f), new Vec3f(0.15f, -0.3f, 0.15f), 0.5f, 1f, 0.2f, EnumParticleModel.Quad, null);
     }
 
     // ---- Breaking ----
 
     /// <summary>What breaking the frame gives besides the frame: every fitted part (the kit with its
     /// durability) and the blank on the arbor.</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        foreach (var drop in _parts.Returns())
-        {
-            if (drop.Durability is { } left)
-            {
-                if (KitStack(left) is { } kit)
-                    yield return kit;
-            }
-            else if (Collectible(drop.Code) is { } item)
-                yield return new ItemStack(item, drop.Count);
-        }
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (BlankOn)
             yield return _blank!.Clone();
-    }
-
-    // A part is an item; a material may be a block (the metal parts).
-    private CollectibleObject? Collectible(string code)
-    {
-        var loc = new AssetLocation(code);
-        if (Api.World.GetItem(loc) is { IsMissing: false } item)
-            return item;
-        return Api.World.GetBlock(loc) is { Id: > 0, IsMissing: false } block ? block : null;
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -561,16 +355,6 @@ public class BEGearCutter : BlockEntity
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var stage in GearCutterRequires.Stages)
-            tree.RemoveAttribute(PartKeyPrefix + GearCutterRequires.Name(stage));
-        foreach (var (requires, code) in _parts.Snapshot())
-            tree.SetString(PartKeyPrefix + requires, code);
-        var materials = new TreeAttribute();
-        foreach (var (key, count) in _parts.MaterialSnapshot())
-            materials.SetInt(key, count);
-        tree[MaterialsKey] = materials;
-        tree.SetInt("kitLeft", _parts.KitLeft);
-        tree.SetInt("kitCapacity", _parts.KitCapacity);
         if (BlankOn)
             tree.SetItemstack("blank", _blank);
         else
@@ -579,37 +363,22 @@ public class BEGearCutter : BlockEntity
         tree.SetDouble("work", _job.Work);
         if (Api?.Side == EnumAppSide.Server)
         {
-            tree.SetFloat("minSpeed", Config.MinSpeed);
             tree.SetFloat("turnsPerTooth", Config.TurnsPerTooth);
             tree.SetInt("wearPerGear", Config.CutterWearPerGear);
         }
-        if (_oil != null)
-            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        var fitted = new Dictionary<string, string>();
-        foreach (var stage in GearCutterRequires.Stages)
-            if (tree.GetString(PartKeyPrefix + GearCutterRequires.Name(stage)) is { Length: > 0 } code)
-                fitted[GearCutterRequires.Name(stage)] = code;
-        var materials = new Dictionary<string, int>(StringComparer.Ordinal);
-        if (tree[MaterialsKey] is ITreeAttribute saved)
-            foreach (var (key, value) in saved)
-                if (value is IntAttribute i)
-                    materials[key] = i.value;
-        _parts = GearCutterParts.Restore(fitted, tree.GetInt("kitLeft"), tree.GetInt("kitCapacity"), materials);
         _blank = tree.GetItemstack("blank");
         if (_blank != null && !_blank.ResolveBlockOrItem(worldForResolving))
             _blank = null;
         _job = _blank == null ? CutJob.None : CutJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
             _blank = null;
-        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.GearCutter);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
-            _serverMinSpeed = tree.TryGetFloat("minSpeed");
             _serverTurnsPerTooth = tree.TryGetFloat("turnsPerTooth");
             _serverWearPerGear = tree.TryGetInt("wearPerGear");
         }
@@ -630,39 +399,30 @@ public class BEGearCutter : BlockEntity
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The master and the size it cuts, the gears the kit has left at this oil level (and, dry, that the
+    /// next breaks it), and the blank on the arbor with its teeth cut.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
         string L(string key, params object[] args) => Lang.Get(GearCutterSystem.Domain + ":gearcutter-" + key, args);
-        if (_parts.Next is { } next)
-        {
-            dsc.AppendLine(L("info-next", StageName(next)));
-            if (_parts.NextNeeds().Count > 0)
-                dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-needs", Needs()));
-            var after = GearCutterRequires.Stages.Where(s => s > next && !_parts.Has(s)).ToList();
-            if (after.Count > 0)
-                dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));
-        }
-        if (_parts.Master is var k and > 0)
+        if (Master is var k and > 0)
             dsc.AppendLine(L(k == 1 ? "info-master-small" : "info-master-large"));
-        int teeth = GearCut.Teeth(_parts.Master is > 0 and var m ? m : 1);
-        double fill = OilFill;
-        if (_parts.Has(GearCutterStage.Cutter))
-        {
-            dsc.AppendLine(L("info-kit", _parts.KitLeft, _parts.KitCapacity,
-                GearCutterWear.GearsLeft(WearPerGear, teeth, fill, _parts.KitLeft)));
-        }
+        if (Kit != null)
+            dsc.AppendLine(Oiling != null && OilFill <= 0
+                ? L("info-wear-dry")
+                : L("info-kit", GearCutterWear.GearsLeft(WearPerGear, GearCut.Teeth(Master is > 0 and var m ? m : 1), OilFill, KitLeft)));
         if (BlankOn)
-        {
-            string done = Math.Floor(_job.Work).ToString("0");
-            dsc.AppendLine(Running ? L("info-cutting", done, _job.End) : L("info-stopped", done, _job.End));
-        }
-        else if (_parts.Complete)
-            dsc.AppendLine(L("info-empty"));
-        Oil.Info(_oil, dsc, dryLoad: false);
-        if (_oil != null)
-            dsc.AppendLine(fill <= 0 ? L("info-wear-dry") : L("info-wear", GearCutterWear.Multiplier(fill).ToString("0.#")));
-        float speed = ShaftSpeed;
-        dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
+            dsc.AppendLine(L("info-blank", Math.Floor(_job.Work).ToString("0", CultureInfo.InvariantCulture), _job.End));
+    }
+
+    /// <summary>For a wrench: the kit's wear a gear over the oil's fill, the cut's W exactly, and the shaft turns a
+    /// tooth takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        string L(string key, params object[] args) => Lang.Get(GearCutterSystem.Domain + ":gearcutter-" + key, args);
+        if (Oiling != null && Kit != null && OilFill > 0)
+            dsc.AppendLine(L("info-wear", GearCutterWear.Multiplier(OilFill).ToString("0.#", CultureInfo.InvariantCulture)));
+        if (BlankOn)
+            dsc.AppendLine(L("info-cut", _job.Work.ToString("0.000", CultureInfo.InvariantCulture), _job.End,
+                TurnsPerTooth.ToString("0.###", CultureInfo.InvariantCulture)));
     }
 }

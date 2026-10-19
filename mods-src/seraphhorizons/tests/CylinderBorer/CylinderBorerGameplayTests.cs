@@ -5,12 +5,15 @@ using Xunit;
 namespace SeraphHorizons.Tests.CylinderBorer;
 
 /// <summary>
-/// The cylinder borer's gameplay rules (CylinderBorer/Core): the four stages after the frame in
-/// order, each taking its materials, the cutter head's durability, wear by the oil's fill and take-back, the bore's arithmetic,
+/// The cylinder borer's gameplay rules: its build (config/builds/cylinderborer.json on the shared staged build,
+/// the cutter head its durable wearing part): the four stages after the frame in order, each taking its materials,
+/// the cutter head's durability, wear and take-back; the bore's arithmetic and wear by the oil's fill (CylinderBorer/Core),
 /// the renderer's clock and the settings.
 /// </summary>
 public class CylinderBorerGameplayTests
 {
+    private const string Head = CylinderBorerBuild.HeadCode;
+
     /// <summary>Each stage's materials in turn, as a player would put them in: full stacks of each.</summary>
     private static readonly (string Code, int Count)[][] Bills =
     [
@@ -19,269 +22,247 @@ public class CylinderBorerGameplayTests
         [("game:plank-oak", 2), ("game:rod-steel", 1), ("game:rope", 2), ("game:metalplate-meteoriciron", 1)],
     ];
 
-    private static void FitStage(CylinderBorerParts parts, int stage)
+    private static MachineBuild Build() =>
+        MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "cylinderborer.json")));
+
+    private static AssemblyClick Click(MachineAssembly parts, string? code, int held = 1, int maxStack = 64, double? uses = null) =>
+        parts.Fit(code, held, maxStack, uses);
+
+    private static void FitStage(MachineAssembly parts, int stage)
     {
         foreach (var (code, count) in Bills[stage])
-            Assert.Equal(new CylinderBorerFit(CylinderBorerFitVerdict.Fits, (CylinderBorerStage)stage, count), parts.Fit(code, 64, 64));
-        Assert.True(parts.Has((CylinderBorerStage)stage));
+            Assert.Equal(new AssemblyClick(AssemblyVerdict.Fitted, count, stage), Click(parts, code, 64));
+        Assert.True(parts.Build.StageComplete(stage));
     }
 
-    private static CylinderBorerParts Built(int headLeft = 8, int headCapacity = 8)
+    private static MachineAssembly Built(int headLeft = 8)
     {
-        var parts = new CylinderBorerParts();
+        var parts = new MachineAssembly(Build());
         for (int s = 0; s < Bills.Length; s++)
             FitStage(parts, s);
-        Assert.Equal(CylinderBorerFitVerdict.Fits, parts.Fit(CylinderBorerParts.HeadCode, headLeft: headLeft, headCapacity: headCapacity).Verdict);
+        Assert.Equal(AssemblyVerdict.Fitted, Click(parts, Head, uses: headLeft).Verdict);
         return parts;
     }
+
+    private static double? HeadLeft(MachineAssembly parts) => parts.Wearing.Fitted(CylinderBorerBuild.HeadPart)?.Left;
 
     [Fact]
     public void The_stages_are_frame_then_bushings_bar_feed_and_cutter_head()
     {
-        Assert.Equal([CylinderBorerStage.Bushings, CylinderBorerStage.Bar, CylinderBorerStage.Feed, CylinderBorerStage.CutterHead],
-            CylinderBorerRequires.Stages);
-        Assert.Equal(["bushings", "bar", "feed", "cutterhead"], CylinderBorerRequires.Stages.Select(CylinderBorerRequires.Name));
+        var build = Build();
+        Assert.Equal(["bushings", "bar", "feed", "cutterhead"], build.Stages.Select(s => s.Id));
+        Assert.Equal(CylinderBorerRequires.Stages, build.Stages.Select(s => Assert.Single(s.Adds)));
+        Assert.Null(build.Block);   // its records are its own in the export
         Assert.Equal(new HashSet<string> { "bushings", "bar", "feed", "cutterhead", "blankiron", "blanksteel" }, CylinderBorerRequires.KnownRequires);
-        var parts = new CylinderBorerParts();
+        var parts = new MachineAssembly(build);
         for (int i = 0; i < Bills.Length; i++)
         {
-            Assert.Equal(CylinderBorerRequires.Stages[i], parts.Next);
+            Assert.Equal(i, parts.Build.Next);
             FitStage(parts, i);
         }
-        Assert.Equal(CylinderBorerStage.CutterHead, parts.Next);
-        Assert.Equal(CylinderBorerFitVerdict.Fits, parts.Fit(CylinderBorerParts.HeadCode, headLeft: 8, headCapacity: 8).Verdict);
-        Assert.True(parts.Complete);
-        Assert.Null(parts.Next);
-        Assert.Empty(parts.NextNeeds());
+        Assert.Equal(3, parts.Build.Next);
+        Assert.Equal(AssemblyVerdict.Fitted, Click(parts, Head, uses: 8).Verdict);
+        Assert.True(parts.Ready);
+        Assert.Null(parts.Build.Next);
+        Assert.Empty(parts.Build.NextNeeds());
     }
 
     [Fact]
     public void Each_stage_takes_its_old_items_bill_and_only_the_head_is_forged()
     {
-        string Bill(CylinderBorerStage s) => string.Join("; ", CylinderBorerParts.MaterialsFor(s).Select(m => $"{m.Quantity} {string.Join("|", m.Codes)}"));
-        Assert.Equal("1 game:metal-parts", Bill(CylinderBorerStage.Bushings));
-        Assert.Equal("3 game:rod-iron|game:rod-meteoriciron|game:rod-steel; 1 game:metal-parts; 1 seraphhorizons:largegear-stainless",
-            Bill(CylinderBorerStage.Bar));
+        var build = Build();
+        string Bill(int s) => string.Join("; ", build.Stages[s].Materials.Select(m => $"{m.Quantity} {string.Join("|", m.Codes)}"));
+        Assert.Equal("1 game:metal-parts", Bill(0));
+        Assert.Equal("3 game:rod-iron|game:rod-meteoriciron|game:rod-steel; 1 game:metal-parts; 1 seraphhorizons:largegear-stainless", Bill(1));
         Assert.Equal("2 game:plank-oak; 1 game:rod-iron|game:rod-meteoriciron|game:rod-steel; 2 game:rope; "
-                     + "1 game:metalplate-iron|game:metalplate-meteoriciron|game:metalplate-steel", Bill(CylinderBorerStage.Feed));
-        Assert.Equal("1 seraphhorizons:cylinderborerhead-steel", Bill(CylinderBorerStage.CutterHead));
+                     + "1 game:metalplate-iron|game:metalplate-meteoriciron|game:metalplate-steel", Bill(2));
+        Assert.Equal("1 seraphhorizons:cylinderborerhead-steel", Bill(3));
+        Assert.Equal(CylinderBorerBuild.HeadPart, build.Stages[3].Materials.Single().Wearing);
+        var head = Assert.Single(build.Wearing);
+        Assert.True(head.Durable);
+        Assert.Equal("cutterhead", head.Requires);
         // the old items are no part of it
-        foreach (var code in new[] { CylinderBorerParts.LegacyBarCode, CylinderBorerParts.LegacyFeedCode, CylinderBorerParts.LegacyBushingsCode })
-            Assert.False(CylinderBorerParts.IsPart(code), code);
-        Assert.Equal([CylinderBorerStage.Bar, CylinderBorerStage.Feed], CylinderBorerParts.StagesOf("game:rod-meteoriciron"));
-        Assert.Equal([CylinderBorerStage.Bushings, CylinderBorerStage.Bar], CylinderBorerParts.StagesOf("metal-parts"));
-        Assert.Empty(CylinderBorerParts.StagesOf("game:rod-copper"));
+        foreach (var code in new[] { "seraphhorizons:cylinderborerbar", "seraphhorizons:cylinderborerfeed", "seraphhorizons:cylinderborerbushings" })
+            Assert.Equal(AssemblyVerdict.NotAPart, Click(new MachineAssembly(build), code).Verdict);
     }
 
     [Fact]
     public void Only_the_next_stage_is_accepted()
     {
-        var parts = new CylinderBorerParts();
-        Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit("seraphhorizons:largegear-stainless").Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit("game:rope", 2).Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit(CylinderBorerParts.HeadCode, headLeft: 8, headCapacity: 8).Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit("game:rod-iron", 3).Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit("game:rod-copper", 3).Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit(CylinderBorerParts.LegacyBushingsCode).Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit(null).Verdict);
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Click(parts, "seraphhorizons:largegear-stainless").Verdict);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Click(parts, "game:rope", 2).Verdict);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Click(parts, Head, uses: 8).Verdict);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Click(parts, "game:rod-iron", 3).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, Click(parts, "game:rod-copper", 3).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, Click(parts, null).Verdict);
         // a code with no domain is the game's; one lot of metal parts from a stack of two
-        Assert.Equal(new CylinderBorerFit(CylinderBorerFitVerdict.Fits, CylinderBorerStage.Bushings, 1), parts.Fit("metal-parts", 2, 16));
-        Assert.True(parts.Has(CylinderBorerStage.Bushings));
+        Assert.Equal(new AssemblyClick(AssemblyVerdict.Fitted, 1, 0), Click(parts, "metal-parts", 2, 16));
+        Assert.True(parts.Build.StageComplete(0));
         // the bar's metal parts now, then already in
-        Assert.Equal(new CylinderBorerFit(CylinderBorerFitVerdict.Fits, CylinderBorerStage.Bar, 1), parts.Fit("game:metal-parts", 2, 16));
-        Assert.Equal(CylinderBorerFitVerdict.AlreadyFitted, parts.Fit("game:metal-parts", 2, 16).Verdict);
-        Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit("game:plank-oak", 2, 64).Verdict);
-        Assert.False(parts.Has(CylinderBorerStage.Bar));
-        Assert.False(parts.Has(CylinderBorerStage.Feed));
+        Assert.Equal(new AssemblyClick(AssemblyVerdict.Fitted, 1, 1), Click(parts, "game:metal-parts", 2, 16));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, Click(parts, "game:metal-parts", 2, 16).Verdict);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Click(parts, "game:plank-oak", 2).Verdict);
+        Assert.False(parts.Build.StageComplete(1));
+        Assert.False(parts.Build.StageComplete(2));
     }
 
     [Fact]
     public void A_stage_takes_a_material_a_click_and_keeps_what_it_holds_until_it_is_complete()
     {
-        var parts = new CylinderBorerParts();
+        var parts = new MachineAssembly(Build());
         FitStage(parts, 0);
         // two rods held of the three: too few, not a full stack
-        Assert.Equal(CylinderBorerFitVerdict.TooFew, parts.Fit("game:rod-iron", 2, 16).Verdict);
-        Assert.Equal(0, parts.Count(CylinderBorerStage.Bar, 0));
+        Assert.Equal(AssemblyVerdict.TooFew, Click(parts, "game:rod-iron", 2, 16).Verdict);
+        Assert.Equal(0, parts.Build.Count(1, 0));
         // a full stack short of it goes in whole (a stack of one rod is full when rods stack to one)
-        Assert.Equal(new CylinderBorerFit(CylinderBorerFitVerdict.Fits, CylinderBorerStage.Bar, 1), parts.Fit("game:rod-iron", 1, 1));
-        Assert.Equal(new CylinderBorerFit(CylinderBorerFitVerdict.Fits, CylinderBorerStage.Bar, 2), parts.Fit("game:rod-steel", 5, 16));
-        Assert.Equal(3, parts.Count(CylinderBorerStage.Bar, 0));
+        Assert.Equal(new AssemblyClick(AssemblyVerdict.Fitted, 1, 1), Click(parts, "game:rod-iron", 1, 1));
+        Assert.Equal(new AssemblyClick(AssemblyVerdict.Fitted, 2, 1), Click(parts, "game:rod-steel", 5, 16));
+        Assert.Equal(3, parts.Build.Count(1, 0));
         Assert.Equal(new[] { ("seraphhorizons:largegear-stainless", 1), ("game:metal-parts", 1) },
-            parts.NextNeeds().Select(n => (n.Material.Codes[0], n.Missing)).OrderByDescending(n => n.Item1));
+            parts.Build.NextNeeds().Select(n => (n.Material.Codes[0], n.Missing)).OrderByDescending(n => n.Item1));
         // drawn only once complete
-        Assert.False(parts.Fitted("bar"));
-        parts.Fit("seraphhorizons:largegear-stainless");
-        Assert.False(parts.Fitted("bar"));
-        Assert.Equal(CylinderBorerStage.Bar, parts.Next);
-        parts.Fit("game:metal-parts", 4, 16);
-        Assert.True(parts.Fitted("bar"));
-        Assert.Equal(CylinderBorerStage.Feed, parts.Next);
+        Assert.False(parts.Shows("bar"));
+        Click(parts, "seraphhorizons:largegear-stainless");
+        Assert.False(parts.Shows("bar"));
+        Assert.Equal(1, parts.Build.Next);
+        Click(parts, "game:metal-parts", 4, 16);
+        Assert.True(parts.Shows("bar"));
+        Assert.Equal(2, parts.Build.Next);
         // what is in survives a save, partial stage and mixed metals included
-        parts.Fit("game:plank-oak", 3, 64);
-        var restored = CylinderBorerParts.Restore(parts.Snapshot(), 0, 0);
+        Click(parts, "game:plank-oak", 3);
+        var (build, wearing) = parts.Snapshot();
+        var restored = MachineAssembly.Restore(Build(), build, wearing, out _);
         Assert.Equal(parts.Returns(), restored.Returns());
-        Assert.Equal(2, restored.Count(CylinderBorerStage.Feed, 0));
-        Assert.False(restored.Has(CylinderBorerStage.Feed));
+        Assert.Equal(2, restored.Build.Count(2, 0));
+        Assert.False(restored.Build.StageComplete(2));
         Assert.Equal(
-            [new("game:metal-parts"), new("game:rod-iron"), new("game:rod-steel", 2), new("game:metal-parts"),
-             new("seraphhorizons:largegear-stainless"), new CylinderBorerDrop("game:plank-oak", 2)],
+            [new("game:metal-parts", 2), new("game:rod-iron", 1), new("game:rod-steel", 2),
+             new("seraphhorizons:largegear-stainless", 1), new StageDrop("game:plank-oak", 2)],
             restored.Returns());
     }
 
     [Fact]
-    public void Fitted_draws_each_stage_once_it_is_in_and_never_the_castings()
+    public void Each_stage_is_drawn_once_it_is_in_and_never_the_castings()
     {
-        var parts = new CylinderBorerParts();
-        Assert.True(parts.Fitted(null));
-        Assert.False(parts.Fitted("bushings"));
-        parts.Fit(CylinderBorerParts.BushingsCode);
-        Assert.True(parts.Fitted("bushings"));
-        Assert.False(parts.Fitted("bar"));
+        var parts = new MachineAssembly(Build());
+        Assert.True(parts.Shows(null));
+        Assert.False(parts.Shows("bushings"));
+        Click(parts, CylinderBorerBuild.BushingsCode);
+        Assert.True(parts.Shows("bushings"));
+        Assert.False(parts.Shows("bar"));
         parts = Built();
         foreach (var stage in CylinderBorerRequires.Stages)
-            Assert.True(parts.Fitted(CylinderBorerRequires.Name(stage)));
-        Assert.False(parts.Fitted(CylinderBorerRequires.BlankIron));
-        Assert.False(parts.Fitted(CylinderBorerRequires.BlankSteel));
-        Assert.False(parts.Fitted("chain"));
+            Assert.True(parts.Shows(stage));
+        // the castings are the work's: no stage adds them (BECylinderBorer.ShowsPart draws them by its clock)
+        Assert.DoesNotContain(Build().Stages, s => s.Adds.Contains(CylinderBorerRequires.BlankIron) || s.Adds.Contains(CylinderBorerRequires.BlankSteel));
+        parts.Take(CylinderBorerBuild.HeadPart);
+        Assert.False(parts.Shows("cutterhead"));
     }
 
     [Fact]
     public void The_cutter_head_carries_its_durability_and_a_spent_one_is_refused()
     {
-        var parts = new CylinderBorerParts();
+        var parts = new MachineAssembly(Build());
         for (int s = 0; s < Bills.Length; s++)
             FitStage(parts, s);
-        Assert.Equal(CylinderBorerFitVerdict.HeadSpent, parts.Fit(CylinderBorerParts.HeadCode, headLeft: 0, headCapacity: 8).Verdict);
-        Assert.False(parts.Complete);
-        Assert.Equal(CylinderBorerFitVerdict.Fits, parts.Fit(CylinderBorerParts.HeadCode, headLeft: 5, headCapacity: 8).Verdict);
-        Assert.Equal(5, parts.HeadLeft);
-        Assert.Equal(8, parts.HeadCapacity);
-        Assert.True(parts.Complete);
-        Assert.Equal(CylinderBorerFitVerdict.AlreadyFitted, parts.Fit(CylinderBorerParts.HeadCode, headLeft: 8, headCapacity: 8).Verdict);
+        Assert.Equal(AssemblyVerdict.Spent, Click(parts, Head, uses: 0).Verdict);
+        Assert.False(parts.Built);
+        Assert.Equal(AssemblyVerdict.Fitted, Click(parts, Head, uses: 5).Verdict);
+        Assert.Equal(5, HeadLeft(parts));
+        Assert.Equal(0.625, parts.Wearing.ShareLeft(CylinderBorerBuild.HeadPart), 9);
+        Assert.True(parts.Ready);
+        Assert.Equal(AssemblyVerdict.NotWorn, Click(parts, Head, uses: 8).Verdict);
     }
 
     [Fact]
     public void Ctrl_takes_the_head_back_unworn_then_the_casting()
     {
-        var parts = Built(6, 8);
-        Assert.Equal(CylinderBorerTakeBack.Head, parts.TakeBack(blankOn: true));
-        Assert.Equal((6, 8), parts.RemoveHead());
-        Assert.False(parts.Complete);
-        Assert.Equal(CylinderBorerStage.CutterHead, parts.Next);
-        Assert.Equal(CylinderBorerTakeBack.Blank, parts.TakeBack(blankOn: true));
-        Assert.Equal(CylinderBorerTakeBack.Nothing, parts.TakeBack(blankOn: false));
-        Assert.Null(parts.RemoveHead());
-        // the rest only by breaking the frame
-        Assert.True(parts.Has(CylinderBorerStage.Feed));
-        Assert.Equal(3, parts.Count(CylinderBorerStage.Bar, 0));
+        var parts = Built(6);
+        Assert.Equal(CylinderBorerTakeBack.Head, CylinderBorerBuild.TakeBack(parts, blankOn: true));
+        Assert.Equal((Head, 6.0), parts.Take(CylinderBorerBuild.HeadPart));
+        Assert.False(parts.Ready);
+        Assert.Equal(CylinderBorerTakeBack.Blank, CylinderBorerBuild.TakeBack(parts, blankOn: true));
+        Assert.Equal(CylinderBorerTakeBack.Nothing, CylinderBorerBuild.TakeBack(parts, blankOn: false));
+        Assert.Null(parts.Take(CylinderBorerBuild.HeadPart));
+        // the rest only by breaking the frame, and a head goes back in
+        Assert.True(parts.Build.StageComplete(2));
+        Assert.Equal(3, parts.Build.Count(1, 0));
+        Assert.Equal(AssemblyVerdict.Renewed, Click(parts, Head, uses: 6).Verdict);
+        Assert.True(parts.Ready);
     }
 
     [Fact]
     public void A_spent_head_is_gone_and_the_borer_needs_another()
     {
-        var parts = Built(2, 8);
-        Assert.False(parts.WearHead(1));
-        Assert.Equal(1, parts.HeadLeft);
-        Assert.False(parts.WearHead(0));
-        Assert.True(parts.WearHead(1));
-        Assert.False(parts.Has(CylinderBorerStage.CutterHead));
-        Assert.True(parts.Has(CylinderBorerStage.Feed));
-        Assert.False(parts.Complete);
-        Assert.Equal(0, parts.HeadLeft);
-        Assert.Equal(0, parts.HeadCapacity);
-        Assert.False(parts.WearHead(1));
-        Assert.Equal(CylinderBorerFitVerdict.Fits, parts.Fit(CylinderBorerParts.HeadCode, headLeft: 8, headCapacity: 8).Verdict);
+        var parts = Built(2);
+        Assert.False(parts.Wearing.Wear(CylinderBorerBuild.HeadPart, 1));
+        Assert.Equal(1, HeadLeft(parts));
+        Assert.False(parts.Wearing.Wear(CylinderBorerBuild.HeadPart, 0));
+        Assert.True(parts.Wearing.Wear(CylinderBorerBuild.HeadPart, 1));
+        Assert.Null(HeadLeft(parts));
+        Assert.True(parts.Built);
+        Assert.False(parts.Ready);
+        Assert.False(parts.Wearing.Wear(CylinderBorerBuild.HeadPart, 1));
+        Assert.DoesNotContain(parts.Returns(), d => d.Code == Head);
+        Assert.Equal(AssemblyVerdict.Renewed, Click(parts, Head, uses: 8).Verdict);
     }
 
     [Fact]
     public void Breaking_returns_exactly_what_went_in_the_head_with_its_durability()
     {
-        var parts = Built(3, 8);
+        var parts = Built(3);
         Assert.Equal(
-            [new("game:metal-parts"), new("game:rod-iron", 3), new("game:metal-parts"), new("seraphhorizons:largegear-stainless"),
-             new("game:plank-oak", 2), new("game:rod-steel"), new("game:rope", 2), new("game:metalplate-meteoriciron"),
-             new CylinderBorerDrop(CylinderBorerParts.HeadCode, 1, 3)],
+            [new("game:metal-parts", 2), new("game:rod-iron", 3), new("seraphhorizons:largegear-stainless", 1),
+             new("game:plank-oak", 2), new("game:rod-steel", 1), new("game:rope", 2), new("game:metalplate-meteoriciron", 1),
+             new StageDrop(Head, 1, 3)],
             parts.Returns());
-        parts.RemoveHead();
-        Assert.Equal(8, parts.Returns().Count);
-        Assert.DoesNotContain(parts.Returns(), d => d.Code == CylinderBorerParts.HeadCode);
+        parts.Take(CylinderBorerBuild.HeadPart);
+        Assert.Equal(7, parts.Returns().Count);
+        Assert.DoesNotContain(parts.Returns(), d => d.Code == Head);
     }
 
     [Fact]
     public void The_creative_shortcut_fills_each_stage_in_turn()
     {
-        var parts = new CylinderBorerParts();
-        parts.Fit("game:rod-steel", 3, 16);   // nothing yet: the bushings go first
+        var parts = new MachineAssembly(Build());
+        Click(parts, "game:rod-steel", 3, 16);   // nothing yet: the bushings go first
         FitStage(parts, 0);
-        parts.Fit("game:rod-steel", 2, 2);    // part of the bar, the rest filled
+        Click(parts, "game:rod-steel", 2, 2);    // part of the bar, the rest filled
         int n = 0;
-        while (parts.FillNext(8) && n++ < 10) { }
+        while (!parts.Ready && parts.FillNext() && n++ < 10) { }
         Assert.Equal(3, n);
-        Assert.True(parts.Complete);
-        Assert.Equal(8, parts.HeadLeft);
-        Assert.Equal(8, parts.HeadCapacity);
-        Assert.False(parts.FillNext(8));
+        Assert.Equal(8, HeadLeft(parts));
+        Assert.False(parts.FillNext());
         Assert.Equal(
-            [new("game:metal-parts"), new("game:rod-steel", 2), new("game:rod-iron"), new("game:metal-parts"),
-             new("seraphhorizons:largegear-stainless"), new("game:plank-oak", 2), new("game:rod-iron"), new("game:rope", 2),
-             new("game:metalplate-iron"), new CylinderBorerDrop(CylinderBorerParts.HeadCode, 1, 8)],
+            [new("game:metal-parts", 2), new("game:rod-steel", 2), new("game:rod-iron", 2),
+             new("seraphhorizons:largegear-stainless", 1), new("game:plank-oak", 2), new("game:rope", 2),
+             new("game:metalplate-iron", 1), new StageDrop(Head, 1, 8)],
             parts.Returns());
     }
 
     [Fact]
     public void A_save_keeps_every_fitted_code_and_drops_what_could_not_have_been_fitted()
     {
-        var parts = Built(4, 8);
-        var restored = CylinderBorerParts.Restore(parts.Snapshot(), parts.HeadLeft, parts.HeadCapacity);
-        Assert.True(restored.Complete);
-        Assert.Equal(4, restored.HeadLeft);
-        Assert.Equal(8, restored.HeadCapacity);
+        var parts = Built(4);
+        var (build, wearing) = parts.Snapshot();
+        var restored = MachineAssembly.Restore(Build(), build, wearing, out var dropped);
+        Assert.Empty(dropped);
+        Assert.True(restored.Ready);
+        Assert.Equal(4, HeadLeft(restored));
         Assert.Equal(parts.Returns(), restored.Returns());
         // a gap drops what follows it
         var gap = new Dictionary<string, int> { ["0/0/game:metal-parts"] = 1, ["2/0/game:plank-oak"] = 2 };
-        restored = CylinderBorerParts.Restore(gap, 0, 0);
-        Assert.True(restored.Has(CylinderBorerStage.Bushings));
-        Assert.Equal(0, restored.Count(CylinderBorerStage.Feed, 0));
+        restored = MachineAssembly.Restore(Build(), gap, new Dictionary<string, (string, double)>(), out dropped);
+        Assert.True(restored.Build.StageComplete(0));
+        Assert.Equal(0, restored.Build.Count(2, 0));
+        Assert.Equal([new StageDrop("game:plank-oak", 2)], dropped);
         // a spent head, and a code that is not its material's, are dropped
-        restored = CylinderBorerParts.Restore(parts.Snapshot(), 0, 8);
-        Assert.False(restored.Has(CylinderBorerStage.CutterHead));
-        Assert.True(restored.Has(CylinderBorerStage.Feed));
+        restored = MachineAssembly.Restore(Build(), build, new Dictionary<string, (string, double)> { ["head"] = (Head, 0) }, out _);
+        Assert.False(restored.Ready);
+        Assert.True(restored.Built);
         var wrong = new Dictionary<string, int> { ["0/0/game:rod-iron"] = 1 };
-        Assert.False(CylinderBorerParts.Restore(wrong, 0, 0).Has(CylinderBorerStage.Bushings));
-    }
-
-    [Fact]
-    public void A_save_from_when_each_stage_was_one_item_restores_those_stages_complete_in_their_materials()
-    {
-        var old = new Dictionary<string, string>
-        {
-            ["bushings"] = CylinderBorerParts.LegacyBushingsCode, ["bar"] = CylinderBorerParts.LegacyBarCode,
-            ["feed"] = CylinderBorerParts.LegacyFeedCode, ["cutterhead"] = CylinderBorerParts.HeadCode,
-        };
-        var restored = CylinderBorerParts.RestoreLegacy(old, 5, 8);
-        Assert.True(restored.Complete);
-        Assert.Equal(5, restored.HeadLeft);
-        Assert.Equal(8, restored.HeadCapacity);
-        // breaking it gives back what the items were made of, the any-metal ones in iron
-        Assert.Equal(
-            [new("game:metal-parts"), new("game:rod-iron", 3), new("game:metal-parts"), new("seraphhorizons:largegear-stainless"),
-             new("game:plank-oak", 2), new("game:rod-iron"), new("game:rope", 2), new("game:metalplate-iron"),
-             new CylinderBorerDrop(CylinderBorerParts.HeadCode, 1, 5)],
-            restored.Returns());
-        // the bushings as metal parts, as they were saved before the old bushings item went
-        restored = CylinderBorerParts.RestoreLegacy(new Dictionary<string, string> { ["bushings"] = "game:metal-parts", ["bar"] = CylinderBorerParts.LegacyBarCode }, 0, 0);
-        Assert.True(restored.Has(CylinderBorerStage.Bar));
-        Assert.Equal(CylinderBorerStage.Feed, restored.Next);
-        // a gap, or a code that was not its stage's item, ends the run; a spent head is dropped
-        restored = CylinderBorerParts.RestoreLegacy(new Dictionary<string, string> { ["bushings"] = "game:metal-parts", ["feed"] = CylinderBorerParts.LegacyFeedCode }, 0, 0);
-        Assert.Equal(CylinderBorerStage.Bar, restored.Next);
-        Assert.Single(restored.Returns());
-        restored = CylinderBorerParts.RestoreLegacy(new Dictionary<string, string> { ["bushings"] = "game:metal-parts", ["bar"] = CylinderBorerParts.LegacyFeedCode }, 0, 0);
-        Assert.Equal(CylinderBorerStage.Bar, restored.Next);
-        restored = CylinderBorerParts.RestoreLegacy(old, 0, 8);
-        Assert.Equal(CylinderBorerStage.CutterHead, restored.Next);
-        Assert.Empty(CylinderBorerParts.RestoreLegacy(new Dictionary<string, string>(), 0, 0).Returns());
+        Assert.False(MachineAssembly.Restore(Build(), wrong, new Dictionary<string, (string, double)>(), out _).Build.StageComplete(0));
     }
 
     [Fact]
@@ -382,12 +363,12 @@ public class CylinderBorerGameplayTests
         Assert.Equal(2, CutterHeadWear.Multiplier(0.5), 9);
         Assert.Equal(double.PositiveInfinity, CutterHeadWear.Multiplier(0));
         // a full tank throughout: eight cylinders, the eighth spending the head
-        var parts = Built(8, 8);
+        var parts = Built(8);
         int bored = 0;
-        while (parts.Complete)
+        while (parts.Ready)
         {
             bored++;
-            parts.WearHead(CutterHeadWear.WearFor(CylinderBorerConfig.Defaults.HeadWearPerCylinder, 1, parts.HeadLeft));
+            parts.Wearing.Wear(CylinderBorerBuild.HeadPart, CutterHeadWear.WearFor(CylinderBorerConfig.Defaults.HeadWearPerCylinder, 1, (int)HeadLeft(parts)!));
         }
         Assert.Equal(8, bored);
     }
@@ -478,7 +459,8 @@ public class CylinderBorerGameplayTests
     [InlineData(Side.West)]
     public void Placed_the_borer_runs_away_from_the_player(Side look)
     {
-        var side = CylinderBorerRig.PlacedSide(look);
+        // the shared machine base's rule (BlockMachine.TryPlaceBlock)
+        var side = OreMachineRig.PlacedSide(look);
         // the drive end (native z 3) is three blocks along the look from the bench end
         var far = Footprint.ToWorld(new Int3(0, 0, 3), side);
         var n = look.Normal();

@@ -1,6 +1,7 @@
 using Atlas.XUnit;
 using SeraphHorizons.Mod.CylinderBorer;
 using SeraphHorizons.Mod.CylinderBorer.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -30,7 +31,7 @@ public partial class SharedWorldScenarios
         World.SetBlock($"seraphhorizons:cylinderborer-frame-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BECylinderBorer ?? throw new Xunit.Sdk.XunitException($"no cylinder borer at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
 
@@ -39,8 +40,8 @@ public partial class SharedWorldScenarios
     /// two oak planks, rod, two ropes and plate (the rods and the plate of mixed metals).</summary>
     private static readonly (string Code, int Count)[] BorerMaterials =
     [
-        (CylinderBorerParts.BushingsCode, 1),
-        ("game:rod-iron", 3), (CylinderBorerParts.BushingsCode, 1), ("seraphhorizons:largegear-stainless", 1),
+        (CylinderBorerBuild.BushingsCode, 1),
+        ("game:rod-iron", 3), (CylinderBorerBuild.BushingsCode, 1), ("seraphhorizons:largegear-stainless", 1),
         ("game:plank-oak", 2), ("game:rod-steel", 1), ("game:rope", 2), ("game:metalplate-meteoriciron", 1),
     ];
 
@@ -51,7 +52,7 @@ public partial class SharedWorldScenarios
     /// <summary>A cutter head with <paramref name="durability"/> left (full when null).</summary>
     private ItemStack BorerHead(int? durability = null)
     {
-        var head = CutterItem(CylinderBorerParts.HeadCode);
+        var head = CutterItem(CylinderBorerBuild.HeadCode);
         if (durability is { } left)
             head.Attributes.SetInt("durability", left);
         return head;
@@ -61,7 +62,7 @@ public partial class SharedWorldScenarios
     /// cutter head last; then a full oil tank.</summary>
     private void AssembleBorer(BECylinderBorer borer, IPlayer player, ItemStack? head = null)
     {
-        var ghost = borer.GhostCells().First().Pos;
+        var ghost = MachineCells(borer).First().Pos;
         int i = 0;
         foreach (var part in BorerMaterials.Select(m => CutterItem(m.Code, m.Count)).Append(head ?? BorerHead()))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? borer.Pos : ghost, part) == null, $"{part.StackSize} {part.Collectible.Code} did not go in");
@@ -80,7 +81,7 @@ public partial class SharedWorldScenarios
     private async Task<BlockPos> PowerBorer(BECylinderBorer borer)
     {
         var ghost = borer.CellPos(BorerRig.PowerCell);
-        var face = Assert.IsType<BlockCylinderBorerGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
+        var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
         var rotorPos = ghost.AddCopy(face);
         World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
         await World.Ticks(2);
@@ -88,7 +89,7 @@ public partial class SharedWorldScenarios
         HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
         HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
         rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => borer.ShaftSpeed >= 0.3f, 15000);
+        await World.Until(() => Math.Abs(borer.ShaftSpeed) >= 0.3f, 15000);
         return rotorPos;
     }
 
@@ -96,12 +97,7 @@ public partial class SharedWorldScenarios
     private static double RestOfBore(BECylinderBorer borer) =>
         (borer.Job.End - borer.Job.Work) * 2 * Math.PI * borer.TurnsPerBlock(borer.Job.Class) + 1e-6;
 
-    private static string BorerInfo(BECylinderBorer borer, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        borer.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
+    private static string BorerInfo(BECylinderBorer borer, IPlayer player) => CutterInfo(borer, player);
 
     private static ItemStack? BorerHeld(IPlayer player, string code) => player.InventoryManager.Inventories.Values
         .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
@@ -114,15 +110,16 @@ public partial class SharedWorldScenarios
     {
         Assert.True(CylinderBorerSystem.Applies(World.Api));
         Assert.NotNull(BorerMod.Rig);
+        // its frame is the shared machine block, its cells and power cell the shared ones, its build the shared build's
         foreach (var side in new[] { "north", "east", "south", "west" })
-        {
-            Assert.IsType<BlockCylinderBorer>(W.GetBlock(new AssetLocation($"seraphhorizons:cylinderborer-frame-{side}")));
-            Assert.IsType<BlockCylinderBorerGhostPower>(W.GetBlock(new AssetLocation($"seraphhorizons:cylinderborer-ghostpower-{side}")));
-        }
-        Assert.IsType<BlockCylinderBorerGhost>(W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-ghost")));
-        foreach (var stage in CylinderBorerRequires.Stages)
-            foreach (var code in CylinderBorerParts.MaterialsFor(stage).SelectMany(m => m.Codes))
-                Assert.True(BECylinderBorer.PartStack(W, code) is { StackSize: 1 }, $"no {code} for {stage}");   // metal parts are a block
+            Assert.False(Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:cylinderborer-frame-{side}"))).PlacedLikeMill);
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(BorerRig, ((BlockMachine)W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-frame-north"))).Rig);
+        var build = MachinesSystem.Of(World.Api).Build(CylinderBorerSystem.MachineId)!;
+        Assert.Equal(CylinderBorerRequires.Stages, build.Stages.Select(s => s.Id));
+        foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
+            Assert.True(W.GetItem(new AssetLocation(code)) != null || W.GetBlock(new AssetLocation(code)) is { Id: > 0 }, $"no {code}");   // metal parts are a block
+        Assert.Equal(8, Assert.Single(build.Wearing).Uses);
         foreach (var k in new[] { 1, 2 })
         {
             Assert.True(W.GetItem(new AssetLocation(Boring.BlankFor(k)!)) is { Id: > 0, IsMissing: false }, $"no {Boring.BlankFor(k)}");
@@ -130,7 +127,7 @@ public partial class SharedWorldScenarios
         }
         var head = BorerHead();
         Assert.Equal(8, head.Collectible.GetMaxDurability(head));
-        Assert.Equal("Cylinder borer frame", new ItemStack(W.GetBlock(BlockCylinderBorer.ItemCode)).GetName());
+        Assert.Equal("Cylinder borer frame", new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-frame-north"))).GetName());
         Assert.Equal("Steel cutter head", head.GetName());
         Assert.Equal("Rough cast iron cylinder", CutterItem(Boring.BlankIron).GetName());
         Assert.Equal("Steel engine cylinder", CutterItem(Boring.CylinderSteel).GetName());
@@ -147,15 +144,15 @@ public partial class SharedWorldScenarios
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the bushings are the game's metal parts, and the bar and the feed take their materials at the
         // frame: none has an item or a recipe of its own
-        Assert.Equal("game:metal-parts", CylinderBorerParts.BushingsCode);
-        Assert.NotNull(W.GetBlock(new AssetLocation(CylinderBorerParts.BushingsCode)));
-        foreach (var gone in new[] { CylinderBorerParts.LegacyBushingsCode, CylinderBorerParts.LegacyBarCode, CylinderBorerParts.LegacyFeedCode })
+        Assert.Equal("game:metal-parts", CylinderBorerBuild.BushingsCode);
+        Assert.NotNull(W.GetBlock(new AssetLocation(CylinderBorerBuild.BushingsCode)));
+        foreach (var gone in new[] { "seraphhorizons:cylinderborerbushings", "seraphhorizons:cylinderborerbar", "seraphhorizons:cylinderborerfeed" })
         {
             Assert.Null(W.GetItem(new AssetLocation(gone)));
             Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == gone);
         }
         // the anvil: the cutter head from one steel ingot, steel only, by hand
-        var smith = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == CylinderBorerParts.HeadCode);
+        var smith = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == CylinderBorerBuild.HeadCode);
         Assert.True(smith.Ingredient!.SatisfiesAsIngredient(CutterItem("game:ingot-steel")));
         Assert.False(smith.Ingredient.SatisfiesAsIngredient(CutterItem("game:ingot-iron")));
         Assert.DoesNotContain(smith.Name?.Path, new[] { "plate", "blistersteel" });
@@ -219,8 +216,8 @@ public partial class SharedWorldScenarios
 
     // ---- Placing ----
 
-    // On all four facings: room for every cell, a ghost stamped in each, the borer running away along
-    // the facing from the bench end, the power ghost's axle face native south turned to the facing, at
+    // On all four facings: room for every cell, a shared cell stamped in each, the borer running away along
+    // the facing from the bench end, the power cell's axle face native south turned to the facing, at
     // the far end; broken through a ghost, every cell is cleared and the frame drops.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Cylinder_borer_places_on_all_four_facings_with_ghosts()
@@ -232,20 +229,20 @@ public partial class SharedWorldScenarios
             var pos = await CutterSite(-680 - 12 * i++, -680);
             var borer = await PlaceBorer(pos, side.Code());
             Assert.Equal(side, borer.Side);
-            var cells = borer.GhostCells().ToList();
+            var cells = MachineCells(borer);
             Assert.Equal(7, cells.Count);
             var n = side.Normal();
             foreach (var cell in cells.Select(c => c.Pos).Append(pos))
             {
                 if (!cell.Equals(pos))
-                    Assert.Equal(pos, Assert.IsType<BECylinderBorerGhost>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
+                    Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
                 var block = W.BlockAccessor.GetBlock(cell);
                 Assert.NotNull(block.GetSelectionBoxes(W.BlockAccessor, cell));
                 Assert.NotNull(block.GetCollisionBoxes(W.BlockAccessor, cell));
             }
             var powerGhost = Assert.Single(cells, c => c.Power).Pos;
             Assert.Equal(pos.AddCopy(n.X * 3, 0, n.Z * 3), powerGhost);
-            var face = Assert.IsType<BlockCylinderBorerGhostPower>(W.BlockAccessor.GetBlock(powerGhost)).PowerFace;
+            var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(powerGhost)).PowerFace;
             Assert.Equal(side.Code(), face.Code);
             Assert.DoesNotContain(cells, c => c.Pos.Equals(powerGhost.AddCopy(face)));
             Assert.Equal("Cylinder borer frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
@@ -267,7 +264,8 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-680, -700);
         var player = await CutterPlayer();
         var borer = await PlaceBorer(pos, "east");
-        var ghost = borer.GhostCells().Last().Pos;
+        var ghost = MachineCells(borer).Last().Pos;
+        var assembly = borer.Assembly!;
         Assert.Contains("Build: stage 1 of 4, bushings", BorerInfo(borer, player));
         Assert.Contains("Still takes: 1 × ", BorerInfo(borer, player));
 
@@ -275,7 +273,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, CutterClick(player, pos, CutterItem("game:rope", 2))?.StackSize);
         Assert.True(_cutterHandled);
         Assert.Equal(1, CutterClick(player, ghost, BorerHead())?.StackSize);
-        Assert.False(borer.Parts.Has(CylinderBorerStage.Bushings));
+        Assert.Equal(0, assembly.Build.Next);
         // no casting before the borer is built
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Boring.BlankIron))?.StackSize);
         Assert.False(borer.BlankOn);
@@ -286,39 +284,39 @@ public partial class SharedWorldScenarios
         Assert.False(_cutterHandled);
 
         // the bushings: one lot of metal parts from a stack of two, the second already fitted
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(CylinderBorerParts.BushingsCode, 2))?.StackSize);
-        Assert.True(borer.Parts.Has(CylinderBorerStage.Bushings));
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(CylinderBorerBuild.BushingsCode, 2))?.StackSize);
+        Assert.True(assembly.Build.StageComplete(0));
         string info = BorerInfo(borer, player);
         Assert.Contains("Build: stage 2 of 4, boring bar", info);
-        Assert.Contains("Still takes: 3 × Iron rod or ", info);
-        Assert.Contains("Steel rod, 1 × ", info);
+        Assert.Contains("Still takes: 3 × Iron rod, 1 × ", info);
 
         // the bar: two rods are too few (and not a full stack), so nothing goes in; three of five do
         Assert.Equal(2, CutterClick(player, ghost, CutterItem("game:rod-iron", 2))?.StackSize);
-        Assert.Equal(0, borer.Parts.Count(CylinderBorerStage.Bar, 0));
+        Assert.Equal(0, assembly.Build.Count(1, 0));
         Assert.Equal(2, CutterClick(player, ghost, CutterItem("game:rod-iron", 5))?.StackSize);
-        Assert.Equal(3, borer.Parts.Count(CylinderBorerStage.Bar, 0));
+        Assert.Equal(3, assembly.Build.Count(1, 0));
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:rod-iron"))?.StackSize);   // all the rods it takes are in
-        Assert.False(borer.Parts.Has(CylinderBorerStage.Bar));
-        Assert.False(borer.PartFitted("bar"));   // drawn only once complete
+        Assert.False(assembly.Build.StageComplete(1));
+        Assert.False(borer.ShowsPart("bar"));   // drawn only once complete
         Assert.DoesNotContain("Iron rod", BorerInfo(borer, player));
         // a stage partly in keeps what it holds through a save
         var partly = new Vintagestory.API.Datastructures.TreeAttribute();
         borer.ToTreeAttributes(partly);
         borer.FromTreeAttributes(partly, W);
-        Assert.Equal(3, borer.Parts.Count(CylinderBorerStage.Bar, 0));
-        Assert.Equal(CylinderBorerStage.Bar, borer.Parts.Next);
-        Assert.Null(CutterClick(player, pos, CutterItem(CylinderBorerParts.BushingsCode)));
+        assembly = borer.Assembly!;
+        Assert.Equal(3, assembly.Build.Count(1, 0));
+        Assert.Equal(1, assembly.Build.Next);
+        Assert.Null(CutterClick(player, pos, CutterItem(CylinderBorerBuild.BushingsCode)));
         Assert.Null(CutterClick(player, pos, CutterItem("seraphhorizons:largegear-stainless")));
-        Assert.True(borer.Parts.Has(CylinderBorerStage.Bar));
-        Assert.True(borer.PartFitted("bar"));
+        Assert.True(assembly.Build.StageComplete(1));
+        Assert.True(borer.ShowsPart("bar"));
 
         // the feed: its planks from a stack of four, a steel rod, the ropes, a meteoric iron plate
         Assert.Contains("Build: stage 3 of 4, feed", BorerInfo(borer, player));
         Assert.Equal(2, CutterClick(player, ghost, CutterItem("game:plank-oak", 4))?.StackSize);
         foreach (var (code, count) in BorerMaterials.Skip(5))
             Assert.Null(CutterClick(player, pos, CutterItem(code, count)));
-        Assert.True(borer.Parts.Has(CylinderBorerStage.Feed));
+        Assert.True(assembly.Build.StageComplete(2));
         Assert.False(borer.Complete);
         Assert.Contains("Build: stage 4 of 4, cutter head", BorerInfo(borer, player));
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Boring.BlankSteel))?.StackSize);
@@ -329,20 +327,24 @@ public partial class SharedWorldScenarios
         Assert.Equal("Cylinder borer", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         Assert.DoesNotContain("Build:", BorerInfo(borer, player));
         // built dry, the next cylinder would break the head; a full tank gives it all eight
-        Assert.Contains("Cutter head: 8 of 8, about 1 more cylinders", BorerInfo(borer, player));
+        Assert.Contains("Cutter head: 100% left", BorerInfo(borer, player));
         Assert.Contains("No oil: the next cylinder breaks the cutter head", BorerInfo(borer, player));
+        Assert.Contains("Dry: it wears its cutter fast", BorerInfo(borer, player));
         FillBorerOil(borer, 1);
-        Assert.Contains("Cutter head: 8 of 8, about 8 more cylinders", BorerInfo(borer, player));
-        Assert.Contains("Cutter head wear: 1× per cylinder", BorerInfo(borer, player));
-        Assert.Contains("Cradle empty", BorerInfo(borer, player));
+        Assert.Contains("About 8 more cylinders from the cutter head", BorerInfo(borer, player));
+        var detail = CutterWrenchInfo(borer, player);
+        Assert.Contains("Cutter head: 8 of 8 uses left", detail);
+        Assert.Contains("Cutter head wear: 1× per cylinder", detail);
+        Assert.Contains("Oil a job: 10", detail);
+        Assert.Contains("No power", BorerInfo(borer, player));
 
         // a save keeps every fitted code
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         borer.ToTreeAttributes(tree);
         borer.FromTreeAttributes(tree, W);
         Assert.True(borer.Complete);
-        Assert.Equal(9, borer.Parts.Returns().Count);
-        Assert.Equal(BorerMaterials.Sum(m => m.Count) + 1, borer.Parts.Returns().Sum(d => d.Count));
+        Assert.Equal(8, borer.Assembly!.Returns().Count);   // the two lots of metal parts together
+        Assert.Equal(BorerMaterials.Sum(m => m.Count) + 1, borer.Assembly.Returns().Sum(d => d.Count));
     }
 
     [AtlasScenario(TimeoutMs = 60_000)]
@@ -354,16 +356,16 @@ public partial class SharedWorldScenarios
         int stages = 0;
         while (!borer.Complete && stages < 10)
         {
-            var next = borer.Parts.Next!.Value;
+            int next = borer.Assembly!.Build.Next!.Value;
             Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
-            Assert.True(borer.Parts.Has(next), $"the shortcut did not fit {next}");
+            Assert.True(borer.Assembly.Build.StageComplete(next), $"the shortcut did not fit stage {next}");
             stages++;
         }
         Assert.Equal(4, stages);
-        Assert.Equal(8, borer.Parts.HeadLeft);
+        Assert.Equal(8, borer.HeadLeft);
         // complete, a creative Ctrl click is the take-back again
         CutterClick(player, pos, null, ctrl: true, creative: true);
-        Assert.False(borer.Parts.Has(CylinderBorerStage.CutterHead));
+        Assert.Null(borer.Head);
     }
 
     // ---- Boring ----
@@ -379,7 +381,7 @@ public partial class SharedWorldScenarios
         var borer = await PlaceBorer(pos, "south");
         AssembleBorer(borer, player);
         using var clock = VirtualClock.Start(World);
-        var mp = W.BlockAccessor.GetBlockEntity(borer.CellPos(BorerRig.PowerCell))!.GetBehavior<BEBehaviorCylinderBorerMP>()!;
+        var mp = W.BlockAccessor.GetBlockEntity(borer.CellPos(BorerRig.PowerCell))!.GetBehavior<BEBehaviorMachineMP>()!;
         Assert.Equal(BorerMod.Config.Resistance, mp.GetResistance(), 4);
 
         foreach (var code in new[] { Boring.CylinderIron, Boring.CylinderSteel, "game:ingot-iron" })
@@ -398,11 +400,13 @@ public partial class SharedWorldScenarios
 
         await World.Ticks(10);
         Assert.Equal(0, borer.Job.Work);
-        Assert.Contains("Stopped with a rough cast iron cylinder in: 0%", BorerInfo(borer, player));
+        Assert.Contains("No power", BorerInfo(borer, player));
+        Assert.Contains("In the cradle: a rough cast iron cylinder", BorerInfo(borer, player));
         var rotor = await PowerBorer(borer);
         await World.Until(() => borer.Job.Work > 0.002, 60000);
         Assert.True(borer.Running);
-        Assert.Contains("Boring a rough cast iron cylinder:", BorerInfo(borer, player));
+        await World.Until(() => borer.State == MachineState.Working, 5000);
+        Assert.Contains("Boring (", BorerInfo(borer, player));
 
         Assert.True(borer.Bore(RestOfBore(borer)));
         Assert.False(borer.BlankOn);
@@ -415,9 +419,9 @@ public partial class SharedWorldScenarios
             .OfType<EntityItem>().First(e => e.Itemstack.Collectible.Code.ToString() == Boring.CylinderIron);
         var local = Footprint.ToLocal(new Float3((float)(dropped.Pos.X - pos.X), (float)(dropped.Pos.Y - pos.Y), (float)(dropped.Pos.Z - pos.Z)), borer.Side);
         Assert.True(local.X < 0.01f, $"the cylinder is at native {local}");
-        Assert.Equal(7, borer.Parts.HeadLeft);
+        Assert.Equal(7, borer.HeadLeft);
         Assert.Equal(990, borer.Oiling!.Tank.Points, 6);
-        Assert.Contains("Cutter head: 7 of 8", BorerInfo(borer, player));
+        Assert.Contains("Cutter head: 7 of 8 uses left", CutterWrenchInfo(borer, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -431,7 +435,7 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var borer = await PlaceBorer(pos, "west");
         AssembleBorer(borer, player, BorerHead(3));
-        var mp = W.BlockAccessor.GetBlockEntity(borer.CellPos(BorerRig.PowerCell))!.GetBehavior<BEBehaviorCylinderBorerMP>()!;
+        var mp = W.BlockAccessor.GetBlockEntity(borer.CellPos(BorerRig.PowerCell))!.GetBehavior<BEBehaviorMachineMP>()!;
 
         Assert.Null(CutterClick(player, pos, CutterItem(Boring.BlankSteel)));
         Assert.Equal(2, borer.Job.Class);
@@ -440,7 +444,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(0.5, borer.Job.Work, 3);
         FillBorerOil(borer, 0.5);
         Assert.True(borer.Bore(RestOfBore(borer)));
-        Assert.Equal(1, borer.Parts.HeadLeft);
+        Assert.Equal(1, borer.HeadLeft);
         await World.Ticks(5);
         Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(Boring.CylinderSteel));
 
@@ -450,7 +454,7 @@ public partial class SharedWorldScenarios
         Assert.Contains("No oil: the next cylinder breaks the cutter head", BorerInfo(borer, player));
         Assert.Null(CutterClick(player, pos, CutterItem(Boring.BlankIron)));
         Assert.True(borer.Bore(RestOfBore(borer)));
-        Assert.False(borer.Parts.Has(CylinderBorerStage.CutterHead));
+        Assert.Null(borer.Head);
         Assert.False(borer.Complete);
         await World.Ticks(5);
         Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(Boring.CylinderIron));   // the last one still came out
@@ -470,18 +474,18 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var borer = await PlaceBorer(pos, "west");
         AssembleBorer(borer, player, BorerHead(5));
-        var ghost = borer.GhostCells().First().Pos;
+        var ghost = MachineCells(borer).First().Pos;
         Assert.Null(CutterClick(player, pos, CutterItem(Boring.BlankSteel)));
         Assert.False(borer.Bore(2 * Math.PI * borer.TurnsPerBlock(2) * 0.3));
         // Ctrl: the head first, with its durability, unworn by it; then the casting, its bore lost
         CutterClick(player, ghost, null, ctrl: true);
-        var head = BorerHeld(player, CylinderBorerParts.HeadCode)!;
+        var head = BorerHeld(player, CylinderBorerBuild.HeadCode)!;
         Assert.Equal(5, head.Collectible.GetRemainingDurability(head));
         Assert.True(borer.BlankOn);
         CutterClick(player, ghost, null, ctrl: true);
         Assert.False(borer.BlankOn);
         Assert.NotNull(BorerHeld(player, Boring.BlankSteel));
-        Assert.True(borer.Parts.Has(CylinderBorerStage.Feed));
+        Assert.True(borer.Assembly!.Build.StageComplete(2));
 
         // refit and load; broken mid-bore, every part, the head with its wear, and the casting come back
         Assert.Null(CutterClick(player, pos, BorerHead(5)));
@@ -493,52 +497,14 @@ public partial class SharedWorldScenarios
         Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
         var drops = CutterItemsNear(pos);
         var want = BorerKept();
-        foreach (var code in new[] { CylinderBorerParts.HeadCode, Boring.BlankIron, "seraphhorizons:cylinderborer-frame-north" })
+        foreach (var code in new[] { CylinderBorerBuild.HeadCode, Boring.BlankIron, "seraphhorizons:cylinderborer-frame-north" })
             want[code] = 1;
         foreach (var (code, count) in want)
             Assert.True(drops.GetValueOrDefault(code) == count, $"{code}: {drops.GetValueOrDefault(code)}, want {count}");
         Assert.Equal(0, drops.GetValueOrDefault(Boring.CylinderIron));
         var dropped = World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
-            .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == CylinderBorerParts.HeadCode).Itemstack;
+            .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == CylinderBorerBuild.HeadCode).Itemstack;
         Assert.Equal(5, dropped.Collectible.GetRemainingDurability(dropped));
-        CutterKillItems(pos);
-    }
-
-    // A borer saved when the bar and the feed were items of their own (and the bushings before them) restores
-    // with those stages complete and is saved anew without them; breaking it gives back what the items were made
-    // of, the rods and the plate in iron.
-    [AtlasScenario(TimeoutMs = 60_000)]
-    public async Task Cylinder_borer_saved_with_the_old_bar_and_feed_items_keeps_its_stages()
-    {
-        var pos = await CutterSite(-680, -720);
-        var player = await CutterPlayer();
-        var borer = await PlaceBorer(pos);
-        var tree = new Vintagestory.API.Datastructures.TreeAttribute();
-        borer.ToTreeAttributes(tree);
-        tree.RemoveAttribute("fitted");
-        tree.SetString("part-bushings", CylinderBorerParts.LegacyBushingsCode);
-        tree.SetString("part-bar", CylinderBorerParts.LegacyBarCode);
-        tree.SetString("part-feed", CylinderBorerParts.LegacyFeedCode);
-        borer.FromTreeAttributes(tree, W);
-        Assert.Equal(CylinderBorerStage.CutterHead, borer.Parts.Next);
-        Assert.True(borer.PartFitted("bar"));
-        Assert.True(borer.PartFitted("feed"));
-        var again = new Vintagestory.API.Datastructures.TreeAttribute();
-        borer.ToTreeAttributes(again);
-        Assert.Null(again.GetString("part-bar"));
-        Assert.NotNull(again["fitted"]);
-
-        CutterKillItems(pos);
-        var ghost = borer.GhostCells().First().Pos;
-        W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
-        await World.Ticks(3);
-        var drops = CutterItemsNear(pos);
-        var want = new Dictionary<string, int>
-        {
-            ["game:metal-parts"] = 2, ["game:rod-iron"] = 4, ["seraphhorizons:largegear-stainless"] = 1, ["game:plank-oak"] = 2,
-            ["game:rope"] = 2, ["game:metalplate-iron"] = 1, ["seraphhorizons:cylinderborer-frame-north"] = 1,
-        };
-        Assert.Equal(want.OrderBy(kv => kv.Key), drops.OrderBy(kv => kv.Key));
         CutterKillItems(pos);
     }
 

@@ -73,13 +73,18 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
         return true;
     }
 
+    /// <summary>Whether the machine is placed as the mills are (<c>attributes.machine.placement</c> <c>"mill"</c>:
+    /// <see cref="Footprint.PlacedFacing"/>, its native west end farthest from the player: the gear cutter).</summary>
+    public bool PlacedLikeMill => Attributes?["machine"]?["placement"]?.AsString(null) == "mill";
+
     /// <summary>Places the variant whose native north faces the player, so the facing is the way they look
-    /// (<see cref="OreMachineRig.PlacedSide"/>, every machine's rule): the block they clicked becomes the
-    /// controller.</summary>
+    /// (<see cref="OreMachineRig.PlacedSide"/>, every machine's rule but the mills', <see cref="PlacedLikeMill"/>):
+    /// the block they clicked becomes the controller.</summary>
     public override bool TryPlaceBlock(IWorldAccessor world, IPlayer byPlayer, ItemStack itemstack, BlockSelection blockSel, ref string failureCode)
     {
         var away = SuggestedHVOrientation(byPlayer, blockSel)[0];
-        var side = OreMachineRig.PlacedSide(Sides.FromNormal(away.Normali.X, away.Normali.Z));
+        var look = Sides.FromNormal(away.Normali.X, away.Normali.Z);
+        var side = PlacedLikeMill ? Footprint.PlacedFacing(look) : OreMachineRig.PlacedSide(look);
         if (world.GetBlock(CodeWithVariant("side", side.Code())) is not { Id: > 0 } block)
             return false;
         if (!block.CanPlaceBlock(world, byPlayer, blockSel, ref failureCode))
