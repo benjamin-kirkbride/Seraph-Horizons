@@ -58,9 +58,11 @@ public static class MachineText
         return item != null && item.Id != 0 ? new ItemStack(item).GetName() : code;
     }
 
-    /// <summary>The next stage's needs as "41 × Oak support beam, 6 × Oak plank".</summary>
+    /// <summary>The next stage's needs as "41 × Oak support beam, 6 × Oak plank", materials of one name (two parts
+    /// of one item, each a click of its own: the bucking mill's sashes) added together.</summary>
     public static string Needs(IWorldAccessor world, StagedBuild build) =>
-        string.Join(", ", build.NextNeeds().Select(n => $"{n.Missing} × {MaterialName(world, n.Material)}"));
+        string.Join(", ", build.NextNeeds().Select(n => (Name: MaterialName(world, n.Material), n.Missing))
+            .GroupBy(n => n.Name).Select(g => $"{g.Sum(n => n.Missing)} × {g.Key}"));
 
     /// <summary>A wearing part's name for <paramref name="machine"/>: its lang entry
     /// <c>seraphhorizons:{machine}-wearing-{id}</c>, else its id.</summary>

@@ -1,7 +1,8 @@
-// The cell of a machine on the shared base that takes the axle (#711; Machines/Game/MachineBlocks.cs,
-// BlockMachineCellPower): face is the world face the axle meets it at, the rig's power anchor's face
-// turned to the machine's facing. Its load is the machine's (BEBehaviorMachineMP).
 {
+	// The cell of a machine on the shared base that takes the axle (#711; Machines/Game/MachineBlocks.cs,
+	// BlockMachineCellPower): face is the world face the axle meets it at, the rig's power anchor's face
+	// turned to the machine's facing. Its load is the machine's (BEBehaviorMachineMP).
+	// (inside the object: a JSON patch on a file that opens with a comment fails, patches/trunkentities-stations.json)
 	code: "machine-cellpower",
 	class: "seraphhorizons.MachineCellPower",
 	entityClass: "seraphhorizons.MachineCell",
