@@ -281,20 +281,28 @@ public static class Consumers
             o["idleLoad"] = PowerSection.Num(idle.Value);
             figures.AddRange(idle.Sources);
         }
-        if (spec.Oil != null && Oil(live, spec.Oil) is { } oil)
-        {
-            var (dry, tank) = oil;
-            o["oil"] = new JObject
-            {
-                ["dryMultiplier"] = spec.OilDryLoadFixed ? 1 : PowerSection.Num(dry.Value),
-                ["tank"] = PowerSection.Num(tank.Value / 100),
-            };
-            if (!spec.OilDryLoadFixed) figures.Add(dry);
-            figures.Add(tank);
-        }
+        if (spec.Oil != null)
+            AddOil(live, spec.Oil, spec.OilDryLoadFixed, o, figures);
         if (spec.Note != null) o["note"] = spec.Note;
         o["sources"] = PowerSection.Sources(figures);
         return o;
+    }
+
+    /// <summary>An entry's <c>oil</c> for the machine whose MachineOilSettings entry is <paramref name="machine"/>,
+    /// with its figures: none when the mod or its MachineOil switch is off. <paramref name="dryLoadFixed"/>: a
+    /// dry tank wears the machine's cutter rather than loading its shaft (multiplier 1).</summary>
+    internal static void AddOil(Live live, string machine, bool dryLoadFixed, JObject o, List<Figure> figures)
+    {
+        if (Oil(live, machine) is not { } oil)
+            return;
+        var (dry, tank) = oil;
+        o["oil"] = new JObject
+        {
+            ["dryMultiplier"] = dryLoadFixed ? 1 : PowerSection.Num(dry.Value),
+            ["tank"] = PowerSection.Num(tank.Value / 100),
+        };
+        if (!dryLoadFixed) figures.Add(dry);
+        figures.Add(tank);
     }
 
     /// <summary>The seraphhorizons MachineOil multiplier and the machine's tank (points), or null
