@@ -32,7 +32,9 @@ public partial class MillWorldScenarios
         Assert.Equal(0.05f, system.Config.MinSpeed);
         Assert.NotNull(system.Config.TailingsFor("sluice"));
         var missing = new List<string>();
-        foreach (var (machine, build) in builds)
+        foreach (var (machine, file) in builds)
+            // the eidolon gantry's build is in the frame's wood, filled in for each gantry
+            foreach (var build in new[] { machine == SeraphHorizons.Mod.EidolonGantry.Core.GantryBuild.MachineId ? SeraphHorizons.Mod.EidolonGantry.Core.GantryBuild.ForWood(file, "oak") : file })
             foreach (var codes in build.Stages.SelectMany(s => s.Materials).Select(m => m.Codes).Concat(build.Wearing.Select(w => w.Codes)))
                 foreach (var code in codes)
                 {
