@@ -93,6 +93,10 @@ public class BEParkesKettle : BEOreMachine
     /// <summary>Shaft turns this charge takes.</summary>
     public double TurnsNeeded => ParkesKettling.TurnsFor(_lead, ChargeUnits, Spec?.TurnsPerCharge ?? 0);
 
+    /// <summary>The charge's turns stirred, of <see cref="TurnsNeeded"/>, while it stirs.</summary>
+    public override double? WorkProgress =>
+        Phase != KettlePhase.Stirring ? null : TurnsNeeded is var needed && needed > 0 ? _progress / needed : 1;
+
     /// <summary>Units in the bath: the charge's, or once done the lead still to ladle out and the crust's.</summary>
     public double BathUnits => _done ? (_leadOut + (_skimmed ? 0 : _rich)) * Bullion.UnitsPerItem : _lead;
 

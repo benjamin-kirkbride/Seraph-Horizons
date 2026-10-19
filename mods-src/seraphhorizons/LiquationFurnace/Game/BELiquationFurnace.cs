@@ -93,6 +93,10 @@ public class BELiquationFurnace : BEOreMachine
 
     public LiquationPhase Phase => LiquationFurnacing.PhaseOf(Bars, ProductWaiting);
 
+    /// <summary>The charge's units sweated, while it sweats; none while lit with nothing sweating.</summary>
+    public override double? WorkProgress =>
+        Phase != LiquationPhase.Charged || !_sweating ? null : ChargeUnits is var units && units > 0 ? _sweated / units : 1;
+
     /// <summary>The units of tin an hour at full pace (ore-processing.json <c>machines.liquationfurnace.perHour</c>).</summary>
     public double PerHour => Spec?.ItemsPerHour ?? 0;
 

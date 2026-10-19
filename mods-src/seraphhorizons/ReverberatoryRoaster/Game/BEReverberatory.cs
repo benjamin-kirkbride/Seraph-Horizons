@@ -122,6 +122,11 @@ public class BEReverberatory : BEOreMachine
 
     protected override bool Wet => InfeedSlot.Empty || Water.Holds(WaterPerItem * WeightOf(InfeedSlot.Itemstack));
 
+    /// <summary>The turns put into the item at the discharge, of the turns its weight takes.</summary>
+    public override double? WorkProgress =>
+        InfeedSlot.Empty || Spec is not { TurnsPerItem: > 0 } spec ? null
+            : _progress / Math.Max(1e-9, spec.TurnsPerItem * WeightOf(InfeedSlot.Itemstack));
+
     // ---- Work ----
 
     /// <summary>The shaft's turns go into the item at the discharge at the furnace's pace; each item takes the

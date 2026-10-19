@@ -63,6 +63,33 @@ public static class MachineRun
 
     /// <summary>The block info's lang code for <paramref name="state"/>.</summary>
     public static string LangCode(MachineState state) => "seraphhorizons:machine-state-" + state.ToString().ToLowerInvariant();
+
+    /// <summary>The whole percent the block info shows next to "Working" for <paramref name="progress"/>, the share
+    /// of the current item or charge done (0 to 1, floored, so 100 % only when it is done); null for none.</summary>
+    public static int? Percent(double? progress) =>
+        progress is double p && double.IsFinite(p) ? (int)Math.Floor(Math.Clamp(p, 0, 1) * 100 + 1e-9) : null;
+}
+
+/// <summary>
+/// When to send a machine's progress to its clients, so the percent next to "Working" moves in the block
+/// info: whenever the whole percent it shows changes, but a progress change alone at most once every
+/// <see cref="MinSeconds"/> (a fast machine would otherwise resend itself every tick). Anything else that
+/// syncs the machine sends the progress too (<see cref="Sent"/>).
+/// </summary>
+public readonly record struct ProgressSync(int? Percent, double At)
+{
+    /// <summary>The fewest seconds between two syncs for progress alone.</summary>
+    public const double MinSeconds = 1;
+
+    public static readonly ProgressSync None = new(null, double.NegativeInfinity);
+
+    /// <summary>Whether <paramref name="percent"/> at <paramref name="now"/> (seconds) is to be sent: it differs from
+    /// the last sent and, unless it starts or ends (to or from none), <see cref="MinSeconds"/> have passed.</summary>
+    public bool Due(int? percent, double now) =>
+        percent != Percent && (percent is null || Percent is null || !(now - At < MinSeconds));
+
+    /// <summary>The record after <paramref name="percent"/> was sent at <paramref name="now"/>.</summary>
+    public ProgressSync Sent(int? percent, double now) => new(percent, now);
 }
 
 /// <summary>

@@ -88,6 +88,10 @@ public class BEStallRoaster : BEOreMachine
 
     public StallPhase Phase => StallRoasting.PhaseOf(Firewood, Rock, StallConfig.BedFirewood, _lit, _roasted);
 
+    /// <summary>The burn's hours done, of <see cref="BurnHours"/>, while it burns.</summary>
+    public override double? WorkProgress =>
+        Phase != StallPhase.Burning ? null : BurnHours > 0 ? _burned / BurnHours : 1;
+
     /// <summary>The share of its full draught it burns at now.</summary>
     public double Draught => StallRoasting.Draught(_front, _row.Works, StallConfig);
 
