@@ -63,8 +63,9 @@ public sealed class GameWideSpace(IBlockAccessor blocks, Cuboidf box, EnumAICrea
 /// walking with a lower id that would meet it within <see cref="GiveWaySeconds"/>, each going on as it
 /// goes now, it stops for, while that one would still meet it where it stands (<see cref="YieldMs"/> at
 /// most), then searches again: the one with the lower id does not turn aside for it, and once it stands
-/// that one goes round it. But where it would be met standing too (ahead of that one on its way, or where
-/// that one's path ends, <see cref="EntityLaborEidolon.WalkGoal"/>), it searches again at once instead,
+/// that one goes round it; not one coming up behind it going its way, which it walks on ahead of. But where
+/// it would be met standing too (ahead of that one on its way, or where that one's path ends,
+/// <see cref="EntityLaborEidolon.WalkGoal"/>), it searches again at once instead,
 /// going round where that one goes, and stops only with no way round. Where a walker with a lower id
 /// stops is kept clear as where it stands.</para>
 /// </summary>
@@ -351,7 +352,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
     }
 
     // Whether one walking with a lower id meets it (their boxes within the margin) within GiveWaySeconds,
-    // each going on as it goes now, or this one standing where it is.
+    // each going on as it goes now, or this one standing where it is; walking, not one behind it going its way.
     private bool Meets(bool standing)
     {
         var p = eidolon.Pos;
@@ -362,6 +363,11 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         {
             var o = e.Pos;
             if (Math.Sqrt(o.Motion.X * o.Motion.X + o.Motion.Z * o.Motion.Z) < StandingMotion)
+                continue;
+            // one coming up behind it, going the way it goes, it walks on ahead of: stopping for it only has it
+            // walked into, pressed into for as long as it gives way and again each time it sets off (#1329: two
+            // walking home in single file along a trench, the one ahead standing for the one behind for 11 s)
+            if (!standing && (o.X - p.X) * mx + (o.Z - p.Z) * mz < 0 && o.Motion.X * mx + o.Motion.Z * mz > 0)
                 continue;
             var theirs = Others.Sweep(o.X, o.Y, o.Z, o.Motion.X * 60, o.Motion.Z * 60, GiveWaySeconds, SweepStep).ToList();
             for (int i = 0; i < mine.Count && i < theirs.Count; i++)
