@@ -587,6 +587,7 @@ public class BERosser : BEMachine, ITrunkFeeder
         // the last top roll drops and its weight throws the dog out
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
+        RefreshState();
         PushToRack();
     }
 
@@ -851,6 +852,7 @@ public class BERosser : BEMachine, ITrunkFeeder
             return null;
         ClearTrunk();
         MarkDirty(true);
+        RefreshState();
         _outfeedState = CheckOutfeed(out _);
         return trunk;
     }

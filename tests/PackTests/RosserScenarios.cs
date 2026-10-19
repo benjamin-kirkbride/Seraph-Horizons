@@ -204,9 +204,10 @@ public partial class WoodworkingRosserScenarios
         var ghost = RosserCells(rosser).Last().Pos;
 
         string info = Info(rosser, player);
-        Assert.Contains("Unassembled", info);
-        Assert.Contains("4 × Large gear sections", info);
-        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitpart");
+        Assert.Contains("Build: stage 1 of 1", info);
+        Assert.Contains("4 × " + ItemOf(RosserBuild.RingCode).GetName(), info);
+        Assert.Contains("And four bark spud heads of one metal (the scraper heads), once the ring is in", info);
+        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:machine-help-fit");
         Assert.DoesNotContain(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitheads");
 
         // the tyres and heads go on the ring: refused, kept in hand
@@ -236,8 +237,9 @@ public partial class WoodworkingRosserScenarios
         Assert.Null(Click(player, pos, ItemOf("game:metalplate-steel", 2)));
         // the drip's pipes: copper or lead (not iron), four of one metal from one stack, drawn in that metal
         Assert.True(RosserMod.PipesNeeded);
-        Assert.Contains("Straight pipes, copper or lead", Info(rosser, player));
-        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitpipes");
+        Assert.Contains("4 × " + PipeOf("copper").GetName(), Info(rosser, player));
+        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:machine-help-fit"
+            && wi.Itemstacks.Any(st => RosserBuild.PipeMetalOf(st.Collectible.Code.ToString()) != null));
         Assert.Equal(4, Click(player, pos, PipeOf("iron", 4))?.StackSize);
         Assert.True(_handled);
         Assert.Equal(3, Click(player, ghost, PipeOf("lead", 3))?.StackSize);
@@ -259,8 +261,9 @@ public partial class WoodworkingRosserScenarios
         Assert.True(rosser.Complete);
         Assert.Equal("Rosser", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         info = Info(rosser, player);
-        Assert.DoesNotContain("Unassembled", info);
-        Assert.Contains("1000 / 1000", info);
+        Assert.DoesNotContain("Build: stage", info);
+        Assert.Contains("Scraper heads: 100% left", info);
+        Assert.Contains("Scraper heads: 1000 of 1000 uses left", WrenchInfo(rosser, player));
         Assert.Contains("Empty", info);
         Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-loadtrunk");
         // Built dry (MachineOil): three times the load until oiled.
@@ -497,7 +500,9 @@ public partial class WoodworkingRosserScenarios
         foreach (var (cell, kind) in RosserCells(rosser))
             if (kind != RosserCell.Power)
                 Assert.False(W.BlockAccessor.GetBlock(cell) is IMechanicalPowerBlock, $"{kind} cell {cell} is a power block");
-        Assert.False(W.BlockAccessor.GetBlock(pos) is IMechanicalPowerBlock);
+        // the frame is the shared machine block, a power block only for a machine powered at its controller
+        var frame = Assert.IsAssignableFrom<IMechanicalPowerBlock>(W.BlockAccessor.GetBlock(pos));
+        Assert.All(BlockFacing.ALLFACES, f => Assert.False(frame.HasMechPowerConnectorAt(W, pos, f, null!)));
 
         string axis = face.Axis == EnumAxis.X ? "we" : "ns";
         // A turning axle against the outer side faces of other cells: the water ghost's (the far
@@ -684,7 +689,8 @@ public partial class WoodworkingRosserScenarios
         var tree = new TreeAttribute();
         rosser.ToTreeAttributes(tree);
         Assert.True(tree.GetBool("wet"));
-        Assert.Contains($"Drip: wet ({config.ReservoirLitres:0} / {config.ReservoirLitres:0} L)", Info(rosser, player));
+        Assert.Contains($"Water: {config.ReservoirLitres:0} of {config.ReservoirLitres:0} L ({config.WaterPerLog:0} L an item)", Info(rosser, player));
+        Assert.DoesNotContain("Drip: dry", Info(rosser, player));
         // the pipe gave what the reservoir took
         Assert.Equal(volume - config.ReservoirLitres, StateValue<float>(PipeState(PipeNetworkAcross(water, waterFace)!)!, "Volume"), 1);
 
@@ -755,9 +761,10 @@ public partial class WoodworkingRosserScenarios
         // empty and unpowered
         string info = Info(rosser, player);
         Assert.Contains("Empty: a trunk can go on", info);
-        Assert.Contains("Scraper heads: Steel, 9000 / 9000", info);
-        Assert.Contains("Feeds 2.05× as fast as with copper heads", info);
-        Assert.Contains("Not turning fast enough", info);
+        Assert.Contains("Scraper heads: 100% left", info);
+        Assert.Contains("Scraper heads: 9000 of 9000 uses left", WrenchInfo(rosser, player));
+        Assert.Contains("Feeds 2.05× as fast as with copper heads", WrenchInfo(rosser, player));
+        Assert.Contains("No power", info);
         Assert.Contains("Drip: dry", info);
         Assert.True(HelpHas("loadtrunk"));
         Assert.True(HelpHas("removeheads"));
@@ -787,8 +794,8 @@ public partial class WoodworkingRosserScenarios
                 Assert.False(HelpHas("loadtrunk"));
                 await PowerRosser(rosser);
                 await World.Until(() => rosser.TripState == RosserState.Feeding && rosser.Trip.Travel > 1, 30000);
-                Assert.Contains("Debarking: ", Info(rosser, player));
-                Assert.Contains("Drive speed: ", Info(rosser, player));
+                Assert.Contains("Debarking (", Info(rosser, player));
+                Assert.Contains("Shaft speed: ", WrenchInfo(rosser, player));
                 Assert.False(HelpHas("taketrunk"));
                 // the rotor taken away: stalled, T holds, the trunk stays in the rolls
                 await UnpowerRosser(rosser);
@@ -823,7 +830,7 @@ public partial class WoodworkingRosserScenarios
             info = Info(rosser, player);
             Assert.Contains("Debarked: the trunk waits on the outfeed bed", info);
             Assert.Contains("Take it with Ctrl + right click", info);
-            Assert.Contains($"Scraper heads: Steel, {left} / 9000", info);
+            Assert.Contains($"Scraper heads: {left} of 9000 uses left", WrenchInfo(rosser, player));
             Assert.True(HelpHas("taketrunk"));
             await ItemsSettle(pos, 20, i => i.GetValueOrDefault("game:stick") >= (int)Math.Floor(branches * config.StickFraction)
                                             && i.GetValueOrDefault($"{Iw}:bark-tan-green") >= 3 * logs);
@@ -852,10 +859,7 @@ public partial class WoodworkingRosserScenarios
         var rosser = await PlaceRosser(pos, "south");
         RosserReady(rosser, player, "copper");
         // as saved with five points left
-        var tree = new TreeAttribute();
-        rosser.ToTreeAttributes(tree);
-        tree.SetInt("headsLeft", 5);
-        rosser.FromTreeAttributes(tree, W);
+        SetHeadsLeft(rosser, 5);
         Assert.Equal((5, 1000), (rosser.HeadsLeft, rosser.HeadsCapacity));
         Assert.True(rosser.Complete);
 
@@ -870,7 +874,9 @@ public partial class WoodworkingRosserScenarios
         Assert.Null(rosser.HeadMetal);
         Assert.False(rosser.ShowsPart("heads"));
         Assert.Contains("No scraper heads", Info(rosser, player));
-        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitheads");
+        // the base's renewal line, with the heads
+        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:machine-help-renew"
+            && wi.Itemstacks.Any(st => RosserBuild.HeadMetalOf(st.Collectible.Code.ToString()) != null));
         // the trunk still comes off; the next one is refused
         Click(player, pos, null, ctrl: true);
         Assert.NotNull(TakeFromPlayer(player, s => Trunks.IsDebarked(s)));
