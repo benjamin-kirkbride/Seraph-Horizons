@@ -1,4 +1,3 @@
-using System.Text;
 using SeraphHorizons.Mod.Jig.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -7,7 +6,6 @@ using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using SeraphHorizons.Mod.Sluice;
 using Vintagestory.API.Common;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 
 namespace SeraphHorizons.Mod.Jig;
@@ -87,13 +85,6 @@ public class BEJig : BEOreMachine
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) => SluiceSystem.FeedExamples(world);
-
-    protected override void AppendContents(StringBuilder dsc)
-    {
-        base.AppendContents(dsc);
-        if (Built && Running && Spec is { TurnsPerItem: > 0 } spec)
-            dsc.AppendLine(Lang.Get("seraphhorizons:jig-info-jigging", (int)Math.Floor(Turns.Progress(spec.TurnsPerItem) * 100)));
-    }
 
     // ---- Saving ----
 

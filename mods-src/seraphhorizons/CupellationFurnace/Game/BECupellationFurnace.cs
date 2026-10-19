@@ -128,6 +128,10 @@ public class BECupellationFurnace : BEOreMachine
 
     public override double JobFill => HasWork ? 1 : 0;
 
+    /// <summary>The charge's lead cupelled, once the blast has started on it.</summary>
+    public override double? WorkProgress =>
+        ChargeUnits <= 0 || !(_done > 0 || _running) ? null : ChargeLead is var lead && lead > 0 ? _done / lead : 1;
+
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);

@@ -50,6 +50,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     private MachineReservoir _water = MachineReservoir.Empty;
     private TailingsOwed _owed = TailingsOwed.None;
     private MachineState _state = MachineState.NotBuilt;
+    private ProgressSync _progressSync = ProgressSync.None;
     private float _lastAngle;
     private bool _angleSeeded;
     private float? _serverMinSpeed;
@@ -76,6 +77,12 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     public MachineState State => _state;
     public MachineReservoir Water => _water;
     public WorkTurns Turns => _turns;
+
+    /// <summary>The share of the item or charge in hand done, 0 to 1, shown as a percent next to "Working"
+    /// (<see cref="MachineRun.Percent"/>); null where it has none. The default is the continuous machines':
+    /// the turns counted toward the next item (<see cref="Turns"/>). A machine that counts its work some
+    /// other way (in-game hours, a charge's turns, a burn) gives its own, from what it saves and syncs.</summary>
+    public virtual double? WorkProgress => Spec is { TurnsPerItem: > 0 } spec ? _turns.Progress(spec.TurnsPerItem) : null;
 
     public override InventoryBase Inventory => _inventory;
     public override string InventoryClassName => "oremachine";
@@ -584,8 +591,15 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             _state = state;
             dirty = true;
         }
+        // The percent next to "Working" moves on the client only when the machine syncs (ProgressSync).
+        int? percent = MachineRun.Works(state) ? MachineRun.Percent(WorkProgress) : null;
+        double now = Api.World.ElapsedMilliseconds / 1000.0;
+        dirty |= _progressSync.Due(percent, now);
         if (dirty)
+        {
+            _progressSync = _progressSync.Sent(percent, now);
             MarkDirty(true);
+        }
     }
 
     /// <summary>
@@ -920,7 +934,8 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         MachineText.AppendAssembly(dsc, Api.World, Machine, _assembly);
         if (_assembly.Built)
         {
-            MachineText.AppendState(dsc, _state, MinSpeed, Machine);
+            MachineText.AppendState(dsc, _state, MinSpeed, Machine,
+                MachineRun.Works(_state) ? MachineRun.Percent(WorkProgress) : null);
             if (WaterPerItem > 0)
                 MachineText.AppendWater(dsc, _water, ReservoirCapacity, WaterPerItem);
         }
