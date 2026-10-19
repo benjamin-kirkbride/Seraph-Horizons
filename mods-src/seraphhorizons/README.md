@@ -32,7 +32,7 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, corrects a rotor's ratio at a gearbox, routes a ported screw's items through its port, feeds the creative steam source, runs the creative item source and sink and runs `/clear`; Tidy Variants, cart reach, Carry On's
+chopper's output, corrects a rotor's ratio at a gearbox, routes a ported screw's items through its port, keeps chutes from sending items back, feeds the creative steam source, runs the creative item source and sink and runs `/clear`; Tidy Variants, cart reach, Carry On's
 icon reset, the creative search tweaks, the handbook's kept place, the NaN motion diagnostics and the info HUD's rounding run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
@@ -714,6 +714,38 @@ run the game's method untouched.
 Server side, where items move. `itemFlowAccum`, `TryPushInto`, `TrySpitOut`, `TryPullFrom` and
 `MoveItem` are found by name at load; if one is missing or changed the mod logs a warning and
 patches nothing, and the scenarios' patch check fails.
+
+### Chutes never send an item back the way it came (`ChutesNoBacktrack`)
+
+The game's chutes and Archimedes screws (`BlockEntityItemFlow.MoveItem`, VS 1.22.7) let an item
+leave through the face it came in by (#1348):
+
+- an elbow (`chute-elbow-up-*`) or T (`chute-t-ud-*`) that can neither push nor throw its item on
+  pushes it into a random horizontal pull face, its intake;
+- a two-way chute (straight, `t-ns`/`we`, `cross-ground`) tagged with a direction (`chuteDir`)
+  can still throw the item out of its back into air (`TrySpitOut` runs before the guard), and one
+  with no direction (put in by a machine, by hand, or pulled from a container) picks either end;
+- a ported Archimedes screw pushes back out of its port when its top is blocked.
+
+Behind a slow machine the item bounces until it has made the game's three sideways moves
+(`MaxHorizontalTravel`), and an item at the limit with only a sideways way out never moves again:
+seen with a jaw breaker feeding a stamp battery through screws, a straight chute and an elbow, the
+battery's full infeed sent the elbow's rock back and jammed the line for good.
+
+`ChutesNoBacktrack` records the face an item came in by in the game's own `LastReceivedFromDir`
+(saved and loaded by the game, never set by it): on the receiving item flow after a push
+(`TryPushInto`), on the item flow itself after a pull (`TryPullFrom`), and when a machine pushes
+into a chute (`MachineChutes.TryPush`, which now also tags the item with the machine's direction,
+up into a screw, as a chute tags an item for the next, instead of stripping it). Prefixes on
+`TryPushInto` and `TrySpitOut` refuse that face while the item flow holds an item
+(`Core/ChuteEntry.cs`), so a blocked item waits and goes on once its way is free. An emptied item
+flow forgets the face (a postfix on its private `OnSlotModified`), so an item put in by hand moves as
+the game moves it until its first move. Hoppers (four slots) and the three-move limit are left as
+they are. An item already wedged at the limit stays wedged: break and replace the chute once.
+
+Server side, where items move. `TryPushInto`, `TrySpitOut`, `TryPullFrom`, `OnSlotModified` and
+`LastReceivedFromDir` are found by name at load; if one is missing or changed the mod logs a warning
+and patches nothing, and the scenarios' patch check fails.
 
 ### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
 
@@ -8139,6 +8171,16 @@ none and 107 loose), a capped ported top to move at least 0.85 of what a straigh
 a chest above it (without the patch 57 against 107), and a ported bottom screw with its port open
 to feed the stack, at least 60 in the chest and none loose (without the patch 58 of 111 thrown out
 of its port). With the switch off, `SwitchesOffScenarios` requires `MoveItem` unpatched.
+
+`tests/PackTests/ChutesNoBacktrackScenarios.cs` (Atlas) holds a blocked item for 10 s of virtual time
+in each case and fails on the first tick it is back behind or loose: an elbow (`elbow-up-north`) in
+front of a full chest, fed by a straight chute, keeps its item and drops it once the chest has room;
+a straight chute a machine pushes into (`MachineChutes.TryPush`, tagged north) in front of a full
+chest never sends it into the empty chute behind, nor, with that chute gone, out of its back into
+air; a powered bottom ported screw fed through its port, its top capped with granite, never pushes
+it back out of the port, and sends it up once a chest replaces the granite. The game sends each
+back within a few moves. With the switch off, `SwitchesOffScenarios` requires `TryPushInto` and
+`TrySpitOut` unpatched.
 
 `tests/PackTests/SteelBitsScenarios.cs` (Atlas) is the stone coffin's fragility guard:
 `BlockEntityStoneCoffin.AddIngot(ItemSlot)` resolves, returns `bool`, and carries the prefix and

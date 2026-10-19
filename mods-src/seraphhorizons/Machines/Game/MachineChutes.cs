@@ -1,3 +1,4 @@
+using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
@@ -57,7 +58,8 @@ public static class MachineChutes
 
     /// <summary>Pushes up to <paramref name="max"/> of <paramref name="from"/> out of <paramref name="cell"/>'s
     /// <paramref name="face"/> into what is beyond; how many went. Into a chute only when its slot is
-    /// empty, as chutes pass items on to each other.</summary>
+    /// empty, as chutes pass items on to each other. With <c>ChutesNoBacktrack</c> the item in a chute
+    /// is tagged with the face's direction and the chute records the face it came in by (#1348).</summary>
     public static int TryPush(IWorldAccessor world, BlockPos cell, BlockFacing face, ItemSlot from, int max = int.MaxValue)
     {
         if (from.Empty || max <= 0 || Target(world, cell, face) is not { } target)
@@ -72,6 +74,14 @@ public static class MachineChutes
         int moved = from.TryPutInto(into, ref op);
         if (moved > 0)
         {
+            // Chutes never send an item back (#1348): the chute knows it came in by this face, and the
+            // item goes on in the machine's direction (up in a screw), as a chute tags it for the next.
+            if (target is BlockEntityItemFlow flow && ChutesNoBacktrack.Enabled && !into.Empty)
+            {
+                into.Itemstack.Attributes.SetInt("chuteDir",
+                    ChuteEntry.Tag(face.Index, flow is Vintagestory.GameContent.Mechanics.BlockEntityArchimedesScrew, BlockFacing.UP.Index));
+                ChutesNoBacktrack.Received(flow, face.Opposite);
+            }
             from.MarkDirty();
             into.MarkDirty();
             target.MarkDirty();
