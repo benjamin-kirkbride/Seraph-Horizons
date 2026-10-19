@@ -78,7 +78,7 @@ public partial class MillWorldScenarios
         var player = await CutterPlayer();
         var pan = await PlacePan(pos, "east");
         Assert.Equal(SeraphHorizons.Mod.Machines.Core.Side.East, pan.Side);
-        Assert.Contains("Build: stage 1 of 2, muller", MachineTest.Info(pan, player));
+        Assert.Contains("Build: stage 1 of 2, The muller", MachineTest.Info(pan, player));
         // the shoes before the muller, a copper rod, mercury and quartz on a bare frame are all refused
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalplate-iron"))?.StackSize);
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-copper"))?.StackSize);
@@ -87,7 +87,7 @@ public partial class MillWorldScenarios
         Assert.Equal(0, pan.Batch.Mercury);
         // the muller from a stack of two, then the shoes in steel
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-steel", 2))?.StackSize);
-        Assert.Contains("Build: stage 2 of 2, shoes", MachineTest.Info(pan, player));
+        Assert.Contains("Build: stage 2 of 2, The shoes", MachineTest.Info(pan, player));
         Assert.False(pan.Complete);
         Assert.Null(CutterClick(player, pos, CutterItem("game:metalplate-steel")));
         Assert.True(pan.Complete);
