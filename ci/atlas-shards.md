@@ -27,7 +27,8 @@ pack-authored fix mods, each a partial class over one file per feature (a new fe
 a file, not a class). The item and recipe classes are the exception: each builds the pack's
 export (over a minute) and fills parts of it again to compare, so each has a shard to
 itself. `fixes` is the fix mods' class and `tidy` is Tidy Variants', both matched by name,
-so a new class of either kind joins its shard.
+so a new class of either kind joins its shard. `fixes` also runs ChutesNoBacktrackScenarios,
+a plain world of its own kept out of `rest` (which sits at its time limit).
 
 `woodworking`, `woodworking-rosser` and `woodworking-eidolon` (the eidolon's haul and crew
 orders, WoodworkingEidolonScenarios) are the three woodworking classes, each a world of

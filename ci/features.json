@@ -496,6 +496,12 @@
       "switches": ["RodsOnForge"],
       "classes": []
     },
+    "ChutesNoBacktrack": {
+      "code": ["ChutesNoBacktrack.cs", "Core/ChuteEntry.cs"],
+      "codes": [],
+      "switches": ["ChutesNoBacktrack"],
+      "classes": ["ChutesNoBacktrackScenarios"]
+    },
     "ScrewPortOutput": {
       "code": ["ScrewPortOutput.cs", "Core/ScrewPortRoute.cs"],
       "codes": [],
