@@ -3,9 +3,9 @@
 // it with SquaringShear off.
 {
 	code: "squaringshear",
-	class: "seraphhorizons.SquaringShear",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.SquaringShear",
-	// No HorizontalOrientable: BlockSquaringShear.TryPlaceBlock picks the side so the shear extends
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the shear extends
 	// away from the player, as the press brake does.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },

@@ -9,10 +9,11 @@ namespace SeraphHorizons.Mod.SquaringShear.Core;
 /// assets/seraphhorizons/config/squaringshear-rig.json (written by SquaringShear/tools/make_shape.py).
 /// Native, south-facing frame, controller cell at (0,0,0) (the table and the treadle's foot), blocks.
 /// The keys are the model's contract with gameplay (SquaringShear/README.md, "Rig schema"); unknown
-/// keys are ignored. A hand machine: a rig naming a power cell or face is refused. Throws
-/// <see cref="FormatException"/> naming what is wrong.
+/// keys are ignored. A hand machine: a rig naming a power cell or face is refused, and it has no anchors
+/// for the shared machine base (<see cref="IMachineRig"/>). Throws <see cref="FormatException"/> naming
+/// what is wrong.
 /// </summary>
-public sealed class SquaringShearRig
+public sealed class SquaringShearRig : IMachineRig
 {
     /// <summary>The part whose gauge windows are the strokes (the contract's stable id).</summary>
     public const string CrossheadPart = "crosshead";
@@ -30,6 +31,13 @@ public sealed class SquaringShearRig
     /// <summary>Treadle strokes per plate of each class, [none, lead, copper], as the model is drawn.</summary>
     public IReadOnlyList<float> StrokesPerPlate { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>None: a hand machine takes no axle, chute or pipe.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+
+    public MachineAnchor? Anchor(string name) => null;
 
     /// <summary>The crosshead's strokes, as stretches of the cut cycle W (from the <c>crosshead</c>
     /// part's gauge windows): the cut, one a plate. Empty when the rig has no parts.</summary>

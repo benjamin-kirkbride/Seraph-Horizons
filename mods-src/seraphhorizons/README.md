@@ -2774,19 +2774,20 @@ plate into an angle; two angles, two solder bars and a soldering iron make a hol
 grid; the brake takes nothing else, so the shear is the only way to an angle. Its model, rig and
 generator are described in `SquaringShear/README.md`, which also records the
 gameplay's decisions; this is the gameplay, in `SquaringShear/` (rules in `SquaringShear/Core/`, the
-game side in `SquaringShear/Game/`). A hand machine: no mechanical power, no oil, and nothing on it
-wears.
+game side in `SquaringShear/Game/`, on the shared machine base: docs/modeling/machine-base.md). A hand
+machine: no mechanical power, no oil, and nothing on it wears.
 
 **Blocks and item.** `seraphhorizons:squaringshear-frame-{side}` is the controller: the table end, the
 block the player clicks, with the shear running two blocks away from them along their line of sight
-and a ghost in the far cell (`squaringshear-ghost`). The frame is a grid recipe: three oak planks (the
+and the shared machine cell in the far cell (`machine-cell`). The frame is a grid recipe: three oak planks (the
 table, the crosshead, the treadle), two oak logs (the cheeks and housings), four nails and strips of
 iron, meteoric iron or steel (the treadle's pivots, the links, the crosshead's shoes) and a hammer.
 The half plate (`itemtypes/halfplate.json`) is made only on the shear, stacks to 16 and melts back into
 one ingot.
 
-**Stages.** Fitted by right-click on the frame or the ghost with the item, one item each, in this
-order only; the gauge before the blades is refused with a message naming the next:
+**Stages.** Fitted by right-click on the frame or the cell with the item, one item each, in this
+order only (`config/builds/squaringshear.json`, the shared staged build); the gauge before the blades is
+refused with a message naming the next:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
@@ -2806,7 +2807,10 @@ cut cycle W (0..1) advances by its strokes over the plate's `StrokesPerPlateLead
 hold-down clamps the plate, the treadle brings the blade down through it (the cut is heard at the
 bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal drop just
 outside the output face (native north, in front of the table end). Plates go on by hand only: the
-shear never takes from or puts into a chest or other container beside it. The block info shows the next stage and the plate on, how far cut.
+shear never takes from or puts into a chest or other container beside it. The block info is the shared
+layout: the next stage and what it takes, the state (empty, ready to be worked, cutting with its
+percent) and the plate on, how far cut; a wrench adds the cut's W and the treadle strokes a plate of its
+metal takes, and the shear's facing.
 
 **Drawn.** The block draws `squaringshear_frame.json`; the renderer splits `squaringshear.json` into the
 rig's parts and draws each whose stage is fitted (the blades, the gauge and the hold-down in their
@@ -2819,7 +2823,7 @@ while worked: the frame creaks.
 | `StrokesPerPlateLead` | 1 | Treadle strokes (seconds held) a lead plate takes; the rig's `cut.strokesPerPlate.thin` (a test holds them together) |
 | `StrokesPerPlateCopper` | 1.5 | Treadle strokes a copper plate takes; the rig's `cut.strokesPerPlate.thick` |
 
-With the switch off the server marks both block types, the half plate's item type and the recipe file
+With the switch off the server marks its block type, the half plate's item type and the recipe file
 disabled before the game loads them, so none of it exists and shears already placed and half plates
 already made are lost; the mod's own text no longer links the shear or the half plate. The plates and
 the parts it takes are the game's and exist either way. With the shear off, the press brake has nothing

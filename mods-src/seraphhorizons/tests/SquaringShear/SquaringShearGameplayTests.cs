@@ -4,71 +4,82 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.SquaringShear;
 
-/// <summary>SquaringShear/Core: the build order, what each stage takes and that nothing takes a
-/// part back out; the plates by metal; the cut's arithmetic (W only while the treadle is worked, two
-/// half plates at W = 1); who holds the treadle; the renderer's clock; and the settings.</summary>
+/// <summary>SquaringShear: its build (config/builds/squaringshear.json on the shared staged build): the
+/// order, what each stage takes and that nothing takes a part back out; the plates by metal; the cut's
+/// arithmetic (W only while the treadle is worked, two half plates at W = 1); who holds the treadle; the
+/// renderer's clock; and the settings.</summary>
 public class SquaringShearGameplayTests
 {
-    private static SquaringShearParts Complete(string blade = "game:metalplate-iron", string gauge = "game:rod-iron")
+    private static MachineBuild Build() =>
+        MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "squaringshear.json")));
+
+    private static MachineAssembly Complete(string blade = "game:metalplate-iron", string gauge = "game:rod-iron")
     {
-        var parts = new SquaringShearParts();
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit(blade));
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit(gauge));
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit(blade, 1).Verdict);
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit(gauge, 1).Verdict);
         return parts;
     }
 
-    // ---- Parts ----
+    // ---- The build ----
 
     [Fact]
     public void The_stages_go_in_in_the_contracts_order()
     {
-        Assert.Equal(["blade", "gauge"], SquaringShearRequires.Stages.Select(SquaringShearRequires.Name));
-        var parts = new SquaringShearParts();
-        Assert.Equal(SquaringShearStage.Blade, parts.Next);
-        Assert.Equal("game:metalplate-iron", parts.NextPart);
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit("game:metalplate-steel"));
-        Assert.Equal(SquaringShearStage.Gauge, parts.Next);
-        Assert.False(parts.Complete);
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit("game:rod-meteoriciron"));
-        Assert.True(parts.Complete);
-        Assert.Null(parts.NextPart);
-        Assert.Equal(("steel", "meteoriciron"),
-            (SquaringShearParts.MetalOf(parts.FittedIn(SquaringShearStage.Blade)), SquaringShearParts.MetalOf(parts.FittedIn(SquaringShearStage.Gauge))));
+        var build = Build();
+        Assert.Equal(["blade", "gauge"], build.Stages.Select(s => s.Id));
+        Assert.Equal(["blade", "gauge"], build.Stages.Select(s => Assert.Single(s.Adds)));
+        Assert.All(build.Stages, s => Assert.Equal(1, Assert.Single(s.Materials).Quantity));
+        Assert.Null(build.Block);   // its construction record is its own in the export
+        var parts = new MachineAssembly(build);
+        Assert.Equal(0, parts.Build.Next);
+        // the creative shortcut fits each stage's first code: an iron plate, then an iron rod
+        Assert.True(parts.FillNext());
+        Assert.Equal("game:metalplate-iron", parts.Build.CodeIn(0, 0));
+        Assert.Equal(1, parts.Build.Next);
+        Assert.False(parts.Built);
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit("game:rod-meteoriciron", 1).Verdict);
+        Assert.True(parts.Built);
+        Assert.Null(parts.Build.Next);
+        Assert.Equal(("iron", "meteoriciron"),
+            (SquaringShearRequires.MetalOf(parts.Build.CodeIn(0, 0)), SquaringShearRequires.MetalOf(parts.Build.CodeIn(1, 0))));
+        Assert.Null(SquaringShearRequires.MetalOf("game:metalplate-lead"));
     }
 
     [Fact]
     public void Only_the_next_stage_is_accepted()
     {
-        var parts = new SquaringShearParts();
-        Assert.Equal(SquaringShearFitVerdict.OutOfOrder, parts.Fit("game:rod-iron"));
-        Assert.Equal(SquaringShearFitVerdict.NotAPart, parts.Fit("game:rod-copper"));
-        Assert.Equal(SquaringShearFitVerdict.NotAPart, parts.Fit("game:metalplate-meteoriciron"));
-        Assert.Equal(SquaringShearFitVerdict.NotAPart, parts.Fit("game:metalplate-lead"));   // the work, not a part
-        Assert.Equal(SquaringShearFitVerdict.NotAPart, parts.Fit("seraphhorizons:halfplate-copper"));
-        Assert.Equal(SquaringShearFitVerdict.NotAPart, parts.Fit(null));
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit("metalplate-iron"));   // a code with no domain is the game's
-        Assert.Equal(SquaringShearFitVerdict.AlreadyFitted, parts.Fit("game:metalplate-steel"));
-        Assert.Equal(SquaringShearStage.Gauge, parts.Next);
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.OutOfOrder, parts.Fit("game:rod-iron", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:rod-copper", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:metalplate-meteoriciron", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:metalplate-lead", 1).Verdict);   // the work, not a part
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("seraphhorizons:halfplate-copper", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit(null, 1).Verdict);
+        var fit = parts.Fit("metalplate-iron", 2);   // a code with no domain is the game's; one of a stack of two
+        Assert.Equal((AssemblyVerdict.Fitted, 1), (fit.Verdict, fit.Take));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, parts.Fit("game:metalplate-steel", 1).Verdict);
+        Assert.Equal(1, parts.Build.Next);
     }
 
     [Theory]
     [InlineData("game:metalplate-iron", "game:rod-iron")]
     [InlineData("game:metalplate-steel", "game:rod-meteoriciron")]
     [InlineData("game:metalplate-iron", "game:rod-steel")]
-    public void Each_blade_plate_and_gauge_rod_fits(string plate, string rod) => Assert.True(Complete(plate, rod).Complete);
+    public void Each_blade_plate_and_gauge_rod_fits(string plate, string rod) => Assert.True(Complete(plate, rod).Built);
 
     [Fact]
-    public void Fitted_draws_each_stage_once_it_is_in_and_never_the_plates()
+    public void Each_stage_is_drawn_once_it_is_in_and_the_plates_are_not_the_builds()
     {
-        var parts = new SquaringShearParts();
-        Assert.True(parts.Fitted(null));
-        Assert.False(parts.Fitted("blade"));
-        parts.Fit("game:metalplate-iron");
-        Assert.True(parts.Fitted("blade"));
-        Assert.False(parts.Fitted("gauge"));
-        Assert.True(Complete().Fitted("gauge"));
-        Assert.False(Complete().Fitted("platelead"));
-        Assert.False(Complete().Fitted("platecopper"));
+        var parts = new MachineAssembly(Build());
+        Assert.True(parts.Shows(null));
+        Assert.False(parts.Shows("blade"));
+        parts.Fit("game:metalplate-iron", 1);
+        Assert.True(parts.Shows("blade"));
+        Assert.False(parts.Shows("gauge"));
+        Assert.True(Complete().Shows("gauge"));
+        // the plates are the work's: no stage adds them (BESquaringShear.ShowsPart draws them by its clock)
+        Assert.DoesNotContain(Build().Stages, s => s.Adds.Contains("platelead") || s.Adds.Contains("platecopper"));
         Assert.True(SquaringShearRequires.KnownRequires.SetEquals(["blade", "gauge", "platelead", "platecopper"]));
         Assert.Equal("platelead", SquaringShearRequires.Plate(1));
         Assert.Equal("platecopper", SquaringShearRequires.Plate(2));
@@ -78,26 +89,31 @@ public class SquaringShearGameplayTests
     [Fact]
     public void Fitted_parts_never_come_back_out()
     {
-        // only a consumable may come out of a built machine, and this one has none: breaking is the
-        // only way back to the parts (Returns), so the rules offer no way to take one out
-        var takeOut = typeof(SquaringShearParts).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-            .Where(mi => mi.Name.StartsWith("Remove") || mi.Name.StartsWith("Take"))
-            .Select(mi => mi.Name);
-        Assert.Empty(takeOut);
+        // only a wearing part may come out of a built machine, and this one has none: breaking is the
+        // only way back to the parts (Returns)
+        var parts = Complete();
+        Assert.Empty(parts.Wearing.Parts);
+        Assert.Null(parts.Take("blade"));
+        Assert.True(parts.Built);
     }
 
     [Fact]
     public void Breaking_returns_every_fitted_item_and_a_save_keeps_them()
     {
         var parts = Complete("game:metalplate-steel", "game:rod-meteoriciron");
-        Assert.Equal(["game:metalplate-steel", "game:rod-meteoriciron"], parts.Returns());
-        var restored = SquaringShearParts.Restore(parts.Snapshot());
-        Assert.True(restored.Complete);
+        Assert.Equal([new StageDrop("game:metalplate-steel", 1), new StageDrop("game:rod-meteoriciron", 1)], parts.Returns());
+        var (build, wearing) = parts.Snapshot();
+        var restored = MachineAssembly.Restore(Build(), build, wearing, out var dropped);
+        Assert.True(restored.Built);
+        Assert.Empty(dropped);
         Assert.Equal(parts.Returns(), restored.Returns());
-        // a gap or a code that is not its stage's part ends the run
-        Assert.False(SquaringShearParts.Restore(new Dictionary<string, string> { ["gauge"] = "game:rod-iron" }).Has(SquaringShearStage.Gauge));
-        var wrong = SquaringShearParts.Restore(new Dictionary<string, string> { ["blade"] = "game:metalplate-copper", ["gauge"] = "game:rod-iron" });
+        // a gap ends the run, and a code that is not its stage's part is given back
+        var gap = MachineAssembly.Restore(Build(), new Dictionary<string, int> { ["1/0/game:rod-iron"] = 1 }, wearing, out dropped);
+        Assert.False(gap.Build.StageComplete(1));
+        Assert.Equal([new StageDrop("game:rod-iron", 1)], dropped);
+        var wrong = MachineAssembly.Restore(Build(), new Dictionary<string, int> { ["0/0/game:metalplate-copper"] = 1 }, wearing, out dropped);
         Assert.Empty(wrong.Returns());
+        Assert.Equal([new StageDrop("game:metalplate-copper", 1)], dropped);
     }
 
     // ---- Plates ----
@@ -137,21 +153,22 @@ public class SquaringShearGameplayTests
     [InlineData(2, 1.5)]
     public void W_advances_with_the_treadle_and_the_plate_is_done_at_1(int k, double strokes)
     {
-        var job = new CutJob(k, 0);
+        var job = Cutting.Start(k);
         Assert.True(job.Untouched);
-        (job, bool finished) = job.Advance(2 * Math.PI * strokes / 2, strokes);
+        (job, bool finished) = Cutting.Advance(job, 2 * Math.PI * strokes / 2, strokes);
         Assert.Equal(0.5, job.Work, 9);
         Assert.False(finished);
         Assert.False(job.Untouched);
-        (job, finished) = job.Advance(2 * Math.PI * strokes * 0.49, strokes);
+        (job, finished) = Cutting.Advance(job, 2 * Math.PI * strokes * 0.49, strokes);
         Assert.False(finished);
-        (job, finished) = job.Advance(2 * Math.PI * strokes, strokes);   // more than enough: held at 1
+        (job, finished) = Cutting.Advance(job, 2 * Math.PI * strokes, strokes);   // more than enough: held at 1
         Assert.True(finished);
         Assert.Equal(1.0, job.Work);
         // done, it goes no further and does not finish twice
-        (job, finished) = job.Advance(100, strokes);
+        (job, finished) = Cutting.Advance(job, 100, strokes);
         Assert.False(finished);
-        Assert.Equal(CutJob.None, CutJob.None.Advance(100, strokes).Job);
+        Assert.Equal(MachineJob.None, Cutting.Advance(MachineJob.None, 100, strokes).Job);
+        Assert.Equal(MachineJob.None, Cutting.Start(3));
     }
 
     [Fact]
@@ -174,29 +191,30 @@ public class SquaringShearGameplayTests
     public void The_cuts_crossed_in_a_step_are_counted()
     {
         double[] moments = [0.4];
-        Assert.Equal(0, CutJob.Crossed(moments, 0, 0.3));
-        Assert.Equal(1, CutJob.Crossed(moments, 0.3, 0.4));
-        Assert.Equal(0, CutJob.Crossed(moments, 0.4, 0.5));
-        Assert.Equal(1, CutJob.Crossed(moments, 0, 1));
+        Assert.Equal(0, MachineJob.Crossed(moments, 0, 0.3));
+        Assert.Equal(1, MachineJob.Crossed(moments, 0.3, 0.4));
+        Assert.Equal(0, MachineJob.Crossed(moments, 0.4, 0.5));
+        Assert.Equal(1, MachineJob.Crossed(moments, 0, 1));
     }
 
     [Fact]
     public void A_saved_cut_is_clamped_and_a_bad_class_is_none()
     {
-        Assert.Equal(new CutJob(2, 1), CutJob.Restore(2, 7));
-        Assert.Equal(new CutJob(1, 0), CutJob.Restore(1, double.NaN));
-        Assert.Equal(CutJob.None, CutJob.Restore(3, 0.5));
+        Assert.Equal(new MachineJob(2, 1, 1), Cutting.Restore(2, 7));
+        Assert.Equal(new MachineJob(1, 0, 1), Cutting.Restore(1, double.NaN));
+        Assert.Equal(MachineJob.None, Cutting.Restore(3, 0.5));
     }
 
     [Fact]
     public void A_player_holds_the_treadle_until_they_let_go_or_go_quiet()
     {
-        var holds = new TreadleHolds();
+        // the shared hand holds (BEMachine.HandWorked), at the quern's 600 ms
+        var holds = new HandHolds();
         Assert.False(holds.Any(0));
         holds.Hold("a", 1000);
-        Assert.True(holds.Any(1000 + Cutting.HoldTimeoutMs));
+        Assert.True(holds.Any(1000 + HandHolds.DefaultTimeoutMs));
         holds.Hold("b", 1500);
-        Assert.True(holds.Any(1000 + Cutting.HoldTimeoutMs + 1));   // a went quiet, b holds
+        Assert.True(holds.Any(1000 + HandHolds.DefaultTimeoutMs + 1));   // a went quiet, b holds
         holds.Release("b");
         Assert.False(holds.Any(1600));
         holds.Hold("c", 2000);

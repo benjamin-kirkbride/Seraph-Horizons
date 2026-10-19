@@ -790,7 +790,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("halfplate"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("squaringshear") == true);
         Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.SquaringShear.Core.Cutting.LeadPlate)));
-        foreach (var code in SeraphHorizons.Mod.SquaringShear.Core.SquaringShearParts.GaugeCodes)
+        foreach (var code in new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" })
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)

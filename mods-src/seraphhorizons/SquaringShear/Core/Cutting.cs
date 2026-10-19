@@ -1,4 +1,29 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.SquaringShear.Core;
+
+/// <summary>The squaring shear's <c>requires</c> vocabulary: its two build stages (<c>config/builds/squaringshear.json</c>),
+/// and the work's (<c>platelead</c>, <c>platecopper</c>: a plate of that metal on the table).</summary>
+public static class SquaringShearRequires
+{
+    public const string Blade = "blade";
+    public const string Gauge = "gauge";
+    public const string PlateLead = "platelead";
+    public const string PlateCopper = "platecopper";
+
+    /// <summary>The plate <c>requires</c> of class <paramref name="k"/>: 1 lead, 2 copper.</summary>
+    public static string? Plate(int k) => k switch { 1 => PlateLead, 2 => PlateCopper, _ => null };
+
+    /// <summary>Every <c>requires</c> value the rig may use.</summary>
+    public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { Blade, Gauge, PlateLead, PlateCopper };
+
+    /// <summary>The metal of a fitted part's code (<c>game:rod-steel</c> is <c>steel</c>): a blade plate's or a
+    /// gauge rod's, the two drawn in their metal; null for anything else.</summary>
+    public static string? MetalOf(string? code) =>
+        code is "game:metalplate-iron" or "game:metalplate-steel" or "game:rod-iron" or "game:rod-meteoriciron" or "game:rod-steel"
+            ? code[(code.LastIndexOf('-') + 1)..]
+            : null;
+}
 
 /// <summary>Why a plate can or cannot go on the table.</summary>
 public enum CutLoadVerdict
@@ -17,7 +42,7 @@ public enum CutLoadVerdict
 /// (<c>seraphhorizons:halfplate-{metal}</c>) by the player working the treadle, holding right-click as
 /// on the quern. While held, the treadle clock θ turns at <see cref="StrokesPerSecond"/>, and the cut
 /// cycle W (0..1) advances by θ / (2π · strokesPerPlate[k]); at W = 1 the halves come off and the plate
-/// is used up.
+/// is used up. The plate on the table is a <see cref="MachineJob"/> ending at 1 (<see cref="Start"/>).
 /// </summary>
 public static class Cutting
 {
@@ -31,10 +56,6 @@ public static class Cutting
 
     /// <summary>Radians of the treadle clock a second while held.</summary>
     public const double StrokeRadiansPerSecond = 2 * Math.PI * StrokesPerSecond;
-
-    /// <summary>How long a player counts as working the treadle after the game last said they hold
-    /// right-click on it (the quern forgets a grinding player after a second).</summary>
-    public const long HoldTimeoutMs = 600;
 
     /// <summary>The class of a metal: 1 lead, 2 copper, 0 else.</summary>
     public static int ClassOfMetal(string? metal) => metal switch { "lead" => 1, "copper" => 2, _ => 0 };
@@ -67,61 +88,16 @@ public static class Cutting
 
     /// <summary>Whether the cut runs: complete, a plate on, and someone working the treadle.</summary>
     public static bool Running(bool complete, bool plateOn, bool held) => complete && plateOn && held;
-}
 
-/// <summary>A plate on the table: its class and the cut cycle so far, W (0..1).</summary>
-public readonly record struct CutJob(int Class, double Work)
-{
-    public static readonly CutJob None = new(0, 0);
-
-    public bool On => Class is 1 or 2;
-
-    public bool Done => On && Work >= 1 - 1e-9;
-
-    /// <summary>Whether the plate is still whole: nothing has been done to it (it can be taken back).</summary>
-    public bool Untouched => On && Work <= 0;
-
-    /// <summary>The cut after <paramref name="radians"/> more of the treadle, W held at 1, and
-    /// whether this step finished the plate.</summary>
-    public (CutJob Job, bool Finished) Advance(double radians, double strokesPerPlate)
-    {
-        if (!On || Done)
-            return (this, false);
-        var next = this with { Work = Math.Min(1, Work + Cutting.PlatesFor(radians, strokesPerPlate)) };
-        return (next, next.Done);
-    }
+    /// <summary>The cut of a plate of class <paramref name="k"/> just laid on the table (W ends at 1); none for
+    /// a class the shear does not cut.</summary>
+    public static MachineJob Start(int k) => MachineJob.Start(k is 1 or 2 ? k : 0, 1);
 
     /// <summary>A saved cut: W clamped to 0..1; none when the class is not a plate's.</summary>
-    public static CutJob Restore(int k, double work) =>
-        k is 1 or 2 ? new CutJob(k, double.IsFinite(work) ? Math.Clamp(work, 0, 1) : 0) : None;
+    public static MachineJob Restore(int k, double work) => MachineJob.Restore(k is 1 or 2 ? k : 0, work, 1);
 
-    /// <summary>The moments in <paramref name="moments"/> (cut cycle positions) that W passed going
-    /// from <paramref name="before"/> to <paramref name="after"/>: a cut made in this step.</summary>
-    public static int Crossed(IEnumerable<double> moments, double before, double after) =>
-        moments.Count(m => before < m && after >= m);
-}
-
-/// <summary>
-/// The players working the treadle, as the quern keeps its grinders: each with the time the game last
-/// said they held right-click on the shear. A player counts until <see cref="Cutting.HoldTimeoutMs"/>
-/// after that, or until they let go.
-/// </summary>
-public sealed class TreadleHolds
-{
-    private readonly Dictionary<string, long> _holds = [];
-
-    public void Hold(string player, long nowMs) => _holds[player] = nowMs;
-
-    public void Release(string player) => _holds.Remove(player);
-
-    public void Clear() => _holds.Clear();
-
-    /// <summary>Forgets every player not heard from for <see cref="Cutting.HoldTimeoutMs"/>, and
-    /// says whether anyone is still working the treadle.</summary>
-    public bool Any(long nowMs)
-    {
-        foreach (var stale in _holds.Where(h => nowMs - h.Value > Cutting.HoldTimeoutMs).Select(h => h.Key).ToList())
-            _holds.Remove(stale);
-        return _holds.Count > 0;
-    }
+    /// <summary>The cut after <paramref name="radians"/> more of the treadle at <paramref name="strokesPerPlate"/>,
+    /// W held at 1, and whether this step finished the plate.</summary>
+    public static (MachineJob Job, bool Finished) Advance(MachineJob job, double radians, double strokesPerPlate) =>
+        job.Advance(PlatesFor(radians, strokesPerPlate));
 }
