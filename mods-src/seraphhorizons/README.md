@@ -3591,7 +3591,8 @@ a time to loaded ground (the columns it holds round it load ahead of it, "Chunk 
 way, waits, looking again every 10 seconds. Done when no station is left that it or another of its job
 may work, nothing but the stair's way out is left and none of the area is unloaded: it tells its owner
 how many it mined, how many it left as they were, how many were out of its reach, how many it kept under
-those as their floor and how many it left as its way out (`eidolon-mine-done`), walks back to where it was ordered (if it finds a way; stopped
+those as their floor and how many it left as its way out (`eidolon-mine-done`), and of those left any it
+planned to dig, why (`eidolon-mine-leftwhy`, working together, *When none may work*), walks back to where it was ordered (if it finds a way; stopped
 short, stuck or off an edge, it sets off again, up to 3 times) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
@@ -3732,10 +3733,25 @@ or giving way for ever) is stopped and it looks again from where it got to. The 
 for it to move, so with no member at work, one waiting over blocks still to dig steps aside onto ground with
 nothing left to dig; three once waited so for good, one standing on the last blocks (#1156). *The floors within a climb*: the open band (*Stations*, above)
 keeps every member within a layer of the highest with blocks left, so it walks from anywhere in the pit
-to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
-is made again at once, once until a block is broken; with another still working or parked over the area,
-it waits; with nothing changing for 30 seconds and no other eidolon over the area, the job is done, the
-rest reported left. No member waits on another for good: one that finds no way to a stand (or arrives short
+to anywhere else. *When none may work*: a member waiting for its turn (a route's, a lane's at the face, the
+stair's) or for a claim to come free is never stuck, however long: with blocks left and no member holding
+a station, each asks whether any station of the plan passes the guard against the live state for it, with
+the others where they stand and its stand clear of them (`MineDispatch.Workable`, found again only when
+the plan, the live state, the stands found bad or where the others stand change: what the board and the
+routes hold, claims and turns, clears by itself and is never asked), and while one does it waits (two once
+waited their turns with no station held for 30 seconds under a hill and the job ended with some 2500
+blocks they could reach left). Only with none does it make the plan again at once, once until a block is
+broken, and then, still none for 30 seconds (`MineOrder.StuckSeconds`) and no eidolon of no member's
+parked on blocks to dig (*Footing*), end its part, the job ending once every member has: none it could
+work is either nothing left that any member could (the way out, another station's stand, a stand found
+bad), or members in one another's way for good, each on the other's cells or stand and boxed in, with no
+ground clear to step aside onto (three at the end of a trench 5 wide). The report then says why the blocks
+still to dig were left in a second line (`MineDispatch.WhyLeft`, `eidolon-mine-leftwhy`: under or beside
+an eidolon that could not move, in no station left, their band's turn never came, no place to stand, no
+way to or out of the stand, or digging them would cut off the stand's way out, leave other blocks with
+nowhere to stand, or take a stand other blocks are worked from). A backstop: none at work and no strike for
+5 minutes (`MineOrder.HangSeconds`) with a station the guard allows, which dispatch then never gives
+anyone, ends the job all the same, logged as a warning and those blocks reported as never given to any. No member waits on another for good: one that finds no way to a stand (or arrives short
 of it) with another eidolon within 3 blocks of it lets the station go and waits, but only 3 times at that
 stand, by any member, since the job's last strike (`MineJobCells.BlockedStands`); the 4th the stand is bad
 all the same and the plan made again (three once waited by a stand none could get onto, each taking it,
@@ -3787,12 +3803,13 @@ back with no report of its own, so nothing is counted twice; an order given anew
 mates saved) makes a new job. Plans, claims and the live state are not saved (made again on load), and the
 shares after a restart count from then. Chunks, oil and
 the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` (claims),
-`tests/Eidolon/MineDispatchTests.cs` (earliest arrival, the face cap, claims) and the team cases of
+`tests/Eidolon/MineDispatchTests.cs` (earliest arrival, the face cap, claims, what is workable with the others out of the way or where they stand, and why what is not was left) and the team cases of
 `MinePlannerTests.cs` (two on a tunnel 4 wide and on spiral pits, each strike checked: claims apart, none
 in another's columns, everyone out after every dig), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
 never holding the same column, the floors within a climb, one report with both shares,
 each back to its place; one ordered later joining the job running; one whose part is mined out
-taking stations in the other's, never pushing into it), `tests/Eidolon/MineSiteWindowTests.cs` (the window
+taking stations in the other's, never pushing into it; two kept from any station for 75 seconds, every column held by
+another on the job board, waiting and then mining the whole area), `tests/Eidolon/MineSiteWindowTests.cs` (the window
 grown round a member 10 columns off the area, routed on the first solve, none past 32) and
 `tests/PackTests/EidolonMineWindowScenarios.cs` (Atlas, on a player's hillside, `fixtures/eidolon-hillside`:
 one 10 columns outside the area routed on the first solve and both mining, ordered with the other or joining

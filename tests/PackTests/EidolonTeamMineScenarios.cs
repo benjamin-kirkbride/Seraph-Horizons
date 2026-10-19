@@ -229,6 +229,70 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Die(EnumDespawnReason.Removed);
     }
 
+    /// <summary>The owner's tunnel under a hill (two reported done with some 2500 blocks they could reach left,
+    /// after both had waited their turns, holding no station, for 30 seconds): every column round the area held
+    /// on the job board by another for 75 seconds, so that neither member may take a station nor strike, as while
+    /// both wait their turns, the job waits and mines the whole area once the hold is let go.</summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Two_holding_no_station_for_over_30_seconds_while_work_is_left_never_end_the_job()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2600), reach: 15);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        Ground(site, granite);
+        var a = site.AddCopy(-4, -2, -3);
+        var b = site.AddCopy(3, -1, 0);
+        var area = Area(a, b);
+        var toMine = Cells(area);
+
+        var (test, player, tool) = await Commander("eidolonstall", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
+        var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
+        var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
+        // the hold: one that is no eidolon holds every column of the area and round it, renewed every tick
+        const long Holder = -4242;
+        var columns = new List<(int X, int Z)>();
+        for (int x = area.Min.X - 4; x <= area.Max.X + 4; x++)
+        for (int z = area.Min.Z - 4; z <= area.Max.Z + 4; z++)
+            columns.Add((x, z));
+        Assert.True(Jobs.Mining.TryClaim(Holder, 0, columns, EidolonJobSystem.Now(W)));
+        OrderMine(player, tool, [e1, e2], a, b);
+        var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
+        var o2 = Assert.IsType<MineOrder>(e2.Orders!.Current);
+        double from = EidolonJobSystem.Now(W);
+        int ticks = 0;
+        await World.Until(() =>
+        {
+            Jobs.Mining.Struck(Holder, EidolonJobSystem.Now(W));
+            if (++ticks % 300 == 0)
+                Log($"held {EidolonJobSystem.Now(W) - from:0} s: {State(e1)} || {State(e2)}");
+            return EidolonJobSystem.Now(W) - from >= 75 || o1.Reported != null || o2.Reported != null;
+        }, 6000);
+        Log($"after the hold: {o1.Mined} + {o2.Mined}; reports: " + string.Join(" | ", Reports(o1, o2)));
+        Assert.Equal(0, o1.Mined + o2.Mined);
+        Assert.Empty(Reports(o1, o2));
+        Assert.Equal(MineOrder.OrderCode, e1.Orders.OrderCode);
+        Assert.Equal(MineOrder.OrderCode, e2.Orders.OrderCode);
+
+        Jobs.Mining.Release(Holder);
+        await World.Until(() =>
+        {
+            if (++ticks % 300 == 0)
+                Log($"{o1.Mined} + {o2.Mined} mined: {State(e1)} || {State(e2)}");
+            return e1.Orders.OrderCode == null && e2.Orders.OrderCode == null;
+        }, 6000);
+        var lines = Reports(o1, o2);
+        Log($"after: {o1.Mined} + {o2.Mined}; reports: " + string.Join(" | ", lines));
+        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.Equal(toMine.Count, o1.Mined + o2.Mined);
+        var report = Assert.Single(lines);
+        Assert.Contains($"{toMine.Count} blocks mined", report);
+        Assert.Contains("0 left as they were", report);
+        Assert.Null(o1.ReportedWhy ?? o2.ReportedWhy);
+        e1.Die(EnumDespawnReason.Removed);
+        e2.Die(EnumDespawnReason.Removed);
+    }
+
     [AtlasScenario(TimeoutMs = 150_000)]
     public async Task One_whose_part_is_mined_out_takes_stations_in_the_others()
     {

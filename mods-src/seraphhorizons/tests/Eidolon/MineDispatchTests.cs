@@ -13,11 +13,11 @@ public class MineDispatchTests
 
     // A strip of ground 32 long (x), 4 wide (z), one layer: station A at its east end, B at its west end,
     // A first in plan order; each stands on the ground north of the strip.
-    private static (MinePlan Plan, MineState Live) Strip()
+    private static (MinePlan Plan, MineState Live) Strip(IReadOnlySet<PathCell>? badStands = null)
     {
         var world = new MineTestWorld().Ground(L - 1);
         var area = Area(0, 31, L - 1, L - 1, 0, 3);
-        var live = new MineState(world.Site(area), new PathCell(16, L, 10));
+        var live = new MineState(world.Site(area), new PathCell(16, L, 10), badStands);
         var targets = Cells(0, 31, L - 1, L - 1, 0, 3).ToHashSet();
         live.BuildNow(targets);
         var a = new MineStation(0, new PathCell(30, L, 6), [new MarkPos(29, L - 1, 3), new MarkPos(30, L - 1, 3)], 0, MineStationKind.Bench);
@@ -66,6 +66,41 @@ public class MineDispatchTests
         Assert.False(MineDispatch.Executable(plan, live, plan.Stations[1], [new MineWorkerAt(2, 2, L, 3, [])], out var why));
         Assert.Equal(MineRefusal.WorkerFloor, why);
         Assert.Equal(0, MineDispatch.Next(plan, live, At(1, 3, 8), [other], _ => true)!.Id);
+    }
+
+    [Fact]
+    public void AStationIsWorkableWithTheOthersOutOfTheWayOrWhereTheyStand()
+    {
+        var (plan, live) = Strip();
+        Assert.Equal(0, MineDispatch.Workable(plan, live)!.Id);
+        // A dug; one stands on B's cells: no member may take B now, though with it gone one could
+        live.Apply(plan.Stations[0].Cells);
+        var onB = new MineWorkerAt(2, 2, L, 3, []);
+        Assert.False(MineDispatch.Executable(plan, live, plan.Stations[1], [onB], out _));
+        Assert.Equal(1, MineDispatch.Workable(plan, live)!.Id);
+        // with it where it stands, none: and so with one standing on B's stand
+        Assert.Null(MineDispatch.Workable(plan, live, [onB]));
+        Assert.Null(MineDispatch.Workable(plan, live, [new MineWorkerAt(2, 2, L, 6, [])]));
+        // the report: under an eidolon, or untaken with none in the way
+        Assert.Equal(2, MineDispatch.WhyLeft(plan, live, plan.Stations[1].Cells, [onB])[MineLeftWhy.UnderEidolon]);
+        Assert.Equal(2, MineDispatch.WhyLeft(plan, live, plan.Stations[1].Cells, [new MineWorkerAt(2, 16, L, 10, [])])[MineLeftWhy.Untaken]);
+        live.Apply(plan.Stations[1].Cells);
+        Assert.Null(MineDispatch.Workable(plan, live));
+    }
+
+    [Fact]
+    public void NoStationIsWorkableWhenEveryStandIsBadAndTheReportSaysWhy()
+    {
+        var bad = new HashSet<PathCell> { new(30, L, 6), new(2, L, 6) };
+        var (plan, live) = Strip(bad);
+        Assert.Null(MineDispatch.Workable(plan, live));
+        var left = plan.Stations.SelectMany(s => s.Cells).Append(new MarkPos(16, L - 1, 0)).ToList();
+        var why = MineDispatch.WhyLeft(plan, live, left);
+        Assert.Equal(4, why[MineLeftWhy.NoStand]);
+        Assert.Equal(1, why[MineLeftWhy.NoStation]);
+        // a station that may be worked, left all the same, is said to be untaken
+        var (open, openLive) = Strip();
+        Assert.Equal(4, MineDispatch.WhyLeft(open, openLive, open.Stations.SelectMany(s => s.Cells))[MineLeftWhy.Untaken]);
     }
 
     [Fact]
