@@ -279,7 +279,7 @@ public class OreRecoveryTests
 
     [Theory]
     [InlineData("galena", PartingStation.ParkesKettle, "lead", "silver", 0.03)]
-    [InlineData("galena_nativesilver", PartingStation.ParkesKettle, "lead", "silver", 0.38)]
+    [InlineData("galena_nativesilver", PartingStation.CupellationFurnace, "lead", "silver", 0.38)]
     [InlineData("tetrahedrite", PartingStation.CupellationFurnace, "copper", "silver", 0.05)]
     [InlineData("freibergite", PartingStation.CupellationFurnace, "silver", "copper", 0.30)]
     [InlineData("teallite", PartingStation.LiquationFurnace, "tin", "lead", 0.40)]
@@ -300,6 +300,22 @@ public class OreRecoveryTests
         Assert.Equal(share, parted[1].Units, 9);
         // Unparted: the main metal, no by-product.
         Assert.Equal([new MetalUnits(main, 100)], R.Smelted(spec, 100, null));
+    }
+
+    /// <summary>A by-product ore's final step is a machine that takes its bullion: argentiferous galena, richer than
+    /// the kettle's rich lead, ends at the cupellation furnace, which the kettle refuses it for.</summary>
+    [Fact]
+    public void EveryFinalPartingTakesTheOresBullion()
+    {
+        var parting = new[] { PartingStation.CupellationFurnace, PartingStation.ParkesKettle, PartingStation.LiquationFurnace, PartingStation.AcidParting };
+        foreach (var ore in R.Ores.Where(o => o.ByProducts.Count > 0))
+        {
+            var station = parting.Single(s => OreRecovery.MachineOf(s) == R.FinalStep(ore));
+            Assert.True(Bullion.TakenBy(R, ore, station), $"{ore.Ore}: {station} does not take its bullion");
+        }
+        Assert.Equal(OreMachine.ParkesKettle, R.FinalStep(R.Ore("galena")));
+        Assert.Equal(OreMachine.CupellationFurnace, R.FinalStep(R.Ore("galena_nativesilver")));
+        Assert.False(Bullion.TakenBy(R, R.Ore("galena_nativesilver"), PartingStation.ParkesKettle));
     }
 
     [Fact]

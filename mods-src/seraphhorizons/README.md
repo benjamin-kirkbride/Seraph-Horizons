@@ -5700,8 +5700,10 @@ wrong with the file (`Problems`, for the server log; a missing figure reads as 0
   sluice, jig and table) the vanner takes all the rest for oxides, placer and silver quartz; for a
   sulfide it marks its concentrate whole and the reverberatory roaster makes it 100 %
   (`Roasting(ore, roaster, whole)`); for a by-product ore the final parting does (`Smelted(ore,
-  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena, the
-  cupellation furnace for tetrahedrite and freibergite, the liquation furnace for teallite and
+  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena (the
+  bullion the kettle takes, leaner than its rich lead: `Bullion.TakenBy`), the cupellation furnace
+  for argentiferous galena (richer than the kettle's crust, cupelled directly), tetrahedrite and
+  freibergite, the liquation furnace for teallite and
   franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver).
   `WholeRestore` is 1 / the chain's share.
 - **Amalgamation** (`Amalgamate`): the plates catch 65 % of the catchable free metal as amalgam,
