@@ -675,6 +675,10 @@ switch off, lack it.
   `config/ore-processing.json` has them.
 - `machines`: each machine's `recovery`, keyed as in the config (1 where the config gives none:
   a machine that loses nothing).
+- `richLeadSilver`, optional (exports before it lack it; the site then takes the mod's default,
+  0.1): the share of a rich lead bar's lead that is silver, the config's `bullion.richLeadSilver`
+  as the mod reads it. The Parkes kettle takes only silver-lead leaner than this (plain galena's,
+  not argentiferous galena's), which decides whether it is on an ore's routes and its last step.
 - `ores`: every ore with crushed ore items, by code: `ore`, `name` (the game's `ore-<ore>` lang
   entry), and the mod's reading of it (`OreRecovery.Ore`): `metal`, `class`, `density`, `free`,
   `unparted`, `byProducts` (`metal`, `share`, `partedBy`); and `units`, the metal units a raw ore
