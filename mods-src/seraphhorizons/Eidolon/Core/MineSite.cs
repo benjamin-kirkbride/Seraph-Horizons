@@ -25,10 +25,17 @@ public interface IMineWorld
 /// <see cref="EidolonMining.Holds"/>) has its rule. Outside the window reads solid; so does a column not
 /// loaded, which is no target either (<see cref="UnloadedColumns"/>). The eidolon's box is tested against
 /// it as the game's collision tester does (<see cref="Free"/>), so <see cref="WidePath"/> walks it as it is.
+/// A job's window is grown to take in a member standing outside it within <see cref="GrowColumns"/> of the
+/// area (<see cref="Grown"/>), so the routes can place it on the walk graph (README "Eidolon", working
+/// together, *Routes*).
 /// </summary>
 public sealed class MineSite : IWideSpace
 {
     public const int SideMargin = 6, BelowMargin = 2, AboveMargin = 8;
+
+    /// <summary>How far from the area (columns, or layers) a member standing outside the window grows it to
+    /// take it in (<see cref="Grown"/>); one farther is not. It bounds the window's memory.</summary>
+    public const int GrowColumns = 32;
 
     private readonly int _x0, _y0, _z0, _sx, _sy, _sz;
     private readonly ulong[] _solid;
@@ -41,13 +48,13 @@ public sealed class MineSite : IWideSpace
 
     /// <summary>The window round <paramref name="area"/>, all solid until it is loaded (<see cref="Load"/>);
     /// <paramref name="step"/>: the most it climbs and drops between two places it stands, both ways
-    /// (the least of its climb and its fall, 1 or 2, so every way in is a way back).</summary>
-    public MineSite(MarkArea area, int step)
+    /// (the least of its climb and its fall, 1 or 2, so every way in is a way back);
+    /// <paramref name="window"/>: one grown round its members (<see cref="Grown"/>), else <see cref="Around"/> the area.</summary>
+    public MineSite(MarkArea area, int step, MarkArea? window = null)
     {
         Area = area;
         Step = Math.Clamp(step, 1, 2);
-        Window = new MarkArea(new MarkPos(area.Min.X - SideMargin, area.Min.Y - BelowMargin, area.Min.Z - SideMargin),
-            new MarkPos(area.Max.X + SideMargin, area.Max.Y + AboveMargin, area.Max.Z + SideMargin));
+        Window = window ?? Around(area);
         (_x0, _y0, _z0) = (Window.Min.X, Window.Min.Y, Window.Min.Z);
         (_sx, _sy, _sz) = (Window.SizeX, Window.SizeY, Window.SizeZ);
         _solid = new ulong[(Volume + 63) / 64];
@@ -304,6 +311,55 @@ public sealed class MineSite : IWideSpace
     }
 
     public MineSite Clone() => new(this);
+
+    // ---- the window's size ----
+
+    /// <summary>The window round <paramref name="area"/>: <see cref="SideMargin"/> columns each side,
+    /// <see cref="BelowMargin"/> under and <see cref="AboveMargin"/> over.</summary>
+    public static MarkArea Around(MarkArea area) =>
+        new(new MarkPos(area.Min.X - SideMargin, area.Min.Y - BelowMargin, area.Min.Z - SideMargin),
+            new MarkPos(area.Max.X + SideMargin, area.Max.Y + AboveMargin, area.Max.Z + SideMargin));
+
+    /// <summary>Whether <paramref name="window"/> holds what placing a member at path node <paramref name="at"/>
+    /// on the walk graph reads (<see cref="MineCosts.Snap"/>): its box and the blocks under it, a column and a
+    /// step either way.</summary>
+    public static bool Holds(MarkArea window, PathCell at) =>
+        at.X - 2 >= window.Min.X && at.X + 1 <= window.Max.X && at.Z - 2 >= window.Min.Z && at.Z + 1 <= window.Max.Z
+        && at.Y - 3 >= window.Min.Y && at.Y + 5 <= window.Max.Y;
+
+    /// <summary>How far path node <paramref name="at"/> is from <paramref name="area"/>, in columns or layers
+    /// (the most of the three; 0 over or in it).</summary>
+    public static int Off(MarkArea area, PathCell at)
+    {
+        static int Past(int v, int min, int max) => Math.Max(0, Math.Max(min - v, v - max));
+        return Math.Max(Past(at.X, area.Min.X, area.Max.X), Math.Max(Past(at.Y, area.Min.Y, area.Max.Y), Past(at.Z, area.Min.Z, area.Max.Z)));
+    }
+
+    /// <summary>
+    /// <paramref name="window"/> (the job's, at least <see cref="Around"/> the area) grown to take in each of
+    /// <paramref name="members"/> it does not hold (<see cref="Holds"/>) within <see cref="GrowColumns"/> of
+    /// <paramref name="area"/> (<see cref="Off"/>), with the usual margins round where it stands (its box and
+    /// a step under it taken as an area); never smaller, so a member once in stays in. Those farther are put
+    /// in <paramref name="far"/>.
+    /// </summary>
+    public static MarkArea Grown(MarkArea area, MarkArea window, IEnumerable<PathCell> members, List<PathCell>? far = null)
+    {
+        foreach (var at in members)
+        {
+            if (Holds(window, at))
+                continue;
+            if (Off(area, at) > GrowColumns)
+            {
+                far?.Add(at);
+                continue;
+            }
+            var round = Around(new MarkArea(new MarkPos(at.X - 1, at.Y - 2, at.Z - 1), new MarkPos(at.X, at.Y + 3, at.Z)));
+            window = new MarkArea(
+                new MarkPos(Math.Min(window.Min.X, round.Min.X), Math.Min(window.Min.Y, round.Min.Y), Math.Min(window.Min.Z, round.Min.Z)),
+                new MarkPos(Math.Max(window.Max.X, round.Max.X), Math.Max(window.Max.Y, round.Max.Y), Math.Max(window.Max.Z, round.Max.Z)));
+        }
+        return window;
+    }
 
     // ---- indexing ----
 

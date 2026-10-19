@@ -83,7 +83,7 @@ with WideDensityProspectingScenarios, a world of its own kept out of `rest`),
 climbs (EidolonFootingScenarios), `eidolon-fell` felling alone and together
 (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-orders` carrying and guarding
 (EidolonCarryScenarios, EidolonGuardScenarios), and `eidolon-jobs` every other Eidolon*
-class (chunk loading), the complement of the others, kept short so a new one can join it
+class (chunk loading, the mine window grown round a crew, EidolonMineWindowScenarios), the complement of the others, kept short so a new one can join it
 (with VirtualClockScenarios, a world of its own kept out of `rest`).
 
 A class's scenarios run one after another on its server (a boot is about a minute); keep

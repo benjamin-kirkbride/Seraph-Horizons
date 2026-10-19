@@ -55,9 +55,9 @@ internal sealed class MineTestWorld : IMineWorld
     public static MarkArea Area(int x0, int x1, int y0, int y1, int z0, int z1) =>
         MarkArea.Between(new MarkPos(x0, y0, z0), new MarkPos(x1, y1, z1));
 
-    public MineSite Site(MarkArea area, int step = 2)
+    public MineSite Site(MarkArea area, int step = 2, MarkArea? window = null)
     {
-        var site = new MineSite(area, step);
+        var site = new MineSite(area, step, window);
         foreach (var _ in site.Load(this)) { }
         return site;
     }

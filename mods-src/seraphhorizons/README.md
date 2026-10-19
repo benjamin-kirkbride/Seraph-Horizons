@@ -3465,8 +3465,9 @@ never digs its footprint or under it.
 `MinePlanner.cs`, `MineStations.cs`; the game side `Eidolon/Game/EidolonMinePlans.cs`, `GameMineWorld.cs`).
 The area is planned once, when the job's first member starts, as *stations*: a place it stands (a path
 node) and the blocks it clears from there, struck a group at a time before it moves on. The plan reads a
-window of the world round the area (`MineSite`: 6 columns each side, 2 under, 8 over; each block solid or
-not by its collision box, and what it is to the order, `GameMineWorld`), and knows where the eidolon may
+window of the world round the area (`MineSite`: 6 columns each side, 2 under, 8 over, grown for a crew
+member standing outside it, *Routes* below; each block solid or not by its collision box, and what it is
+to the order, `GameMineWorld`), and knows where the eidolon may
 stand (its box free, a block under one of its four columns) and which of those places are *out*: joined,
 a step of at most 2 up or down each way (the least of `MaxClimbBlocks` and `MaxFallBlocks`), to the
 window's side or to where it was ordered (`MineWalk`). What it could reach under any order of digging is
@@ -3622,7 +3623,19 @@ owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one pe
 saved. *Routes* (mining; `Eidolon/Core/MineRoutes.cs`, `MineRoutePlanner.cs`, `MineOrdering.cs`,
 `MineCosts.cs`, `MineChokes.cs`, `MineSlots.cs`, `MineAhead.cs`; the host `EidolonMinePlans`): a job of more
 than one member present gets look-ahead routes, each member's next 5 to 10 stations, solved together off the
-main thread from a copy of the live state. The solver simulates the crew working forward with the same guard
+main thread from a copy of the live state. A member stands where the solve must place it on the walk graph
+(the out node at its feet, or one a column or a step off it): one outside the window, which the planner
+only reads round the area, would get no stops at all, so the job's window is grown to take in each member
+outside it within 32 columns (or layers) of the area, with the usual margins round where it stands
+(`MineSite.Grown`, `GrowColumns`; at most 38 columns past the area each way, which bounds its memory). It is
+one window for the plan, the reach, the walk and the routes, so the job's first plan reads it grown round
+the crew present, and a member outside it joining later (or seen outside it by a solve) has it read again
+grown, a column at a time as the first, and the plan made again over it (what changes meanwhile is
+journalled from the read's start; the old plan serves, dispatched as today's, until the new plan's first
+solve); it never shrinks. A member farther than 32 columns is not taken in: it gets no stops, as before,
+until the crew's stall (below) leaves the plan to today's dispatch, which walks it in. Each solve
+logs (`[eidolon-mine]`, debug) a member it gave no stops because it could not place it, and why (outside the
+window, beyond the 32, or no out node near it: `MineCosts.Unplaced`). The solver simulates the crew working forward with the same guard
 as live: each station's work timed strike by strike at its blocks' pace (the quicker of the steel pick and
 shovel), the walk on the walk graph, a way crossing another's claim only after waiting 4 seconds for it (as
 the game goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots
@@ -3779,7 +3792,11 @@ the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamwo
 in another's columns, everyone out after every dig), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
 never holding the same column, the floors within a climb, one report with both shares,
 each back to its place; one ordered later joining the job running; one whose part is mined out
-taking stations in the other's, never pushing into it), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
+taking stations in the other's, never pushing into it), `tests/Eidolon/MineSiteWindowTests.cs` (the window
+grown round a member 10 columns off the area, routed on the first solve, none past 32) and
+`tests/PackTests/EidolonMineWindowScenarios.cs` (Atlas, on a player's hillside, `fixtures/eidolon-hillside`:
+one 10 columns outside the area routed on the first solve and both mining, ordered with the other or joining
+the job running), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
 16 × 3 × 12 area each breaking only in its station's columns, on average 5 or more apart, never pushing into each other
 (`MineWatcher.Pushing`: boxes may brush, each contact under half a second and a second in all, the centres
 never under a block apart), the floors
