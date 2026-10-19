@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // feed box, its concentrate pushed into a chest at its concentrate face and its tailings discarded beside its
 // foot as sand, its worn belt renewed by right-click, and broken back into everything that went in. Built on
 // granite floors 40 above spawn at x 920, z 920; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string VannerFrame = "seraphhorizons:vanner-";
 

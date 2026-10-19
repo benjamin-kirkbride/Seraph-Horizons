@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // only while held; an item takes four seconds, so they finish the charge through BERocker.Rock, as the
 // press brake's finish a plate through Fold. Every scenario builds on a granite floor of its own 40 above
 // spawn at x -580 to -620, z -860 (clear of the eidolon body's at z -600), and they share the gear cutter's player, gearcutterhand.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private RockerSystem RockerMod => RockerSystem.Of(World.Api);
     private const string RockerItem = "seraphhorizons:rocker-north";
