@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // BEAmalgamPan.Turn, as the press brake's scenarios finish a plate through Fold; turned from a creative
 // rotor below in one scenario. Every scenario builds on a granite floor of its own 40 above spawn at
 // x -520 to -560, z -520, and they share the gear cutter's player, gearcutterhand.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private AmalgamPanSystem PanMod => AmalgamPanSystem.Of(World.Api);
     private const string PanFrame = "seraphhorizons:amalgampan-frame-north";

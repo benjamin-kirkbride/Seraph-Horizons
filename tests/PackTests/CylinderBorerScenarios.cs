@@ -112,7 +112,7 @@ public partial class SharedWorldScenarios
         Assert.NotNull(BorerMod.Rig);
         // its frame is the shared machine block, its cells and power cell the shared ones, its build the shared build's
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.False(Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:cylinderborer-frame-{side}"))).PlacedLikeMill);
+            Assert.Equal(Side.North, Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:cylinderborer-frame-{side}"))).Rig!.PlacedSide(Side.North));   // native north towards the player
         Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-ghost")) is null or { IsMissing: true } or { Id: 0 });
         Assert.Same(BorerRig, ((BlockMachine)W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-frame-north"))).Rig);
         var build = MachinesSystem.Of(World.Api).Build(CylinderBorerSystem.MachineId)!;

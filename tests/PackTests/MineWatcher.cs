@@ -22,7 +22,14 @@ namespace SeraphHorizons.PackTests;
 /// the route solver leaves to today's dispatch (a narrow tunnel's mouth, say), or whose routes stalled, has
 /// today's own contacts, which can come deep for a moment as two pass by a climb (#1078: 0.77 apart for
 /// 1.7 s, the walker with the lower id going by one waiting at the face), so there only a loose bound holds
-/// (<see cref="ContactFault"/>, as in EidolonLookaheadScenarios).</para></summary>
+/// (<see cref="ContactFault"/>, as in EidolonLookaheadScenarios).</para>
+///
+/// <para>A contact's time alone can't tell two members walking along together from one pressing another
+/// in place (#1329: 11 s at 0.85 apart, both walking home in single file down the trench, creeping forward
+/// together), so each contact is logged with how far it moved (<see cref="Moved"/>) and what each member was
+/// doing at its start and end. That is for the log only: a walker shoving a slower one along is pressing it
+/// as much as one held still is, and the moving pair of #1329 is just the kind the bound is to catch, so no
+/// rule here passes a long contact because it moved.</para></summary>
 internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, EntityLaborEidolon[] eidolons, MineOrder[] orders,
     System.Func<MarkPos, bool>? exempt = null, bool floors = true, int floorSlack = 1)
 {
@@ -72,10 +79,14 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
     /// <summary>Floors more than a climb apart, and blocks broken in another's columns.</summary>
     public readonly List<string> Faults = new();
 
-    /// <summary>Every contact: who, where and how each was at its start, and how long it lasted and how
-    /// near they came.</summary>
+    /// <summary>Every contact: who, where and how each was at its start, how long it lasted, how near they
+    /// came and how far it moved.</summary>
     public readonly List<string> Contacts = new();
-    private readonly Dictionary<(int, int), (long Since, double Nearest, string Who)> _touching = new();
+    private readonly Dictionary<(int, int), Touch> _touching = new();
+
+    /// <summary>A contact under way: when it began, the nearest so far, each member as it began (for the
+    /// log) and where each stood and what it was doing then.</summary>
+    private readonly record struct Touch(long Since, double Nearest, string Who, Vec3d FromI, Vec3d FromJ, string PhaseI, string PhaseJ);
     public readonly Dictionary<long, (int In, int Out)> BySector = eidolons.ToDictionary(e => e.EntityId, _ => (0, 0));
     public readonly Dictionary<long, List<BlockPos>> Broke = eidolons.ToDictionary(e => e.EntityId, _ => new List<BlockPos>());
     /// <summary>Ticks two overlapped, each pair counted.</summary>
@@ -134,11 +145,12 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
                 Nearest = Math.Min(Nearest, d);
                 _touching[(i, j)] = _touching.TryGetValue((i, j), out var t)
                     ? t with { Nearest = Math.Min(t.Nearest, d) }
-                    : (now, d, $"from {now / 1000.0:0.0} s, {Describe(i)} and {Describe(j)}");
+                    : new Touch(now, d, $"from {now / 1000.0:0.0} s, {Describe(i)} and {Describe(j)}",
+                        eidolons[i].Pos.XYZ, eidolons[j].Pos.XYZ, Phase(i), Phase(j));
                 LongestMs = Math.Max(LongestMs, now - _touching[(i, j)].Since);
             }
             else if (_touching.Remove((i, j), out var t))
-                Contacts.Add($"{now - t.Since} ms, nearest {t.Nearest:0.00}: {t.Who}");
+                Contacts.Add(Line(i, j, t, now, ""));
             // apart while all are at work (none reported, none on its way back)
             if (orders.All(o => o.Reported == null) && eidolons.All(e => e.Orders?.OrderCode == MineOrder.OrderCode))
             {
@@ -153,14 +165,48 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
         + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")}; "
         + $"{orders[i].DebugState})";
 
+    /// <summary>What a member was doing: walking home once its part of the job is done
+    /// (<see cref="MineOrder.Returning"/>), at work, or its order over.</summary>
+    private string Phase(int i) =>
+        eidolons[i].Orders?.Current != orders[i] ? "order over" : orders[i].Returning ? "walking home" : "at work";
+
+    /// <summary>
+    /// How far a contact moved from its start to where the two stand now, across: the pair's midpoint, and each member.
+    /// The midpoint tells the two kinds of a long contact apart: walking along together it goes as far as
+    /// they do, pressing in place it stays put, however either jostles; each member's own way shows the rest
+    /// (one pushing another along moves both; passing each other the midpoint stays while each goes by).
+    /// </summary>
+    private (double Pair, double I, double J) Moved(int i, int j, Touch t)
+    {
+        Vec3d a = eidolons[i].Pos.XYZ, b = eidolons[j].Pos.XYZ;
+        double pair = Math.Sqrt(Square((a.X + b.X - t.FromI.X - t.FromJ.X) / 2) + Square((a.Z + b.Z - t.FromI.Z - t.FromJ.Z) / 2));
+        return (pair, Math.Sqrt(a.HorizontalSquareDistanceTo(t.FromI)), Math.Sqrt(b.HorizontalSquareDistanceTo(t.FromJ)));
+    }
+
+    private static double Square(double x) => x * x;
+
+    /// <summary>One contact for the log: how long (<c>soFar</c> " so far" while it still goes), how near,
+    /// how far it moved and at what pace, what each was doing at its start and now, then who.</summary>
+    private string Line(int i, int j, Touch t, long now, string soFar)
+    {
+        var (pair, a, b) = Moved(i, j, t);
+        long ms = now - t.Since;
+        string pace = ms == 0 ? "" : $", {pair * 1000 / ms:0.00} a second";
+        return $"{ms} ms{soFar}, nearest {t.Nearest:0.00}, moved {pair:0.0} together ({eidolons[i].EntityId} {a:0.0}, "
+            + $"{eidolons[j].EntityId} {b:0.0}{pace}), {eidolons[i].EntityId} {t.PhaseI} then {Phase(i)}, "
+            + $"{eidolons[j].EntityId} {t.PhaseJ} then {Phase(j)}: {t.Who}";
+    }
+
+    /// <summary>Every contact, each still going counted as it stands.</summary>
+    private string All() =>
+        string.Join(" | ", Contacts.Concat(_touching.Select(t => Line(t.Key.Item1, t.Key.Item2, t.Value, _lastTick, " so far"))));
+
     /// <summary>Contact deeper than <see cref="MinCentres"/>, or null: what an assertion says, with every
     /// contact (each still going counted as it stands).</summary>
     public string? Pushing()
     {
-        var open = _touching.Select(t => $"{_lastTick - t.Value.Since} ms so far, nearest {t.Value.Nearest:0.00}: {t.Value.Who}");
-        string all = string.Join(" | ", Contacts.Concat(open));
         if (Nearest < MinCentres)
-            return $"overlapping {ContactMs} ms in all ({Overlaps} ticks), longest {LongestMs} ms, nearest {Nearest:0.00}: {all}";
+            return $"overlapping {ContactMs} ms in all ({Overlaps} ticks), longest {LongestMs} ms, nearest {Nearest:0.00}: {All()}";
         return null;
     }
 
@@ -178,7 +224,7 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
     /// <summary>The contacts for the log: ticks, time, longest and nearest, then each.</summary>
     public string Summary() =>
         $"{Overlaps} ticks, {ContactMs} ms, longest {LongestMs} ms, nearest {(Overlaps == 0 ? "-" : Nearest.ToString("0.00"))}: "
-        + string.Join(" | ", Contacts.Concat(_touching.Select(t => $"{_lastTick - t.Value.Since} ms so far: {t.Value.Who}")));
+        + All();
 
     public double MeanDistance => DistanceTicks == 0 ? 0 : DistanceSum / DistanceTicks;
 }

@@ -14,7 +14,8 @@ namespace SeraphHorizons.RecipeExport;
 /// machine does to one item; how a line of them adds up (concentrators working each other's tailings, the
 /// locked shares, the last step of the whole route) is the mod's <c>Ore/Core/OreRecovery.cs</c>, which the
 /// site's <c>ore-routes.ts</c> follows from these figures. Like the power section, only parameters: the
-/// shares, recoveries and grade shares of <c>config/ore-processing.json</c> as the mod reads it, and each ore
+/// shares, recoveries and grade shares of <c>config/ore-processing.json</c> as the mod reads it (and its
+/// <c>bullion.richLeadSilver</c>, which decides what the Parkes kettle takes), and each ore
 /// the pack processes (one with crushed ore items) with the mod's own reading of it (<c>OreRecovery.Ore</c>:
 /// class, main metal, density, by-products) and the metal units its raw ore holds at each grade (its crushed
 /// ore items' <c>metalUnits</c>, which raw ore carries unchanged). Nothing is written when the mod is not
@@ -65,6 +66,8 @@ public static class OreProcessingSection
             foreach (var (name, entry) in entries)
                 machines[name] = new JObject { ["recovery"] = (double?)entry?["recovery"] ?? 1 };
         section["machines"] = machines;
+        // The share of a rich lead bar's lead that is silver: the Parkes kettle takes only silver-lead leaner.
+        if (GearChain.Prop(recovery, "RichLeadSilver") is double richLeadSilver) section["richLeadSilver"] = richLeadSilver;
 
         using var english = new Items.EnglishLocale();
         var ores = new JArray();

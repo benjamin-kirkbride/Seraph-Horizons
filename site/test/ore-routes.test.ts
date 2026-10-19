@@ -27,6 +27,7 @@ const DATA: OreProcessingExport = {
   unclassified: 0.85,
   fineUnground: 0.4,
   freeUnamalgamated: 0.7,
+  richLeadSilver: 0.1,
   machines: {
     amalgamationplates: { recovery: 0.65 },
     sluice: { recovery: 0.55 },
@@ -59,6 +60,7 @@ const ore = (o: Partial<OreSpec> & { ore: string }): OreSpec => ({
 const MALACHITE = ore({ ore: "malachite" });
 const CHALCOPYRITE = ore({ ore: "chalcopyrite", class: "sulfide" });
 const GALENA = ore({ ore: "galena", metal: "lead", class: "sulfide", byProducts: [{ metal: "silver", share: 0.03, partedBy: "cupellation" }] });
+const ARGENTIFEROUS = ore({ ore: "galena_nativesilver", metal: "lead", class: "sulfide", byProducts: [{ metal: "silver", share: 0.38, partedBy: "cupellation" }] });
 const GOLD = ore({ ore: "quartz_nativegold", metal: "gold", class: "native", free: true, unparted: 0.85, units: [2, 4, 5, 8], byProducts: [{ metal: "silver", share: 0.15, partedBy: "acidparting" }] });
 
 /** The node at the end of a path of step names (variants after a colon), walking from the top. */
@@ -139,12 +141,18 @@ describe("ore routes for a sulfide", () => {
 });
 
 describe("ore routes for an ore with a second metal", () => {
-  it("parts lead bullion by cupel, furnace and Parkes kettle, the kettle's line the last step", () => {
+  it("parts lead bullion by furnace and Parkes kettle, the kettle's line the last step, and roasted concentrate by cupel", () => {
     const t = oreRoutes(DATA, GALENA, "medium");
-    const cupel = at(t, "spalling", "riddle", "rocker", "firepit", "bullion", "cupel");
+    // The cupel parts the firepit's roasted concentrate, not a bar.
+    const roasted = at(t, "spalling", "riddle", "rocker", "firepit");
+    expect(roasted.children.map((n) => n.step)).toEqual(["cupel"]);
+    const cupel = at(roasted, "cupel");
     expect(cupel.units).toBeCloseTo(3.2725);
     expect(cupel.byProduct!.units).toBeCloseTo(3.2725 * 0.03 * 0.85);
-    expect(at(t, "spalling", "riddle", "rocker", "firepit", "bullion").byProduct!.units).toBe(0);
+    expect(bestRoute(t, HAND_STEPS).map((n) => n.step)).toEqual(["mined", "spalling", "riddle", "rocker", "firepit", "cupel"]);
+    // Roasted rock is not concentrate: it smelts to bullion, for the machines only.
+    expect(at(t, "spalling", "firepit:rock").children.map((n) => n.step)).toEqual(["bullion"]);
+    expect(at(t, "spalling", "firepit:rock", "bullion").children.map((n) => n.step)).toEqual(["cupellationfurnace", "parkeskettle"]);
     const bullion = at(t, "jawbreaker", "stampbattery", "sluice", "jig", "table", "vanner", "reverberatory", "bullion");
     expect(at(bullion, "cupellationfurnace").byProduct!.units).toBeCloseTo(6.9244 * 0.03 * 0.95, 4);
     const rich = at(bullion, "parkeskettle", "cupellationfurnace:richlead");
@@ -155,6 +163,24 @@ describe("ore routes for an ore with a second metal", () => {
     const stall = at(t, "stallroaster", "bullion", "parkeskettle", "cupellationfurnace:richlead");
     expect(stall.units).toBeCloseTo(1.61);
     expect(stall.final).toBeUndefined();
+  });
+
+  it("cupels argentiferous galena directly: the kettle refuses silver-lead richer than its rich lead", () => {
+    const t = oreRoutes(DATA, ARGENTIFEROUS, "medium");
+    const bullion = at(t, "jawbreaker", "stampbattery", "sluice", "jig", "table", "vanner", "reverberatory", "bullion");
+    expect(bullion.children.map((n) => n.step)).toEqual(["cupellationfurnace"]);
+    const furnace = at(bullion, "cupellationfurnace");
+    expect(furnace.final).toBe(true);
+    expect(furnace.units).toBeCloseTo(7);
+    expect(furnace.byProduct!.units).toBeCloseTo(7 * 0.38);
+    expect(bestRoute(t).at(-1)).toBe(furnace);
+    // Off the whole route the furnace parts at its own figure.
+    expect(at(t, "stallroaster", "bullion", "cupellationfurnace").byProduct!.units).toBeCloseTo(1.61 * 0.38 * 0.95);
+    // The threshold is the export's: rich lead richer than this ore's 38 % would take it.
+    const richer = oreRoutes({ ...DATA, richLeadSilver: 0.5 }, ARGENTIFEROUS, "medium");
+    expect(at(richer, "stallroaster", "bullion").children.map((n) => n.step)).toEqual(["cupellationfurnace", "parkeskettle"]);
+    // An export without the figure takes the mod's default, 0.1: plain galena still gets the kettle.
+    expect(at(oreRoutes({ ...DATA, richLeadSilver: undefined }, GALENA, "medium"), "stallroaster", "bullion").children.map((n) => n.step)).toEqual(["cupellationfurnace", "parkeskettle"]);
   });
 
   it("amalgamates free gold, and acid parting makes the whole route whole", () => {
@@ -185,7 +211,8 @@ describe("placer routes", () => {
     expect(at(t, "rocker").units).toBeCloseTo(1.65);
     expect(at(t, "sluice", "jig").units).toBeCloseTo(3 * 0.82);
     expect(at(t, "sluice", "jig", "table", "vanner").units).toBe(3);
-    expect(() => at(placerRoutes(DATA, { ...gravel, kind: "bogiron" }), "pan")).toThrow();
+    // Bog iron: the concentrators only, neither the gold pan nor the rocker.
+    expect(placerRoutes(DATA, { ...gravel, kind: "bogiron" }).children.map((n) => n.step)).toEqual(["sluice"]);
   });
 });
 

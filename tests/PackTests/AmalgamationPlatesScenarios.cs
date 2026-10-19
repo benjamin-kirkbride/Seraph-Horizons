@@ -18,7 +18,7 @@ namespace SeraphHorizons.PackTests;
 // as amalgam and send the rock on amalgamated into a chest at the outlet; the amalgam is scraped off by hand;
 // with the outlet left open the tailings are dumped as sand; broken, everything back. Built on granite floors 40
 // above spawn at x 740 to 760, z 740; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string PlatesFrame = "seraphhorizons:amalgamationplates-";
 

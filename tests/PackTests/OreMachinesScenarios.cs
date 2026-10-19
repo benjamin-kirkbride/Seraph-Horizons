@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // file loads and names items the game has, tailings heap up as vanilla layered gravel and sand in the
 // ore's rock, and products leave by vanilla chute; the machines on a shaft take oil. Built 40 above spawn at
 // x 540 to 560, z 540, and the oiled machines at x 380 to 540, z 580.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     [AtlasScenario, ReadsBootLog]
     public void Ore_machine_build_files_load_cleanly_and_name_items_the_game_has()

@@ -3706,7 +3706,12 @@ ever): the one with the higher id, or beside one striking or home, steps away to
 eidolon, the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
 out keeps its box over its foot until near the top: stopped and begun again every 0.6 seconds, two walking
 home out of a spiral pit stood so for good, #971), and two still touching after 10 seconds change over, the
-one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
+one that waited stepping away (`Core/EidolonParting.cs`). A member walking home with its job done stops
+short and parts so whatever its job's dispatch, today's too (nothing is mined any more, and nothing else
+parted two walking home: in single file along a trench 5 wide, the one behind pressed into the one ahead for
+11 seconds, #1329); two walking home in single file part by the way they go, not their ids: the one behind
+stops and sets off again a little later, the one ahead walks on, and neither steps aside (on one level, the
+one ahead walking: one standing ahead, or a climb between them, they part by ids as before). It lets its claims go while it waits, drops a stop whose claim stays taken 2
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
@@ -3966,7 +3971,8 @@ first, and it waits for it, up to 4 seconds, then walks on. One walking with a l
 aside for it, so it gives way: every half second it looks whether that one and it would meet within a
 second and a half, each going on as it goes now (their boxes within the 0.3), and if so stops, waits while
 that one would still meet it where it stands, up to 4 seconds, and searches again; standing, it is one the
-other goes round. Where it would be met standing too (ahead of that one on its way, or where that one's
+other goes round. Not for one coming up behind it going its way: it walks on ahead of that one, since
+standing it would only be walked into (#1329). Where it would be met standing too (ahead of that one on its way, or where that one's
 path ends, `EntityLaborEidolon.WalkGoal`), stopping would only have it walked into: it searches again at
 once instead, going round where that one goes, and stops only with no way round. Where one walking with a
 lower id stops, the end of its path, the others' searches keep clear of as where it stands. So two meeting in a narrow way never both stand, and the spacing push ("Spacing") stays
@@ -5755,8 +5761,10 @@ wrong with the file (`Problems`, for the server log; a missing figure reads as 0
   sluice, jig and table) the vanner takes all the rest for oxides, placer and silver quartz; for a
   sulfide it marks its concentrate whole and the reverberatory roaster makes it 100 %
   (`Roasting(ore, roaster, whole)`); for a by-product ore the final parting does (`Smelted(ore,
-  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena, the
-  cupellation furnace for tetrahedrite and freibergite, the liquation furnace for teallite and
+  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena (the
+  bullion the kettle takes, leaner than its rich lead: `Bullion.TakenBy`), the cupellation furnace
+  for argentiferous galena (richer than the kettle's crust, cupelled directly), tetrahedrite and
+  freibergite, the liquation furnace for teallite and
   franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver).
   `WholeRestore` is 1 / the chain's share.
 - **Amalgamation** (`Amalgamate`): the plates catch 65 % of the catchable free metal as amalgam,
@@ -6580,7 +6588,9 @@ same energy at any speed. **Load is constant**: once built the job's figure
 (`OreRecovery.LoadAt`, the full load for every machine but the jaw breaker, the reverberatory's
 rabbles and the Parkes kettle, which follow their charge, never an item), 0.005 unbuilt, three times
 dry of oil where the machine takes oil (`MachineLoad.Resistance`). The power cell's behaviour is
-`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`).
+`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`). It leaves the
+block's own shape drawn, where the game's consumer would skip it for the mechanical power renderer
+(which, with `mechPartShape: null`, draws nothing), so a frame that is its own power cell is seen.
 
 **The reservoir** (`MachineReservoir`): a wet machine fills its own from a ppex pipe on its water face
 (`PpexWater`, moved here from the rosser, which shares it) at up to `WaterIntakeLitresPerSecond` (10 L/s),
@@ -8826,7 +8836,9 @@ more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check
 
 For the same reason the other scenario files above are not classes of their own but parts of a
 few partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
-feature that needs only the plain world; `TradingScenarios` (`TradingScenarios.cs`), the trading
+feature that needs only the plain world, but for `MillWorldScenarios` (`MillWorldScenarios.cs`), the
+ore machines' (the mill's) on a plain world of their own, a class apart only so that neither class's CI
+shard is too long (the two share their build helpers through `PlainWorldScenarioBase.cs`); `TradingScenarios` (`TradingScenarios.cs`), the trading
 features on the plain world, sharing its players; `WoodworkingScenarios`
 (`WoodworkingScenarios.cs`), the woodworking chain with the machines' fixture
 (`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
@@ -8858,7 +8870,7 @@ a world created with them off to have none of it.
 
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
-of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
+of `SharedWorldScenarios` (`MillWorldScenarios` for an ore machine, `WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
 the rosser, `WoodworkingEidolonScenarios` for the eidolon's work at the machines, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A

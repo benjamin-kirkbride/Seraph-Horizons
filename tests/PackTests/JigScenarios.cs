@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // concentrate into a chest at its concentrate face and its tailings into one at its tailings face (or onto a
 // gravel heap there), the sluice's tailings worked on, and broken back into everything that went in. Built on
 // granite floors 40 above spawn at x 780, z 780; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string JigFrame = "seraphhorizons:jig-";
 

@@ -18,7 +18,7 @@ namespace SeraphHorizons.PackTests;
 // acid and wash water, its fire laid and lit, parted under a chimney (aged rather than waited on), its silver drawn
 // from the tub and its gold taken out of the vessel, then capped and broken back into everything that went in. Built
 // on granite floors 40 above spawn at x -940, z 940; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string VesselFrame = "seraphhorizons:acidparting-";
     private const string Dore = "seraphhorizons:bullion-quartz_nativegold-gold";

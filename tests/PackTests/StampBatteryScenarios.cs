@@ -18,7 +18,7 @@ namespace SeraphHorizons.PackTests;
 // fed by hand and by a chute from above, its classified crushed ore taken on by a chute against its front;
 // dry it stops, with its shoes worn out it stops until a new set goes in. Each scenario builds on a
 // granite floor of its own 40 above spawn at x 620 to 660, z 620, and they share the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string BatteryFrame = "seraphhorizons:stampbattery-north";
     private const string BatteryOre = "game:ore-rich-galena-granite";

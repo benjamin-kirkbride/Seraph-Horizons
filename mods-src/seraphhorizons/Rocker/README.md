@@ -259,8 +259,9 @@ show a charge and the concentrate as the game would, in the material's colour (t
 **Charge** (crushed gold quartz, cassiterite, galena, malachite or magnetite, or placer gravel: Wilderlands
 Panning's rich gravel, here in granite) and **Concentrate** (the same five ores' concentrate), opening at gold
 for both. Each option names the texture the pack's item takes (`crushedore-{ore}-medium`, `concentrate-{ore}`:
-the ore's nugget texture, the concentrate's with crushed galena multiplied over it); its colour is that
-texture's mean, by alpha, from the game's 1.22.7 files (the concentrate's after the multiply).
+the ore's nugget texture, the concentrate's with its blended overlays over it: crushed galena multiplied for
+the dark ores, crushed galena screened for malachite); its colour is that texture's mean, by alpha, from the
+game's 1.22.7 files (the concentrate's after the blend).
 `site/test/rocker.test.ts` holds the options to the pack's item types.
 
 ### Editing by hand
@@ -293,7 +294,7 @@ What the model assumes, for whoever builds the block entity and the renderer:
 - **The load.** Draw `charge` while a charge is in the hopper and `concentrate` while concentrate lies behind
   the riffles, with their texture codes set to the material's: the charge's item's texture (a crushed ore's
   is the ore's nugget texture; placer gravel's its rock's gravel) and the concentrate item's (the ore's
-  nugget texture with crushed galena multiplied over it, `itemtypes/oreprocessing/concentrate.json`). These
+  nugget texture with a crushed texture blended over it, `itemtypes/oreprocessing/concentrate.json`). These
   are item textures, so the renderer's texture source must find them (the pickling tub's
   `ContainerTextureSource` over an item stack is one way); the shape's own `game:item/resource/nugget/nativegold`
   is a placeholder.
@@ -331,8 +332,8 @@ default camera and four others). No one has yet looked at it in a client.
    riffles in the open (some rockers had a third under the apron), the hopper flush with the box's sides,
    and timbers thicker than the period's inch boards, so they read at block scale.
 6. **The viewer's ore colours are flat means.** The Charge and Concentrate selects draw each texture's mean
-   colour; the concentrates, crushed galena multiplied over a nugget texture, come out very dark (cassiterite's
-   nearly black), as the items are in the game.
+   colour; the dark ores' concentrates, crushed galena multiplied over a nugget texture, come out very dark
+   (cassiterite's nearly black), as the items are in the game, and malachite's, screened, pale green.
 
 ## Open for the owner
 

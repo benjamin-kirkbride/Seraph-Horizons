@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // by its stages, fed by hand, watered by code (FillWater, as a ppex pipe would), washing on the virtual
 // clock: concentrate down into a chest under its third block, tailings into a chest beyond its tail or onto
 // a gravel heap there; rich gravel and bog iron on the line. Built 40 above spawn at x 600 to 640, z 600.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     /// <summary>
     /// A floor of granite at <paramref name="dx"/>, <paramref name="dz"/> from spawn, 40 up, cleared five high, its

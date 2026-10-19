@@ -15,7 +15,7 @@ namespace SeraphHorizons.PackTests;
 // takes 9 seconds of holding, so the scenario holds for less and finishes it through BERiddle.Shake. Every
 // scenario builds on a granite floor of its own 40 above spawn at x 840 to 876, z -840 (clear of the other
 // machines' sites), and shares the gear cutter's player, gearcutterhand.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private RiddleSystem RiddleMod => RiddleSystem.Of(World.Api);
 

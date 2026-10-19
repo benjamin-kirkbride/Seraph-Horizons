@@ -72,7 +72,7 @@ public partial class WoodworkingRosserScenarios
         Assert.NotNull(RosserMod.Logging);
         // its frame is the shared machine block, placed lengthwise, its cells and power cell the shared ones
         foreach (var side in Sides.All)
-            Assert.True(Assert.IsType<BlockMachine>(BlockOf($"seraphhorizons:rosser-frame-{side.Code()}")).Lengthwise);
+            Assert.Equal(Footprint.PlacedFacing(Side.North), Assert.IsType<BlockMachine>(BlockOf($"seraphhorizons:rosser-frame-{side.Code()}")).Rig!.PlacedSide(Side.North));   // placed lengthwise, as the mills are
         Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:rosser-ghost")) is null or { IsMissing: true } or { Id: 0 });
         Assert.Same(RosserMod.Rig, ((BlockMachine)BlockOf("seraphhorizons:rosser-frame-north")).Rig);
         // its build is the shared build's, the pipes in it (they exist here), the heads its wearing part
