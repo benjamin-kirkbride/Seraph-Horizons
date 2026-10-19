@@ -8172,7 +8172,7 @@ a chest above it (without the patch 57 against 107), and a ported bottom screw w
 to feed the stack, at least 60 in the chest and none loose (without the patch 58 of 111 thrown out
 of its port). With the switch off, `SwitchesOffScenarios` requires `MoveItem` unpatched.
 
-`tests/PackTests/ChutesNoBacktrackScenarios.cs` (Atlas) holds a blocked item for 10 s of virtual time
+`tests/PackTests/ChutesNoBacktrackScenarios.cs` (Atlas, a plain world of its own, in the `fixes` shard) holds a blocked item for 10 s of virtual time
 in each case and fails on the first tick it is back behind or loose: an elbow (`elbow-up-north`) in
 front of a full chest, fed by a straight chute, keeps its item and drops it once the chest has room;
 a straight chute a machine pushes into (`MachineChutes.TryPush`, tagged north) in front of a full

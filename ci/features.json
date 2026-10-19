@@ -500,7 +500,7 @@
       "code": ["ChutesNoBacktrack.cs", "Core/ChuteEntry.cs"],
       "codes": [],
       "switches": ["ChutesNoBacktrack"],
-      "classes": []
+      "classes": ["ChutesNoBacktrackScenarios"]
     },
     "ScrewPortOutput": {
       "code": ["ScrewPortOutput.cs", "Core/ScrewPortRoute.cs"],

@@ -19,21 +19,43 @@ namespace SeraphHorizons.PackTests;
 /// sends it back within a few moves: an elbow in front of a full chest pushes into its intake, a
 /// straight chute fed by a machine (no direction) picks its back half the time, or throws out of
 /// its back into air, and a ported screw with its top blocked pushes back out of its port.
+/// <para>A plain world of its own, kept out of the <c>rest</c> shard (at its time limit): CI runs it
+/// in <c>fixes</c> (ci/atlas-shards.md).</para>
 /// </summary>
-public partial class SharedWorldScenarios
+[AtlasWorld]
+public class ChutesNoBacktrackScenarios : AtlasScenarioBase
 {
+    private IWorldAccessor W => World.Api.World;
+
     private const long ChuteHoldMs = 10_000;
 
     private static bool ChutesNoBacktrackPatched() =>
         Harmony.GetPatchInfo(ChutesNoBacktrack.TryPushInto)?.Prefixes.Any(p => p.owner == SeraphHorizonsSystem.HarmonyId) == true
         && Harmony.GetPatchInfo(ChutesNoBacktrack.TrySpitOut)?.Prefixes.Any(p => p.owner == SeraphHorizonsSystem.HarmonyId) == true;
 
+    /// <summary>A spot 40 above spawn, the chunk columns around it kept loaded, cleared on a granite floor.</summary>
     private async Task<BlockPos> ChuteSite(int site)
     {
-        var b = await CutterSite(-980 - 12 * site, 980, 3);
+        const int reach = 5;
+        var b = World.Spawn.AddCopy(12 * site, 40, 0);
         var sapi = (ICoreServerAPI)World.Api;
-        sapi.WorldManager.LoadChunkColumnPriority(b.X / GlobalConstants.ChunkSize, b.Z / GlobalConstants.ChunkSize,
-            new ChunkLoadOptions { KeepLoaded = true });
+        int size = GlobalConstants.ChunkSize;
+        var columns = new List<BlockPos>();
+        for (int cx = (b.X - reach) / size; cx <= (b.X + reach) / size; cx++)
+            for (int cz = (b.Z - reach) / size; cz <= (b.Z + reach) / size; cz++)
+            {
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
+                columns.Add(new BlockPos(cx * size, b.Y, cz * size));
+            }
+        await World.Until(() => columns.All(c => W.BlockAccessor.GetChunkAtBlockPos(c) != null), 900);
+        int floor = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        for (int x = -3; x <= 3; x++)
+            for (int z = -3; z <= 3; z++)
+            {
+                W.BlockAccessor.SetBlock(floor, b.AddCopy(x, -1, z));
+                for (int y = 0; y <= 5; y++)
+                    W.BlockAccessor.SetBlock(0, b.AddCopy(x, y, z));
+            }
         await World.Ticks(5);
         return b;
     }
