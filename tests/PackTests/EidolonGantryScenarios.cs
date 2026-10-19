@@ -1,6 +1,7 @@
 using Atlas.XUnit;
 using SeraphHorizons.Mod.EidolonGantry;
 using SeraphHorizons.Mod.EidolonGantry.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -35,7 +36,7 @@ public partial class SharedWorldScenarios
         World.SetBlock($"seraphhorizons:eidolongantry-{wood}-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BEEidolonGantry ?? throw new Xunit.Sdk.XunitException($"no eidolon gantry at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
 
@@ -46,9 +47,22 @@ public partial class SharedWorldScenarios
         return sb.ToString();
     }
 
-    /// <summary>Each stage's first item, as many as it takes, on a gantry of <paramref name="wood"/>.</summary>
-    private ItemStack GantryStageStack(GantryStage stage, string wood, int? count = null) =>
-        CutterItem(GantryParts.CodesFor(stage, wood)[0], count ?? GantryParts.Needed(stage));
+    /// <summary>The winch's build (its build file's) on a gantry of <paramref name="wood"/>.</summary>
+    private MachineBuild GantryWinch(string wood) =>
+        GantryBuild.ForWood(MachinesSystem.Of(World.Api).Build(GantryBuild.MachineId)
+                            ?? throw new Xunit.Sdk.XunitException("the eidolon gantry's build did not load"), wood);
+
+    /// <summary>A stage's first item, as many as it takes, on a gantry of <paramref name="wood"/>.</summary>
+    private ItemStack GantryStageStack(string stage, string wood, int? count = null)
+    {
+        var material = GantryWinch(wood).Stages.Single(s => s.Id == stage).Materials[0];
+        return CutterItem(material.Codes[0], count ?? material.Quantity);
+    }
+
+    /// <summary>Whether the winch's stage <paramref name="stage"/> is fitted.</summary>
+    private static bool GantryHas(BEEidolonGantry gantry, string stage) => gantry.Assembly!.Build.Fitted(stage);
+
+    private const string GantryAxle = "game:woodenaxle-ud";
 
     // ---- Loading ----
 
@@ -57,15 +71,15 @@ public partial class SharedWorldScenarios
     {
         Assert.True(EidolonGantrySystem.Applies(World.Api));
         Assert.NotNull(GantryMod.Rig);
-        foreach (var wood in GantryParts.Woods)
+        foreach (var wood in GantryBuild.Woods)
         {
             foreach (var side in Sides.All)
-                Assert.IsType<BlockEidolonGantry>(W.GetBlock(new AssetLocation($"seraphhorizons:eidolongantry-{wood}-{side.Code()}")));
+                Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:eidolongantry-{wood}-{side.Code()}")));
             // every item a stage takes exists here, the drum's planks and the spine's beams in this wood
-            foreach (var stage in GantryRequires.Stages)
-                foreach (var code in GantryParts.CodesFor(stage, wood))
+            foreach (var stage in GantryWinch(wood).Stages)
+                foreach (var code in stage.Materials.SelectMany(m => m.Codes))
                     Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0 } || W.GetBlock(new AssetLocation(code)) is { Id: > 0 },
-                        $"no {code} for {stage}");
+                        $"no {code} for {stage.Id}");
             // the grid: 24 beams of the wood in two slots, 16 nails and strips, a hammer and a saw
             var output = $"seraphhorizons:eidolongantry-{wood}-north";
             var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == output && r.Enabled);
@@ -75,18 +89,18 @@ public partial class SharedWorldScenarios
             Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
             Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "saw-*");
         }
-        Assert.IsType<BlockEidolonGantryGhost>(W.GetBlock(BEEidolonGantry.GhostCode));
+        Assert.Equal(GantryRequires.WinchStages, GantryWinch("oak").Stages.Select(s => s.Id));
         var oak = new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:eidolongantry-oak-north")));
         Assert.Equal("Eidolon gantry", oak.GetName());
-        oak.Attributes.SetBool(BlockEidolonGantry.AssembledAttribute, true);
+        oak.Attributes.SetBool(BlockMachine.AssembledAttribute, true);
         Assert.Equal("Eidolon gantry (assembled)", oak.GetName());
     }
 
     // ---- Placing ----
 
     // Placed as a player places it: the open front faces them and its middle is the block they
-    // clicked; a ghost in every other cell, none of the hollow ones (the crank's among them)
-    // selectable or solid; broken through a ghost, every cell is cleared and the frame drops.
+    // clicked; a cell in every other, none of the hollow ones (the crank's among them)
+    // selectable or solid; broken through a cell, every cell is cleared and the frame drops.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Eidolon_gantry_places_facing_the_player_with_hollow_cells()
     {
@@ -106,12 +120,12 @@ public partial class SharedWorldScenarios
         Assert.Equal(Side.South, gantry.Side);
         Assert.Equal("walnut", gantry.Wood);
         Assert.Equal(Side.West, gantry.WorldSide(GantryRigOf.ExitSide));
-        var cells = gantry.GhostCells().ToList();
+        var cells = gantry.CellBlocks().Select(c => c.Pos).ToList();
         Assert.Equal(180, cells.Count);
-        foreach (var cell in GantryRigOf.GhostCells)
+        foreach (var cell in GantryRigOf.OtherCells())
         {
             var at = gantry.CellPos(cell.Pos);
-            Assert.Equal(pos, Assert.IsType<BEEidolonGantryGhost>(W.BlockAccessor.GetBlockEntity(at)).Principal);
+            Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(at)).Principal);
             var block = W.BlockAccessor.GetBlock(at);
             var selection = block.GetSelectionBoxes(W.BlockAccessor, at);
             Assert.Equal(cell.Hollow, selection.Length == 0);
@@ -138,9 +152,9 @@ public partial class SharedWorldScenarios
 
     // ---- Building ----
 
-    // Stage by stage with real items, alternately on the frame and a ghost: out of order, too few
+    // Stage by stage with real items, alternately on the frame and a cell: out of order, too few
     // and another wood's planks are refused with nothing taken; each stage takes its whole count;
-    // the info line names the next stage; a winch part once the winch is done is refused; breaking
+    // the info names the next stage; a winch part once the winch is done is refused; breaking
     // the finished gantry returns the frame and every item that went in.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Eidolon_gantry_is_built_stage_by_stage_in_order_and_breaking_returns_everything()
@@ -149,27 +163,29 @@ public partial class SharedWorldScenarios
         var pos = await GantrySite(-590, -560);
         var gantry = await PlaceGantry(pos, "pine");
         var ghost = gantry.CellPos(new Int3(1, 0, 0));
-        Assert.Contains("Next stage: shafts, 8 wooden axles", GantryInfo(gantry, player));
+        Assert.Contains("Build: stage 1 of 9, shafts", GantryInfo(gantry, player));
+        Assert.Contains("Still takes: 8 × ", GantryInfo(gantry, player));
 
         // out of order: a spur gear before the axles
-        Assert.Equal(4, CutterClick(player, pos, GantryStageStack(GantryStage.Gears, "pine"))?.StackSize);
-        Assert.False(gantry.Parts.Has(GantryStage.Gears));
+        Assert.Equal(4, CutterClick(player, pos, GantryStageStack("gears", "pine"))?.StackSize);
+        Assert.False(GantryHas(gantry, "gears"));
         // too few: seven axles of eight
-        Assert.Equal(7, CutterClick(player, ghost, CutterItem(GantryParts.AxleCode, 7))?.StackSize);
-        Assert.Equal(GantryStage.Axles, gantry.Parts.Next);
+        Assert.Equal(7, CutterClick(player, ghost, CutterItem(GantryAxle, 7))?.StackSize);
+        Assert.Equal(0, gantry.Assembly!.Build.Next);
 
         int i = 0;
-        foreach (var stage in GantryRequires.Stages)
+        foreach (var stage in GantryRequires.WinchStages)
         {
-            if (stage == GantryStage.Drum)
+            if (stage == "drum")
             {
                 // another wood's planks are not a part of a pine gantry
                 Assert.Equal(10, CutterClick(player, pos, CutterItem("game:plank-oak", 10))?.StackSize);
                 Assert.False(_cutterHandled);
             }
             // a stack with one over: the stage takes its count and leaves the rest in hand
-            var left = CutterClick(player, i++ % 2 == 0 ? pos : ghost, GantryStageStack(stage, "pine", GantryParts.Needed(stage) + 1));
-            Assert.True(gantry.Parts.Has(stage), $"{stage} was not fitted");
+            var left = CutterClick(player, i++ % 2 == 0 ? pos : ghost,
+                GantryStageStack(stage, "pine", GantryWinch("pine").Stages.Single(s => s.Id == stage).Materials[0].Quantity + 1));
+            Assert.True(GantryHas(gantry, stage), $"{stage} was not fitted");
             Assert.Equal(1, left?.StackSize);
         }
         Assert.True(gantry.WinchComplete);
@@ -182,7 +198,8 @@ public partial class SharedWorldScenarios
         var tree = new TreeAttribute();
         gantry.ToTreeAttributes(tree);
         gantry.FromTreeAttributes(tree, W);
-        Assert.Equal(GantryRequires.Stages.Count, gantry.Parts.Snapshot().Count);
+        Assert.Equal(GantryRequires.WinchStages.Count, gantry.Assembly!.Snapshot().Build.Count);
+        Assert.True(gantry.WinchComplete);
 
         CutterKillItems(pos, 10);
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
@@ -191,9 +208,9 @@ public partial class SharedWorldScenarios
         var expected = new Dictionary<string, int>
         {
             ["seraphhorizons:eidolongantry-pine-north"] = 1,
-            [GantryParts.AxleCode] = 8,
+            [GantryAxle] = 8,
             ["game:rod-iron"] = 2,
-            [GantryParts.SpurGearCode] = 4,
+            ["game:spurgear-s"] = 4,
             ["game:plank-pine"] = 10,
             ["game:metalnailsandstrips-iron"] = 10,
             ["game:metalplate-iron"] = 1,
@@ -213,19 +230,19 @@ public partial class SharedWorldScenarios
         var pos = await GantrySite(-620, -560);
         var gantry = await PlaceGantry(pos, "acacia", "east");
         Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
-        Assert.True(gantry.Parts.Has(GantryStage.Axles));
+        Assert.True(GantryHas(gantry, "axles"));
         Assert.Null(CutterClick(player, gantry.CellPos(new Int3(2, 0, 0)), null, ctrl: true, creative: true));
-        Assert.True(gantry.Parts.Has(GantryStage.CrankShaft));
-        Assert.False(gantry.Parts.Has(GantryStage.Gears));
+        Assert.True(GantryHas(gantry, "crankshaft"));
+        Assert.False(GantryHas(gantry, "gears"));
         // in survival, Ctrl with nothing in hand is not the shortcut
         Assert.Null(CutterClick(player, pos, null, ctrl: true));
-        Assert.False(gantry.Parts.Has(GantryStage.Gears));
+        Assert.False(GantryHas(gantry, "gears"));
 
         CutterKillItems(pos, 10);
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(2);
         var dropped = CutterItemsNear(pos, 10);
-        Assert.Equal(8, dropped.GetValueOrDefault(GantryParts.AxleCode));
+        Assert.Equal(8, dropped.GetValueOrDefault(GantryAxle));
         Assert.Equal(1, dropped.GetValueOrDefault("game:rod-iron"));
         Assert.Equal(1, dropped.GetValueOrDefault("seraphhorizons:eidolongantry-acacia-north"));
         CutterKillItems(pos, 10);
@@ -233,14 +250,14 @@ public partial class SharedWorldScenarios
         // the assembled stack, as the creative inventory gives it
         var block = W.GetBlock(new AssetLocation("seraphhorizons:eidolongantry-oak-south"))!;
         var assembled = new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:eidolongantry-oak-north")));
-        assembled.Attributes.SetBool(BlockEidolonGantry.AssembledAttribute, true);
+        assembled.Attributes.SetBool(BlockMachine.AssembledAttribute, true);
         var sel = new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
         Assert.True(block.DoPlaceBlock(W, player, sel, assembled));
         await World.Ticks(5);
         var built = Assert.IsType<BEEidolonGantry>(W.BlockAccessor.GetBlockEntity(pos));
         Assert.True(built.WinchComplete);
-        Assert.Equal("game:supportbeam-oak", built.Parts.FittedIn(GantryStage.Spine));
-        Assert.Equal(180, built.GhostCells().Count(c => W.BlockAccessor.GetBlock(c) is BlockEidolonGantryGhost));
+        Assert.Equal("game:supportbeam-oak", built.Assembly!.Build.CodeIn(8, 0));
+        Assert.Equal(180, built.CellBlocks().Count(c => W.BlockAccessor.GetBlock(c.Pos) is BlockMachineCell));
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(2);
         CutterKillItems(pos, 10);

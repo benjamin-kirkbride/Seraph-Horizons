@@ -9,10 +9,11 @@ namespace SeraphHorizons.Mod.EidolonGantry.Core;
 /// assets/seraphhorizons/config/eidolongantry-rig.json (written by EidolonGantry/tools/make_shape.py).
 /// Native frame, blocks, controller cell at (0,0,0): the foot of the front right (north-west) post;
 /// the front is west (−x), open, the way the body faces. The keys are the model's contract with
-/// gameplay (EidolonGantry/README.md, "The rig"); unknown keys are ignored. Throws
-/// <see cref="FormatException"/> naming what is wrong.
+/// gameplay (EidolonGantry/README.md, "The rig"); unknown keys are ignored. Hand-built and not driven:
+/// it has no anchors for the shared machine base (<see cref="IMachineRig"/>), its crank its own cell
+/// (<see cref="CrankCell"/>). Throws <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class GantryRig
+public sealed class GantryRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     /// <summary>Where the eidolon stands once it has woken and stepped off the spine.</summary>
@@ -30,6 +31,15 @@ public sealed class GantryRig
     /// <summary>How far the body comes down at depth 1, blocks.</summary>
     public float Drop { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>None: nothing drives the winch, and no chute or pipe meets the gantry.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+
+    public MachineAnchor? Anchor(string name) => null;
+
+    Side IMachineRig.PlacedSide(Side look) => PlacedSide(look);
 
     public GantryRig(IReadOnlyList<RigCell> cells, Float3 body, Float3 hang, Float3 fit, Float3 exit, Side exitSide,
                      Int3 crankCell, Side crankFace, float drop, RigParts? movingParts = null)
@@ -65,9 +75,6 @@ public sealed class GantryRig
     /// <summary>The cell placed where the player clicks: the open front's middle, on the ground
     /// (<see cref="Exit"/>'s cell), so the gantry stands centred before them.</summary>
     public Int3 PlaceCell => CellOf(Exit);
-
-    /// <summary>The cells other than the controller's, in file order.</summary>
-    public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
     /// <summary>The <c>side</c> variant placed for a player looking along <paramref name="look"/>:
     /// the open front (native west) faces them. Native west goes to the side's opposite under

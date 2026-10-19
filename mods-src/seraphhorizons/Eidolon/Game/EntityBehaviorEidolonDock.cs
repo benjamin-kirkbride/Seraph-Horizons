@@ -18,7 +18,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// charge, oil and the order it docked from kept, held hung where the body hangs. Its dock order
 /// (<see cref="DockOrder"/>) walks it to the gantry's body point and calls <see cref="Begin"/>: it faces
 /// out of the open front and plays <c>dock</c> (<see cref="DockPhase.Docking"/>); on the clamp frame
-/// (<see cref="EidolonDocking.ClampSeconds"/>) the gantry takes hold (<see cref="BEBehaviorEidolonBody.TakeHold"/>)
+/// (<see cref="EidolonDocking.ClampSeconds"/>) the gantry takes hold (<see cref="GantryBody.TakeHold"/>)
 /// and it is <see cref="DockPhase.Docked"/>, then <c>hung</c> holds the pose. While docking or docked it does
 /// not work or walk (<see cref="EntityLaborEidolon.CanWork"/>), its upkeeps do not run down, and it is put
 /// back on its point every tick, so nothing pushes it off.
@@ -29,7 +29,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// gantry is gone, or holds someone else, lets go (<see cref="Release"/>), and the gantry frees its
 /// spine of an eidolon that is gone.</para>
 ///
-/// <para>Docked, Ctrl+right-click strips its outermost layer (<see cref="BEBehaviorEidolonBody.Strip"/>),
+/// <para>Docked, Ctrl+right-click strips its outermost layer (<see cref="GantryBody.Strip"/>),
 /// and a right-click with a layer's item fits it as on the gantry. On the client, the elements of every
 /// layer it does not wear are left out of its shape (<see cref="EidolonLayerElements"/>), docked or not.</para>
 /// </summary>
@@ -72,7 +72,7 @@ public class EntityBehaviorEidolonDock(Entity entity) : EntityBehavior(entity)
 
     private BEEidolonGantry? Gantry => GantryPos is { } pos ? BEEidolonGantry.At(entity.World.BlockAccessor, pos) : null;
 
-    private BEBehaviorEidolonBody? Body => Gantry?.GetBehavior<BEBehaviorEidolonBody>();
+    private GantryBody? Body => Gantry?.Body;
 
     // ---- Docking (server side) ----
 
@@ -83,7 +83,7 @@ public class EntityBehaviorEidolonDock(Entity entity) : EntityBehavior(entity)
     public bool Begin(BEEidolonGantry gantry, ITreeAttribute? then)
     {
         if (entity.Api.Side != EnumAppSide.Server || gantry.BodyPoint is not { } point
-            || gantry.GetBehavior<BEBehaviorEidolonBody>() is not { } body || !body.SpineFreeFor(entity))
+            || gantry.Body is not { } body || !body.SpineFreeFor(entity))
             return false;
         var tree = new TreeAttribute();
         tree.SetInt("gx", gantry.Pos.X);
@@ -244,7 +244,7 @@ public class EntityBehaviorEidolonDock(Entity entity) : EntityBehavior(entity)
         }
         if (fits)
         {
-            body.OnGantryInteract(gantry, player, itemslot);
+            body.OnInteract(player, itemslot);
             return;
         }
         if (!Eidolon.RefuseUnlessCommander(player))
@@ -285,7 +285,7 @@ public class EntityBehaviorEidolonDock(Entity entity) : EntityBehavior(entity)
         if (Body?.Parts.Next is { } next && BodyBill.LayerOf(next) != null)
             help.Add(new WorldInteraction
             {
-                ActionLangCode = Lang.Get("seraphhorizons:eidolon-help-fitlayer", BEBehaviorEidolonBody.StageName(next)),
+                ActionLangCode = Lang.Get("seraphhorizons:eidolon-help-fitlayer", GantryBody.StageName(next)),
                 MouseButton = EnumMouseButton.Right,
             });
         return help.ToArray();

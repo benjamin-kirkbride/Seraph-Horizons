@@ -469,7 +469,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
         World.SetBlock("seraphhorizons:eidolongantry-oak-south", at);
         await World.Ticks(5);
         var gantry = (BEEidolonGantry)W.BlockAccessor.GetBlockEntity(at)!;
-        gantry.PlaceGhosts();
+        gantry.PlaceCells();
         var body = gantry.WorldPoint(EidolonGantrySystem.Of(World.Api).Rig!.Body);
         var docked = Mod.Spawn(W, body, 0, null, activate: false)!;
         await World.Ticks(5);
