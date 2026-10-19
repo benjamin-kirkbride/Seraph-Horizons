@@ -36,6 +36,7 @@ public sealed class OreMachineRenderer : IRenderer
     private bool _angleSeeded;
     private readonly Matrixf _model = new();
     private readonly Vec3d _middle;
+    private readonly Int3 _lightCell;
 
     public double RenderOrder => 0.5;
     public int RenderRange => DrawRange;
@@ -56,6 +57,7 @@ public sealed class OreMachineRenderer : IRenderer
         }
         float cx = (float)rig.Cells.Average(c => c.Pos.X) + 0.5f, cy = (float)rig.Cells.Average(c => c.Pos.Y) + 0.5f, cz = (float)rig.Cells.Average(c => c.Pos.Z) + 0.5f;
         _middle = be.WorldPoint(new Float3(cx, cy, cz));
+        _lightCell = LightCell(rig, (int)MathF.Floor(cx), (int)MathF.Floor(cz));
         capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "oremachine");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowFar, "oremachine");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowNear, "oremachine");
@@ -105,7 +107,7 @@ public sealed class OreMachineRenderer : IRenderer
         IStandardShaderProgram? prog = null;
         if (stage == EnumRenderStage.Opaque)
         {
-            var light = _be.Pos.UpCopy();
+            var light = _be.CellPos(_lightCell);
             prog = rapi.PreparedStandardShader(light.X, light.Y, light.Z);
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
@@ -115,6 +117,16 @@ public sealed class OreMachineRenderer : IRenderer
                 MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
         prog?.Stop();
         rapi.GlEnableCullFace();
+    }
+
+    /// <summary>The cell above the highest cell over the machine's middle: outside the model, so the
+    /// parts are lit as the machine around them, not as the inside of one of its cells (the
+    /// rosser's and the hand stations' rule).</summary>
+    private static Int3 LightCell(OreMachineRig rig, int x, int z)
+    {
+        int top = rig.Cells.Where(c => c.Pos.X == x && c.Pos.Z == z).Select(c => c.Pos.Y)
+            .DefaultIfEmpty(rig.Cells.Max(c => c.Pos.Y)).Max();
+        return new Int3(x, top + 1, z);
     }
 
     private void AdvanceClock()
