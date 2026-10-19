@@ -1,3 +1,4 @@
+using System.Text;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Woodworking;
@@ -73,24 +74,56 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
         return true;
     }
 
-    /// <summary>Places the variant whose native north faces the player, so the facing is the way they look
-    /// (<see cref="OreMachineRig.PlacedSide"/>, every machine's rule): the block they clicked becomes the
-    /// controller.</summary>
+    /// <summary>Places the variant the rig turns to the player (<see cref="IMachineRig.PlacedSide"/>: native
+    /// north towards them, so the facing is the way they look, unless the rig says otherwise), its
+    /// <see cref="IMachineRig.PlaceCell"/> on the block they clicked (the controller, by default).</summary>
     public override bool TryPlaceBlock(IWorldAccessor world, IPlayer byPlayer, ItemStack itemstack, BlockSelection blockSel, ref string failureCode)
     {
         var away = SuggestedHVOrientation(byPlayer, blockSel)[0];
-        var side = OreMachineRig.PlacedSide(Sides.FromNormal(away.Normali.X, away.Normali.Z));
+        var look = Sides.FromNormal(away.Normali.X, away.Normali.Z);
+        var rig = Rig;
+        var side = rig?.PlacedSide(look) ?? OreMachineRig.PlacedSide(look);
         if (world.GetBlock(CodeWithVariant("side", side.Code())) is not { Id: > 0 } block)
             return false;
-        if (!block.CanPlaceBlock(world, byPlayer, blockSel, ref failureCode))
+        var at = blockSel;
+        if (rig is { PlaceCell: var place } && place != Int3.Zero)
+        {
+            var w = Footprint.ToWorld(place, side);
+            at = blockSel.Clone();
+            at.Position = blockSel.Position.AddCopy(-w.X, -w.Y, -w.Z);
+        }
+        if (!block.CanPlaceBlock(world, byPlayer, at, ref failureCode))
             return false;
-        return block.DoPlaceBlock(world, byPlayer, blockSel, itemstack);
+        return block.DoPlaceBlock(world, byPlayer, at, itemstack);
     }
 
     public override void OnBlockPlaced(IWorldAccessor world, BlockPos blockPos, ItemStack? byItemStack = null)
     {
         base.OnBlockPlaced(world, blockPos, byItemStack);
         (world.BlockAccessor.GetBlockEntity(blockPos) as BEMachine)?.PlaceCells();
+    }
+
+    /// <summary>On a frame's stack: it places with every stage fitted (<see cref="BEMachine.OnBlockPlaced"/>; the
+    /// creative inventory's assembled eidolon gantry).</summary>
+    public const string AssembledAttribute = "assembled";
+
+    /// <summary>Whether <paramref name="stack"/> places built (<see cref="AssembledAttribute"/>).</summary>
+    public static bool Assembled(ItemStack? stack) => stack?.Attributes?.GetBool(AssembledAttribute) == true;
+
+    // An assembled stack is named by the machine's seraphhorizons:{machine}-assembled ("{0} (assembled)").
+    public override string GetHeldItemName(ItemStack itemStack)
+    {
+        string name = base.GetHeldItemName(itemStack);
+        string key = $"seraphhorizons:{Machine}-assembled";
+        return Assembled(itemStack) && Lang.HasTranslation(key) ? Lang.Get(key, name) : name;
+    }
+
+    public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
+    {
+        base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+        string key = $"seraphhorizons:{Machine}-assembled-info";
+        if (Assembled(inSlot.Itemstack) && Lang.HasTranslation(key))
+            dsc.AppendLine(Lang.Get(key));
     }
 
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
@@ -141,7 +174,7 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
         (blockAccessor.GetBlockEntity(pos) as BEMachine)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEMachine)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMachine)?.SelectionBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
 
     // A face of the controller that is one of the machine's anchors (a water pipe's) carries a block attached to it.
     public override bool CanAttachBlockAt(IBlockAccessor blockAccessor, Block block, BlockPos pos, BlockFacing blockFace, Cuboidi? attachmentArea = null) =>
@@ -297,7 +330,7 @@ public class BlockMachineCell : Block, IIgnitable
         (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.SelectionBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
 
     public override bool CanAttachBlockAt(IBlockAccessor blockAccessor, Block block, BlockPos pos, BlockFacing blockFace, Cuboidi? attachmentArea = null) =>
         (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.AnchorFaceAt(pos, blockFace) == true

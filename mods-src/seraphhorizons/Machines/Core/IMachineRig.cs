@@ -20,6 +20,15 @@ public interface IMachineRig
 
     /// <summary>An anchor by name, or null when the rig has none.</summary>
     MachineAnchor? Anchor(string name);
+
+    /// <summary>The cell placed on the block the player clicks: the controller's by default; the eidolon
+    /// gantry's open front's middle, so it stands centred before them.</summary>
+    Int3 PlaceCell => Int3.Zero;
+
+    /// <summary>The <c>side</c> variant placed for a player looking along <paramref name="look"/>: native
+    /// north towards them by default (<see cref="OreMachineRig.PlacedSide"/>); the eidolon gantry turns its
+    /// open front, native west, to them.</summary>
+    Side PlacedSide(Side look) => OreMachineRig.PlacedSide(look);
 }
 
 /// <summary>What every <see cref="IMachineRig"/> gives from its cells and anchors.</summary>

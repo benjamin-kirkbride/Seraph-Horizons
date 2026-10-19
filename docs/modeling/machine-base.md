@@ -49,6 +49,10 @@ do not:
   with the held item's durability left (`BEMachine` passes it), `MachineAssembly.Take(id)` takes it back out with
   what is left, breaking gives it back with that durability, a spent one is gone. Its `uses` from a setting:
   override `BuildSpec` and return `base.BuildSpec(world)?.WithUses(id, setting)`.
+- **An assembled stack**: a frame stack with the attribute `assembled` (`BlockMachine.AssembledAttribute`)
+  places with every stage and wearing part fitted (`BEMachine.OnBlockPlaced`), named by
+  `seraphhorizons:{machine}-assembled` ("{0} (assembled)") and `-assembled-info` where the machine has them
+  (the creative inventory's eidolon gantry).
 - **No `block`** for a workshop machine whose construction record the recipe export writes by hand (the press
   brake, the draw bench): with a `block` the exporter's generic ore-machine pass would add a second construction
   record and a power consumer (`RecipeSection.OreMachines.cs`, `Power/OreMachineConsumers.cs`). Reworking the
@@ -97,6 +101,8 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | Hold items | `NewInventory()` (the base's is empty), `CellTakes` for a chute into a cell. |
 | Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`. |
 | Take its work | `InteractContent` (before the build: take the work back, a bucket), `InteractWork` (after it: load the work, start a hold). Return whether the click was the machine's; act on the server. `CreativeShortcut(player)` tells a creative Ctrl from the machine's own Ctrl. |
+| Be placed otherwise | The rig's `IMachineRig.PlaceCell` (the cell put on the clicked block, the controller by default) and `PlacedSide(look)` (native north towards the player by default): the eidolon gantry's open front, native west, faces them with its middle on the click. |
+| Have open cells or another selection | `HollowCellsOpen` (a hollow cell has no boxes), `SelectionBoxes(cell)` (the gantry's crank in a hollow cell). |
 | Say when it is whole | `Complete` (the name), `CreativeFills` (the creative shortcut), `LoadsShaft`: each `Built` by default; `Ready` (built and every wearing part in) for a machine that stops without its wearing part. |
 | Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
 | Save | `ToTreeAttributes`/`FromTreeAttributes` for the work only, calling the base: the build, wearing parts, state, oil, water and holds are the base's. |
@@ -188,6 +194,21 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
   subclass (`Machines.Tailings.Discard` stopped compiling).
 - **`new` on `Rig`.** A subclass that wants its own rig type hides the base's: `private new DrawBenchRig? Rig =>
   base.Rig as DrawBenchRig;`.
+- **A material two stages take** (the eidolon gantry's rods: the crank shaft's, then the crank's). Held
+  between them it is `OutOfOrder` (a stage still to come takes it), not `AlreadyFitted` (the earlier one
+  did): `StagedBuild.CanFit` asks the later stages first.
+- **The machine's own work taking the build's materials** (the gantry's body layers take rods, plates, nails
+  and chain, as its winch did). Once built, the build refuses them as already fitted before
+  `InteractWork` sees them: take them in `InteractContent` while `Built`, returning null for what is not
+  the work's.
+- **Hollow cells are full cubes** unless the machine says `HollowCellsOpen` (the gantry's open middle and
+  front, nothing to collide with or select); the Parkes kettle's three hollow cells are still cubes, as they
+  were before the base.
+- **`Error`'s overloads.** A machine's own `Error(player, key, params object[] args)` loses to the base's
+  `Error(player, message, code)` whenever it is called with two strings: the key goes out as the message.
+  Name it otherwise (the gantry's `Refuse`).
+- **A build in the frame's variant** (the gantry's drum and spine in its own wood): write a token in the
+  codes (`game:plank-{wood}`) and fill it in `BuildSpec` (`GantryBuild.ForWood`); a `*` would take any wood.
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 
