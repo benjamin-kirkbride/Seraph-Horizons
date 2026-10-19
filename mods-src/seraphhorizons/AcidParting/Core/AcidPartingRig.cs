@@ -43,19 +43,11 @@ public static class VesselRequires
 /// <param name="FireDoor">The middle of the fire door's opening.</param>
 /// <param name="Ash">The middle of the ash mouth.</param>
 /// <param name="HoodCell">The hood's cell, where the vessel and the tub are worked.</param>
-/// <param name="OutletCell">The stack's top cell; the chimney (or the cap) on its top.</param>
-/// <param name="CapCode">The outlet cap's item.</param>
-/// <param name="CapCount">How many of it.</param>
-/// <param name="Bricks">The fired brick types the brickwork may be.</param>
-/// <param name="MinChimney">Chimney blocks counted from the outlet up a row needs.</param>
-/// <param name="RowMax">Vessels side by side one chimney serves.</param>
-/// <param name="Width">The vessel's width along x, the row's axis.</param>
-public sealed record AcidPartingRig(Float3 Vessel, Float3 Tub, Float3 FireDoor, Float3 Ash, Int3 HoodCell, Int3 OutletCell,
-    string CapCode, int CapCount, BrickTypes Bricks, int MinChimney, int RowMax, int Width)
+/// <param name="Flue">The outlet's cell, with the chimney (or the cap) on its top, the cap, the brick types the
+/// brickwork may be, and the row's chimney rules.</param>
+public sealed record AcidPartingRig(FurnaceFlue Flue, Float3 Vessel, Float3 Tub, Float3 FireDoor, Float3 Ash, Int3 HoodCell)
+    : FiredRig(Flue)
 {
-    /// <summary>The first cell of the chimney, over the outlet.</summary>
-    public Int3 ChimneyBase => OutletCell + new Int3(0, 1, 0);
-
     /// <summary>Whether a native point (in block units from the controller's corner) is nearer the tub's mouth than
     /// the vessel's: the crucible furnace's two pots' rule.</summary>
     public bool NearerTub(Float3 p) => Dist2(p, Tub) < Dist2(p, Vessel);
@@ -70,30 +62,11 @@ public sealed record AcidPartingRig(Float3 Vessel, Float3 Tub, Float3 FireDoor, 
     {
         using var doc = RigJson.Parse(json);
         var root = doc.RootElement;
-        if (Str(root, "outletFace") != "up")
-            throw new FormatException("outletFace must be \"up\"");
-        var cells = Cells(root);
-        var outlet = Int3Of(Required(root, "outletCell", JsonValueKind.Array), "outletCell");
-        if (cells.All(c => c.Pos != outlet))
-            throw new FormatException($"outletCell {outlet} is not a cell of the footprint");
-        if (cells.Any(c => c.Pos == outlet + new Int3(0, 1, 0)))
-            throw new FormatException("the cell over the outlet is the vessel's: the chimney stands there");
+        var flue = FurnaceFlue.Parse(root, Cells(root), "parting", "vessel");
         var hood = Int3Of(Required(root, "vesselCell", JsonValueKind.Array), "vesselCell");
         if (Int3Of(Required(root, "tubCell", JsonValueKind.Array), "tubCell") != hood)
             throw new FormatException("tubCell must be vesselCell: both are worked through the hood's front");
         Float3 Point(string key) => Float3Of(Required(Required(root, key, JsonValueKind.Object), "pos", JsonValueKind.Array), key);
-        var parting = Required(root, "parting", JsonValueKind.Object);
-        int Int(JsonElement obj, string key) => Required(obj, key, JsonValueKind.Number).GetInt32();
-        if (Str(parting, "rowAxis") != "x")
-            throw new FormatException("parting.rowAxis must be x");
-        var cap = Required(Required(root, "build", JsonValueKind.Object), "outletCap", JsonValueKind.Object);
-        var rig = new AcidPartingRig(Point("vessel"), Point("tub"), Point("firedoor"), Point("ash"), hood, outlet,
-            Str(cap, "code") ?? throw new FormatException("build.outletCap has no code"), Int(cap, "quantity"),
-            BrickTypes.Parse(Required(root, "bricks", JsonValueKind.Object)),
-            Int(parting, "minChimney"), Int(parting, "rowMax"),
-            cells.Max(c => c.Pos.X) - cells.Min(c => c.Pos.X) + 1);
-        if (rig.MinChimney < 1 || rig.RowMax < 1 || rig.CapCount < 1)
-            throw new FormatException("parting.minChimney, parting.rowMax and build.outletCap.quantity must be positive");
-        return rig;
+        return new AcidPartingRig(flue, Point("vessel"), Point("tub"), Point("firedoor"), Point("ash"), hood);
     }
 }
