@@ -19,6 +19,7 @@ game side.
 | `MachineRenderer` | `Game/MachineRenderer.cs` | Draws the rig's parts from `shapes/block/{machine}.json`, each while `ShowsPart`, posed every frame from `BEMachine.FrameInput`, lit from the cell above the footprint's middle, rebuilding its meshes when `TextureKey` changes. |
 | `MachineText` | `Game/MachineText.cs` | The block info in one layout (below), with the wrench's detail and hint. |
 | `MachinesSystem` | `Game/MachinesSystem.cs` | Registers the above, loads and checks the build files (`Build(machine)`, resolved against the game's items once they are known), holds the rigs of machines whose rig file is their own dialect (`RegisterRig`), and `Disable` for a switch. |
+| `MachineOiling` | `Game/MachineOiling.cs` | One machine's oil, a piece any owner composes: the tank and its tree key, pouring by right-click, the drain a job, the dry effect on the shaft's load, the block info's oil lines with the wrench's detail, the smoke. `BEMachine` keeps one; the game's and Immersive Woodworking's machines one beside theirs (`MachineOil/ForeignMachines.cs`, which only hooks their methods to it). |
 | `HandHolds` | `Core/HandHolds.cs` | The players working a hand machine (the quern's pattern), 600 ms by default, the timeout the machine's own. |
 | `MachineJob` | `Core/MachineJob.cs` | The work on a machine: class k, W, its end, the steps counted (a hammer's blows). `Advance`, `Step`, `Restore`, `Crossed`. |
 | `IMachineRig` | `Core/IMachineRig.cs` | What the base reads of a rig, whatever its dialect: cells, parts, anchors by name (`power`, `infeed`, `water`, the outlets); `OtherCells()`, `PowerAnchor()`, `ShaftAxis()`, `Middle()`, `LightCell()`. |
@@ -90,7 +91,7 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | To | Override |
 |---|---|
 | Take power | Give the rig a `power` anchor. `ShaftLoad` (the built load before oil), `ConfigMinSpeed` (else 0.05), and `Work(radians)` for the shaft's advance while `Working`. `LoadsShaft` when the token 0.005 lasts past the build (the bench's: until the die is in). |
-| Take oil | `OilKind => OilMachine.X` (add `X` to `OilMachine` and a property `X` to `MachineOilConfig` with its defaults: that is all the settings need), `DryEffect` (`Load`, the default, multiplies the load while dry; `Wear` leaves it and the machine wears its cutter by `OilFill`, the gear cutter's and cylinder borer's rule), `DrainOil(jobs)` at each finished job, `SmokePoint`. |
+| Take oil | `OilKind => OilMachine.X` (add `X` to `OilMachine` and a property `X` to `MachineOilConfig` with its defaults: that is all the settings need), `DryEffect` (`Load`, the default, multiplies the load while dry; `Wear` leaves it and the machine wears its cutter by `OilFill`, the gear cutter's and cylinder borer's rule), `DrainOil(jobs)` at each finished job, `SmokePoint`. The base does the rest through its `MachineOiling` (below). |
 | Be worked by hand | `HandWorked => true`, `HoldTimeoutMs` if not 600 (the rocker's 400), `StartHold(byPlayer)` from `InteractWork` on a work click, `HasWork`, and `WorkUnpowered(dt)` while held. The base forwards the steps and the stop, keeps the holds, syncs `Held`, and gives the state `Unworked` ("hold right mouse") while work is on and no one holds. |
 | Hold water | `WaterPerItem`, `ReservoirCapacity`, `WaterIntakePerSecond`, a `water` anchor on the rig; `SpendWater` per item. |
 | Hold items | `NewInventory()` (the base's is empty), `CellTakes` for a chute into a cell. |
@@ -105,6 +106,29 @@ Ticks: `TickMs` (server, 100 by default; the workshop machines' 50) and `ClientT
 `Tick(dt)` (the machine's own business: chutes), then computes the state and calls `Work` or `WorkUnpowered`
 while it is `Working`. If `Work` returns true the base marks the machine dirty with a full sync: a machine that
 syncs its own W in steps returns false.
+
+### Oil: one piece for every machine
+
+Oil is not the base's own code: it is `MachineOiling` (`Game/MachineOiling.cs`), which any owner composes,
+over the tank maths (`Core/MachineOil.cs`) and the low-level tree, pour and smoke helpers (`Game/Oil.cs`).
+
+| What | `MachineOiling` | The base calls it | The foreign patches call it |
+|---|---|---|---|
+| Made | `NewIfOn(api, machine, effect)`; `New(machine, config)` | `Initialize` | `StateOf`, the first time the server sees the machine |
+| Saved and synced | `Write(tree)`; `Restore(tree, world, ...)`, or `Load` / `Read` | `To/FromTreeAttributes` | the `To/FromTreeAttributes` postfixes |
+| Filled | `Interact(owner, player)`: null when the player holds no oil | first in `OnInteract` | the `OnBlockInteractStart` prefixes |
+| Drained | `Drain(owner, jobs)`, by the entry's `DrainPerJob`, redrawing when the tank runs dry | `DrainOil(jobs)` | the jobs' postfixes (a strike, an item, a pass) |
+| The load | `Asked(resistance, owner)`: times the dry multiplier while dry for `OilDryEffect.Load`, as it is for `Wear` | `Resistance` (the shared MP behaviour's) | the `GetResistance` postfixes |
+| The info | `AppendInfo(MachineInfo, api)`; `AppendInfo(dsc, player, api)` writes it whole with the wrench's detail and hint | `GetBlockInfo` | the `GetBlockInfo` postfixes (with the load line, as they have no shaft line) |
+| The smoke | `SmokeIfDry(capi, at)` | the client tick, while running | `MachineOilSystem`'s smoke tick, while turning |
+
+The settings block is the same for every machine: `MachineOilSettings.{Machine}` is
+`{ "Tank": points, "DrainPerJob": points }` (100 points to the litre), with `DryResistanceMultiplier` (3) and the
+oils (`OilLiquids`, `OilLumps`) shared. A new entry changes the config defaults, so regenerate the snapshot
+(docs/config-defaults.md), and give the machine's power entry its `oil` in the recipe export (`Spec.Oil`, or the
+ore machines' pass). The bucking mill, rosser, gear cutter and cylinder borer still use `Oil`'s older "own
+machine" helpers (`NewOwn`, `LoadOwn`, `Interact`, `Info`, `Drain`); they move to the piece with the base, and
+those helpers go.
 
 ### The block info
 

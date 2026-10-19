@@ -41,9 +41,13 @@ public sealed class OilState(OilMachine machine, OilTank tank, float dryMultipli
 }
 
 /// <summary>
-/// What every oiled machine shares: the tank in the block entity's tree (saved, and synced to
-/// clients for the block info and the smoke), pouring oil in from a held liquid container or by
-/// the lump, the block info lines and the smoke a dry machine gives off while it turns.
+/// The low-level oil helpers <see cref="MachineOiling"/> is built on, the piece every oiled machine
+/// composes: the tank in the block entity's tree (saved, and synced to clients for the block info and the
+/// smoke), pouring oil in from a held liquid container or by the lump, and the smoke a dry machine gives off
+/// while it turns. The "own machine" helpers below (<see cref="NewOwn"/>, <see cref="LoadOwn"/>,
+/// <see cref="Interact"/>, <see cref="Info"/>, <see cref="Drain"/>) serve the workshop machines not yet on the
+/// shared machine base (the bucking mill, the rosser, the gear cutter, the cylinder borer) and go with them
+/// when they move onto it (docs/modeling/machine-base.md).
 /// </summary>
 public static class Oil
 {

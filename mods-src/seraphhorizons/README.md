@@ -1589,12 +1589,16 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
   double), the draw bench per pipe section drawn, and the cylinder borer per cylinder bored.
-- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
-  an empty one 0, not -0), then the load on its shaft: oiled `Load: 17 kN`, and while dry the load
-  now against the load it takes oiled (`Dry: a load of 51 kN on its shaft, 3× the 17 kN it takes
-  oiled`). The load is what the shaft last asked of the machine (`OilState.Load`, set in every
+- **Block info** (every oiled machine's, the shared machine base's layout; the machines not yet on
+  the base still write the older lines): `Oil: <points> of <tank>` (rounded up, so a tank with any oil
+  never shows 0, and an empty one 0, not -0) and, while dry, `Dry: it takes 3× the power to turn. Apply
+  oil to it.` A player holding a wrench also sees the load on its shaft: oiled `Load: 17 kN` (on a
+  machine of the base, in its shaft line), while dry the load now against the load it takes oiled
+  (`Dry: a load of 51 kN on its shaft, 3× the 17 kN it takes oiled`), and what a job drains and the
+  jobs the tank holds (`Oil a job: 2, enough for 400 more`); without one, a line says a wrench shows
+  more. The load is what the shaft last asked of the machine (`OilState.Load`, set in every
   `GetResistance`; the server syncs it when it changes), so until the network has asked once there
-  is no load line, and the dry line only gives the multiplier. kN is the game's own scale
+  is no load line. kN is the game's own scale
   (`OilText.KiloNewtonsPerUnit`): its creative rotor shows its torque times 100 as `Torque: {0} kN`
   (its windmill's sails line about the same), and a load is in the same units as a torque. The game
   shows whole kN; `OilText.Load` keeps one place, so a 0.005 frame load reads 0.5 kN, not 0. The handbook has a page of its own, "Oiling
@@ -1633,7 +1637,9 @@ litre a lump, so a bucket is a real cost that is paid rarely.
 and once per process (own Harmony id `seraphhorizons.machineoil`): their block entities cannot
 carry a field of this mod's, so the tank is kept beside each block entity and written into, and
 read from, its tree under `seraphhorizons:oil` (postfixes on `ToTreeAttributes` and
-`FromTreeAttributes`), which saves it with the world and syncs it to clients. The targets:
+`FromTreeAttributes`), which saves it with the world and syncs it to clients. What oil does is one
+piece, `Machines/Game/MachineOiling.cs`, the same the shared machine base keeps in its block entity: the
+patches only hook each machine's own methods to it. The targets:
 
 | Machine | Load (postfix) | Drain | Pouring (prefix) | Tank and info |
 |---|---|---|---|---|
@@ -1645,12 +1651,14 @@ read from, its tree under `seraphhorizons:oil` (postfixes on `ToTreeAttributes` 
 A click on a multiblock cell finds the machine through the cell's `Principal` (`BEMPMultiblock`,
 Immersive Woodworking's `BEMultiblockSawmill` and `BEMultiblockChopper`). Immersive Woodworking is
 found by name; if any of its members is missing, its two machines are left as they ship with a
-warning, and the game's two are oiled regardless. The bucking sawmill and the rosser keep their
-tank themselves (`BEBuckingMill`, `BERosser`, the same tree key), check for oil first in their
-`OnInteract`, drain in `FinishCut` and `Deliver`, and multiply in their own MP behaviours. The
-shared maths (tank, drain, code patterns, settings) is in `Machines/Core/MachineOil.cs`, the
-shared game side (tree, pouring, info, smoke) in `Machines/Game/Oil.cs`. The client smokes the
-foreign machines from one tick of `MachineOilSystem`, the two of this mod's from their own.
+warning, and the game's two are oiled regardless. A machine on the shared machine base (the draw
+bench) names its entry (`BEMachine.OilKind`) and its dry effect, and the base keeps the same piece for
+it (docs/modeling/machine-base.md). The bucking sawmill, the rosser, the gear cutter and the cylinder
+borer, not yet on the base, keep their tank themselves (the same tree key) through the older helpers in
+`Machines/Game/Oil.cs`, until they move. The shared maths (tank, drain, code patterns, settings) is in
+`Machines/Core/MachineOil.cs`, the piece in `Machines/Game/MachineOiling.cs` over the low-level helpers
+in `Machines/Game/Oil.cs`. The client smokes the foreign machines from one tick of `MachineOilSystem`,
+the machines of this mod's from their own.
 
 The server decides: it writes the tank into the tree only with the switch on, and a client shows
 and smokes only a tank it was sent. Which held item is oil is judged on each side by its own

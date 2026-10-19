@@ -100,10 +100,12 @@ public static class MachineText
         }
     }
 
-    /// <summary>The oil's lines: the tank, and while dry how much harder it turns (a machine whose dry tank
-    /// wears its cutter instead says only that it is dry); with a wrench, the load on the shaft against the
-    /// load oiled, and what a job drains.</summary>
-    public static void AppendOil(MachineInfo info, OilState oil, OilDryEffect effect, double drainPerJob)
+    /// <summary>The oil's lines (<see cref="MachineOiling"/>'s, every oiled machine's): the tank, and while dry
+    /// how much harder it turns (a machine whose dry tank wears its cutter instead says only that it is dry); with
+    /// a wrench, the load on the shaft against the load oiled while dry, the load as it is otherwise for a machine
+    /// with no shaft line of its own (<paramref name="withLoad"/>: the game's and Immersive Woodworking's), and
+    /// what a job drains.</summary>
+    public static void AppendOil(MachineInfo info, OilState oil, OilDryEffect effect, double drainPerJob, bool withLoad = false)
     {
         const string O = "seraphhorizons:machineoil-";
         info.Add(Lang.Get(O + "info-tank", Oil.Shown(oil.Tank.Points), Oil.Shown(oil.Tank.Capacity)));
@@ -115,6 +117,8 @@ public static class MachineText
         if (loads && oil.Dry && oil.Load is { } load && oil.OiledLoad is { } oiled)
             info.AddDetail(Lang.Get(O + "info-dry-load", oil.DryMultiplier.ToString("0.##", CultureInfo.InvariantCulture),
                 OilText.Load(load), OilText.Load(oiled)));
+        else if (withLoad && oil.Load is { } asked)
+            info.AddDetail(Lang.Get(O + "info-load", OilText.Load(asked)));
         if (drainPerJob > 0)
             info.AddDetail(Lang.Get(P + "info-oil-drain", Count(drainPerJob),
                 Math.Floor(OilDrain.JobsPerTank(oil.Tank.Points, drainPerJob) + 1e-9).ToString(CultureInfo.InvariantCulture)));

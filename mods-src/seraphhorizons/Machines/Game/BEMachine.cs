@@ -43,7 +43,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     private MachineReservoir _water = MachineReservoir.Empty;
     private MachineState _state = MachineState.NotBuilt;
     private ProgressSync _progressSync = ProgressSync.None;
-    private OilState? _oil;
+    private MachineOiling? _oil;
     private HandHolds? _holds;
     private bool _held;
     private long _localHeldAt = long.MinValue / 2;
@@ -134,7 +134,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         {
             float load = MachineLoad.Resistance(LoadsShaft, ShaftLoad);
             if (_oil != null && LoadsShaft)
-                return Oil.Asked(_oil, load, this, DryEffect == OilDryEffect.Load);
+                return _oil.Asked(load, this);
             if (_load != load && Api?.Side == EnumAppSide.Server)
             {
                 _load = load;
@@ -145,7 +145,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     }
 
     /// <summary>The load last put on the shaft, as the server said; null until it has.</summary>
-    public float? LastLoad => _oil?.Load ?? _load;
+    public float? LastLoad => _oil?.LastLoad ?? _load;
 
     // ---- Oil ----
 
@@ -157,18 +157,15 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// instead (<see cref="OilDryEffect.Wear"/>, which the machine does itself by <see cref="OilFill"/>).</summary>
     protected virtual OilDryEffect DryEffect => OilDryEffect.Load;
 
-    /// <summary>The machine's oil, or null without a tank (none taken, or the <c>MachineOil</c> switch off).</summary>
-    public OilState? Oiling => _oil;
+    /// <summary>The machine's oil (<see cref="MachineOiling"/>, the piece the game's and Immersive Woodworking's
+    /// machines compose too), or null without a tank (none taken, or the <c>MachineOil</c> switch off).</summary>
+    public MachineOiling? Oiling => _oil;
 
     /// <summary>The tank's fill, 0..1: 1 without a tank.</summary>
-    public double OilFill => _oil == null ? 1 : OilDrain.Fill(_oil.Tank);
+    public double OilFill => _oil?.Fill ?? 1;
 
-    /// <summary>Drains <paramref name="jobs"/> finished jobs' oil (server side; the caller marks the machine dirty).</summary>
-    protected void DrainOil(double jobs)
-    {
-        if (OilKind is { } kind && _oil != null && jobs > 0)
-            Oil.Drain(_oil, Oil.DrainPerJob(Api, kind) * jobs);
-    }
+    /// <summary>Drains <paramref name="jobs"/> finished jobs' oil (server side).</summary>
+    protected void DrainOil(double jobs) => _oil?.Drain(this, jobs);
 
     /// <summary>Where a dry machine smokes while it runs, native: the footprint's middle by default.</summary>
     protected virtual Float3? SmokePoint => Rig?.Middle();
@@ -382,7 +379,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         if (api.Side == EnumAppSide.Server)
         {
             if (OilKind is { } kind)
-                _oil ??= Oil.NewOwn(api, kind);
+                _oil ??= MachineOiling.NewIfOn(api, kind, DryEffect);
             RegisterDelayedCallback(_ =>
             {
                 if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
@@ -571,7 +568,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
 
     private bool Interact(IPlayer byPlayer, BlockSelection blockSel)
     {
-        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
+        if (_oil?.Interact(this, byPlayer) is { } oiled)
             return oiled;
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         if (InteractContent(byPlayer, slot, blockSel) is { } handled)
@@ -774,7 +771,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         {
             _smokeSeconds = 0;
             if (Running && SmokePoint is { } at)
-                Oil.Smoke(capi, WorldPoint(at));
+                _oil.SmokeIfDry(capi, WorldPoint(at));
         }
         OnClientTick(dt);
     }
@@ -857,8 +854,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         tree.SetBool("held", _held);
         if (_load is { } load)
             tree.SetFloat("load", load);
-        if (_oil != null)
-            Oil.Write(tree, _oil);
+        _oil?.Write(tree);
         if (Api?.Side == EnumAppSide.Server)
             tree.SetFloat("minSpeed", ConfigMinSpeed);
     }
@@ -891,7 +887,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         _water = new MachineReservoir(Math.Max(0, tree.GetDouble("water")));
         _state = (MachineState)tree.GetInt("state", (int)MachineState.NotBuilt);
         if (OilKind is { } kind)
-            _oil = Oil.LoadOwn(tree, worldForResolving, kind);
+            _oil = MachineOiling.Restore(tree, worldForResolving, kind, DryEffect);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
             // who works it is the server's to say; a loaded world starts with no one at it
@@ -911,8 +907,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         MachineText.AppendAssembly(info, Api.World, Machine, _assembly);
         if (_assembly.Built)
             MachineText.AppendState(info.Lines, _state, MinSpeed, Machine, MachineRun.Works(_state) ? MachineRun.Percent(WorkProgress) : null);
-        if (_oil != null)
-            MachineText.AppendOil(info, _oil, DryEffect, OilKind is { } kind ? Oil.DrainPerJob(Api, kind) : 0);
+        _oil?.AppendInfo(info, Api);
         if (WaterPerItem > 0 && _assembly.Built)
             MachineText.AppendWater(info.Lines, _water, ReservoirCapacity, WaterPerItem);
         AppendContents(info.Lines);
