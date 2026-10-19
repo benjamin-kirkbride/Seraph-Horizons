@@ -3654,7 +3654,11 @@ ever): the one with the higher id, or beside one striking or home, steps away to
 eidolon, the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
 out keeps its box over its foot until near the top: stopped and begun again every 0.6 seconds, two walking
 home out of a spiral pit stood so for good, #971), and two still touching after 10 seconds change over, the
-one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
+one that waited stepping away (`Core/EidolonParting.cs`). A member walking home with its job done stops
+short and parts so whatever its job's dispatch, today's too (nothing is mined any more, and nothing else
+parted two walking home: in single file along a trench 5 wide, the one behind pressed into the one ahead for
+11 seconds, #1329); two walking home in single file part by the way they go, not their ids: the one behind
+stops and sets off again a little later, the one ahead walks on, and neither steps aside. It lets its claims go while it waits, drops a stop whose claim stays taken 2
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
@@ -3914,7 +3918,8 @@ first, and it waits for it, up to 4 seconds, then walks on. One walking with a l
 aside for it, so it gives way: every half second it looks whether that one and it would meet within a
 second and a half, each going on as it goes now (their boxes within the 0.3), and if so stops, waits while
 that one would still meet it where it stands, up to 4 seconds, and searches again; standing, it is one the
-other goes round. Where it would be met standing too (ahead of that one on its way, or where that one's
+other goes round. Not for one coming up behind it going its way: it walks on ahead of that one, since
+standing it would only be walked into (#1329). Where it would be met standing too (ahead of that one on its way, or where that one's
 path ends, `EntityLaborEidolon.WalkGoal`), stopping would only have it walked into: it searches again at
 once instead, going round where that one goes, and stops only with no way round. Where one walking with a
 lower id stops, the end of its path, the others' searches keep clear of as where it stands. So two meeting in a narrow way never both stand, and the spacing push ("Spacing") stays
