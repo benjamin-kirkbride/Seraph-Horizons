@@ -341,12 +341,12 @@ Built (#912; the mod's README, "Jaw breaker"): raw ore in, crushed ore out, 24 r
 rising with the charge in its mouth from 0.16 to 0.8. The block entity is `Game/BEJawBreaker.cs` on the shared
 `BEOreMachine`; its rules are `Core/JawBreaking.cs`. What it reads of the rig:
 
-- **The clock.** The shared renderer (`Machines/Game/OreMachineRenderer.cs`) turns θ with the power cell's
+- **The clock.** The shared renderer (`Machines/Game/MachineRenderer.cs`) turns θ with the power cell's
   shaft about native x (the power face is east) and poses the parts by the shared rig maths; θ holds still
   until the machine is built. The rig has no work, so nothing follows a job.
 - **Parts.** Every part with a `requires` is drawn once that stage is fitted (the toggles with their rods, the
   springs after); the frame shape is the block's.
-- **Anchors.** The power cell and face take the axle (`oremachine-cellpower-{face}`); the infeed cell's top face
+- **Anchors.** The power cell and face take the axle (`machine-cellpower-{face}`); the infeed cell's top face
   takes a chute (`chute-straight-ud`), the output face a chute laid to take from it or a container.
   `breaker.turnsPerBite` is not read: the rate is ore processing's.
 - **Build.** `config/builds/jawbreaker.json` is the stage table above, the jaw faces the wearing part fitted

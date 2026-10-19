@@ -397,7 +397,7 @@ Built (#919; the mod's README, "Jig"): a continuous concentrator, r = 0.60, 8 ro
   in); `water` (both surfaces) once it is built and its reservoir holds any, `bed` while it works (the
   blocktype's `extraRequires`). The renderer draws in the opaque pass only, so the water's surfaces are opaque
   sheets over the bed (weak spot 5); the frame shape is the block's.
-- **Anchors.** `power` takes the axle (`oremachine-cellpower-west` turned to the world); `infeed` a chute laid down
+- **Anchors.** `power` takes the axle (`machine-cellpower-west` turned to the world); `infeed` a chute laid down
   onto it; `concentrate` and `tailings` a chute laid to take from them or a container; with nothing at the
   tailings face the tailings fall to the ground below it and heap as gravel (`Tailings.Landing`, since the face is
   in the upper row); `water` a ppex pipe. `levels`, `sieve`, `pipes`, `contents` and `drive` are not read.

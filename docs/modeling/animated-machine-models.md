@@ -8,7 +8,8 @@ detail; this guide is about the process, and the mistakes worth not repeating. T
 second machine built this way, and the first to share the mill's code: what it added to the rig and
 to the process is in [A second machine: the rosser](#a-second-machine-the-rosser).
 [Model pitfalls](pitfalls.md) is the short list of things that went wrong, to read before starting
-and before calling a model done.
+and before calling a model done. [The shared machine base](machine-base.md) is the game side every machine
+is built on: its block, cells, block entity, power, oil, build data and block info.
 
 ## When to use this approach
 
@@ -351,15 +352,18 @@ The rosser (`mods-src/seraphhorizons/Rosser/`) is a ring debarker that draws a L
 lengthwise through a spinning cutter ring. Its README documents the machine; this is what building it
 added to the approach.
 
-**Share the maths, copy the game classes.** Before the rosser, the mill's rig maths, footprint, trunk
+**Share the maths; the game classes followed.** Before the rosser, the mill's rig maths, footprint, trunk
 box and Logging Expanded bridge were moved to `Machines/` (C#) and the generic half of its generator
 to `Machines/tools/machinegen/` (Python), both with `git mv` and namespace fixes only. Three gates
 held the shipped mill while that happened: its unit tests with its reference poses, its Atlas
 scenarios, and a byte-identical regeneration of its model. The game classes (renderer, ghosts, block
-entity) were copied and adapted instead, as they are client-heavy and untested by Atlas; unifying
-them is a follow-up once both have been seen in the game. A second taker or feeder is an interface
-in the shared code (`ITrunkFeeder`, `IMachineGhost`), not a reference from one machine to the other's
-block entity.
+entity) were copied and adapted instead, as they were client-heavy and untested by Atlas, and every
+machine after the rosser copied them again. They are now being unified: the shared machine base
+(`BEMachine`, `BlockMachine`, the shared cells, one power behaviour with oil, `MachineRenderer`;
+[The shared machine base](machine-base.md)) carries the ore machines, the press brake and the draw bench,
+and the rest move onto it. A new machine starts there, not from a copy. A second taker or feeder is an
+interface in the shared code (`ITrunkFeeder`, `IMachineGhost`, which the shared cell implements), not a
+reference from one machine to the other's block entity.
 
 **A material that moves through the machine is an input, not a prop.** The trunk's travel T is saved
 and synced by the server, advanced on the client with the shaft between syncs, and interpolated per

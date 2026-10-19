@@ -2561,23 +2561,23 @@ section (`game:chutesection-lead`, `-copper`: the copper the game's own, the lea
 grid; a hollow gives two pipe sections on the mandrel station or four here; a pipe section and solder
 make a pipe ("Unified pipes"). Its model, rig and generator are described in `DrawBench/README.md`, which also records the
 gameplay's decisions; this is the gameplay, in `DrawBench/` (rules in `DrawBench/Core/`, the game side
-in `DrawBench/Game/`).
+in `DrawBench/Game/`, on the shared machine base: docs/modeling/machine-base.md).
 
 **Blocks.** `seraphhorizons:drawbench-frame-{side}` is the controller: the die end, the block the
-player clicks, with the bench running four blocks away from them along their line of sight, a ghost in
-each of the rig's other three cells (`drawbench-ghost`) and the power ghost
-(`drawbench-ghostpower-{side}`) at the far end, which takes the axle on the player's right (native
+player clicks, with the bench running four blocks away from them along their line of sight, the shared
+machine cell in each of the rig's other cells (`machine-cell`) and the shared power cell
+(`machine-cellpower-{face}`) at the far end, which takes the axle on the player's right (native
 west). The frame is a grid recipe: two metal plates and four rods of iron, meteoric iron or steel, 12
 nails and strips of the same, two stainless gears (the rectifier's train, the return shaft's gear and the
 barrel gear, which the frame carries), two oak logs, oak planks and a hammer (about 11 ingots of iron).
 
-**Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; anything
+**Stages.** Fitted by right-click on the frame or any cell with the item, in this order only
+(`config/builds/drawbench.json`, the shared staged build, the die its durable wearing part); anything
 of a later stage is refused with a message naming the next. The chain and the mandrel take two of their
 item, both from the held stack in one click (fewer are refused, and stay in hand); the rest one each.
 The mandrel stage also takes one steel spring, the follower's, in a click of its own before or after the
 rods; the stage is in (and drawn) once both are. With no springs in the world (`MandrelSprings` or
-`MandrelStation` off) the rods alone fit it; a bench saved before springs keeps its stages and asks for
-a spring before it draws:
+`MandrelStation` off) the rods alone fit it (the material is `ifExists`):
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
@@ -2588,7 +2588,8 @@ a spring before it draws:
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 2 ingots of its metal (80 voxels) |
 
 The die recipe is named `drawdie`, not `plate`, so the helve hammer does not work it. In creative mode
-Ctrl + right-click on an incomplete bench fits its next stage with nothing taken (a steel die last).
+Ctrl + right-click on an incomplete bench fits its next stage, a whole stage a click, with nothing taken
+(a steel die last).
 **Ctrl + right-click** takes the die back, with what durability it has left, while no hollow is on the
 bench. Every other stage comes back only by breaking the frame, which drops the frame, every fitted
 item, the die with its durability, and a hollow no pipe section has been drawn from yet.
@@ -2610,12 +2611,14 @@ bench stops until a new one goes in.
 **Oil.** A MachineOil machine (`MachineOilSettings.DrawBench`: tank 1000, 2 points a pipe section, 8 a
 hollow), with the
 standard dry load: three times its `ResistanceLead` (0.2) or `ResistanceCopper` (0.35) while dry, and
-it smokes. The block info shows the next stage, the die's metal, what it draws and its hollows left,
-the pipe sections drawn of the hollow on, the oil and the speed.
+it smokes. The block info is the shared layout: the next stage and what it takes, or once built the die's
+share left; the state (no power, empty, no die, drawing with its percent); the oil; the die's metal and
+what it draws; the pipe sections drawn of the hollow on. A wrench adds the die's uses left, the oil a
+section drains, the shaft's speed and load, the draw's W and turns a section, and the facing and the axle's face.
 
 **Drawn.** The block draws `drawbench_frame.json`; the renderer splits `drawbench.json` into the rig's
 parts and draws each whose stage is fitted, the die in its metal, and the hollow and pipe sections of the
-job's metal while it is on (and while they ease out after). θ is the power ghost's angle about native x; W
+job's metal while it is on (and while they ease out after). θ is the power cell's angle about native x; W
 runs on with the shaft between the server's syncs. While it draws: metal dust at the die's mouth, oil
 drips from the oiler with oil in the tank, and the gears' sound.
 
@@ -2630,7 +2633,7 @@ drips from the oiler with oil in the tank, and the gears' sound.
 | `MinSpeed` | 0.05 | Below it the bench does not draw |
 | `DieMetals` | iron: lead; steel: lead, copper | What each die draws (lead and copper only) |
 
-With the switch off the server marks the three block types, the die's item type and both recipe files
+With the switch off the server marks the frame's block type, the die's item type and both recipe files
 disabled before the game loads them, so none of it exists and benches already placed are lost; the
 machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
 way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
@@ -2826,17 +2829,18 @@ across its middle, at a right angle, into one angle (`seraphhorizons:angle-lead`
 a soldering iron make a hollow section (the game's chute section, the tube blank in game) on the grid; hollow sections make
 chutes, or pipe sections on the mandrel station or the draw bench. Its model, rig and generator are described in `PressBrake/README.md`,
 which also records the gameplay's decisions; this is the gameplay, in `PressBrake/` (rules in
-`PressBrake/Core/`, the game side in `PressBrake/Game/`). A hand machine: no mechanical power, no oil,
-and nothing on it wears.
+`PressBrake/Core/`, the game side in `PressBrake/Game/`, on the shared machine base:
+docs/modeling/machine-base.md). A hand machine: no mechanical power, no oil, and nothing on it wears.
 
 **Blocks.** `seraphhorizons:pressbrake-frame-{side}` is the controller: the leaf end, the block the
-player clicks, with the brake running two blocks away from them along their line of sight and a ghost
-in the far cell (`pressbrake-ghost`). The frame is a grid recipe: three oak planks (the leaf, the bar,
+player clicks, with the brake running two blocks away from them along their line of sight and the
+shared machine cell in the far cell (`machine-cell`). The frame is a grid recipe: three oak planks (the leaf, the bar,
 the hand bar), two oak logs (the cheeks and bed), four nails and strips of iron, meteoric iron or steel
 (the gallows and their nuts, the hinge pins, the bail arms) and a hammer.
 
-**Stages.** Fitted by right-click on the frame or the ghost with the item, one item each, in this
-order only; the edges before the screws are refused with a message naming the next:
+**Stages.** Fitted by right-click on the frame or the cell with the item, one item each, in this
+order only (`config/builds/pressbrake.json`, the shared staged build); the edges before the screws are
+refused with a message naming the next:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
@@ -2844,8 +2848,8 @@ order only; the edges before the screws are refused with a message naming the ne
 | 2 | `edge` | `game:metalplate-iron` or `-steel` (cut into the bed's, leaf's and bar's edges) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete brake fits its next stage with nothing taken.
-The screws were once a rod: a brake saved with a rod fitted keeps it (drawn in cupronickel) and gives
-it back when broken, but no rod fits now.
+The screws were once a rod; no rod fits now (a brake saved with one, from before the shared base, loads
+without its parts).
 **Ctrl + right-click** takes a half plate back off while it is still flat. Fitted parts never come back
 out: only breaking the frame returns them. It drops the frame, both parts and a half plate not yet
 folded (one being folded is lost).
@@ -2859,7 +2863,10 @@ the fold cycle W (0..1) advances by its turns over the half plate's `LeverTurnsP
 copper. The bar clamps the half on the bed and the leaf folds the other half up; the bend is heard at
 the leaf's one fold; at W = 1 the half plate is used up and one angle of its metal (two 4-wide legs, 4
 long) drops just outside the output face (native north, in front of the leaf end). Half plates go on
-by hand only: the brake never takes from or puts into a chest or other container beside it. The block info shows the next stage and the half plate on, how far folded.
+by hand only: the brake never takes from or puts into a chest or other container beside it. The block
+info is the shared layout: the next stage and what it takes, the state (empty, ready to be worked,
+folding with its percent) and the half plate on, how far folded; a wrench adds the fold's W and the lever
+turns a half plate of its metal takes, and the brake's facing.
 
 **Drawn.** The block draws `pressbrake_frame.json`; the renderer splits `pressbrake.json` into the
 rig's parts and draws each whose stage is fitted (the edges in their plate's metal, the screws always cupronickel) and the sheet of
@@ -6675,29 +6682,34 @@ Code: `AmalgamationPlates/Core/PlateAmalgamation.cs` (the catch, the dressing, t
 ### Ore machines: the shared game half
 
 The block, cells, block entity and renderer every ore machine is made of (`Machines/Game`; first used by the
-jaw breaker, #912). A machine adds a frame block type (`{machine}-{side}`, class `seraphhorizons.OreMachine`,
-`attributes.oreMachine.machine`, and `extraRequires` for parts drawn by its own state), a block entity class
-deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSystem.Disable` with its switch off.
+jaw breaker, #912), now the shared machine base every machine moves onto (`BEMachine`, `BlockMachine`;
+docs/modeling/machine-base.md), the ore machines' own half on top of it (`BEOreMachine`). A machine adds a
+frame block type (`{machine}-{side}`, class `seraphhorizons.Machine`, `attributes.machine.machine`, and
+`extraRequires` for parts drawn by its own state), a block entity class deriving `BEOreMachine`, its build file
+and its rig, and calls `MachinesSystem.Disable` with its switch off.
 
-- `BlockOreMachine`: placing needs room for every rig cell, the front (native north) faces the player;
-  stamps the shared cells, `seraphhorizons:oremachine-cell` and, on the rig's power cell,
-  `oremachine-cellpower-{face}` (the axle's world face, carrying `seraphhorizons.MachineMP`). A cell
-  forwards everything to the controller; a face that is an anchor carries a block (a ppex pipe). A power
-  cell at the controller itself is allowed (the frame block type then carries the behaviour).
-- `BEOreMachine`: the assembly (right-click fits the next stage or renews a worn set, Ctrl in creative
-  fits a stage, breaking gives everything back), the running rules and state, work in shaft turns at the
-  machine's turns an item (`Work`, or `WorkUnpowered` for a machine without a power anchor), the load
-  (`OreRecovery.LoadAt` at `JobFill`), the reservoir (ppex at the `water` anchor, or `FillWater`), the infeed
-  (slot 0: a chute into the infeed cell's face fills that cell's buffer, a hand puts in what `Takes` accepts,
-  up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, held (up
-  to four kinds an anchor) while a chute or container there is full, else dropped in front of the face, or for
-  `tailings` put on the heap; `Outlet.Fate`). `InteractContent` runs before
-  the build on a right-click (a batch machine's charge).
-- `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
+- `BlockMachine`: placing needs room for every rig cell, the front (native north) faces the player;
+  stamps the shared cells, `seraphhorizons:machine-cell` and, on the rig's power cell,
+  `machine-cellpower-{face}` (the axle's world face, carrying `seraphhorizons.MachineMP`). A cell
+  forwards everything to the controller, right-click held on a hand machine included; a face that is an
+  anchor carries a block (a ppex pipe). A power cell at the controller itself is allowed (the frame block type
+  then carries the behaviour).
+- `BEMachine` (the base): the assembly (right-click fits the next stage or renews a worn set, Ctrl in creative
+  fits a stage, breaking gives everything back), the running rules and state, work by shaft radians (`Work`, or
+  `WorkUnpowered` for a machine without a power anchor), the load (`ShaftLoad`, 0.005 until built, through the
+  machine's oil where it takes it), the reservoir (ppex at the `water` anchor, or `FillWater`), fire, the
+  block info in the shared layout (more for a player holding a wrench) and the renderer. `InteractContent` runs
+  before the build on a right-click (a batch machine's charge).
+- `BEOreMachine`: the ore figures (`OreRecovery.LoadAt` at `JobFill`, the water an item, the turns an item), the
+  infeed (slot 0: a chute into the infeed cell's face fills that cell's buffer, a hand puts in what `Takes`
+  accepts, up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, held
+  (up to four kinds an anchor) while a chute or container there is full, else dropped in front of the face, or
+  for `tailings` put on the heap; `Outlet.Fate`).
+- `MachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
   axis) and ψ. A machine may draw its parts in textures of its own (`PartTextures`); the meshes are built
   again when its `TextureKey` changes (the stall roaster's brick type).
-- **Fire** (`OreMachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
+- **Fire** (`MachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
   is, a firestarter or a torch held 1.5 s on any of its cells (the frame block and the cells are `IIgnitable`);
   it says why not (`CannotIgnite`) and lights (`Ignite`), and a torch is lit from it while it `Burning`.
 - A build material with `oneType` takes any of its codes, but all of one (the stall roaster's brickwork, one

@@ -393,7 +393,7 @@ its products. Its pass is `Core/Vanning.cs`, on the concentrators' `Concentrator
 - **The clock.** The shared renderer turns θ with the power cell's shaft about native z (the power face is south)
   and ψ with its travel, so the shake, the uprights and the creep move by the shared rig maths; θ holds still until
   the vanner is built. `drive` is not read.
-- **Anchors.** The power cell and face take the axle (`oremachine-cellpower-south` turned to the world); the
+- **Anchors.** The power cell and face take the axle (`machine-cellpower-south` turned to the world); the
   infeed cell's top face takes a chute coming down (`chute-straight-ud`); the water face a ppex pipe; the
   concentrate face a chute laid to take from it or a container; the tailings face the same, or the sand heap.
 - **Work.** `machines.vanner` (r 0.80, load 0.08 steady, 15 L a rock, 3 an hour at 0.6): each item one pass of the

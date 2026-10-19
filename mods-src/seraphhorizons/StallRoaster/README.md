@@ -353,7 +353,7 @@ What gameplay reads, and where:
 
 - **The iron frame** is the controller block, `seraphhorizons:stallroaster-{side}` (the item is `-north`), class
   `seraphhorizons.OreMachine`, drawing `stallroaster_frame.json`; its grid recipe is the rig's `build.frame`
-  (`recipes/grid/stallroaster.json`). Placed, it stamps the shared `oremachine-cell` into the other seven cells, their
+  (`recipes/grid/stallroaster.json`). Placed, it stamps the shared `machine-cell` into the other seven cells, their
   boxes and decks the rig's.
 - **The stages** are `config/builds/stallroaster.json`, the rig's `build.stages` (brickwork, lining) with the same
   counts; the brickwork is a `oneType` material listing the rig's nine `bricks` types, so the first brick sets the
@@ -365,7 +365,7 @@ What gameplay reads, and where:
   `fire1..4` or `roasted1..4` by `ceil(rock / furnace.perCourse)`, `sulfur` while the crust holds any, `fronthalf` or
   `frontwalled` by the front's place (`build.front`: 9 bricks, 18), `outletcap` capped (`build.outletCap`).
 - **The charge** is `machines.stallroaster` in ore-processing.json (32 rock, 40 hours, 92 %, a third of the sulfur),
-  held to the rig's `furnace.charge` by a test. The burn is the shared fire (`OreMachineFire`).
+  held to the rig's `furnace.charge` by a test. The burn is the shared fire (`MachineFire`).
 - **The row** is the crucible furnace's (`FurnaceRow`, `ChimneyColumn`): along native x, the stall's width (2)
   apart, up to `furnace.rowMax`, the chimney from `outletCell` up, at least `furnace.minChimney`.
 - **Tests**: `tests/StallRoaster/StallRoasterTests.cs` (the rules, the rig's gameplay half, the build against the
