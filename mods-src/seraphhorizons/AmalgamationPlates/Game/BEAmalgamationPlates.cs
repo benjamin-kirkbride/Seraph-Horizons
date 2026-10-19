@@ -86,6 +86,9 @@ public class BEAmalgamationPlates : BEOreMachine
 
     // ---- Running ----
 
+    /// <summary>The in-game hours counted toward the next item.</summary>
+    public override double? WorkProgress => _hours.Progress;
+
     protected override bool WorkUnpowered(float dt)
     {
         if (Spec is not { ItemsPerHour: > 0 } spec)

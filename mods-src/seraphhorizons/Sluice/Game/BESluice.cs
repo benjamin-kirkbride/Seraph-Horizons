@@ -1,11 +1,9 @@
-using System.Text;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using Vintagestory.API.Common;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
@@ -45,6 +43,9 @@ public class BESluice : BEOreMachine
     /// <summary>The concentrate is drawn in the riffles while the sluice works; the rest as the build goes.</summary>
     public override bool ShowsPart(string? requires) =>
         requires == Concentrate ? Running && base.ShowsPart("riffles") : base.ShowsPart(requires);
+
+    /// <summary>The in-game hours counted toward the next item.</summary>
+    public override double? WorkProgress => _hours.Progress;
 
     protected override bool WorkUnpowered(float dt)
     {
@@ -107,13 +108,6 @@ public class BESluice : BEOreMachine
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) => SluiceSystem.FeedExamples(world);
-
-    protected override void AppendContents(StringBuilder dsc)
-    {
-        base.AppendContents(dsc);
-        if (Built && !InfeedSlot.Empty && Running)
-            dsc.AppendLine(Lang.Get("seraphhorizons:sluice-info-washing", (int)Math.Floor(_hours.Progress * 100)));
-    }
 
     // ---- Saving ----
 

@@ -101,6 +101,10 @@ public class BEAcidParting : BEOreMachine
 
     public override double JobFill => HasWork ? 1 : 0;
 
+    /// <summary>The charge's units parted, once it has started.</summary>
+    public override double? WorkProgress =>
+        Phase != VesselPhase.Parting ? null : _parted / Math.Max(1e-6, _chargeUnits);
+
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);
