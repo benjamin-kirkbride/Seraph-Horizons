@@ -10,7 +10,9 @@ using Vintagestory.API.Config;
 namespace SeraphHorizons.Mod.AmalgamPan;
 
 /// <summary>
-/// The amalgam pan (#718): registers its classes and holds what its blocks share: its settings
+/// The amalgam pan (#718): registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame is the shared block, its axle the shared
+/// <see cref="BEBehaviorMachineMP"/>) and holds its settings
 /// (AmalgamPanSettings in ModConfig/seraphhorizons.json), the rig
 /// (assets/seraphhorizons/config/amalgampan-rig.json); its build stages are the shared machine code's
 /// (config/builds/amalgampan.json, <see cref="MachinesSystem.Build"/>). With the <c>AmalgamPan</c> switch off, or ore processing's, whose
@@ -72,8 +74,8 @@ public class AmalgamPanSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.AmalgamPan", typeof(BlockAmalgamPan));
         api.RegisterBlockEntityClass("seraphhorizons.AmalgamPan", typeof(BEAmalgamPan));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     public override void AssetsLoaded(ICoreAPI api)

@@ -75,8 +75,9 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     public MachineState State => _state;
 
     /// <summary>The machine works now: its state is <see cref="MachineState.Working"/>, and a hand machine is
-    /// also held (<see cref="Held"/>: let go, it stops at once, before its next tick).</summary>
-    public bool Running => _state == MachineState.Working && (!HandWorked || Held);
+    /// also held (<see cref="Held"/>: let go, it stops at once, before its next tick) or, for one that also
+    /// takes a shaft (the amalgam pan), turned by it.</summary>
+    public bool Running => _state == MachineState.Working && (!HandWorked || Held || Powered && MachineRun.Turning(ShaftSpeed, MinSpeed));
 
     public override InventoryBase Inventory => _inventory;
     public override string InventoryClassName => "machine";
@@ -173,7 +174,8 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     // ---- Hands ----
 
     /// <summary>Whether players work the machine by holding right-click on it, as on the quern (a hand
-    /// machine: the press brake). False by default.</summary>
+    /// machine: the press brake). False by default. A hand machine with a power anchor (the amalgam pan) is
+    /// worked by its shaft while that turns and by hand while it does not: it is never short of power.</summary>
     protected virtual bool HandWorked => false;
 
     /// <summary>How long a player counts as working after their last step.</summary>
@@ -704,7 +706,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
 
         var state = StateNow(speed);
         if (MachineRun.Works(state))
-            dirty |= Powered ? advance > 0 && Work(advance) : WorkUnpowered(dt);
+            dirty |= Powered && (!HandWorked || ShaftTurns(speed)) ? advance > 0 && Work(advance) : WorkUnpowered(dt);
         if (state != _state)
         {
             _state = state;
@@ -721,9 +723,12 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         }
     }
 
+    // A hand machine that also takes a shaft counts its shaft turning as a hand at it.
     private MachineState StateNow(float speed) =>
-        MachineRun.StateOf(new MachineCheck(Built, _assembly!.Wearing.AllFitted, Powered, speed,
-            Wet, HasWork, OutputRoom, HandWorked ? _held : null), ConfigMinSpeed);
+        MachineRun.StateOf(new MachineCheck(Built, _assembly!.Wearing.AllFitted, Powered && !HandWorked, speed,
+            Wet, HasWork, OutputRoom, HandWorked ? _held || ShaftTurns(speed) : null), ConfigMinSpeed);
+
+    private bool ShaftTurns(float speed) => Powered && MachineRun.Turning(speed, ConfigMinSpeed);
 
     /// <summary>Takes the state the running rules give now (server side), syncing it when it changed: after
     /// something that changes it between ticks (a click; the work taken off).</summary>

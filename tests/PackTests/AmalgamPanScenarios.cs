@@ -13,7 +13,7 @@ namespace SeraphHorizons.PackTests;
 // seraphhorizons, AmalgamPan (mods-src/seraphhorizons/AmalgamPan/, #718): the amalgam pan in the plain
 // world. Built by right-clicks with real items, charged from real buckets, worked by right-click held
 // (the block's own interaction calls, as the game makes them) and then finished through
-// BEAmalgamPan.Work, as the press brake's scenarios finish a plate through Fold; turned from a creative
+// BEAmalgamPan.Turn, as the press brake's scenarios finish a plate through Fold; turned from a creative
 // rotor below in one scenario. Every scenario builds on a granite floor of its own 40 above spawn at
 // x -520 to -560, z -520, and they share the gear cutter's player, gearcutterhand.
 public partial class SharedWorldScenarios
@@ -84,7 +84,7 @@ public partial class SharedWorldScenarios
         var build = Assert.IsType<SeraphHorizons.Mod.Machines.Core.MachineBuild>(PanMod.Build);
         Assert.Equal(["muller", "shoes"], build.Stages.Select(s => s.Id));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockAmalgamPan>(W.GetBlock(new AssetLocation($"seraphhorizons:amalgampan-frame-{side}")));
+            Assert.IsType<SeraphHorizons.Mod.Machines.BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:amalgampan-frame-{side}")));
         Assert.Equal("Amalgam pan frame", new ItemStack(W.GetBlock(AmalgamPanSystem.FrameCode)).GetName());
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == PanFrame && r.Enabled);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("steel"));
@@ -107,7 +107,7 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var pan = await PlacePan(pos, "east");
         Assert.Equal(SeraphHorizons.Mod.Machines.Core.Side.East, pan.Side);
-        Assert.Contains("Next part: muller", PanInfo(pan, player));
+        Assert.Contains("Build: stage 1 of 2, muller", PanInfo(pan, player));
         // the shoes before the muller, a copper rod, mercury and quartz on a bare frame are all refused
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalplate-iron"))?.StackSize);
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-copper"))?.StackSize);
@@ -116,7 +116,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(0, pan.Batch.Mercury);
         // the muller from a stack of two, then the shoes in steel
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-steel", 2))?.StackSize);
-        Assert.Contains("Next part: shoes", PanInfo(pan, player));
+        Assert.Contains("Build: stage 2 of 2, shoes", PanInfo(pan, player));
         Assert.False(pan.Complete);
         Assert.Null(CutterClick(player, pos, CutterItem("game:metalplate-steel")));
         Assert.True(pan.Complete);
@@ -182,7 +182,7 @@ public partial class SharedWorldScenarios
         var stream = OreStreamAttributes.Read(CutterItem(GoldQuartz))!;
         var pass = recovery.Amalgamate(HandStation.AmalgamPan, stream);
         int expected = (int)Math.Floor(pass.Amalgam * 16 / recovery.ConcentrateUnits + 1e-9);
-        int made = pan.Work(16);
+        int made = pan.Turn(16);
         Assert.Equal(expected, made);
         Assert.True(made > 0);
         Assert.True(pan.Batch.Worked);
@@ -234,7 +234,7 @@ public partial class SharedWorldScenarios
         HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 5);
         HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
         rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => pan.Powered, 15000);
+        await World.Until(() => pan.ShaftTurning, 15000);
         await World.Until(() => pan.Batch.Turns > 0.5 || pan.Batch.Worked, 30000);
         Assert.True(pan.Batch.Turns > 0.5 || pan.Batch.Worked);
         W.BlockAccessor.SetBlock(0, rotorPos);

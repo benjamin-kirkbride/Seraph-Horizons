@@ -6004,8 +6004,10 @@ materials: four oak planks a slot for the box, its rockers, riffles, rails and h
 meteoric iron or steel for the riddle plate, plain linen for the apron, nails and strips and a hammer).
 The side is the way the placing player looks, so the handle is theirs (the native operator side is
 north) and the open foot is on their right. Its rockers stand on the block below: it needs a solid top
-there to be placed, and breaks when that goes. Nothing of it stands still, so its block draws nothing
-(`shapes/block/rocker_empty.json`) and `RockerRenderer` draws every rig part of `rocker.json`: the
+there to be placed, and breaks when that goes (the shared machine block's `attributes.machine.needsSolidGround`).
+It is on the shared machine base (docs/modeling/machine-base.md), a hand machine whose build has no stages.
+Nothing of it stands still, so its block draws nothing (`shapes/block/rocker_empty.json`) and the shared
+`MachineRenderer` draws every rig part of `rocker.json`: the
 cradle rocking (θ a turn a rock, coming to rest level at the next multiple of π when let go,
 `RockerClock`), the water while worked, the charge and the concentrate in the items' own textures, and
 splashes at the foot. The item is `rocker_item.json`.
@@ -6036,8 +6038,10 @@ it stops until they are cleaned. **Ctrl + empty-hand right-click** takes the cha
 the top is untouched. Each item washed is a rock of **tailings** (#694, the shared tailings code): the
 rocker's rule (`OreMachinesSettings.Tailings.rocker`, gravel, a layer a rock) in the feed's rock, as
 layered gravel heaped on the ground in the cell beyond the foot (the rig's `tailings` point). Breaking it
-drops the rocker, the charge (less an item half washed) and what is behind the riffles. The block info
-shows the charge and how far the item at the top is washed, and what lies behind the riffles.
+drops the rocker, the charge (less an item half washed) and what is behind the riffles. The block info is
+the shared layout: the state (rocking with its percent), the charge and how far the item at the top is
+washed, and what lies behind the riffles; a wrench adds the washing exactly, the rocks a second and the
+water poured not yet taken from the bucket.
 
 | Setting | Default | |
 |---|---|---|
@@ -6053,8 +6057,8 @@ a requirement, the outputs fractional; `RecipeSection.Rocker.cs`, `Recipes/Rocke
 `RockerSystem.YieldOf` by reflection). With `Rocker` (or `OreProcessing`) off the server marks the block
 type and the recipe disabled, so neither exists and rockers already placed are lost. Code:
 `Rocker/Core/` (`RockerConfig`, `RockerRig`, `Rocking.cs`: the feed, the state and the placer yield,
-`RockerClock`), `Rocker/Game/` (`RockerSystem`, `BlockRocker`, `BERocker`, `RockerWater`,
-`RockerRenderer`). Tests: `tests/Rocker/RockerGameplayTests.cs`, `RockerRigTests.cs`;
+`RockerClock`), `Rocker/Game/` (`RockerSystem`, `BERocker : BEMachine`, `RockerWater`; the block is the
+shared `BlockMachine`, drawn by the shared `MachineRenderer`). Tests: `tests/Rocker/RockerGameplayTests.cs`, `RockerRigTests.cs`;
 `tests/PackTests/RockerScenarios.cs` (Atlas: the block and recipe, solid ground and no transfer, crushed
 ore washed while held with water into its concentrate with the rest carried and tailings beyond the
 foot, riddled ore at the full figure and an untouched charge returned, rich gravel into the pan's
@@ -6331,7 +6335,8 @@ client's and is not tested headless.
 
 The hand station of amalgamation (#718; machine form: the amalgamation plates, #917). Its model, rig
 and generator are described in `AmalgamPan/README.md`, which also records the model's decisions; this
-is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`).
+is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`, on the
+shared machine base: docs/modeling/machine-base.md, a hand machine that also takes an axle, with no oil).
 It needs `OreProcessing` too: with either switch off its block and recipe are left out
 (`AmalgamPanSystem.Disable`), and the mod's own text names it without a link.
 

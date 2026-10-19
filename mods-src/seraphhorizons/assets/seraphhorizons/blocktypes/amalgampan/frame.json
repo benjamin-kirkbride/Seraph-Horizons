@@ -4,14 +4,14 @@
 // The server disables it with AmalgamPan or OreProcessing off.
 {
 	code: "amalgampan",
-	class: "seraphhorizons.AmalgamPan",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.AmalgamPan",
-	// The axle's connector (the down face only) is the block's (BlockAmalgamPan); the consumer is the
-	// shared machine behaviour, its load the pan's.
+	// The axle's connector (the down face only, the rig's power anchor) is the shared machine block's; the
+	// consumer is the shared machine behaviour, its load the pan's.
 	entityBehaviors: [
 		{ name: "seraphhorizons.MachineMP", properties: { mechPartShape: null } }
 	],
-	// No HorizontalOrientable: BlockAmalgamPan.TryPlaceBlock picks the side so the operator's side
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the operator's side
 	// (native north) faces the player, as the press brake does.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },

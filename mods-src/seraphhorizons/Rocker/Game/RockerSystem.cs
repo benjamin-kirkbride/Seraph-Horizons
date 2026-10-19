@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using SeraphHorizons.Mod.Rocker.Core;
@@ -11,7 +12,8 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.Rocker;
 
 /// <summary>
-/// The rocker (#716): registers its classes and holds what its blocks share: its settings
+/// The rocker (#716): registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its block is the shared frame, placed whole) and holds its settings
 /// (RockerSettings in ModConfig/seraphhorizons.json), the rig (assets/seraphhorizons/config/rocker-rig.json)
 /// and what an item of its feed gives (<see cref="YieldOf"/>: the recovery figures are ore processing's,
 /// the placer table the gold pan's). With the <c>Rocker</c> switch off, or ore processing off (it makes
@@ -21,6 +23,9 @@ namespace SeraphHorizons.Mod.Rocker;
 public class RockerSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its block's first code part, its tailings rule's name.</summary>
+    public const string MachineId = "rocker";
     public static readonly AssetLocation RigAsset = new(Domain, "config/rocker-rig.json");
     public static readonly AssetLocation[] TypeAssets = [new(Domain, "blocktypes/rocker.json")];
     public static readonly AssetLocation[] RecipeAssets = [new(Domain, "recipes/grid/rocker.json")];
@@ -71,8 +76,8 @@ public class RockerSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.Rocker", typeof(BlockRocker));
         api.RegisterBlockEntityClass("seraphhorizons.Rocker", typeof(BERocker));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     public override void AssetsLoaded(ICoreAPI api)
