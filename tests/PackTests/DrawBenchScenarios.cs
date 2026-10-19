@@ -102,14 +102,6 @@ public partial class SharedWorldScenarios
         return sb.ToString();
     }
 
-    private static int BenchHeld(IPlayer player, string code) => player.InventoryManager.Inventories.Values
-        .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
-        .SelectMany(inv => inv).Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
-    private static ItemStack? BenchHeldStack(IPlayer player, string code) => player.InventoryManager.Inventories.Values
-        .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
-        .SelectMany(inv => inv).FirstOrDefault(s => s.Itemstack?.Collectible.Code.ToString() == code)?.Itemstack;
-
     // ---- Loading ----
 
     [AtlasScenario]

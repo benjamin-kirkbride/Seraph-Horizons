@@ -49,35 +49,6 @@ public partial class SharedWorldScenarios
         Assert.True(shear.Complete);
     }
 
-    /// <summary>
-    /// Right-click held on <paramref name="at"/> with <paramref name="held"/> in hand for
-    /// <paramref name="ticks"/> server ticks, as the game plays it: the interaction's start, a step
-    /// each tick while the block says go on, then the stop. Returns whether the start was the
-    /// shear's and how many steps it went on for.
-    /// </summary>
-    private async Task<(bool Started, int Steps)> ShearHold(IPlayer player, BlockPos at, int ticks, ItemStack? held = null)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = held;
-        slot.MarkDirty();
-        var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
-        var block = W.BlockAccessor.GetBlock(at);
-        if (!block.OnBlockInteractStart(W, player, sel))
-            return (false, 0);
-        int steps = 0;
-        float seconds = 0;
-        for (int i = 0; i < ticks; i++)
-        {
-            await World.Ticks(1);
-            seconds += 0.05f;
-            if (!W.BlockAccessor.GetBlock(at).OnBlockInteractStep(seconds, W, player, sel))
-                break;
-            steps++;
-        }
-        W.BlockAccessor.GetBlock(at).OnBlockInteractStop(seconds, W, player, sel);
-        return (true, steps);
-    }
-
     /// <summary>Radians of the treadle that bring the plate on the table to W = <paramref name="work"/>.</summary>
     private static double ShearRadiansTo(BESquaringShear shear, double work) =>
         (work - shear.Job.Work) * 2 * Math.PI * shear.StrokesPerPlate(shear.Job.Class) + 1e-6;

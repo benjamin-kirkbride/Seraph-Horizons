@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // rotor on its power face, fed raw ore by a vanilla chute and by hand, its crushed ore pushed into a chest
 // at its output face, its load following its charge, and broken back into everything that went in. Built
 // on granite floors 40 above spawn at x 600 to 640, z 600 to 620; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string JawFrame = "seraphhorizons:jawbreaker-";
 

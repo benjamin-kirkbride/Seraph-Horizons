@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // face) on the virtual clock (tests/PackTests/README.md) until its charge is ground, then drawn out. Built
 // on a granite floor of its own 40 above spawn at x 600 to 640, z 700, with the gear cutter's player
 // (gearcutterhand).
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string ArrastraFrame = "seraphhorizons:arrastra-north";
     private const string PoorHematite = "seraphhorizons:crushedore-hematite-poor";
