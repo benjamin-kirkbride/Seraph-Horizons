@@ -565,7 +565,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("drawbench") == true);
         Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("drawdie") == true);
         // the parts it takes are the game's, and exist either way
-        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.DrawBench.Core.DrawBenchParts.GearboxCode)));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:jonasframes-gearbox01")));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:(drawbench|drawdie)"))

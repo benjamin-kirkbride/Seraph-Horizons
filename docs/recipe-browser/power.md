@@ -154,6 +154,10 @@ that is not loaded leaves its entries out.
   `config/ore-processing.json` (constant, or from `emptyLoad` to `load` for the machines whose load
   follows their job), 0.005 until built. Their power cells all carry `seraphhorizons.MachineMP`, so a
   `Spec` could not tell them apart.
+- **A seraphhorizons workshop machine on the shared machine base** (the draw bench; docs/modeling/machine-base.md)
+  has the same shared power cell, so its `Spec` names `BEBehaviorMachineMP` with `ByFrame`: it is found
+  by its frame (`ItemPrefix`), not by the behavior. Its build file has no `block`, so the ore
+  machines' scan leaves it out.
 - **A producer** is a method in `Power/Producers.cs`. Read block JSON with
   `Live.BlockNumber`, config with `Live.Number` and literals with `Live.Constant`, and build
   the model with `Rotor` or `Wind`, or a `constantPower` object. If no model fits, add one to

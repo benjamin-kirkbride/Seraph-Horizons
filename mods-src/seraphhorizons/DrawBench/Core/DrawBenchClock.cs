@@ -3,43 +3,7 @@ using SeraphHorizons.Mod.Machines.Core;
 namespace SeraphHorizons.Mod.DrawBench.Core;
 
 /// <summary>
-/// What the draw bench's renderer reads of the bench, and nothing else: its facing, the parts
-/// fitted, the die's metal, the job on the bench (class k and the server's W), whether it runs, the
-/// shaft and the oil. The block entity implements it; the renderer turns it into the rig's inputs
-/// through <see cref="DrawBenchClock"/>.
-/// </summary>
-public interface IDrawBenchView
-{
-    Side Side { get; }
-
-    /// <summary>Whether a part needing a stage's <c>requires</c> (or null) is drawn. The billets
-    /// are the clock's (<see cref="DrawBenchClock.ShowsBillet"/>).</summary>
-    bool PartFitted(string? requires);
-
-    /// <summary>The fitted die's metal (<c>iron</c>, <c>steel</c>), or null.</summary>
-    string? DieMetal { get; }
-
-    /// <summary>The hollow section on the bench: 1 lead, 2 copper, 0 none.</summary>
-    int JobClass { get; }
-
-    /// <summary>The server's W: pipe sections drawn of this hollow, synced in steps.</summary>
-    double JobWork { get; }
-
-    /// <summary>Complete, a hollow on and the shaft fast enough.</summary>
-    bool Running { get; }
-
-    float ShaftAngle { get; }
-    float ShaftSpeed { get; }
-
-    /// <summary>The oil tank's fill, 0..1 (1 without MachineOil).</summary>
-    double OilFill { get; }
-
-    /// <summary>Axle turns per section of class k, as the server runs.</summary>
-    double TurnsPerSection(int k);
-}
-
-/// <summary>
-/// The renderer's own W, presence and class, from the view each frame (the model's contract,
+/// The renderer's own W, presence and class, from the bench each frame (<c>BEDrawBench.FrameInput</c>) (the model's contract,
 /// "The work"): W advances with the shaft while the bench runs, never behind the server's and at
 /// most <see cref="Snap"/> ahead of it; with no hollow on it is held at the end, 4, while p eases
 /// out and k is held, so the hollow, follower and spring come back (the sections, handed out, are hidden);

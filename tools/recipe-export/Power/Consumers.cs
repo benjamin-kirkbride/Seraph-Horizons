@@ -33,6 +33,10 @@ public sealed record Spec(string Behavior, string Category, LoadFn Work)
     /// <summary>True when the behavior is not declared on a block (smex's blower port is added to the
     /// blower's structure in code): the entry exists when <see cref="ItemPrefix"/> resolves.</summary>
     public bool PresenceByItem { get; init; }
+    /// <summary>True when the behavior is the seraphhorizons machine base's shared one
+    /// (<c>BEBehaviorMachineMP</c>, on the shared power cell every machine on the base uses), so it names no
+    /// machine: the entry is found by its frame, the blocks <see cref="ItemPrefix"/> names.</summary>
+    public bool ByFrame { get; init; }
 }
 
 /// <summary>
@@ -180,9 +184,9 @@ public static class Consumers
             Idle = SeraphIdle, Oil = "GearCutter", OilDryLoadFixed = true,
             Note = "a dry tank does not raise its load: it wears the cutter kit faster instead",
         },
-        new("BEBehaviorDrawBenchMP", "machine", Cfg("ResistanceLead", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceLead", 0.2, "ModConfig/seraphhorizons.json (DrawBenchSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("ResistanceLead", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceLead", 0.2, "ModConfig/seraphhorizons.json (DrawBenchSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:drawbench", ItemPrefix = "seraphhorizons:drawbench-frame", Name = "Draw bench",
+            Mod = Seraph, Id = "seraphhorizons:drawbench", ItemPrefix = "seraphhorizons:drawbench-frame", Name = "Draw bench", ByFrame = true,
             Max = Cfg("ResistanceCopper", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceCopper", 0.35, "ModConfig/seraphhorizons.json (DrawBenchSettings)"),
             Idle = SeraphIdle, Oil = "DrawBench",
             Note = "ResistanceLead empty or drawing lead, ResistanceCopper drawing copper",
@@ -222,7 +226,7 @@ public static class Consumers
         foreach (var spec in Specs)
         {
             if (spec.Mod != null && !live.ModLoaded(spec.Mod)) continue;
-            var found = blocks.WithBehavior(spec.Behavior);
+            var found = spec.ByFrame ? blocks.Matching(spec.ItemPrefix!) : blocks.WithBehavior(spec.Behavior);
             if (found.Count == 0 && spec.PresenceByItem && spec.ItemPrefix != null && blocks.Matching(spec.ItemPrefix) is { Count: > 0 } byItem)
                 found = byItem;
             if (found.Count == 0)

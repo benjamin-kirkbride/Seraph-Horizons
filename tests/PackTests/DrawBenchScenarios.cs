@@ -1,6 +1,7 @@
 using Atlas.XUnit;
 using SeraphHorizons.Mod.DrawBench;
 using SeraphHorizons.Mod.DrawBench.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -35,17 +36,34 @@ public partial class SharedWorldScenarios
         World.SetBlock($"seraphhorizons:drawbench-frame-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BEDrawBench ?? throw new Xunit.Sdk.XunitException($"no draw bench at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
+
+    private const string BenchGearbox = "game:jonasframes-gearbox01";
+    private const string BenchSpring = "seraphhorizons:spring-steel";
 
     /// <summary>The kept parts in order, as codes: a gearbox, an iron chain, a steel bracket, a meteoric iron rod
     /// and the mandrel station's spring (the mandrel stage takes both).</summary>
     private static readonly string[] BenchOrder =
-        [DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron", DrawBenchParts.SpringCode];
+        [BenchGearbox, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron", BenchSpring];
 
-    /// <summary>How many of a kept part its stage takes from one stack.</summary>
-    private static int BenchCount(string code) => DrawBenchParts.NeededOf(code, DrawBenchParts.StagesOf(code)[0]);
+    /// <summary>How many of a kept part its stage takes from one stack: two chains, two rods.</summary>
+    private static int BenchCount(string code) => code is "game:metalchain-iron" or "game:rod-meteoriciron" ? 2 : 1;
+
+    /// <summary>The bench's cells but the controller's (the shared machine cells), and whether each is the power cell.</summary>
+    private static List<(BlockPos Pos, bool Power)> BenchCells(BEDrawBench bench) =>
+        bench.CellBlocks().Select(c => (c.Pos, c.Block is BlockMachineCellPower)).ToList();
+
+    /// <summary>The block info as a player holding a wrench sees it.</summary>
+    private string BenchWrenchInfo(BEDrawBench bench, IPlayer player)
+    {
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        var held = slot.Itemstack;
+        slot.Itemstack = CutterItem("game:wrench-iron");
+        try { return BenchInfo(bench, player); }
+        finally { slot.Itemstack = held; }
+    }
 
     /// <summary>A die of <paramref name="code"/> with <paramref name="durability"/> left (full when null).</summary>
     private ItemStack BenchDie(string code, int? durability = null)
@@ -60,9 +78,9 @@ public partial class SharedWorldScenarios
     /// the die last; then a full oil tank.</summary>
     private void AssembleBench(BEDrawBench bench, IPlayer player, ItemStack? die = null)
     {
-        var ghost = bench.GhostCells().First().Pos;
+        var ghost = BenchCells(bench).First().Pos;
         int i = 0;
-        foreach (var part in BenchOrder.Select(c => CutterItem(c, BenchCount(c))).Append(die ?? BenchDie(DrawBenchParts.DieIronCode)))
+        foreach (var part in BenchOrder.Select(c => CutterItem(c, BenchCount(c))).Append(die ?? BenchDie(Drawing.DieIronCode)))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? bench.Pos : ghost, part) == null, $"{part.Collectible.Code} was not fitted");
         Assert.True(bench.Complete);
         FillBenchOil(bench, 1);
@@ -79,7 +97,7 @@ public partial class SharedWorldScenarios
     private async Task<BlockPos> PowerBench(BEDrawBench bench)
     {
         var ghost = bench.CellPos(BenchRig.PowerCell);
-        var face = Assert.IsType<BlockDrawBenchGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
+        var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
         var rotorPos = ghost.AddCopy(face);
         World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
         await World.Ticks(2);
@@ -117,16 +135,18 @@ public partial class SharedWorldScenarios
     {
         Assert.True(DrawBenchSystem.Applies(World.Api));
         Assert.NotNull(BenchMod.Rig);
+        // its frame is the shared machine block, its cells and power cell the shared ones, its build the shared build's
         foreach (var side in new[] { "north", "east", "south", "west" })
-        {
-            Assert.IsType<BlockDrawBench>(W.GetBlock(new AssetLocation($"seraphhorizons:drawbench-frame-{side}")));
-            Assert.IsType<BlockDrawBenchGhostPower>(W.GetBlock(new AssetLocation($"seraphhorizons:drawbench-ghostpower-{side}")));
-        }
-        Assert.IsType<BlockDrawBenchGhost>(W.GetBlock(new AssetLocation("seraphhorizons:drawbench-ghost")));
-        // every part the stages take exists here, the Jonas gearbox and the dies included
-        foreach (var stage in DrawBenchRequires.Stages)
-            foreach (var code in DrawBenchParts.CodesFor(stage))
-                Assert.True(W.GetItem(new AssetLocation(code)) != null, $"no {code} for {stage}");
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:drawbench-frame-{side}")));
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:drawbench-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(BenchRig, ((BlockMachine)W.GetBlock(new AssetLocation("seraphhorizons:drawbench-frame-north"))).Rig);
+        // every part the stages take exists here, the Jonas gearbox, the spring and the dies included
+        var build = MachinesSystem.Of(World.Api).Build(DrawBenchSystem.MachineId)!;
+        Assert.Equal(DrawBenchRequires.Stages, build.Stages.Select(s => s.Id));
+        Assert.Equal(2, build.Stages[3].Materials.Count);   // springs exist: the mandrel stage takes one
+        foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
+            Assert.True(W.GetItem(new AssetLocation(code)) != null, $"no {code}");
+        Assert.Equal(BenchMod.Config.DieDurability, Assert.Single(build.Wearing).Uses);
         // what it draws, the game's chute section (copper the game's own and lead the state
         // UnifiedPipes' patch adds), and what comes off: the pack's pipe section
         foreach (var hollow in new[] { Drawing.LeadHollow, Drawing.CopperHollow })
@@ -136,12 +156,12 @@ public partial class SharedWorldScenarios
             Assert.Equal(section, Drawing.SectionFor(k));
             Assert.True(W.GetItem(new AssetLocation(section)) is { Id: > 0, IsMissing: false }, $"no {section}");
         }
-        foreach (var die in new[] { DrawBenchParts.DieIronCode, DrawBenchParts.DieSteelCode })
+        foreach (var die in new[] { Drawing.DieIronCode, Drawing.DieSteelCode })
             Assert.Equal(BenchMod.Config.DieDurability, CutterItem(die).Collectible.GetMaxDurability(CutterItem(die)));
         Assert.Equal(100, BenchMod.Config.DieDurability);
-        Assert.Equal("Draw bench frame", new ItemStack(W.GetBlock(BlockDrawBench.ItemCode)).GetName());
-        Assert.Equal("Iron draw die", CutterItem(DrawBenchParts.DieIronCode).GetName());
-        Assert.Equal("Steel draw die", CutterItem(DrawBenchParts.DieSteelCode).GetName());
+        Assert.Equal("Draw bench frame", new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:drawbench-frame-north"))).GetName());
+        Assert.Equal("Iron draw die", CutterItem(Drawing.DieIronCode).GetName());
+        Assert.Equal("Steel draw die", CutterItem(Drawing.DieSteelCode).GetName());
 
         // the grid: the frame, of oak and iron (two plates in one slot, four rods, 12 nails and strips), with a hammer
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:drawbench-frame-north" && r.Enabled);
@@ -153,7 +173,7 @@ public partial class SharedWorldScenarios
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 2);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the anvil: each die from two ingots of its metal (over one ingot's 42 voxels), not for the helve hammer
-        foreach (var (die, metal) in new[] { (DrawBenchParts.DieIronCode, "iron"), (DrawBenchParts.DieSteelCode, "steel") })
+        foreach (var (die, metal) in new[] { (Drawing.DieIronCode, "iron"), (Drawing.DieSteelCode, "steel") })
         {
             var recipe = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == die);
             Assert.True(recipe.Ingredient!.SatisfiesAsIngredient(CutterItem("game:ingot-" + metal)));
@@ -184,14 +204,14 @@ public partial class SharedWorldScenarios
             var pos = await CutterSite(-240 - 12 * i++, -240);
             var bench = await PlaceBench(pos, side.Code());
             Assert.Equal(side, bench.Side);
-            var cells = bench.GhostCells().ToList();
+            var cells = BenchCells(bench);
             Assert.Equal(3, cells.Count);
             var n = side.Normal();
             Assert.Contains(cells, c => c.Pos.Equals(pos.AddCopy(n.X * 3, 0, n.Z * 3)));
             foreach (var cell in cells.Select(c => c.Pos).Append(pos))
             {
                 if (!cell.Equals(pos))
-                    Assert.Equal(pos, Assert.IsType<BEDrawBenchGhost>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
+                    Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
                 var block = W.BlockAccessor.GetBlock(cell);
                 var selection = block.GetSelectionBoxes(W.BlockAccessor, cell);
                 var collision = block.GetCollisionBoxes(W.BlockAccessor, cell);
@@ -201,7 +221,7 @@ public partial class SharedWorldScenarios
             }
             var powerGhost = Assert.Single(cells, c => c.Power).Pos;
             Assert.Equal(pos.AddCopy(n.X * 3, 0, n.Z * 3), powerGhost);
-            var face = Assert.IsType<BlockDrawBenchGhostPower>(W.BlockAccessor.GetBlock(powerGhost)).PowerFace;
+            var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(powerGhost)).PowerFace;
             Assert.Equal(Footprint.ToWorld(Side.West, side).Code(), face.Code);
             Assert.DoesNotContain(cells, c => c.Pos.Equals(powerGhost.AddCopy(face)));
             Assert.Equal("Draw bench frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
@@ -223,15 +243,15 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-240, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "east");
-        var ghost = bench.GhostCells().Last().Pos;
-        Assert.Contains("Next part: gearbox", BenchInfo(bench, player));
+        var ghost = BenchCells(bench).Last().Pos;
+        Assert.Contains("Build: stage 1 of 5, gearbox", BenchInfo(bench, player));
 
         // a later stage's part is refused and stays in hand, from the frame or a ghost
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalchain-steel"))?.StackSize);
         Assert.True(_cutterHandled);
-        Assert.Equal(1, CutterClick(player, ghost, BenchDie(DrawBenchParts.DieSteelCode))?.StackSize);
+        Assert.Equal(1, CutterClick(player, ghost, BenchDie(Drawing.DieSteelCode))?.StackSize);
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:rod-iron"))?.StackSize);
-        Assert.False(bench.Parts.Has(DrawBenchStage.Gearbox));
+        Assert.Equal(0, bench.Assembly!.Build.Next);
         // no hollow before the bench is built
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         Assert.False(bench.JobOn);
@@ -241,43 +261,54 @@ public partial class SharedWorldScenarios
 
         // the parts in order, as many as each stage takes (two chains, two rods), taken from the hand;
         // fewer than that are refused and stay there
+        var assembly = bench.Assembly!;
         for (int i = 0; i < BenchOrder.Length; i++)
         {
-            var next = bench.Parts.Next!.Value;
-            int count = DrawBenchParts.NeededOf(BenchOrder[i], next);
+            int next = assembly.Build.Next!.Value;
+            int count = BenchCount(BenchOrder[i]);
             if (count > 1)
             {
                 Assert.Equal(count - 1, CutterClick(player, pos, CutterItem(BenchOrder[i], count - 1))?.StackSize);
-                Assert.False(bench.Parts.Has(next));
+                Assert.Empty(assembly.Returns().Where(d => d.Code == BenchOrder[i]));
             }
             var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(BenchOrder[i], count + (i == 0 ? 1 : 0)));
             // the mandrel stage's rods go in first, and the stage is in with its spring
-            bool rods = DrawBenchParts.MandrelCodes.Contains(BenchOrder[i]);
-            Assert.True(rods ? bench.Parts.HasItem(next) && !bench.Parts.Has(next) : bench.Parts.Has(next), $"{BenchOrder[i]} did not go in as {next}");
+            bool rods = BenchOrder[i] == "game:rod-meteoriciron";
+            Assert.Contains(new StageDrop(BenchOrder[i], count), assembly.Returns());
+            Assert.True(rods ? !assembly.Build.StageComplete(next) : assembly.Build.StageComplete(next), $"{BenchOrder[i]} did not go in as stage {next}");
             Assert.Equal(i == 0 ? 1 : 0, left?.StackSize ?? 0);
             // the same part again is refused once its stage is full
             if (i == 0)
-                Assert.Equal(1, CutterClick(player, pos, CutterItem(DrawBenchParts.GearboxCode))?.StackSize);
+                Assert.Equal(1, CutterClick(player, pos, CutterItem(BenchGearbox))?.StackSize);
         }
         // a second chain has nowhere to go
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalchain-steel"))?.StackSize);
         Assert.False(bench.Complete);
-        Assert.Contains("Next part: die", BenchInfo(bench, player));
+        Assert.Contains("Build: stage 5 of 5, die", BenchInfo(bench, player));
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
-        Assert.Null(CutterClick(player, ghost, BenchDie(DrawBenchParts.DieIronCode)));
+        Assert.Null(CutterClick(player, ghost, BenchDie(Drawing.DieIronCode)));
         Assert.True(bench.Complete);
         Assert.Equal("Draw bench", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Die: iron die, draws lead; 100 of 100 tube blanks left", BenchInfo(bench, player));
-        Assert.Contains("Bench empty", BenchInfo(bench, player));
+        Assert.Contains("Die: iron die, draws lead", BenchInfo(bench, player));
+        Assert.Contains("Die: 100% left", BenchInfo(bench, player));
+        // unpowered, the shared state's order says so first (an empty bench under power says it is empty)
+        Assert.Contains("No power: its shaft must turn at 0.05 or faster", BenchInfo(bench, player));
+        // more for a wrench: the die's uses, the oil's drain, the facing and the axle's face
+        Assert.Contains("Hold a wrench to see more", BenchInfo(bench, player));
+        var detail = BenchWrenchInfo(bench, player);
+        Assert.Contains("Die: 100 of 100 uses left", detail);
+        Assert.Contains("Oil a job: 2", detail);
+        Assert.Contains("Faces east; its axle meets its south face", detail);
+        Assert.DoesNotContain("Hold a wrench", detail);
 
         // a save keeps every fitted code
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         bench.ToTreeAttributes(tree);
         bench.FromTreeAttributes(tree, W);
         Assert.True(bench.Complete);
-        Assert.Equal("game:bracket-heavy-steel", bench.Parts.FittedIn(DrawBenchStage.Dog));
-        Assert.True(bench.Parts.HasSpring);
-        Assert.Equal(6, bench.Parts.Returns().Count);
+        Assert.Equal("game:bracket-heavy-steel", bench.Assembly!.Build.CodeIn(2, 0));
+        Assert.Equal(BenchSpring, bench.Assembly.Build.CodeIn(3, 1));
+        Assert.Equal(6, bench.Assembly.Returns().Count);
     }
 
     [AtlasScenario(TimeoutMs = 60_000)]
@@ -286,21 +317,21 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-252, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos);
-        // a click a stage, the mandrel stage's rods and its spring a click each
+        // a click a stage (the shared build's shortcut fits a whole stage: the mandrel's rods and spring together)
         int clicks = 0;
         while (!bench.Complete && clicks < 10)
         {
-            var next = bench.Parts.Next!.Value;
+            int next = bench.Assembly!.Build.Next!.Value;
             Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
-            Assert.True(bench.Parts.HasItem(next), $"the shortcut did not fit {next}");
+            Assert.True(bench.Assembly.Build.StageComplete(next), $"the shortcut did not fit stage {next}");
             clicks++;
         }
-        Assert.Equal(6, clicks);
-        Assert.True(bench.Parts.HasSpring);
-        Assert.Equal("steel", bench.Parts.DieMetal);
+        Assert.Equal(5, clicks);
+        Assert.Equal(BenchSpring, bench.Assembly!.Build.CodeIn(3, 1));
+        Assert.Equal("steel", bench.DieMetal);
         // complete, a creative Ctrl click is the take-back again
         CutterClick(player, pos, null, ctrl: true, creative: true);
-        Assert.False(bench.Parts.Has(DrawBenchStage.Die));
+        Assert.Null(bench.Die);
     }
 
     // ---- Drawing ----
@@ -337,16 +368,18 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         // the die stays in while the hollow is on
         CutterClick(player, pos, null, ctrl: true);
-        Assert.True(bench.Parts.Has(DrawBenchStage.Die));
+        Assert.NotNull(bench.Die);
 
         // unpowered, nothing moves; powered, the shaft draws the first section off by itself
         await World.Ticks(10);
         Assert.Equal(0, bench.Job.Work);
-        Assert.Contains("Stopped with lead on: 0 of 4 sections", BenchInfo(bench, player));
+        Assert.Contains("No power", BenchInfo(bench, player));
+        Assert.Contains("On the bench: a lead tube blank, 0 of 4 sections drawn", BenchInfo(bench, player));
         var rotor = await PowerBench(bench);
         await World.Until(() => bench.Job.Work > 0.02, 30000);
         Assert.True(bench.Running);
-        Assert.Contains("Drawing lead:", BenchInfo(bench, player));
+        await World.Until(() => bench.State == MachineState.Working, 5000);
+        Assert.Contains("Drawing (", BenchInfo(bench, player));
         // the first comes off as its draw finishes, the jaws open, before the dog goes back
         await World.Until(() => bench.Job.Work >= Drawing.HandOut, 120000);
         await World.Ticks(3);
@@ -364,15 +397,15 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 3 + Drawing.HandOut)));
         // all four are out, but the hollow is done, and the die worn, only once the dog is back at the die
         Assert.True(bench.JobOn);
-        Assert.Equal(100, bench.Parts.DieLeft);
+        Assert.Equal(100, bench.DieLeft);
         Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 4)));
         Assert.False(bench.JobOn);
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
         Assert.Equal(0, CutterItemsNear(pos).GetValueOrDefault(Drawing.LeadHollow));   // the hollow is used up
-        Assert.Equal(99, bench.Parts.DieLeft);
+        Assert.Equal(99, bench.DieLeft);
         Assert.Equal(992, bench.Oiling!.Tank.Points, 6);   // 2 points a pipe section, 8 a hollow
-        Assert.Contains("99 of 100 tube blanks left", BenchInfo(bench, player));
+        Assert.Contains("Die: 99 of 100 uses left", BenchWrenchInfo(bench, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -384,16 +417,16 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-276, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "west");
-        AssembleBench(bench, player, BenchDie(DrawBenchParts.DieIronCode, 40));
+        AssembleBench(bench, player, BenchDie(Drawing.DieIronCode, 40));
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.CopperHollow))?.StackSize);
         Assert.False(bench.JobOn);
 
         // the iron die back out, with its durability, and the steel one in
-        CutterClick(player, bench.GhostCells().First().Pos, null, ctrl: true);
+        CutterClick(player, BenchCells(bench).First().Pos, null, ctrl: true);
         Assert.False(bench.Complete);
-        var iron = BenchHeldStack(player, DrawBenchParts.DieIronCode)!;
+        var iron = BenchHeldStack(player, Drawing.DieIronCode)!;
         Assert.Equal(40, iron.Collectible.GetRemainingDurability(iron));
-        Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieSteelCode)));
+        Assert.Null(CutterClick(player, pos, BenchDie(Drawing.DieSteelCode)));
         Assert.Contains("Die: steel die, draws lead, copper", BenchInfo(bench, player));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
         Assert.Equal(2, bench.Job.Class);
@@ -405,13 +438,13 @@ public partial class SharedWorldScenarios
         Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 4)));
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(CopperSection));
-        Assert.Equal(99, bench.Parts.DieLeft);
+        Assert.Equal(99, bench.DieLeft);
         // and lead too
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
-        Assert.Equal(98, bench.Parts.DieLeft);
+        Assert.Equal(98, bench.DieLeft);
         CutterKillItems(pos);
     }
 
@@ -423,21 +456,21 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-288, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos);
-        AssembleBench(bench, player, BenchDie(DrawBenchParts.DieIronCode, 2));
-        var mp = W.BlockAccessor.GetBlockEntity(bench.CellPos(BenchRig.PowerCell))!.GetBehavior<BEBehaviorDrawBenchMP>()!;
+        AssembleBench(bench, player, BenchDie(Drawing.DieIronCode, 2));
+        var mp = W.BlockAccessor.GetBlockEntity(bench.CellPos(BenchRig.PowerCell))!.GetBehavior<BEBehaviorMachineMP>()!;
         Assert.Equal(BenchMod.Config.ResistanceLead, mp.GetResistance(), 4);
 
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1)));
-        Assert.Equal(2, bench.Parts.DieLeft);   // nothing until the whole hollow is drawn
+        Assert.Equal(2, bench.DieLeft);   // nothing until the whole hollow is drawn
         Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 4)));
-        Assert.Equal(1, bench.Parts.DieLeft);
+        Assert.Equal(1, bench.DieLeft);
         // dry: the same die wear, three times the load
         FillBenchOil(bench, 0);
         Assert.Equal(BenchMod.Config.ResistanceLead * 3, mp.GetResistance(), 4);
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
-        Assert.False(bench.Parts.Has(DrawBenchStage.Die));
+        Assert.Null(bench.Die);
         Assert.False(bench.Complete);
         await World.Ticks(5);
         Assert.Equal(8, CutterItemsNear(pos).GetValueOrDefault(LeadSection));   // the last hollow still came out
@@ -445,13 +478,13 @@ public partial class SharedWorldScenarios
         // no hollow goes on without a die, and nothing comes back by Ctrl
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         CutterClick(player, pos, null, ctrl: true);
-        Assert.Equal(0, BenchHeld(player, DrawBenchParts.DieIronCode));
+        Assert.Equal(0, BenchHeld(player, Drawing.DieIronCode));
         // a worn-out die is refused, a new one goes in and it draws again
-        Assert.Equal(1, CutterClick(player, pos, BenchDie(DrawBenchParts.DieIronCode, 0))?.StackSize ?? 0);
-        Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieIronCode)));
+        Assert.Equal(1, CutterClick(player, pos, BenchDie(Drawing.DieIronCode, 0))?.StackSize ?? 0);
+        Assert.Null(CutterClick(player, pos, BenchDie(Drawing.DieIronCode)));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
-        Assert.Equal(99, bench.Parts.DieLeft);
+        Assert.Equal(99, bench.DieLeft);
         CutterKillItems(pos);
     }
 
@@ -463,17 +496,17 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-300, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "west");
-        AssembleBench(bench, player, BenchDie(DrawBenchParts.DieSteelCode, 77));
-        var ghost = bench.GhostCells().First().Pos;
+        AssembleBench(bench, player, BenchDie(Drawing.DieSteelCode, 77));
+        var ghost = BenchCells(bench).First().Pos;
         // the die back by Ctrl from a ghost, with its durability; the rest stays
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.Equal(1, BenchHeld(player, DrawBenchParts.DieSteelCode));
+        Assert.Equal(1, BenchHeld(player, Drawing.DieSteelCode));
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.True(bench.Parts.Has(DrawBenchStage.Mandrel));
-        Assert.Equal(5, bench.Parts.Returns().Count);
+        Assert.True(bench.Assembly!.Build.StageComplete(3));
+        Assert.Equal(5, bench.Assembly.Returns().Count);
 
         // refit and load; broken before a pipe section comes off, the hollow comes back too
-        Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieSteelCode, 77)));
+        Assert.Null(CutterClick(player, pos, BenchDie(Drawing.DieSteelCode, 77)));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
         Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, Drawing.HandOut) - 2 * Math.PI * 0.05));
         CutterKillItems(pos);
@@ -483,13 +516,13 @@ public partial class SharedWorldScenarios
         var drops = CutterItemsNear(pos);
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:drawbench-frame-north"));
         Assert.Equal(0, drops.GetValueOrDefault(CopperSection));
-        foreach (var code in BenchOrder.Append(DrawBenchParts.DieSteelCode).Append(Drawing.CopperHollow))
+        foreach (var code in BenchOrder.Append(Drawing.DieSteelCode).Append(Drawing.CopperHollow))
         {
             int want = BenchOrder.Contains(code) ? BenchCount(code) : 1;
             Assert.True(drops.GetValueOrDefault(code) == want, $"{code}: {drops.GetValueOrDefault(code)}, want {want}");
         }
         var die = World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
-            .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == DrawBenchParts.DieSteelCode).Itemstack;
+            .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == Drawing.DieSteelCode).Itemstack;
         Assert.Equal(77, die.Collectible.GetRemainingDurability(die));
         CutterKillItems(pos);
 
@@ -503,7 +536,7 @@ public partial class SharedWorldScenarios
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(3);
         drops = CutterItemsNear(pos);
-        Assert.Equal(1, drops.GetValueOrDefault(DrawBenchParts.DieIronCode));
+        Assert.Equal(1, drops.GetValueOrDefault(Drawing.DieIronCode));
         Assert.Equal(0, drops.GetValueOrDefault(Drawing.LeadHollow));
         CutterKillItems(pos);
     }
@@ -534,6 +567,7 @@ public partial class SharedWorldScenarios
         await PowerBench(bench);
         await World.Ticks(60);
         Assert.False(bench.JobOn);
+        Assert.Contains("Bench empty: put a lead or copper tube blank on", BenchInfo(bench, player));
         Assert.Equal(2, source.Inventory[0].StackSize);
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
