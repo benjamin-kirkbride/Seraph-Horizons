@@ -1,3 +1,4 @@
+using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.RecipeExport.Items;
@@ -60,14 +61,14 @@ public static class MultiblockSection
         foreach (var key in order)
         {
             var group = byLayout[key];
-            var owner = Preferred(group);
+            var owner = Unturned(api, group) ?? Preferred(group);
             var sizes = Sizes(owner);
             if (sizes.Count == 0) continue;
             var parts = new List<(string Pattern, JObject Part)>();
             var sizeArray = new JArray();
             foreach (var (label, layout) in sizes)
             {
-                var cells = Cells(api, blocks, layout, parts, shapes, matchCache);
+                var cells = Cells(api, blocks, owner, layout, parts, shapes, matchCache);
                 if (cells == null) { sizeArray = null; break; }
                 var size = new JObject();
                 if (label != null) size["label"] = label;
@@ -136,11 +137,13 @@ public static class MultiblockSection
     /// The layout's cells as [x, y, z, part], parts added to <paramref name="parts"/> by pattern;
     /// null when the layout cannot be read.
     /// </summary>
-    private static JArray? Cells(ICoreServerAPI api, List<Block> blocks, JObject layout,
+    private static JArray? Cells(ICoreServerAPI api, List<Block> blocks, Block owner, JObject layout,
         List<(string Pattern, JObject Part)> parts, SortedDictionary<string, JToken> shapes, Dictionary<string, List<Block>> matchCache)
     {
         if (layout["blockNumbers"] is not JObject numbers || layout["offsets"] is not JArray offsets) return null;
         var chosen = parts.Where(p => p.Part["block"] != null).Select(p => (string)p.Part["block"]!).ToHashSet();
+        // The checking block's own cell is drawn with the variant that leaves the layout as written.
+        chosen.Add(owner.Code.ToString());
         var partOfNumber = new Dictionary<int, int>();
         foreach (var prop in numbers.Properties())
         {
@@ -206,6 +209,44 @@ public static class MultiblockSection
     {
         static bool North(Block b) => b.Variant.Values.Any(v => v is "north" or "n");
         return blocks.FirstOrDefault(North) ?? blocks[0];
+    }
+
+    /// <summary>
+    /// The variant of a structure's checking block that, placed, checks the layout as written
+    /// (turned by 0°), preferring a north-facing one; null when no variant says how it turns it.
+    /// The cells are exported in the layout's own frame, so the checking block must be drawn in
+    /// the facing that frame belongs to, which is the mod's code, not its JSON: ppex's boilers and
+    /// smex's cowper stove and Bessemer control turn the layout 180° more than their side (their
+    /// north variant checks the layout turned to face south), and a boiler's shape fills its
+    /// filler cells only in its south variant. exlib's structures expose the angle a block entity
+    /// turns its layout to (<c>BlockEntityMultiblockStructure.LayoutAngle</c>, internal, read by
+    /// name); the game's kiln and stone coffin turn theirs in <c>Initialize</c>, 0° for north,
+    /// which <see cref="Preferred"/> already picks.
+    /// </summary>
+    private static Block? Unturned(ICoreServerAPI api, IReadOnlyList<Block> group)
+    {
+        var unturned = group.Where(b => LayoutAngle(api, b) == 0).ToList();
+        return unturned.Count > 0 ? Preferred(unturned) : null;
+    }
+
+    /// <summary>The angle, 0 to 270, a placed <paramref name="b"/> turns its layout to; null when its block entity does not say.</summary>
+    private static int? LayoutAngle(ICoreServerAPI api, Block b)
+    {
+        if (string.IsNullOrEmpty(b.EntityClass)) return null;
+        try
+        {
+            var be = api.ClassRegistry.CreateBlockEntity(b.EntityClass);
+            if (be == null) return null;
+            be.Block = b;
+            var prop = be.GetType().GetProperty("LayoutAngle", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (prop?.PropertyType != typeof(int) || prop.GetIndexParameters().Length != 0) return null;
+            var angle = (int)prop.GetValue(be)!;
+            return ((angle % 360) + 360) % 360;
+        }
+        catch (Exception)
+        {
+            return null;   // a block entity that needs a world to say
+        }
     }
 
     /// <summary>
