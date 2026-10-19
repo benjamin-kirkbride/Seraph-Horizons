@@ -8,10 +8,11 @@ namespace SeraphHorizons.Mod.AmalgamPan.Core;
 /// The amalgam pan's cell, power face, anchors and moving parts, from
 /// assets/seraphhorizons/config/amalgampan-rig.json (written by AmalgamPan/tools/make_shape.py; the
 /// model's contract, AmalgamPan/README.md "Rig schema"). One cell, the controller's; the axle comes
-/// up into its down face; no work and no item transfer anchor. Throws <see cref="FormatException"/>
-/// naming what is wrong.
+/// up into its down face; no work and no item transfer anchor. For the shared machine base
+/// (<see cref="IMachineRig"/>) its one anchor is <c>power</c>, the controller's down face. Throws
+/// <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class AmalgamPanRig
+public sealed class AmalgamPanRig : IMachineRig
 {
     public RigCell Cell { get; }
     /// <summary>The face the axle comes in at, the same in every facing: always <c>down</c>.</summary>
@@ -20,6 +21,17 @@ public sealed class AmalgamPanRig
     public Float3 Pan { get; }
     public Side OperatorSide { get; }
     public RigParts MovingParts { get; }
+
+    /// <summary>Its one cell, the controller's.</summary>
+    public IReadOnlyList<RigCell> Cells => [Cell];
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>The axle's: the controller's down face.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } =
+        new Dictionary<string, MachineAnchor> { [MachineRigs.Power] = new(MachineRigs.Power, Int3.Zero, CellFace.Down) };
+
+    public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
 
     public AmalgamPanRig(RigCell cell, Float3 pan, Side operatorSide, RigParts parts)
     {

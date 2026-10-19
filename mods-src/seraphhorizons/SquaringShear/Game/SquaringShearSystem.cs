@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.SquaringShear.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -8,21 +9,24 @@ using Vintagestory.API.Config;
 namespace SeraphHorizons.Mod.SquaringShear;
 
 /// <summary>
-/// The squaring shear: registers its classes and holds what its blocks share: its settings
-/// (SquaringShearSettings in ModConfig/seraphhorizons.json) and the rig
-/// (assets/seraphhorizons/config/squaringshear-rig.json). With the <c>SquaringShear</c> switch off the
-/// server leaves its blocks, its half plate and its recipe out of the game (<see cref="Disable"/>). A
-/// hand machine: no mechanical power and no oil.
+/// The squaring shear: registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame and cell are the shared blocks, its build
+/// <c>config/builds/squaringshear.json</c>) and holds its settings (SquaringShearSettings in
+/// ModConfig/seraphhorizons.json) and the rig (assets/seraphhorizons/config/squaringshear-rig.json). With the
+/// <c>SquaringShear</c> switch off the server leaves its block, its half plate and its recipe out of the game
+/// (<see cref="Disable"/>). A hand machine: no mechanical power and no oil.
 /// </summary>
 public class SquaringShearSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "squaringshear";
     public static readonly AssetLocation RigAsset = new(Domain, "config/squaringshear-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/squaringshear/frame.json"),
-        new(Domain, "blocktypes/squaringshear/ghost.json"),
         // what it cuts a plate into: the half plate exists only with the shear
         new(Domain, "itemtypes/halfplate.json"),
     ];
@@ -70,10 +74,8 @@ public class SquaringShearSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.SquaringShear", typeof(BlockSquaringShear));
-        api.RegisterBlockClass("seraphhorizons.SquaringShearGhost", typeof(BlockSquaringShearGhost));
         api.RegisterBlockEntityClass("seraphhorizons.SquaringShear", typeof(BESquaringShear));
-        api.RegisterBlockEntityClass("seraphhorizons.SquaringShearGhost", typeof(BESquaringShearGhost));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
@@ -110,7 +112,7 @@ public class SquaringShearSystem : ModSystem
         }
     }
 
-    /// <summary>Leaves the squaring shear out of the game: marks its block types, the half plate's
+    /// <summary>Leaves the squaring shear out of the game: marks its block type, the half plate's
     /// item type and its recipe disabled before the game loads them.</summary>
     public static void Disable(ICoreAPI api)
     {

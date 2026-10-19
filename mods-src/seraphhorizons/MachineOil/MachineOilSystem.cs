@@ -89,8 +89,8 @@ public class MachineOilSystem : ModSystem
     private static void SmokeTick(ICoreClientAPI capi)
     {
         foreach (var (machine, state) in ForeignMachines.ClientStates(capi.World))
-            if (state.Dry && ForeignMachines.Turning(machine))
-                Oil.Smoke(capi, ForeignMachines.SmokeAt(machine));
+            if (ForeignMachines.Turning(machine))
+                state.SmokeIfDry(capi, ForeignMachines.SmokeAt(machine));
     }
 
     public override void Dispose()

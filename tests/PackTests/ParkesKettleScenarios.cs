@@ -48,23 +48,18 @@ public partial class MillWorldScenarios
         }
     }
 
-    private static int KettleHeld(IPlayer player, string code) =>
-        new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
-            .SelectMany(inv => player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            .Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
     [AtlasScenario]
     public void Parkes_kettle_loads_with_its_frame_build_recipe_and_figures()
     {
         Assert.True(ParkesKettleSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(KettleFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(KettleFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(KettleFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(KettleFrame + "north"));
         Assert.Equal("parkeskettle", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(ParkesKettleSystem.Of(World.Api).Rig);
         Assert.Equal(KettleRequires.Extra(4, 2).Order(), block.ExtraRequires.Order());
-        var build = OreMachinesSystem.Of(World.Api).Build("parkeskettle")!;
+        var build = MachinesSystem.Of(World.Api).Build("parkeskettle")!;
         Assert.Equal(["brickwork", "lining", "kettle", "stirrer"], build.Stages.Select(s => s.Id).ToArray());
         foreach (var stage in build.Stages)
             foreach (var code in stage.Materials.SelectMany(m => m.Codes))
@@ -112,12 +107,13 @@ public partial class MillWorldScenarios
             Assert.True(KettleClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(material.Codes[0], missing)) == null, $"{material.Codes[0]} x{missing} was not fitted");
         }
         Assert.True(kettle.Built);
+        MachineTest.FillOil(kettle);
         Assert.True(kettle.ShowsPart("kettle") && kettle.ShowsPart("stirrer") && kettle.ShowsPart("damperopen") && !kettle.ShowsPart("lead1"));
         // empty, the stirrer's load is its empty figure
         Assert.Equal(recovery.LoadAt(OreMachine.ParkesKettle, 0), kettle.Resistance, 3);
 
         // nothing to light yet
-        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, OreMachineFire.IgniteState(player.Entity, pos, 1.5f));
+        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, MachineFire.IgniteState(player.Entity, pos, 1.5f));
         // zinc goes in on the lead; argentiferous galena's bullion is refused; galena's, 24 bars of 30
         Assert.Equal(8, KettleClick(player, pos, CutterItem(ParkesKettling.ZincBit, 8))?.StackSize);
         Assert.Equal(4, KettleClick(player, pos, CutterItem("seraphhorizons:bullion-galena_nativesilver-lead", 4))?.StackSize);
@@ -139,9 +135,9 @@ public partial class MillWorldScenarios
         Assert.Equal(2, KettleClick(player, pos, CutterItem("game:ore-bituminouscoal", 10))?.StackSize);
         Assert.Equal(8, kettle.Coal);
         Assert.True(kettle.ShowsPart("fuel2") && !kettle.ShowsPart("fire1"));
-        Assert.Equal(EnumIgniteState.IgniteNow, OreMachineFire.IgniteState(player.Entity, cell, 1.5f));
+        Assert.Equal(EnumIgniteState.IgniteNow, MachineFire.IgniteState(player.Entity, cell, 1.5f));
         var handling = EnumHandling.PassThrough;
-        OreMachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
         Assert.True(kettle.Lit);
         Assert.True(kettle.ShowsPart("fire2") && !kettle.ShowsPart("fuel1"));
         // no chimney: no heat, nothing to stir
@@ -192,8 +188,8 @@ public partial class MillWorldScenarios
 
         // an empty hand skims the crust, then ladles the lead out, 6 at a time
         KettleClick(player, pos, null);
-        Assert.Equal(7, KettleHeld(player, Bullion.RichLeadCode));
-        Assert.Equal(4, KettleHeld(player, ParkesKettling.ZincBit));
+        Assert.Equal(7, MachineTest.Held(player, Bullion.RichLeadCode));
+        Assert.Equal(4, MachineTest.Held(player, ParkesKettling.ZincBit));
         Assert.True(kettle.Skimmed);
         Assert.False(kettle.ShowsPart("crust"));
         // (each click empties the hand first, so a ladling is counted as it comes)
@@ -202,7 +198,7 @@ public partial class MillWorldScenarios
         {
             KettleClick(player, i++ % 2 == 0 ? pos : cell, null);
             Assert.Equal(left, kettle.LeadOut);
-            ladled += KettleHeld(player, ParkesKettling.Lead);
+            ladled += MachineTest.Held(player, ParkesKettling.Lead);
             foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
                 foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
                     if (slot.Itemstack?.Collectible.Code.ToString() == ParkesKettling.Lead)

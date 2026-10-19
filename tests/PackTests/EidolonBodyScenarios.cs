@@ -18,8 +18,7 @@ namespace SeraphHorizons.PackTests;
 // with a player in range).
 public partial class SharedWorldScenarios
 {
-    private BEBehaviorEidolonBody BodyOf(BEEidolonGantry gantry) =>
-        gantry.GetBehavior<BEBehaviorEidolonBody>() ?? throw new Xunit.Sdk.XunitException("the gantry has no body behavior");
+    private static GantryBody BodyOf(BEEidolonGantry gantry) => gantry.Body;
 
     private List<EntityLaborEidolon> EidolonsNear(BlockPos pos, double range = 16) =>
         W.GetEntitiesAround(new Vec3d(pos.X, pos.Y, pos.Z), (float)range, 8, e => e is EntityLaborEidolon && e.Alive)
@@ -62,7 +61,7 @@ public partial class SharedWorldScenarios
         var body = BodyOf(gantry);
         var ghost = gantry.CellPos(new Int3(1, 0, 0));
         var crank = CrankOf(gantry);
-        Assert.Contains("Body, next stage: torso, still needs", GantryInfo(gantry, player));
+        Assert.Contains("Body, next stage: torso, still needs", MachineTest.Info(gantry, player));
         // the crank is selectable once fitted, though its cell is hollow
         Assert.NotEmpty(W.BlockAccessor.GetBlock(crank).GetSelectionBoxes(W.BlockAccessor, crank));
         Assert.Empty(W.BlockAccessor.GetBlock(crank).GetCollisionBoxes(W.BlockAccessor, crank));
@@ -132,7 +131,7 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem(BodyBill.TemporalGear)));
         Assert.True(body.Parts.Complete);
         Assert.True(body.Shows("mind"));
-        Assert.Contains("turn the winch's crank", GantryInfo(gantry, player));
+        Assert.Contains("turn the winch's crank", MachineTest.Info(gantry, player));
         Assert.Empty(EidolonsNear(gantry.Pos));
         // nothing more goes in, even the gear again
         Assert.Equal(1, CutterClick(player, gantry.Pos, CutterItem(BodyBill.TemporalGear))?.StackSize);
@@ -147,7 +146,7 @@ public partial class SharedWorldScenarios
         Assert.Equal("torso", body.Parts.Next);
         Assert.False(body.Shows("torso"));
         Assert.True(gantry.WinchComplete);
-        Assert.Contains("Body, next stage: torso", GantryInfo(gantry, player));
+        Assert.Contains("Body, next stage: torso", MachineTest.Info(gantry, player));
         // facing out of the open front (world west for a gantry facing south)
         Assert.Equal(Side.West, gantry.WorldSide(GantryRigOf.ExitSide));
         Assert.InRange(Math.Sin(woken.Pos.Yaw), -1.0, -0.99);
@@ -192,7 +191,7 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:jonasframes-spring01")));
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:metalnailsandstrips-stainlesssteel", 3)));
         Assert.Equal(17, body.Parts.Missing("joints", "game:metalnailsandstrips-stainlesssteel"));
-        Assert.Contains("stainless", GantryInfo(gantry, player), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("stainless", MachineTest.Info(gantry, player), StringComparison.OrdinalIgnoreCase);
 
         // saved and loaded: the progress and the joints' material kept
         var tree = new TreeAttribute();
@@ -212,8 +211,8 @@ public partial class SharedWorldScenarios
         var dropped = CutterItemsNear(gantry.Pos, 10);
         var expected = new Dictionary<string, int> { ["seraphhorizons:eidolongantry-birch-north"] = 1 };
         void Add(string code, int n) => expected[code] = expected.GetValueOrDefault(code) + n;
-        foreach (var stage in GantryRequires.Stages)
-            Add(GantryParts.CodesFor(stage, "birch")[0], GantryParts.Needed(stage));
+        foreach (var stage in GantryWinch("birch").Stages)
+            Add(stage.Materials[0].Codes[0], stage.Materials[0].Quantity);
         foreach (var ing in BodyBill.Of("torso").Concat(BodyBill.Of("bones", wood)))
             Add(ing.Code, ing.Count);
         Add("game:jonasframes-spring01", 1);

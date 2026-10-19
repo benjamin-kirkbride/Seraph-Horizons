@@ -22,6 +22,9 @@ public class BEJawBreaker : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.JawBreaker;
 
+    /// <summary>Oiled, its job a rock broken (<see cref="BEOreMachine.WorkItem"/>).</summary>
+    protected override OilMachine? OilKind => OilMachine.JawBreaker;
+
     private int ChargeRocks => Api == null ? JawBreakerConfig.Defaults.ChargeRocks : JawBreakerSystem.Of(Api).Config.ChargeRocks;
 
     public override bool Takes(ItemStack stack) =>

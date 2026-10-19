@@ -37,6 +37,6 @@ public class StampBatterySystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 }

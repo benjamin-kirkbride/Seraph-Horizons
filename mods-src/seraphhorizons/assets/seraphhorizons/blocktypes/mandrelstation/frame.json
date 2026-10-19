@@ -3,9 +3,9 @@
 // pointing away. The server disables it with MandrelStation off.
 {
 	code: "mandrelstation",
-	class: "seraphhorizons.MandrelStation",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.MandrelStation",
-	// No HorizontalOrientable: BlockMandrelStation.TryPlaceBlock picks the side so the station
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the station
 	// extends away from the player, as the press brake does.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },

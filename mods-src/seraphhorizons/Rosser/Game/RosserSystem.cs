@@ -5,12 +5,15 @@ using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Rosser.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Common;
+using Vintagestory.API.Util;
 
 namespace SeraphHorizons.Mod.Rosser;
 
 /// <summary>
 /// The rosser, a mechanically powered ring debarker for Logging Expanded's trunks: registers its
-/// classes and holds what its blocks share: its settings (RosserSettings in
+/// block entity, names its rig to the shared machine base (<see cref="MachinesSystem.RegisterRig"/>; its frame,
+/// cells and power cell are the shared blocks, its build <c>config/builds/rosser.json</c>, its oil MachineOil's)
+/// and holds what its blocks share: its settings (RosserSettings in
 /// ModConfig/seraphhorizons.json), the rig (assets/seraphhorizons/config/rosser-rig.json: the
 /// footprint, anchors and moving parts), the pace, the bridge to Logging Expanded, Immersive
 /// Woodworking's bark and the scraper heads' tiers and durabilities. It is built from Immersive
@@ -26,14 +29,14 @@ public class RosserSystem : ModSystem
     public const string Domain = "seraphhorizons";
     public const string IwModId = "immersivewoodworking";
     public const string LeModId = "loggingmod";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "rosser";
     public static readonly AssetLocation RigAsset = new(Domain, "config/rosser-rig.json");
     public static readonly AssetLocation RecipeAsset = new(Domain, "recipes/grid/rosser.json");
     public static readonly AssetLocation[] BlockAssets =
     [
         new(Domain, "blocktypes/rosser/frame.json"),
-        new(Domain, "blocktypes/rosser/ghost.json"),
-        new(Domain, "blocktypes/rosser/ghostpower.json"),
-        new(Domain, "blocktypes/rosser/ghostwater.json"),
     ];
 
     private ICoreAPI? _api;
@@ -111,16 +114,16 @@ public class RosserSystem : ModSystem
     /// else any (null).</summary>
     public IReadOnlySet<string>? PartMetals =>
         _api != null && SeraphHorizonsSystem.ConfigFor(_api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(_api)
-            ? RosserParts.IronMetals
+            ? RosserBuild.IronMetals
             : null;
 
-    /// <summary>Whether the rosser needs its drip pipes (<see cref="RosserParts.PipesNeeded"/>): Pipes
+    /// <summary>Whether the rosser needs its drip pipes (the build's <c>ifExists</c> material): Pipes
     /// and Power Expanded's straight pipe exists in copper and lead, the metals UnifiedPipes adds.
     /// Without ppex, or with UnifiedPipes off, it does not, and the rosser is built without pipes.
     /// Each side asks its own world, which has the same blocks.</summary>
     public bool PipesNeeded =>
         _api?.World is { } world
-        && RosserParts.PipeMetals.All(m => world.GetBlock(new AssetLocation(RosserParts.PipeCode(m))) is { Id: > 0, IsMissing: false });
+        && RosserBuild.PipeMetals.All(m => world.GetBlock(new AssetLocation(RosserBuild.PipeCode(m))) is { Id: > 0, IsMissing: false });
 
     /// <summary>
     /// The tool tier of scraper heads of <paramref name="metal"/>, as the mill finds its blade
@@ -166,7 +169,7 @@ public class RosserSystem : ModSystem
                                  && spud.GetMaxDurability(new ItemStack(spud)) is > 1 and var d
                     ? d
                     : HeadMetals.SpudDurability(metal) ?? HeadMetals.SpudDurability("copper")!.Value;
-                _headCapacities[metal] = capacity = RosserParts.HeadCapacity(durability, Config.HeadWearMultiple);
+                _headCapacities[metal] = capacity = RosserBuild.HeadCapacity(durability, Config.HeadWearMultiple);
             }
             return capacity;
         }
@@ -185,14 +188,25 @@ public class RosserSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.Rosser", typeof(BlockRosser));
-        api.RegisterBlockClass("seraphhorizons.RosserGhost", typeof(BlockRosserGhost));
-        api.RegisterBlockClass("seraphhorizons.RosserGhostPower", typeof(BlockRosserGhostPower));
-        api.RegisterBlockClass("seraphhorizons.RosserGhostWater", typeof(BlockRosserGhostWater));
         api.RegisterBlockEntityClass("seraphhorizons.Rosser", typeof(BERosser));
-        api.RegisterBlockEntityClass("seraphhorizons.RosserGhost", typeof(BERosserGhost));
-        api.RegisterBlockEntityBehaviorClass("seraphhorizons.RosserMP", typeof(BEBehaviorRosserMP));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
+
+    /// <summary>One clean size per wood, for the help line: enough to show what goes in. Only woods the game has
+    /// logs of: Logging Expanded has trunks of other mods' woods too, which draw without a texture when that mod
+    /// is not installed.</summary>
+    public ItemStack[] TrunkStacks() => _api == null ? [] : ObjectCacheUtil.GetOrCreate(_api, "rosser-trunks", () => _api.World.Blocks
+        .Where(b => b?.Code is { Domain: LoggingBridge.ModId } c && c.Path.StartsWith("treetrunk-", StringComparison.Ordinal)
+                    && b.Variant["size"] == "md" && b.Variant["branches"] == "yes" && b.Variant["side"] == "north"
+                    && _api.World.GetBlock(new AssetLocation("game", $"log-placed-{b.Variant["wood"]}-ud")) != null)
+        .Select(b => new ItemStack(b))
+        .ToArray());
+
+    /// <summary>Four scraper heads of every metal there is, for the help line.</summary>
+    public ItemStack[] HeadStacks() => _api == null ? [] : ObjectCacheUtil.GetOrCreate(_api, "rosser-heads", () => _api.World.Items
+        .Where(i => RosserBuild.HeadMetalOf(i?.Code?.ToString()) != null)
+        .Select(i => new ItemStack(i, RosserBuild.HeadsNeeded))
+        .ToArray());
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
     // it ready. Blocktypes and recipes are read from the assets later in this phase (the game's

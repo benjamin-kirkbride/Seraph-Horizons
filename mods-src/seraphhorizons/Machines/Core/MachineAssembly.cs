@@ -15,6 +15,8 @@ public enum AssemblyVerdict
     NotWorn,
     /// <summary>The material is all one kind, and another is in (the water line's metal).</summary>
     OtherKind,
+    /// <summary>A durable wearing part's item with no durability left (a spent die).</summary>
+    Spent,
 }
 
 /// <summary>A click's result: the verdict, how many of the held stack to take, and the stage it went
@@ -62,27 +64,38 @@ public sealed class MachineAssembly
     public bool Shows(string? requires) => Build.Fitted(requires) && Wearing.Shows(requires);
 
     /// <summary>What a click with <paramref name="held"/> of <paramref name="code"/> (stacking to
-    /// <paramref name="maxStack"/>) would do, without doing it.</summary>
-    public AssemblyClick Check(string? code, int held, int maxStack = int.MaxValue) => Click(code, held, maxStack, apply: false);
+    /// <paramref name="maxStack"/>) would do, without doing it. <paramref name="uses"/> is the held item's
+    /// durability left, for a durable wearing part (null for anything else).</summary>
+    public AssemblyClick Check(string? code, int held, int maxStack = int.MaxValue, double? uses = null) =>
+        Click(code, held, maxStack, uses, apply: false);
 
     /// <summary>A right-click with the stack: the caller takes <see cref="AssemblyClick.Take"/> from the
     /// slot when <see cref="AssemblyClick.Took"/>.</summary>
-    public AssemblyClick Fit(string? code, int held, int maxStack = int.MaxValue) => Click(code, held, maxStack, apply: true);
+    public AssemblyClick Fit(string? code, int held, int maxStack = int.MaxValue, double? uses = null) =>
+        Click(code, held, maxStack, uses, apply: true);
 
-    private AssemblyClick Click(string? code, int held, int maxStack, bool apply)
+    private AssemblyClick Click(string? code, int held, int maxStack, double? uses, bool apply)
     {
         if (Built)
         {
-            var verdict = Wearing.CanRenew(code, held, built: true, out var part);
+            var verdict = Wearing.CanRenew(code, held, built: true, out var part, uses);
             if (verdict == RenewVerdict.Renews)
             {
                 if (apply)
-                    Wearing.Renew(code, held, built: true);
+                    Wearing.Renew(code, held, built: true, uses);
                 return new AssemblyClick(AssemblyVerdict.Renewed, part!.Count, -1, part.Id);
             }
             if (verdict != RenewVerdict.NotAPart)
-                return new AssemblyClick(verdict == RenewVerdict.TooFew ? AssemblyVerdict.TooFew : AssemblyVerdict.NotWorn, 0, -1, part?.Id);
+                return new AssemblyClick(verdict switch
+                {
+                    RenewVerdict.TooFew => AssemblyVerdict.TooFew,
+                    RenewVerdict.Spent => AssemblyVerdict.Spent,
+                    _ => AssemblyVerdict.NotWorn,
+                }, 0, -1, part?.Id);
         }
+        // a durable wearing part's first set, fitted with its stage, with nothing left in it
+        if (uses is <= 0 && Wearing.Parts.FirstOrDefault(p => p.Durable && CodePattern.Normalise(code) is { } c && p.Matches(c)) is { } spent)
+            return new AssemblyClick(AssemblyVerdict.Spent, 0, -1, spent.Id);
         var fit = apply ? Build.Fit(code, held, maxStack) : Build.CanFit(code, held, maxStack);
         if (fit.Verdict != StageFitVerdict.Fits)
         {
@@ -98,10 +111,15 @@ public sealed class MachineAssembly
                 _ => AssemblyVerdict.NotAPart,
             }, 0, fit.Stage);
         }
+        if (apply && Build.Stages[fit.Stage].Materials[fit.Material].Wearing != null)
+            _firstUses[fit.Stage * 1000 + fit.Material] = uses;
         if (apply && Build.StageComplete(fit.Stage))
             FitFirstSets(fit.Stage);
         return new AssemblyClick(AssemblyVerdict.Fitted, fit.Count, fit.Stage);
     }
+
+    // a durable first set's durability, from the click that put it in until its stage completes
+    private readonly Dictionary<int, double?> _firstUses = [];
 
     /// <summary>A completed stage's wearing materials become their parts' first sets.</summary>
     private void FitFirstSets(int stage)
@@ -109,8 +127,15 @@ public sealed class MachineAssembly
         var materials = Build.Stages[stage].Materials;
         for (int m = 0; m < materials.Count; m++)
             if (materials[m].Wearing is { } id && Build.CodeIn(stage, m) is { } code)
-                Wearing.Renew(code, int.MaxValue, built: true);
+            {
+                _firstUses.Remove(stage * 1000 + m, out var uses);
+                Wearing.Renew(code, int.MaxValue, built: true, uses);
+            }
     }
+
+    /// <summary>Takes wearing part <paramref name="id"/>'s set back out (<see cref="WearingParts.Take"/>): its
+    /// code and the uses it had left, or null when none is fitted.</summary>
+    public (string Code, double Left)? Take(string id) => Wearing.Take(id);
 
     /// <summary>The creative shortcut: fills the next stage (and its wearing parts' first sets); once
     /// built, renews every wearing part. Returns whether anything changed.</summary>
@@ -155,18 +180,25 @@ public sealed class MachineAssembly
         Build.Snapshot().Where(kv => kv.Key.StartsWith($"{stage}/{material}/", StringComparison.Ordinal))
             .Select(kv => new StageDrop(kv.Key[($"{stage}/{material}/".Length)..], kv.Value));
 
-    /// <summary>Drops of the same code added together, in first-seen order.</summary>
+    /// <summary>Drops of the same code added together, in first-seen order; a durable part's (with its
+    /// durability) kept by itself, after them.</summary>
     public static IReadOnlyList<StageDrop> Merge(IEnumerable<StageDrop> drops)
     {
         var order = new List<string>();
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var durable = new List<StageDrop>();
         foreach (var d in drops)
         {
+            if (d.Durability != null)
+            {
+                durable.Add(d);
+                continue;
+            }
             if (!counts.ContainsKey(d.Code))
                 order.Add(d.Code);
             counts[d.Code] = counts.GetValueOrDefault(d.Code) + d.Count;
         }
-        return order.Select(c => new StageDrop(c, counts[c])).ToList();
+        return [.. order.Select(c => new StageDrop(c, counts[c])), .. durable];
     }
 
     /// <summary>The build's snapshot (<see cref="StagedBuild.Snapshot"/>) and the wearing parts'

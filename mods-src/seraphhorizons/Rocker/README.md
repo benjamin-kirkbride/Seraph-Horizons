@@ -303,7 +303,8 @@ What the model assumes, for whoever builds the block entity and the renderer:
 - **No automated input or output.** Refuse hopper and chute insertion and extraction: the block entity
   offers no inventory to item transfer (vanilla hoppers and chutes, and any mod's), so nothing can put a
   charge in or take concentrate out but the player's hand. Its slots, if it keeps the charge and the
-  concentrate in an inventory, are internal.
+  concentrate in an inventory, are internal. (On the shared machine base the block entity is a
+  `BlockEntityContainer`, but its inventory has no slots: the state is fields of its own.)
 - **Tailings** fall to the ground at `tailings.pos`, the cell west of the rocker (one layer of vanilla
   layered gravel a rock, in the ore's host rock, #694), and splash at `outflow`; they are placed in the world,
   never handed to a container or a chute.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines.Core;
@@ -15,48 +16,29 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.Machines;
 
 /// <summary>
-/// An ore machine's controller (#711, #694): the shared game half of every ore machine, each machine a
-/// subclass naming its figures (<see cref="Kind"/>) and its job (<see cref="Takes"/>,
-/// <see cref="Products"/>, or its own <see cref="Work"/>). It keeps:
+/// An ore machine's controller (#711, #694): the ore half every ore machine shares, on the machine base
+/// (<see cref="BEMachine"/>: build, cells, running rules, power, water, fire, info, renderer), each machine a
+/// subclass naming its figures (<see cref="Kind"/>) and its job (<see cref="Takes"/>, <see cref="Products"/>, or
+/// its own <see cref="BEMachine.Work"/>). It adds:
 /// <list type="bullet">
-/// <item>its build and wearing parts (<see cref="MachineAssembly"/> from <c>config/builds/{machine}.json</c>):
-/// a right-click fits the next stage or renews a worn-out set; the creative shortcut (Ctrl) fits the next
-/// stage; breaking gives back everything that went in;</item>
-/// <item>its cells (<see cref="BlockOreMachineCell"/>), stamped from the rig and kept;</item>
-/// <item>the running rules (<see cref="MachineRun"/>): built, parts fitted, the shaft at
-/// <see cref="OreMachinesConfig.MinSpeed"/> or faster, an item's water, room for the output; work in
-/// shaft turns (<see cref="WorkTurns"/>) at the machine's turns an item, so its rate follows its speed;</item>
-/// <item>its load (<see cref="Resistance"/>): <see cref="MachineLoad.Resistance"/> of the job's
-/// figure (<see cref="OreRecovery.LoadAt"/> at <see cref="JobFill"/>);</item>
-/// <item>its reservoir (<see cref="MachineReservoir"/>), filled from a ppex pipe at the rig's <c>water</c>
-/// anchor (<see cref="PpexWater"/>) or by <see cref="FillWater"/>;</item>
+/// <item>its figures in ore-core (<see cref="Spec"/>): its load (<see cref="OreRecovery.LoadAt"/> at
+/// <see cref="JobFill"/>), the water an item takes, its turns an item, so its rate follows its speed
+/// (<see cref="WorkTurns"/>); the shared settings' minimum speed and reservoir (<see cref="OreMachinesConfig"/>);</item>
 /// <item>its infeed (slot 0) and its output anchors' slots: a chute into the infeed cell's face
-/// fills its buffer (<see cref="BEOreMachineCell"/>), a hand puts in what the machine takes, and each
+/// fills its buffer (<see cref="BEMachineCell"/>), a hand puts in what the machine takes, and each
 /// product leaves through its anchor's face into a chute or container (<see cref="MachineChutes"/>),
 /// held while the one there is full (the machine then stops, blocked); with nothing there it drops on the
 /// ground in front of the face, or for <c>tailings</c> (<see cref="DiscardsAt"/>) is discarded on a heap
 /// (<see cref="Tailings"/>), and the machine runs on (<see cref="Outlet"/>).</item>
 /// </list>
-/// The client draws it (<see cref="OreMachineRenderer"/>).
 /// </summary>
-public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
+public abstract class BEOreMachine : BEMachine
 {
     public const string Infeed = OreMachineRig.Infeed, Tailings = "tailings";
     private static readonly AssetLocation WorkSound = new("game", "sounds/block/rock-hit-pickaxe");
 
-    private InventoryGeneric _inventory = null!;
-    private MachineAssembly? _assembly;
     private WorkTurns _turns = WorkTurns.None;
-    private MachineReservoir _water = MachineReservoir.Empty;
     private TailingsOwed _owed = TailingsOwed.None;
-    private MachineState _state = MachineState.NotBuilt;
-    private ProgressSync _progressSync = ProgressSync.None;
-    private float _lastAngle;
-    private bool _angleSeeded;
-    private float? _serverMinSpeed;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private Dictionary<Int3, Cuboidf[]>? _collision;
-    private OreMachineRenderer? _renderer;
     private string[]? _outputs;
 
     /// <summary>The machine's figures in ore-core (#765), or null for one that has none.</summary>
@@ -69,26 +51,19 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// output anchor name. Called once an item by the default <see cref="Work"/>.</summary>
     protected abstract IEnumerable<(string Anchor, ItemStack Stack)> Products(ItemStack fed);
 
-    public string Machine => (Block as BlockOreMachine)?.Machine ?? Block.Code.FirstCodePart();
-    public Side Side { get; private set; } = Side.North;
-    public OreMachineRig? Rig => (Block as BlockOreMachine)?.Rig;
-    public MachineAssembly? Assembly => _assembly;
-    public bool Built => _assembly?.Built == true;
-    public MachineState State => _state;
-    public MachineReservoir Water => _water;
+    public new OreMachineRig? Rig => base.Rig as OreMachineRig;
     public WorkTurns Turns => _turns;
 
     /// <summary>The share of the item or charge in hand done, 0 to 1, shown as a percent next to "Working"
     /// (<see cref="MachineRun.Percent"/>); null where it has none. The default is the continuous machines':
     /// the turns counted toward the next item (<see cref="Turns"/>). A machine that counts its work some
     /// other way (in-game hours, a charge's turns, a burn) gives its own, from what it saves and syncs.</summary>
-    public virtual double? WorkProgress => Spec is { TurnsPerItem: > 0 } spec ? _turns.Progress(spec.TurnsPerItem) : null;
+    public override double? WorkProgress => Spec is { TurnsPerItem: > 0 } spec ? _turns.Progress(spec.TurnsPerItem) : null;
 
-    public override InventoryBase Inventory => _inventory;
     public override string InventoryClassName => "oremachine";
 
     /// <summary>The infeed slot.</summary>
-    public ItemSlot InfeedSlot => _inventory[0];
+    public ItemSlot InfeedSlot => Inventory[0];
 
     /// <summary>Slots an output anchor holds products in (one item can give several kinds).</summary>
     public const int SlotsPerOutput = 4;
@@ -104,12 +79,12 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         if (i < 0)
             yield break;
         for (int k = 0; k < SlotsPerOutput; k++)
-            yield return _inventory[1 + i * SlotsPerOutput + k];
+            yield return Inventory[1 + i * SlotsPerOutput + k];
     }
 
     protected OreMachinesSystem System => OreMachinesSystem.Of(Api);
     protected OreMachinesConfig Config => System.Config;
-    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
+    protected override float ConfigMinSpeed => Config.MinSpeed;
 
     /// <summary>The machine's figures (load, water an item, rate), or null.</summary>
     public OreMachineSpec? Spec
@@ -142,106 +117,24 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     public virtual double JobFill => InfeedSlot.Empty ? 0 : 1;
 
     /// <summary>Whether there is something to work.</summary>
-    public virtual bool HasWork => !InfeedSlot.Empty;
+    public override bool HasWork => !InfeedSlot.Empty;
 
     /// <summary>Whether a product made now has somewhere to go: every held product gone. Only a chute or
     /// container attached and backed up holds one (<see cref="Deliver"/>).</summary>
-    public virtual bool OutputRoom => Outputs.All(a => OutputSlots(a).All(s => s.Empty));
+    public override bool OutputRoom => Outputs.All(a => OutputSlots(a).All(s => s.Empty));
 
     /// <summary>The water an item takes, 0 for a dry machine.</summary>
-    public double WaterPerItem => Spec?.WaterPerItem ?? 0;
+    public override double WaterPerItem => Spec?.WaterPerItem ?? 0;
 
-    public double ReservoirCapacity => MachineReservoir.Capacity(Config, WaterPerItem);
+    public override double ReservoirCapacity => MachineReservoir.Capacity(Config, WaterPerItem);
 
-    /// <summary>The load on the shaft now.</summary>
-    public virtual float Resistance =>
-        MachineLoad.Resistance(Built, Kind is { } k && Api != null ? OreProcessingSystem.RecoveryFor(Api).LoadAt(k, JobFill) : 0);
+    protected override double WaterIntakePerSecond => Config.WaterIntakeLitresPerSecond;
 
-    public BlockFacing PowerFace => Rig?.Anchor(OreMachineRig.Power) is { } a
-        ? BlockFacing.FromCode(CellFaces.ToWorld(a.Face, Side).Code())
-        : BlockFacing.UP;
+    /// <summary>The job's load: <see cref="OreRecovery.LoadAt"/> of its figure at <see cref="JobFill"/>.</summary>
+    protected override double ShaftLoad =>
+        Kind is { } k && Api != null ? OreProcessingSystem.RecoveryFor(Api).LoadAt(k, JobFill) : 0;
 
-    /// <summary>The power cell's mechanical power behavior.</summary>
-    public BEBehaviorMachineMP? Power =>
-        Api != null && Rig?.Anchor(OreMachineRig.Power) is { } a
-            ? Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell))?.GetBehavior<BEBehaviorMachineMP>()
-            : null;
-
-    /// <summary>Whether the power cell is the controller's own: its block type then carries
-    /// <c>seraphhorizons.MachineMP</c> itself.</summary>
-    public bool PowerAtController => Rig?.Anchor(OreMachineRig.Power) is { Cell: var c } && c == Int3.Zero;
-
-    /// <summary>Whether the machine takes power: its rig has a power anchor.</summary>
-    public bool Powered => Rig?.Anchor(OreMachineRig.Power) != null;
-
-    public float ShaftAngle => Power?.AngleRad ?? 0;
-    public float ShaftSpeed => Power?.TrueSpeed ?? 0;
-    public bool Running => _state == MachineState.Working;
-
-    /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn.</summary>
-    public virtual bool ShowsPart(string? requires) => _assembly?.Shows(requires) ?? requires == null;
-
-    /// <summary>The rig's depth input the renderer draws the parts at (a furnace's fire door, slid shut at 1); 0, the
-    /// rest pose, by default.</summary>
-    public virtual double PartDepth => 0;
-
-    /// <summary>Whether the moving parts move: the shaft is held still until the machine is built.</summary>
-    public virtual bool Animates => Built;
-
-    // ---- Textures (the renderer's) ----
-
-    /// <summary>What the parts' textures depend on beyond the block's own (the stall roaster's brick type):
-    /// the renderer builds its meshes again when it changes. Empty by default.</summary>
-    public virtual string TextureKey => "";
-
-    /// <summary>The textures the renderer draws the parts with: the frame block's, by default.</summary>
-    public virtual ITexPositionSource PartTextures(ICoreClientAPI capi) => capi.Tesselator.GetTextureSource(Block);
-
-    // ---- Fire (a furnace's: lit as the forge is, with a firestarter or a torch on any cell) ----
-
-    /// <summary>Why the machine cannot be lit now (a message), or null when it can. A machine that is never
-    /// lit (the default) says nothing: <see cref="Ignitable"/> is false.</summary>
-    public virtual string? CannotIgnite() => null;
-
-    /// <summary>Whether the machine is lit at all: a furnace. False by default.</summary>
-    public virtual bool Ignitable => false;
-
-    /// <summary>Whether it is burning now, so a torch can be lit from it.</summary>
-    public virtual bool Burning => false;
-
-    /// <summary>Lights it (server side), or tells the player why not.</summary>
-    public virtual void Ignite(IPlayer? byPlayer)
-    {
-    }
-
-    public override void Initialize(ICoreAPI api)
-    {
-        _inventory ??= NewInventory();
-        // before the behaviors start: the power behavior reads the power face, which turns with the side
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        base.Initialize(api);
-        if (_assembly == null && System.Build(Machine) is { } spec)
-            _assembly = new MachineAssembly(spec);
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-        {
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureCells();
-            }, 100);
-            RegisterGameTickListener(OnMachineTick, 100);
-            RegisterGameTickListener(_ => EnsureCells(), 1000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 250);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockOreMachine)
-                _renderer = new OreMachineRenderer(capi, this, rig);
-        }
-    }
-
-    private InventoryGeneric NewInventory()
+    protected override InventoryBase NewInventory()
     {
         var inv = new InventoryGeneric(1 + MaxOutputs * SlotsPerOutput, null, null);
         // chutes take from the outputs only through their own push (MachineChutes.TryPush), never pull
@@ -268,24 +161,20 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
 
     // ---- Cells ----
 
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    public Vec3d WorldPoint(Float3 native) => MachinePoints.WorldPoint(Pos, native, Side);
-
-    private Int3 LocalOf(BlockPos cell) => Footprint.ToLocal(new Int3(cell.X - Pos.X, cell.Y - Pos.Y, cell.Z - Pos.Z), Side);
-
     /// <summary>The infeed cell's block entity, when <paramref name="cell"/> is the infeed cell and
     /// <paramref name="face"/> its infeed face; else null.</summary>
-    public BEOreMachineCell? InfeedBuffer(BlockPos cell, BlockFacing face)
+    public BEMachineCell? InfeedBuffer(BlockPos cell, BlockFacing face)
     {
         if (Rig?.Anchor(Infeed) is not { } a || !IsInfeedFace(face) || !CellPos(a.Cell).Equals(cell))
             return null;
-        return Api.World.BlockAccessor.GetBlockEntity(cell) as BEOreMachineCell;
+        return Api.World.BlockAccessor.GetBlockEntity(cell) as BEMachineCell;
     }
+
+    /// <summary>A chute into the infeed cell's infeed face, or into a side feed's, fills that cell's buffer
+    /// with what the machine (or the side feed) takes.</summary>
+    public override bool CellTakes(BlockPos cell, BlockFacing face, ItemStack stack) =>
+        InfeedBuffer(cell, face) != null && Takes(stack)
+        || SideFeedAt(cell, face) is { } feed && SideFeedTakes(feed, stack);
 
     // ---- Side feeds (a furnace's fuel chute) ----
 
@@ -319,7 +208,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         {
             if (Rig?.Anchor(name) is not { } a || a.Cell == Int3.Zero || SideFeedSlot(name) is not { } target)
                 continue;
-            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell)) is not BEOreMachineCell cell || cell.Buffer.Empty)
+            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell)) is not BEMachineCell cell || cell.Buffer.Empty)
                 continue;
             var stack = cell.Buffer.Itemstack;
             if (!SideFeedTakes(name, stack))
@@ -340,266 +229,44 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         return moved;
     }
 
-    /// <summary>Whether <paramref name="face"/> of the cell at <paramref name="cell"/> is one of the
-    /// machine's anchors (a pipe or chute meets it there).</summary>
-    public bool AnchorFaceAt(BlockPos cell, BlockFacing face)
-    {
-        if (Rig is not { } rig)
-            return false;
-        var local = LocalOf(cell);
-        return rig.AnchorsAt(local).Any(a => CellFaces.ToWorld(a.Face, Side).Code() == face.Code);
-    }
-
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
-
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig)
-            return;
-        var side = Side;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
-        foreach (var c in rig.Cells)
-            if (c.LidBox is { } lid)
-                collision[c.Pos] = [.. cells[c.Pos], World(lid)];
-        _cells = cells;
-        _collision = collision;
-    }
-
-    private IEnumerable<(BlockPos Pos, Block? Block)> CellBlocks()
-    {
-        if (Rig is not { } rig)
-            yield break;
-        var power = rig.Anchor(OreMachineRig.Power);
-        foreach (var cell in rig.OtherCells)
-        {
-            var code = power is { } p && p.Cell == cell.Pos
-                ? BlockOreMachineCellPower.CodeFor(PowerFace)
-                : BlockOreMachineCell.CellCode;
-            yield return (CellPos(cell.Pos), Api.World.GetBlock(code));
-        }
-    }
-
-    public void PlaceCells()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        foreach (var (pos, block) in CellBlocks())
-            if (block != null)
-                StampCell(block, pos);
-    }
-
-    private void StampCell(Block block, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(block.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEOreMachineCell be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores cells that went missing, and points every cell back here.</summary>
-    public void EnsureCells()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, expected) in CellBlocks())
-        {
-            if (expected == null || ba.GetChunkAtBlockPos(pos) == null)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEOreMachineCell be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockOreMachineCell)
-                StampCell(expected, pos);
-        }
-    }
-
-    /// <summary>Clears the cells, dropping what a chute left in the infeed's buffer.</summary>
-    public void RemoveCells()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, _) in CellBlocks())
-            if (ba.GetBlock(pos) is BlockOreMachineCell && ba.GetBlockEntity(pos) is BEOreMachineCell be && Pos.Equals(be.Principal))
-            {
-                if (!be.Buffer.Empty)
-                    Api.World.SpawnItemEntity(be.Buffer.TakeOutWhole(), pos.ToVec3d().Add(0.5, 0.5, 0.5));
-                ba.SetBlock(0, pos);
-            }
-    }
-
     // ---- Interaction ----
 
-    /// <summary>A right-click on the machine's own contents before the build's (a batch machine's
-    /// charge, a bucket of water, the product drawn out): true or false when handled (whether the click
-    /// was the machine's), null to go on. Runs on both sides; act on the server.</summary>
-    protected virtual bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel) => null;
-
-    /// <summary>
-    /// Right-click on the machine or any of its cells: the machine's own (<see cref="InteractContent"/>);
-    /// in creative mode, Ctrl on a machine still being built fits its next stage; a stage's material
-    /// fits it, a worn-out set's renews it; else something the machine takes goes into its infeed.
-    /// Decided and done on the server; the client only says whether the click is the machine's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
+    /// <summary>Something the machine takes goes into its infeed, as much as fits.</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
-        if (InteractContent(byPlayer, slot, blockSel) is { } handled)
-            return handled;
-        if (_assembly is not { } assembly)
+        if (slot.Itemstack is not { } stack || Outputs.Length == 0 || !Takes(stack))
             return false;
-        var controls = byPlayer.Entity.Controls;
-        bool creative = byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative;
-        if (!assembly.Built && CreativeUpgrades.Applies(creative, controls.CtrlKey, controls.ShiftKey))
-        {
-            if (Api.Side == EnumAppSide.Server && assembly.FillNext())
-            {
-                Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-                MarkDirty(true);
-            }
+        if (Api.Side != EnumAppSide.Server)
             return true;
-        }
-        var stack = slot?.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack == null || code == null)
-            return false;
-        int held = creative ? int.MaxValue / 2 : stack.StackSize;
-        var check = assembly.Check(code, held, stack.Collectible.MaxStackSize);
-        if (check.Verdict != AssemblyVerdict.NotAPart)
-        {
-            if (Api.Side != EnumAppSide.Server)
-                return true;
-            var click = assembly.Fit(code, held, stack.Collectible.MaxStackSize);
-            if (!click.Took)
-                return Error(byPlayer, MachineText.Error(click, Api.World, Machine, assembly), click.ErrorLangCode);
-            if (!creative)
-            {
-                slot!.TakeOut(click.Take);
-                slot.MarkDirty();
-            }
-            Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-            Api.World.Logger.Audit("{0} fitted {1}x{2} to the {3} at {4}.", byPlayer.PlayerName, click.Take, code, Machine, Pos);
-            MarkDirty(true);
-            return true;
-        }
-        if (Outputs.Length > 0 && Takes(stack))
-        {
-            if (Api.Side != EnumAppSide.Server)
-                return true;
-            int moved = Math.Min(InfeedRoom(stack), stack.StackSize);
-            if (moved <= 0)
-                return Error(byPlayer, Lang.Get("seraphhorizons:machine-error-infeedfull"), "seraphhorizons:machine-error-infeedfull");
-            var op = new ItemStackMoveOperation(Api.World, EnumMouseButton.Right, 0, EnumMergePriority.AutoMerge, moved);
-            slot!.TryPutInto(InfeedSlot, ref op);
-            slot.MarkDirty();
-            MarkDirty(true);
-            return true;
-        }
-        return false;
-    }
-
-    private bool Error(IPlayer byPlayer, string? message, string? code)
-    {
-        if (message != null && byPlayer is IServerPlayer sp)
-            sp.SendIngameError(code ?? "oremachine", message);
+        int moved = Math.Min(InfeedRoom(stack), stack.StackSize);
+        if (moved <= 0)
+            return Error(byPlayer, Lang.Get("seraphhorizons:machine-error-infeedfull"), "seraphhorizons:machine-error-infeedfull");
+        var op = new ItemStackMoveOperation(Api.World, EnumMouseButton.Right, 0, EnumMergePriority.AutoMerge, moved);
+        slot.TryPutInto(InfeedSlot, ref op);
+        slot.MarkDirty();
+        MarkDirty(true);
         return true;
     }
 
-    /// <summary>The block's interaction help: the next stage's materials, a worn-out set, what it takes,
-    /// the creative shortcut.</summary>
-    public virtual WorldInteraction[] InteractionHelp(IPlayer forPlayer)
+    /// <summary>The feed line: what the machine takes (<see cref="FeedStacks"/>).</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
     {
-        var help = new List<WorldInteraction>();
-        if (_assembly is not { } assembly)
-            return [];
-        var world = Api.World;
-        if (!assembly.Built)
-        {
-            var stacks = assembly.Build.NextNeeds().SelectMany(n => Stacks(world, n.Material.Codes, n.Missing)).ToArray();
-            if (stacks.Length > 0)
-                help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:machine-help-fit", MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
-            if (forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative)
-                help.AddRange(SplittingBlockUpgrades.CreativeUpgradeHelp);
-            return help.ToArray();
-        }
-        foreach (var part in assembly.Wearing.Parts.Where(p => assembly.Wearing.Fitted(p.Id) is not { Left: > 0 }))
-            if (Stacks(world, part.Codes, part.Count) is { Length: > 0 } stacks)
-                help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:machine-help-renew", MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
-        if (Outputs.Length > 0 && FeedStacks(world) is { Length: > 0 } feed)
+        if (Outputs.Length > 0 && FeedStacks(Api.World) is { Length: > 0 } feed)
             help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:machine-help-feed", MouseButton = EnumMouseButton.Right, Itemstacks = feed });
-        return help.ToArray();
     }
 
     /// <summary>Stacks the help shows for what the machine takes; none by default.</summary>
     protected virtual ItemStack[] FeedStacks(IWorldAccessor world) => [];
 
-    private static ItemStack[] Stacks(IWorldAccessor world, IEnumerable<string> codes, int count)
-    {
-        var stacks = new List<ItemStack>();
-        foreach (var code in codes)
-        {
-            var loc = new AssetLocation(code);
-            IEnumerable<CollectibleObject> found = code.Contains('*')
-                ? world.SearchItems(loc).Cast<CollectibleObject>().Concat(world.SearchBlocks(loc)).Take(8)
-                : new CollectibleObject?[] { world.GetItem(loc), world.GetBlock(loc) }.OfType<CollectibleObject>();
-            stacks.AddRange(found.Where(c => c is { Id: > 0, IsMissing: false }).Select(c => new ItemStack(c, Math.Max(1, count))));
-        }
-        return stacks.ToArray();
-    }
-
     // ---- Running ----
 
-    private void OnMachineTick(float dt)
+    /// <summary>Moves what chutes brought in and pushes held products on.</summary>
+    protected override bool Tick(float dt)
     {
-        if (_assembly == null)
-            return;
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
-        float advance = _angleSeeded ? ShaftClock.AngleAdvance(_lastAngle, angle, speed, dt) : 0;
-        _lastAngle = angle;
-        _angleSeeded = true;
-
         bool dirty = PullInfeed();
         dirty |= PullSideFeeds();
         dirty |= PushOutputs();
-        FillFromPipe(dt);
-
-        var state = MachineRun.StateOf(new MachineCheck(Built, _assembly.Wearing.AllFitted, Powered, speed,
-            Wet, HasWork, OutputRoom), Config.MinSpeed);
-        if (MachineRun.Works(state))
-            dirty |= Powered ? advance > 0 && Work(advance) : WorkUnpowered(dt);
-        if (state != _state)
-        {
-            _state = state;
-            dirty = true;
-        }
-        // The percent next to "Working" moves on the client only when the machine syncs (ProgressSync).
-        int? percent = MachineRun.Works(state) ? MachineRun.Percent(WorkProgress) : null;
-        double now = Api.World.ElapsedMilliseconds / 1000.0;
-        dirty |= _progressSync.Due(percent, now);
-        if (dirty)
-        {
-            _progressSync = _progressSync.Sent(percent, now);
-            MarkDirty(true);
-        }
+        return dirty;
     }
 
     /// <summary>
@@ -609,7 +276,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// spending an item's water and wearing every wearing part a use, its products delivered at their
     /// anchors (<see cref="Deliver"/>).
     /// </summary>
-    protected virtual bool Work(double radians)
+    protected override bool Work(double radians)
     {
         if (Spec is not { TurnsPerItem: > 0 } spec)
             return false;
@@ -627,22 +294,15 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         return changed;
     }
 
-    /// <summary>
-    /// Works <paramref name="dt"/> real seconds of a machine with no power anchor (water and gravity,
-    /// the sluice): server side, while the state is <see cref="MachineState.Working"/>. None by default:
-    /// such a machine counts its own time (in-game hours, <c>WorkHours</c>) and works its items with
-    /// <see cref="WorkItem"/>.
-    /// </summary>
-    protected virtual bool WorkUnpowered(float dt) => false;
-
     /// <summary>Works one item of the infeed as the default <see cref="Work"/> does (its water, a use of
-    /// every wearing part, its products at their anchors); false when it cannot now.</summary>
+    /// every wearing part, a job's oil, its products at their anchors); false when it cannot now.</summary>
     protected bool WorkItem()
     {
-        if (_assembly is not { } assembly || !HasWork || !OutputRoom || !_water.Holds(WaterPerItem))
+        if (Assembly is not { } assembly || !HasWork || !OutputRoom || !Water.Holds(WaterPerItem))
             return false;
-        (_water, _) = _water.Spend(WaterPerItem);
+        SpendWater(WaterPerItem);
         assembly.Wearing.WearAll(1);
+        DrainOil(1);
         var fed = InfeedSlot.TakeOut(1);
         InfeedSlot.MarkDirty();
         foreach (var (anchor, product) in Products(fed))
@@ -732,7 +392,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     {
         if (Rig?.Anchor(Infeed) is not { } a || a.Cell == Int3.Zero)
             return false;
-        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell)) is not BEOreMachineCell cell || cell.Buffer.Empty)
+        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell)) is not BEMachineCell cell || cell.Buffer.Empty)
             return false;
         if (!Takes(cell.Buffer.Itemstack) || !CanMerge(InfeedSlot, cell.Buffer.Itemstack))
             return false;
@@ -770,185 +430,40 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         return moved;
     }
 
-    private void FillFromPipe(float dt)
-    {
-        double per = WaterPerItem;
-        if (per <= 0 || Rig?.Anchor(OreMachineRig.Water) is not { } a)
-            return;
-        double cap = ReservoirCapacity;
-        double wanted = _water.Wanted(cap, Config.WaterIntakeLitresPerSecond, dt);
-        if (wanted <= 1e-6)
-            return;
-        var (cell, face) = MachineChutes.World(Pos, Side, a);
-        double got = PpexWater.Draw(Api, cell, face, wanted);
-        if (got > 0)
-            FillWater(got);
-    }
-
-    /// <summary>Whether the reservoir holds the water the next work takes: an item's, by default.</summary>
-    protected virtual bool Wet => _water.Holds(WaterPerItem);
-
-    /// <summary>Spends <paramref name="litres"/> of the reservoir if it holds them; whether it did.</summary>
-    protected bool SpendWater(double litres)
-    {
-        (_water, bool spent) = _water.Spend(litres);
-        return spent;
-    }
-
-    /// <summary>Puts <paramref name="litres"/> into the reservoir (never past full); the litres it took.</summary>
-    public double FillWater(double litres)
-    {
-        double before = _water.Litres;
-        _water = _water.Fill(litres, ReservoirCapacity);
-        return _water.Litres - before;
-    }
-
-    // The client's own: a broken machine's block entity brought back over air by a late update is dropped.
-    private void OnClientTick(float dt)
-    {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockOreMachine)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-        }
-    }
-
-    // ---- Breaking ----
-
-    /// <summary>What breaking the frame gives besides the frame: everything fitted (a worn-out wearing
-    /// set is gone). The inventory drops with the container.</summary>
-    public virtual IEnumerable<ItemStack> AssemblyDrops()
-    {
-        if (_assembly == null)
-            yield break;
-        foreach (var drop in _assembly.Returns())
-            if (StackOf(drop) is { } stack)
-                yield return stack;
-    }
-
-    private ItemStack? StackOf(StageDrop drop)
-    {
-        var loc = new AssetLocation(drop.Code);
-        CollectibleObject? c = (CollectibleObject?)Api.World.GetItem(loc) ?? Api.World.GetBlock(loc);
-        return c is { Id: > 0, IsMissing: false } && drop.Count > 0 ? new ItemStack(c, drop.Count) : null;
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveCells();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
-    }
-
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        if (_assembly != null)
-        {
-            var (build, wearing) = _assembly.Snapshot();
-            var b = new TreeAttribute();
-            foreach (var (key, count) in build)
-                b.SetInt(key, count);
-            tree["build"] = b;
-            var w = new TreeAttribute();
-            foreach (var (id, (code, left)) in wearing)
-            {
-                var part = new TreeAttribute();
-                part.SetString("code", code);
-                part.SetDouble("left", left);
-                w[id] = part;
-            }
-            tree["wearing"] = w;
-        }
         tree.SetDouble("turns", _turns.Turns);
-        tree.SetDouble("water", _water.Litres);
         tree.SetDouble("tailingsOwed", _owed.Layers);
-        tree.SetInt("state", (int)_state);
-        if (Api?.Side == EnumAppSide.Server)
-            tree.SetFloat("minSpeed", Config.MinSpeed);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
-        _inventory ??= NewInventory();
         base.FromTreeAttributes(tree, worldForResolving);
-        var spec = worldForResolving.Api.ModLoader.GetModSystem<OreMachinesSystem>()?.Build(MachineOf(worldForResolving, tree));
-        if (spec != null)
-        {
-            var build = new Dictionary<string, int>(StringComparer.Ordinal);
-            if (tree["build"] is ITreeAttribute b)
-                foreach (var (key, value) in b)
-                    if (value is IntAttribute i)
-                        build[key] = i.value;
-            var wearing = new Dictionary<string, (string, double)>(StringComparer.Ordinal);
-            if (tree["wearing"] is ITreeAttribute w)
-                foreach (var (id, value) in w)
-                    if (value is ITreeAttribute part && part.GetString("code") is { } code)
-                        wearing[id] = (code, part.GetDouble("left"));
-            _assembly = MachineAssembly.Restore(spec, build, wearing, out var dropped);
-            if (dropped.Count > 0 && worldForResolving.Side == EnumAppSide.Server && Pos != null)
-                worldForResolving.RegisterCallback(_ =>
-                {
-                    foreach (var d in dropped)
-                        if (StackOf(d) is { } stack)
-                            worldForResolving.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1, 0.5));
-                }, 1);
-        }
         double perTurns = Spec?.TurnsPerItem ?? 0;
         _turns = perTurns > 0 ? WorkTurns.Restore(tree.GetDouble("turns"), perTurns) : new WorkTurns(Math.Max(0, tree.GetDouble("turns")));
-        _water = new MachineReservoir(Math.Max(0, tree.GetDouble("water")));
         _owed = TailingsOwed.Restore(tree.GetDouble("tailingsOwed"));
-        _state = (MachineState)tree.GetInt("state", (int)MachineState.NotBuilt);
-        if (worldForResolving.Side == EnumAppSide.Client)
-            _serverMinSpeed = tree.TryGetFloat("minSpeed");
-    }
-
-    // The block is set (CreateBehaviors) before a save is read.
-    private string MachineOf(IWorldAccessor world, ITreeAttribute tree)
-    {
-        if (Block is BlockOreMachine b)
-            return b.Machine;
-        return Machine;
     }
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
-    {
-        if (_assembly == null)
-            return;
-        MachineText.AppendAssembly(dsc, Api.World, Machine, _assembly);
-        if (_assembly.Built)
-        {
-            MachineText.AppendState(dsc, _state, MinSpeed, Machine,
-                MachineRun.Works(_state) ? MachineRun.Percent(WorkProgress) : null);
-            if (WaterPerItem > 0)
-                MachineText.AppendWater(dsc, _water, ReservoirCapacity, WaterPerItem);
-        }
-        AppendContents(dsc);
-    }
-
     /// <summary>What the machine holds, for its block info.</summary>
-    protected virtual void AppendContents(StringBuilder dsc)
+    protected override void AppendContents(StringBuilder dsc)
     {
         if (!InfeedSlot.Empty)
             dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-infeed", InfeedSlot.StackSize, InfeedSlot.Itemstack.GetName()));
         foreach (var anchor in Outputs)
             foreach (var slot in OutputSlots(anchor).Where(s => !s.Empty))
                 dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-held", slot.StackSize, slot.Itemstack!.GetName()));
+    }
+
+    /// <summary>The turns toward the item in hand, of its turns an item, for a wrench.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (Built && Spec is { TurnsPerItem: > 0 } spec)
+            dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-turns",
+                _turns.Turns.ToString("0.##", CultureInfo.InvariantCulture), spec.TurnsPerItem.ToString("0.##", CultureInfo.InvariantCulture)));
     }
 }

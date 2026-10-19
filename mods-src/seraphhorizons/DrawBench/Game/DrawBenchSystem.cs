@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.DrawBench.Core;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -9,21 +10,24 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.DrawBench;
 
 /// <summary>
-/// The draw bench: registers its classes and holds what its blocks share: its settings
-/// (DrawBenchSettings in ModConfig/seraphhorizons.json) and the rig
-/// (assets/seraphhorizons/config/drawbench-rig.json). With the <c>DrawBench</c> switch off the
-/// server leaves its blocks, its dies and their recipes out of the game (<see cref="Disable"/>).
+/// The draw bench: registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame, cells and power cell are the shared blocks, its
+/// build <c>config/builds/drawbench.json</c>, its oil MachineOil's) and holds its settings (DrawBenchSettings
+/// in ModConfig/seraphhorizons.json) and the rig (assets/seraphhorizons/config/drawbench-rig.json). With the
+/// <c>DrawBench</c> switch off the server leaves its block, its dies and their recipes out of the game
+/// (<see cref="Disable"/>).
 /// </summary>
 public class DrawBenchSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "drawbench";
     public static readonly AssetLocation RigAsset = new(Domain, "config/drawbench-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/drawbench/frame.json"),
-        new(Domain, "blocktypes/drawbench/ghost.json"),
-        new(Domain, "blocktypes/drawbench/ghostpower.json"),
         new(Domain, "itemtypes/drawbench/drawdie.json"),
     ];
 
@@ -71,12 +75,8 @@ public class DrawBenchSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.DrawBench", typeof(BlockDrawBench));
-        api.RegisterBlockClass("seraphhorizons.DrawBenchGhost", typeof(BlockDrawBenchGhost));
-        api.RegisterBlockClass("seraphhorizons.DrawBenchGhostPower", typeof(BlockDrawBenchGhostPower));
         api.RegisterBlockEntityClass("seraphhorizons.DrawBench", typeof(BEDrawBench));
-        api.RegisterBlockEntityClass("seraphhorizons.DrawBenchGhost", typeof(BEDrawBenchGhost));
-        api.RegisterBlockEntityBehaviorClass("seraphhorizons.DrawBenchMP", typeof(BEBehaviorDrawBenchMP));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
@@ -100,7 +100,7 @@ public class DrawBenchSystem : ModSystem
         if (api.Side != EnumAppSide.Server || !Applies(api))
             return;
         foreach (var metal in Drawing.DieMetalNames)
-            if (api.World.GetItem(new AssetLocation(DrawBenchParts.DieCodeFor(metal)!)) is { } die)
+            if (api.World.GetItem(new AssetLocation(Drawing.DieCodeFor(metal)!)) is { } die)
                 die.Durability = Config.DieDurability;
     }
 

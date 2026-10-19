@@ -5,9 +5,9 @@
 // OreProcessing off.
 {
 	code: "jawbreaker",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.JawBreaker",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the machine's front
 	// (its output chute) faces the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -28,7 +28,7 @@
 		"chute": { base: "game:block/metal/sheet/copper1" }
 	},
 	attributes: {
-		oreMachine: { machine: "jawbreaker" },
+		machine: { machine: "jawbreaker" },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:jawbreaker-handbook-build-title", text: "seraphhorizons:jawbreaker-handbook-build-text" },

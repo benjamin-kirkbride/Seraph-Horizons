@@ -248,6 +248,27 @@ chute sections drawn as the game's chute at those faces; `output.pos`; the water
 (the rosser's key) with the soldered pipe on its axis. The reservoir is not drawn: the feed box stands
 for it.
 
+## Oil
+
+The ball mill takes oil (`MachineOil`; `OilKind` `OilMachine.BallMill` on the shared machine base's `MachineOiling`), as every
+machine on a shaft does: built dry, its load on its shaft is three times its own (`DryResistanceMultiplier`) until it
+is oiled, and a dry one smokes while it turns. Oil goes in by right-click on any cell with a container of oil or a
+lump of rendered fat (the mod's README, "Machines need oil"). Its job is a rock ground, drained as each rock is worked (`BEOreMachine.WorkItem`); idle turning costs nothing.
+
+| Setting (`MachineOilSettings.BallMill`) | Default | |
+|---|---|---|
+| `Tank` | 5500 (55 L) | 5000 points a unit of working load: 1.1 × 5000 |
+| `DrainPerJob` | 21 | 2 points a unit of load and a shaft turn: 2 × 1.1 × its turns a job |
+
+**Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
+copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
+mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
+ball mill's load is 1.1; it works 6 rocks an hour at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 / 6 = 9.55 turns a rock, and 2 × load × turns rounds to 21. A full tank is 262 rocks, about 44 hours of work at the
+reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
+battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
+the defaults to the shipped figures.
+
 ## Open for the owner
 
 1. **The drum's length.** 1.48 blocks across over its heads (the issue's "about 1.5") but 1.64 long between

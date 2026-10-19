@@ -37,8 +37,11 @@ public class OutletTests
     private static readonly Regex Class = new(@"^\s*""?class""?\s*:\s*""([^""]+)""", RegexOptions.Multiline);
     private static readonly Regex Machine = new(@"""?machine""?\s*:\s*""([^""]+)""");
 
+    // Machines/Game/MachineBlocks.cs, BlockMachine.ClassName (the test project does not compile the game half)
+    private const string BlockMachineClass = "seraphhorizons.Machine";
+
     [Fact]
-    public void Every_block_type_and_built_ore_machine_has_an_english_name()
+    public void Every_block_type_and_built_machine_has_an_english_name()
     {
         string assets = Path.Combine(ModDir(), "assets", "seraphhorizons");
         var lang = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(assets, "lang", "en.json")))!;
@@ -52,8 +55,8 @@ public class OutletTests
             string c = code.Groups[1].Value;
             if (!lang.Keys.Any(k => k == $"block-{c}" || k.StartsWith($"block-{c}-", StringComparison.Ordinal)))
                 missing.Add($"block-{c}* ({Path.GetFileName(file)})");
-            // BlockOreMachine.GetPlacedBlockName: a built machine is named block-{machine}
-            if (Class.Match(text) is { Success: true } cls && cls.Groups[1].Value == "seraphhorizons.OreMachine")
+            // BlockMachine.GetPlacedBlockName: a built machine is named block-{machine}
+            if (Class.Match(text) is { Success: true } cls && cls.Groups[1].Value == BlockMachineClass)
             {
                 machines++;
                 string machine = Machine.Match(text) is { Success: true } m ? m.Groups[1].Value : c.Split('-')[0];
@@ -61,7 +64,7 @@ public class OutletTests
                     missing.Add($"block-{machine} (built {machine})");
             }
         }
-        Assert.True(machines >= 10, $"found only {machines} ore machine block types");
+        Assert.True(machines >= 10, $"found only {machines} machine block types");
         Assert.True(missing.Count == 0, "en.json has no " + string.Join(", ", missing));
     }
 }

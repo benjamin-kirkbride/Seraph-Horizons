@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Riddle.Core;
@@ -13,16 +13,17 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.Riddle;
 
 /// <summary>
-/// The riddle's block entity (#714). Holds the fitted riddle (<see cref="RiddleParts"/>), the charge on
-/// the mesh as its item stack and the riddling (<see cref="RiddleJob"/>: W, 0..1), the fines in the box
-/// and the oversize left on the mesh, and who is riddling (<see cref="RiddleHolds"/>). The player works
-/// it by holding right-click on it, as on the quern: the server advances W while anyone holds, and at
-/// W = 1 the charge's fines are in the box, classified (<see cref="RiddleOre"/>), and its oversize on the
-/// mesh as raw ore, back to spalling. Both stay until the player takes them out by hand: no automated
-/// input or output. The client draws it (<see cref="RiddleRenderer"/>, through <see cref="IRiddleView"/>).
-/// The rules are Riddle/Core's.
+/// The riddle's controller (#714), on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/riddle.json</c>, the riddle on its bearers, its block info, its renderer). A hand machine
+/// (<see cref="BEMachine.HandWorked"/>): the player works it by holding right-click on it, as on the quern,
+/// and the server advances W while anyone holds; at W = 1 the charge's fines are in the box, classified
+/// (<see cref="RiddleOre"/>), and its oversize on the mesh as raw ore, back to spalling. It keeps the charge
+/// on the mesh as its item stack and the riddling (<see cref="MachineJob"/>: W, 0..1), the fines in the box
+/// and the oversize left on the mesh. Both stay until the player takes them out by hand: no automated input
+/// or output (it has no inventory a hopper or chute can reach). The client poses the rig from its own clock
+/// (<see cref="RiddleClock"/>). The rules are Riddle/Core's.
 /// </summary>
-public class BERiddle : BlockEntity, IRiddleView
+public class BERiddle : BEMachine
 {
     private static readonly AssetLocation LoadSound = new("game", "sounds/block/gravel");
     private static readonly AssetLocation ShakeSound = new("game", "sounds/player/panning");
@@ -30,46 +31,35 @@ public class BERiddle : BlockEntity, IRiddleView
     private static readonly AssetLocation OversizeSound = new("game", "sounds/block/rock-hit-pickaxe");
     // The server syncs W at least this often (charges); the renderer follows the clock between.
     private const double SyncStep = 0.02;
-    // A client's own player holding right-click counts as riddling for this long after its last step.
-    private const long LocalHoldMs = 250;
     // The panning sound is heard every few shakes, not each.
     private const int ShakesPerSound = 3;
+    private const float DustInterval = 0.15f;
+    private static readonly Float3 ChargeFallback = new(0.5f, 0.45f, 0.5f);
 
-    private RiddleParts _parts = new();
     private ItemStack? _charge;
-    private RiddleJob _job = RiddleJob.None;
+    private MachineJob _job = MachineJob.None;
     private ItemStack? _fines;
     private ItemStack? _oversize;
-    private readonly RiddleHolds _holds = new();
-    private bool _held;
-    private long _localHeldAt = long.MinValue / 2;
     private float? _serverShakes;
-    private Cuboidf[]? _boxes;
-    private Cuboidf[]? _collision;
-    private RiddleRenderer? _renderer;
+    private readonly RiddleClock _clock = new();
+    private float _dustTimer;
 
-    public Side Side { get; private set; } = Side.North;
-    public RiddleParts Parts => _parts;
-    public bool Complete => _parts.Complete;
-    /// <summary>A charge is on the mesh being riddled (or riddled, at W 1, until it is delivered).</summary>
+    /// <summary>A charge is on the mesh being riddled.</summary>
     public bool Riddling => _job.On && _charge != null;
     public ItemStack? Charge => _charge;
-    public RiddleJob Job => _job;
+    public MachineJob Job => _job;
     /// <summary>The fines in the box, classified, or null.</summary>
     public ItemStack? Fines => _fines;
     /// <summary>The oversize left on the mesh, raw ore, or null.</summary>
     public ItemStack? Oversize => _oversize;
-    /// <summary>Someone holds right-click on a complete riddle with a charge on: the riddling runs.</summary>
-    public bool Running => Core.Riddling.Running(_parts.Complete, Riddling, _job.Done, Held);
 
-    // IRiddleView
-    public bool RiddleFitted => _parts.Complete;
+    /// <summary>A charge is on the riddle: being riddled, or riddled with its oversize still on the mesh.</summary>
     public bool ChargeOn => Riddling || _oversize != null;
+    /// <summary>The server's W: the charge's riddling, synced in steps.</summary>
     public double RiddleWork => Riddling ? _job.Work : 1;
+    /// <summary>The box holds fines (from a charge's loading until the player takes them out).</summary>
     public bool BoxHoldsFines => Riddling || _fines != null;
     public double ShakesPerCharge => _serverShakes ?? Config.ShakesPerCharge;
-    public bool Held =>
-        _held || Api is { Side: EnumAppSide.Client } && Api.World.ElapsedMilliseconds - _localHeldAt <= LocalHoldMs;
 
     /// <summary>The fines' texture (<c>ore</c>): the crushed ore's own (its ore's nugget), the charge's, else the box's.</summary>
     public AssetLocation? OreTexture => ((_charge ?? _fines)?.Collectible as Item)?.FirstTexture?.Base;
@@ -83,195 +73,61 @@ public class BERiddle : BlockEntity, IRiddleView
 
     private RiddleSystem System => RiddleSystem.Of(Api);
     private RiddleConfig Config => System.Config;
-    private RiddleRig? Rig => System.Rig;
+    private new RiddleRig? Rig => base.Rig as RiddleRig;
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-            RegisterGameTickListener(OnTick, 50);
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 100);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockRiddle)
-                _renderer = new RiddleRenderer(capi, this, this, rig);
-        }
-    }
+    protected override bool HandWorked => true;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 100;
+    public override int RenderRange => 48;
 
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) => MachinePoints.WorldPoint(Pos, native, Side);
-
-    public Cuboidf[]? CellBoxes => _boxes;
-
-    /// <summary>The cell's selection boxes and the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes => _collision;
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
-            return;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        var cell = rig.Cells[0];
-        var boxes = cell.Boxes.Count == 0 ? [Cuboidf.Default()] : cell.Boxes.Select(World).ToArray();
-        _boxes = boxes;
-        _collision = cell.LidBox is { } lid ? [.. boxes, World(lid)] : boxes;
-    }
+    public override bool HasWork => Riddling && !_job.Done;
+    public override double? WorkProgress => Riddling ? _job.Progress : null;
 
     // ---- Interaction ----
 
-    /// <summary>
-    /// Right-click on the riddle. Ctrl: in creative mode on a frame with no riddle it fits the riddle with
-    /// nothing taken; with a charge on that nothing has been done to, the charge comes back. The riddle never
-    /// comes out: only breaking the station returns it. Nails and strips in hand fit the riddle (two). Crushed
-    /// ore in hand, with the riddle empty and the box too, goes on as a charge (a whole charge, of one kind), else is
-    /// refused saying why. An empty hand takes out the oversize first, then the fines; with a charge on, the
-    /// click starts riddling, held as on the quern (<see cref="OnWorkStep"/>). Shift lets a held block be
-    /// placed against it instead. Decided and done on the server; the client says whether the click is the
-    /// riddle's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    /// <summary>The riddle's own right-click, before its build's. Shift lets a held block be placed against it.
+    /// Ctrl (but for the creative shortcut) takes back a charge nothing has been done to; one being riddled stays.
+    /// The riddle never comes out: only breaking the station returns it.</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        var held = slot?.Itemstack;
-        string? code = held?.Collectible?.Code?.ToString();
-        bool server = Api.Side == EnumAppSide.Server;
-        bool ctrl = controls.CtrlKey && !controls.ShiftKey;
-        if (ctrl && (Riddling || CreativeShortcutApplies(byPlayer)))
+        if (controls.ShiftKey)
+            return false;
+        if (controls.CtrlKey && Riddling && !CreativeShortcut(byPlayer))
         {
-            if (!server)
-                return true;
-            if (CreativeShortcutApplies(byPlayer))
-                FitRiddle(new DummySlot(NewStack(RiddleParts.MeshCodes[0], RiddleParts.Needed)), byPlayer, free: true);
-            else
+            if (Api.Side == EnumAppSide.Server)
                 TakeCharge(byPlayer);
             return true;
         }
-        if (controls.ShiftKey)
-            return false;
-        if (RiddleParts.IsPart(code))
-        {
-            if (server)
-                FitRiddle(slot!, byPlayer);
-            return true;
-        }
+        return null;
+    }
+
+    /// <summary>
+    /// The riddle's own right-click, after its build's. Crushed ore in hand, with the riddle empty and the box
+    /// too, goes on as a charge (a whole charge, of one kind), else is refused saying why. An empty hand takes
+    /// out the oversize first, then the fines; with a charge on, the click starts riddling, held as on the
+    /// quern (<see cref="BEMachine.OnInteractStep"/>).
+    /// </summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
+    {
+        var held = slot.Itemstack;
+        string? code = held?.Collectible?.Code?.ToString();
+        bool server = Api.Side == EnumAppSide.Server;
         // crushed ore in hand goes on as a charge (or is refused, saying why), unless a charge is being riddled
         if (Core.Riddling.IsCrushedOre(code) && !Riddling)
-            return !server || TryLoad(slot!, byPlayer);
+            return !server || TryLoad(slot, byPlayer);
         // what it holds comes out to an empty hand
         if (held == null && _oversize != null)
             return !server || TakeOversize(byPlayer);
         if (held == null && !Riddling && _fines != null)
             return !server || TakeFines(byPlayer);
-        if (!_parts.Complete)
+        if (!Built)
             return false;
         if (!server)
             return true;
         if (!Riddling)
             return Error(byPlayer, _oversize != null || _fines != null ? "error-empty-hand" : "error-no-charge");
-        return StartWork(byPlayer);
-    }
-
-    private bool StartWork(IPlayer byPlayer)
-    {
-        _holds.Hold(byPlayer.PlayerUID, Api.World.ElapsedMilliseconds);
-        UpdateHeld();
-        return true;
-    }
-
-    /// <summary>
-    /// Right-click still held on the riddle (both sides, every tick, as the quern's grinding): the server
-    /// counts the player as riddling; the client marks its own player as riddling for the renderer.
-    /// Whether the player goes on: while a charge is on and not yet riddled.
-    /// </summary>
-    public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
-    {
-        long now = Api.World.ElapsedMilliseconds;
-        bool going = _parts.Complete && Riddling && !_job.Done;
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = going ? now : long.MinValue / 2;
-            return going || secondsUsed < 0.5f && !ChargeOn;
-        }
-        if (!going)
-        {
-            Release(byPlayer);
-            return false;
-        }
-        _holds.Hold(byPlayer.PlayerUID, now);
-        UpdateHeld();
-        return true;
-    }
-
-    /// <summary>The player let go.</summary>
-    public void Release(IPlayer byPlayer)
-    {
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = long.MinValue / 2;
-            return;
-        }
-        _holds.Release(byPlayer.PlayerUID);
-        UpdateHeld();
-    }
-
-    // The server's "someone is riddling", synced when it changes.
-    private void UpdateHeld()
-    {
-        bool held = _holds.Any(Api.World.ElapsedMilliseconds) && _parts.Complete && Riddling && !_job.Done;
-        if (held == _held)
-            return;
-        _held = held;
-        MarkDirty(false);
-    }
-
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without Shift,
-    /// on a frame with no riddle.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
-    {
-        var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    private ItemStack? NewStack(string code, int count) =>
-        Api.World.GetItem(new AssetLocation(code)) is { IsMissing: false } item ? new ItemStack(item, count) : null;
-
-    /// <summary>Fits the riddle from <paramref name="slot"/> (server side): its nails and strips, two of
-    /// them, taken unless the player is in creative mode or it is <paramref name="free"/>; false, with an
-    /// error to the player, when the rules say no.</summary>
-    public bool FitRiddle(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        if (code == null)
-            return false;
-        switch (_parts.CanFit(code, slot.StackSize))
-        {
-            case RiddleFitVerdict.Fits:
-                break;
-            case RiddleFitVerdict.AlreadyFitted:
-                return Error(byPlayer, "error-part-fitted");
-            case RiddleFitVerdict.TooFew:
-                return Error(byPlayer, "error-too-few-parts", RiddleParts.Needed);
-            default:
-                return Error(byPlayer, "error-not-a-part");
-        }
-        _parts.Fit(code);
-        if (!free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(RiddleParts.Needed);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        return true;
+        return StartHold(byPlayer);
     }
 
     /// <summary>Puts a charge from <paramref name="slot"/> on the riddle (server side), if it takes one now:
@@ -282,7 +138,7 @@ public class BERiddle : BlockEntity, IRiddleView
         string? code = stack?.Collectible?.Code?.ToString();
         int lumps = Config.LumpsPerCharge;
         switch (Core.Riddling.CanLoad(code, stack != null && RiddleOre.IsClassified(stack), slot.StackSize, lumps,
-                                      _parts.Complete, ChargeOn, _fines != null))
+                                      Built, ChargeOn, _fines != null))
         {
             case RiddleLoadVerdict.Loads:
                 break;
@@ -307,8 +163,8 @@ public class BERiddle : BlockEntity, IRiddleView
     private void Load(ItemStack charge)
     {
         _charge = charge;
-        _job = RiddleJob.Start;
-        var at = WorldPoint(Rig?.Charge ?? new Float3(0.5f, 0.45f, 0.5f));
+        _job = Core.Riddling.Start();
+        var at = WorldPoint(Rig?.Charge ?? ChargeFallback);
         Api.World.PlaySoundAt(LoadSound, at.X, at.Y, at.Z);
         MarkDirty(true);
     }
@@ -323,7 +179,7 @@ public class BERiddle : BlockEntity, IRiddleView
             return Error(byPlayer, "error-busy");
         var charge = _charge!;
         _charge = null;
-        _job = RiddleJob.None;
+        _job = MachineJob.None;
         Give(byPlayer, charge);
         Api.World.PlaySoundAt(LoadSound, Pos, 0, byPlayer);
         MarkDirty(true);
@@ -337,7 +193,7 @@ public class BERiddle : BlockEntity, IRiddleView
             return false;
         _oversize = null;
         Give(byPlayer, oversize);
-        var at = WorldPoint(Rig?.Charge ?? new Float3(0.5f, 0.45f, 0.5f));
+        var at = WorldPoint(Rig?.Charge ?? ChargeFallback);
         Api.World.PlaySoundAt(OversizeSound, at.X, at.Y, at.Z, null, true, 16, 0.5f);
         MarkDirty(true);
         return true;
@@ -362,6 +218,7 @@ public class BERiddle : BlockEntity, IRiddleView
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 0.8, 0.5));
     }
 
+    /// <summary>The riddle's own message (<c>seraphhorizons:riddle-{key}</c>) to the player; false.</summary>
     private bool Error(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
@@ -369,13 +226,32 @@ public class BERiddle : BlockEntity, IRiddleView
         return false;
     }
 
+    /// <summary>The help once built: the oversize, then a charge to riddle (and take back while untouched),
+    /// then the fines come out; with nothing on, a charge goes on.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => RiddleSystem.Domain + ":blockhelp-riddle-" + action;
+        if (_oversize != null)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takeoversize"), MouseButton = EnumMouseButton.Right });
+        else if (Riddling)
+        {
+            help.Add(new WorldInteraction { ActionLangCode = Key("work"), MouseButton = EnumMouseButton.Right });
+            if (_job.Untouched)
+                help.Add(new WorldInteraction { ActionLangCode = Key("takecharge"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+        }
+        else if (_fines != null)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takefines"), MouseButton = EnumMouseButton.Right });
+        else if (Stacks(Api.World, ["seraphhorizons:crushedore-*-medium"], Config.LumpsPerCharge) is { Length: > 0 } ore)
+            help.Add(new WorldInteraction { ActionLangCode = Key("load"), MouseButton = EnumMouseButton.Right, Itemstacks = ore });
+    }
+
     // ---- The riddling ----
 
-    private void OnTick(float dt)
+    // The riddling syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool WorkUnpowered(float dt)
     {
-        UpdateHeld();
-        if (_held)
-            Shake(Core.Riddling.ShakeRadiansPerSecond * dt);
+        Shake(Core.Riddling.ShakeRadiansPerSecond * dt);
+        return false;
     }
 
     /// <summary>
@@ -385,22 +261,22 @@ public class BERiddle : BlockEntity, IRiddleView
     /// </summary>
     public bool Shake(double radians)
     {
-        if (!Riddling || !_parts.Complete)
+        if (!Riddling || !Built)
             return false;
         var before = _job;
         double shakes = Config.ShakesPerCharge;
-        (_job, bool finished) = _job.Advance(radians, shakes);
-        if (RiddleJob.ShakesCrossed(before.Work, _job.Work, shakes) > 0
+        (_job, bool finished) = Core.Riddling.Advance(_job, radians, shakes);
+        if (Core.Riddling.ShakesCrossed(before.Work, _job.Work, shakes) > 0
             && (int)Math.Floor(_job.Work * shakes + 1e-9) % ShakesPerSound == 1)
         {
-            var at = WorldPoint(Rig?.Charge ?? new Float3(0.5f, 0.45f, 0.5f));
+            var at = WorldPoint(Rig?.Charge ?? ChargeFallback);
             Api.World.PlaySoundAt(ShakeSound, at.X, at.Y, at.Z, null, true, 16, 0.7f);
         }
         if (finished)
         {
             Deliver();
-            UpdateHeld();
             MarkDirty(true);
+            RefreshState();
             return true;
         }
         if (Math.Floor(before.Work / SyncStep) != Math.Floor(_job.Work / SyncStep))
@@ -414,7 +290,7 @@ public class BERiddle : BlockEntity, IRiddleView
         var charge = _charge!;
         var (fines, oversize) = Core.Riddling.Split(charge.StackSize, Config.OversizePerCharge);
         _charge = null;
-        _job = RiddleJob.None;
+        _job = MachineJob.None;
         var rock = RiddleOre.RockUnder(Api.World, Pos);
         var oversizeStack = oversize > 0 ? RiddleOre.Oversize(Api.World, charge, oversize, rock) : null;
         if (oversize > 0 && oversizeStack == null)
@@ -435,25 +311,65 @@ public class BERiddle : BlockEntity, IRiddleView
             charge.Collectible.Code, fines, oversize, oversizeStack?.Collectible.Code);
     }
 
-    // The client's own: the client removes a broken riddle at once, and an update the server sent before it
-    // heard of the break then brings the block entity back over air: drop it.
-    private void OnClientTick(float dt)
+    // ---- The renderer's ----
+
+    /// <summary>The frame always, the riddle when fitted, the charge while one is on, the fines while the box
+    /// holds them (<see cref="RiddleClock.Shows"/>).</summary>
+    public override bool ShowsPart(string? requires) => RiddleClock.Shows(requires, Built, ChargeOn, BoxHoldsFines);
+
+    /// <summary>The fines' and the oversize's textures follow what is in it.</summary>
+    public override string TextureKey => $"{OreTexture}|{RockTexture}";
+
+    /// <summary>The block's textures with the crushed ore's in place of <c>ore</c> and the host rock's in place of <c>rock</c>.</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi) =>
+        new ContentsTextureSource(base.PartTextures(capi), MachineMeshes.AtlasTexture(capi, OreTexture), MachineMeshes.AtlasTexture(capi, RockTexture));
+
+    /// <summary>The riddle's clock θ, turning while it is riddled, W, k and p (<see cref="RiddleClock"/>). Nothing
+    /// is drawn falling through the mesh (the model's first weak spot): while riddling, dust of the ore falls
+    /// under the riddle.</summary>
+    public override RigInput FrameInput(float dt, bool far)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockRiddle)
+        bool on = ChargeOn;
+        bool held = Held && on;
+        _clock.Advance(dt, on, RiddleWork, held, ShakesPerCharge);
+        if (!far && held && _clock.Work < 1 && Rig is { } rig && (_dustTimer += dt) >= DustInterval)
         {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
+            _dustTimer = 0;
+            SpawnDust(rig);
         }
+        return _clock.Input();
+    }
+
+    // Fines falling through the mesh into the box.
+    private void SpawnDust(RiddleRig rig)
+    {
+        var at = WorldPoint(rig.Charge);
+        int colour = ColorUtil.ToRgba(200, 105, 95, 90);
+        Api.World.SpawnParticles(3, colour,
+            at.AddCopy(-0.25, -0.12, -0.25), at.AddCopy(0.25, -0.1, 0.25),
+            new Vec3f(-0.02f, -0.6f, -0.02f), new Vec3f(0.02f, -0.3f, 0.02f), 0.4f, 1f, 0.15f, EnumParticleModel.Cube, null);
+    }
+
+    /// <summary>The block's textures with the crushed ore's in place of <c>ore</c> and the host rock's in place of <c>rock</c>.</summary>
+    private sealed class ContentsTextureSource(ITexPositionSource inner, TextureAtlasPosition? ore, TextureAtlasPosition? rock) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+        public TextureAtlasPosition this[string textureCode] => textureCode switch
+        {
+            "ore" when ore != null => ore,
+            "rock" when rock != null => rock,
+            _ => inner[textureCode]!,
+        };
     }
 
     // ---- Breaking ----
 
     /// <summary>What breaking the station gives besides the frame: the riddle's nails and strips, the
     /// charge (whole: nothing is lost by breaking), the oversize and the fines.</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        if (_parts.Returns() is { } r && NewStack(r.Code, r.Count) is { } mesh)
-            yield return mesh;
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (_charge != null)
             yield return _charge.Clone();
         if (_oversize != null)
@@ -462,38 +378,15 @@ public class BERiddle : BlockEntity, IRiddleView
             yield return _fines.Clone();
     }
 
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
-    }
-
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        if (_parts.Fitted is { } mesh)
-            tree.SetString("riddle", mesh);
-        else
-            tree.RemoveAttribute("riddle");
         SetStack(tree, "charge", Riddling ? _charge : null);
         SetStack(tree, "fines", _fines);
         SetStack(tree, "oversize", _oversize);
         tree.SetDouble("work", _job.Work);
-        tree.SetBool("held", _held);
         if (Api?.Side == EnumAppSide.Server)
             tree.SetFloat("shakes", Config.ShakesPerCharge);
     }
@@ -515,17 +408,12 @@ public class BERiddle : BlockEntity, IRiddleView
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        _parts = RiddleParts.Restore(tree.GetString("riddle"));
         _charge = GetStack(tree, "charge", worldForResolving);
-        _job = RiddleJob.Restore(_charge != null, tree.GetDouble("work"));
+        _job = Core.Riddling.Restore(_charge != null, tree.GetDouble("work"));
         _fines = GetStack(tree, "fines", worldForResolving);
         _oversize = GetStack(tree, "oversize", worldForResolving);
         if (worldForResolving.Side == EnumAppSide.Client)
-        {
-            // who is riddling is the server's to say; a loaded world starts with no one at it
-            _held = tree.GetBool("held");
             _serverShakes = tree.TryGetFloat("shakes");
-        }
     }
 
     public override void OnStoreCollectibleMappings(Dictionary<int, AssetLocation> blockIdMapping, Dictionary<int, AssetLocation> itemIdMapping)
@@ -545,26 +433,28 @@ public class BERiddle : BlockEntity, IRiddleView
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The charge on the riddle and how far it is riddled, the oversize on the mesh and the fines in
+    /// the box; on an empty riddle, what a charge is.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        string L(string key, params object[] args) => Lang.Get(RiddleSystem.Domain + ":riddle-" + key, args);
-        if (!_parts.Complete)
-        {
-            dsc.AppendLine(L("info-next"));
+        if (!Built)
             return;
-        }
+        string L(string key, params object[] args) => Lang.Get(RiddleSystem.Domain + ":riddle-" + key, args);
         if (Riddling)
-        {
-            string name = _charge!.GetName();
-            int percent = (int)Math.Floor(_job.Work * 100 + 1e-9);
-            dsc.AppendLine(Running ? L("info-riddling", name, percent) : L("info-charge", name, percent));
-        }
+            dsc.AppendLine(L("info-charge", _charge!.GetName(), (int)Math.Floor(_job.Work * 100 + 1e-9)));
         if (_oversize != null)
             dsc.AppendLine(L("info-oversize", _oversize.StackSize, _oversize.GetName()));
         if (_fines != null)
             dsc.AppendLine(L("info-fines", _fines.StackSize, _fines.GetName()));
         if (!ChargeOn && _fines == null)
             dsc.AppendLine(L("info-empty", Config.LumpsPerCharge));
+    }
+
+    /// <summary>For a wrench: the riddling's W exactly, and the shakes a charge takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (Riddling)
+            dsc.AppendLine(Lang.Get(RiddleSystem.Domain + ":riddle-info-work",
+                _job.Work.ToString("0.000", CultureInfo.InvariantCulture), ShakesPerCharge.ToString("0.##", CultureInfo.InvariantCulture)));
     }
 }

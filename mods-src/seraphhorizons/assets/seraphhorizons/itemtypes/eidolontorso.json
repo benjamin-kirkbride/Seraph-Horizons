@@ -1,7 +1,7 @@
 // The eidolon's torso (Eidolon/README.md, "Build stages"; EidolonGantry/README.md): its lattice chest and
 // hip block with the tanks, pump and gears inside, crafted on the grid behind the eidolon schematic
 // (recipes/grid/eidolontorso.json) and used on a gantry whose winch and spine are fitted, where it is
-// clamped onto the spine as the body's first stage (BEBehaviorEidolonBody). Its shape is the torso
+// clamped onto the spine as the body's first stage (GantryBody). Its shape is the torso
 // stage's two lattice blocks (shapes/item/eidolontorso.json). Marked disabled with the Eidolon switch off.
 {
 	code: "eidolontorso",

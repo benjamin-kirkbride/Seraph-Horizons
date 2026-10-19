@@ -1,8 +1,8 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.PressBrake.Core;
-using SeraphHorizons.Mod.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -14,50 +14,41 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.PressBrake;
 
 /// <summary>
-/// The press brake's controller. Holds the fitted parts (<see cref="PressBrakeParts"/>), the half
-/// plate on the bed as its item stack and the fold (<see cref="FoldJob"/>: W, 0..1), and who is working
-/// the lever (<see cref="LeverHolds"/>). The player works it by holding right-click on it, as on the
-/// quern: the server advances W while anyone holds, sounds the fold, and at W = 1 drops one angle
-/// at the output face. Its work, the half plate, is
-/// the squaring shear's item: with that switch off there is none, and the brake refuses work. The server keeps the ghost cell
-/// stamped; the client draws the brake (<see cref="PressBrakeRenderer"/>, through
-/// <see cref="IPressBrakeView"/>). The rules are PressBrake/Core's.
+/// The press brake's controller, on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/pressbrake.json</c>, its cell, its block info, its renderer). A hand machine
+/// (<see cref="BEMachine.HandWorked"/>): the player works it by holding right-click on it, as on the
+/// quern, and the server advances W while anyone holds, sounds the fold, and at W = 1 drops one angle at
+/// the output face. It keeps the half plate on the bed as its item stack and the fold
+/// (<see cref="MachineJob"/>: W, 0..1). Its work, the half plate, is the squaring shear's item: with that
+/// switch off there is none, and the brake refuses work. The client poses the rig from its own lever clock
+/// (<see cref="PressBrakeClock"/>). The rules are PressBrake/Core's.
 /// </summary>
-public class BEPressBrake : BlockEntity, IPressBrakeView
+public class BEPressBrake : BEMachine
 {
     private static readonly AssetLocation PlateSound = new("game", "sounds/block/plate");
     private static readonly AssetLocation BendSound = new("game", "sounds/block/heavymetal-hit");
     private static readonly AssetLocation AngleSound = new("game", "sounds/block/chute");
     private static readonly AssetLocation[] CreakSounds =
         [.. Enumerable.Range(1, 4).Select(i => new AssetLocation("game", $"sounds/block/woodcreak_{i}"))];
-    private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (plates); the renderer follows the lever between.
     private const double SyncStep = 0.02;
-    // A client's own player holding right-click counts as working for this long after its last step.
-    private const long LocalHoldMs = 250;
+    private const float DustInterval = 0.12f;
 
-    private PressBrakeParts _parts = new();
     private ItemStack? _plate;
-    private FoldJob _job = FoldJob.None;
-    private readonly LeverHolds _holds = new();
-    private bool _held;
-    private long _localHeldAt = long.MinValue / 2;
+    private MachineJob _job = MachineJob.None;
     private float _creakSeconds;
     private float? _serverTurnsLead;
     private float? _serverTurnsCopper;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private Dictionary<Int3, Cuboidf[]>? _collision;
-    private PressBrakeRenderer? _renderer;
+    private readonly PressBrakeClock _clock = new();
+    private float _dustTimer;
 
-    public Side Side { get; private set; } = Side.North;
-    public PressBrakeParts Parts => _parts;
-    public bool Complete => _parts.Complete;
     /// <summary>A plate is on the bed.</summary>
     public bool PlateOn => _job.On && _plate != null;
     public ItemStack? Plate => _plate;
-    public FoldJob Job => _job;
-    /// <summary>Someone works the lever on a complete brake with a plate on: the fold runs.</summary>
-    public bool Running => Folding.Running(_parts.Complete, PlateOn, Held);
+    public MachineJob Job => _job;
+
+    /// <summary>The fitted edges' metal (<c>iron</c>, <c>steel</c>), or null.</summary>
+    public string? EdgeMetal => Assembly is { } a && a.Build.Stages.Count > 1 ? PressBrakeRequires.EdgeMetal(a.Build.CodeIn(1, 0)) : null;
 
     public double LeverTurnsPerPlate(int k) => k switch
     {
@@ -66,302 +57,57 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         _ => 0,
     };
 
-    // IPressBrakeView
-    public bool PartFitted(string? requires) => _parts.Fitted(requires);
-    public string? EdgeMetal => PressBrakeParts.MetalOf(_parts.FittedIn(PressBrakeStage.Edge));
-    public int PlateClass => PlateOn ? _job.Class : 0;
-    public double FoldWork => _job.Work;
-    public bool Held =>
-        _held || Api is { Side: EnumAppSide.Client } && Api.World.ElapsedMilliseconds - _localHeldAt <= LocalHoldMs;
-
     private PressBrakeSystem System => PressBrakeSystem.Of(Api);
     private PressBrakeConfig Config => System.Config;
-    private PressBrakeRig? Rig => System.Rig;
+    private new PressBrakeRig? Rig => base.Rig as PressBrakeRig;
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-        {
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(OnTick, 50);
-            RegisterGameTickListener(OnSlowTick, 1000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 100);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockPressBrake)
-                _renderer = new PressBrakeRenderer(capi, this, this, rig);
-        }
-    }
+    protected override bool HandWorked => true;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 100;
+    public override int RenderRange => 48;
 
-    // ---- Footprint ----
-
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
-
-    /// <summary>Every ghost cell's world position.</summary>
-    public IEnumerable<BlockPos> GhostCells() =>
-        Rig is { } rig ? rig.GhostCells.Select(c => CellPos(c.Pos)) : [];
-
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Lookup(_cells, cellPos);
-
-    /// <summary>A cell's selection boxes and the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Lookup(_collision, cellPos);
-
-    private Cuboidf[]? Lookup(Dictionary<Int3, Cuboidf[]>? table, BlockPos cellPos) =>
-        table?.GetValueOrDefault(Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
-            return;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
-        foreach (var c in rig.Cells)
-            if (c.LidBox is { } lid)
-                collision[c.Pos] = [.. cells[c.Pos], World(lid)];
-        _cells = cells;
-        _collision = collision;
-    }
-
-    private Block? GhostBlock() => Api.World.GetBlock(new AssetLocation(PressBrakeSystem.Domain, "pressbrake-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock() is not { } ghost)
-            return;
-        foreach (var pos in GhostCells())
-            StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEPressBrakeGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores the ghost cell if it went missing, and points it back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock() is not { } expected)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEPressBrakeGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockPressBrakeGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-            if (ba.GetBlock(pos) is BlockPressBrakeGhost && ba.GetBlockEntity(pos) is BEPressBrakeGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
-    }
+    public override bool HasWork => PlateOn;
+    public override double? WorkProgress => PlateOn ? _job.Progress : null;
 
     // ---- Interaction ----
 
-    /// <summary>
-    /// Right-click on the brake or its ghost. Ctrl: in creative mode on an incomplete brake it
-    /// fits the next stage with nothing taken; with a half plate on, that half plate comes off the bed
-    /// while it is still flat. Fitted parts never come out: only breaking the brake returns them. A part in hand is fitted if it is the next
-    /// stage's; a lead or copper half plate goes on an empty bed. Anything else (an empty hand, a tool,
-    /// a whole plate, a half plate when one is already on) on a complete brake starts working the
-    /// lever, held as on the quern (<see cref="OnWorkStep"/>); Shift lets a held block be placed
-    /// against it instead. With no half plates in the world (the squaring shear's switch off) a
-    /// complete brake refuses work with a message. Decided and done on the server; the client says
-    /// whether the click is the brake's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    /// <summary>Ctrl on a brake with a half plate on takes it back off while it is still flat; one being
+    /// folded stays. Fitted parts never come out: only breaking the brake returns them.</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
+        if (!controls.CtrlKey || controls.ShiftKey || !PlateOn || CreativeShortcut(byPlayer))
+            return null;
+        if (Api.Side == EnumAppSide.Server)
+            TakePlate(byPlayer);
+        return true;
+    }
+
+    /// <summary>
+    /// The brake's own right-click, after its build's: a lead or copper half plate goes on an empty bed.
+    /// Anything else (an empty hand, a tool, a whole plate, a half plate when one is already on) on a
+    /// complete brake with a half plate on starts working the lever, held as on the quern
+    /// (<see cref="BEMachine.OnInteractStep"/>); Shift lets a held block be placed against it instead. With no
+    /// half plates in the world (the squaring shear's switch off) a complete brake refuses work with a message.
+    /// </summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
+    {
+        var controls = byPlayer.Entity.Controls;
+        string? code = slot.Itemstack?.Collectible?.Code?.ToString();
         bool server = Api.Side == EnumAppSide.Server;
-        // Ctrl is the creative shortcut on an incomplete machine, and takes the work off while it is
-        // untouched; fitted parts never come out (only breaking returns them)
-        bool ctrl = controls.CtrlKey && !controls.ShiftKey;
-        if (ctrl && (PlateOn || CreativeShortcutApplies(byPlayer)))
-        {
-            if (!server)
-                return true;
-            if (CreativeShortcutApplies(byPlayer))
-                FitNextPart(byPlayer);
-            else
-                TakePlate(byPlayer);
-            return true;
-        }
-        if (PressBrakeParts.IsPart(code))
-        {
-            if (server)
-                TryFitPart(slot!, byPlayer);
-            return true;
-        }
-        if (_parts.Complete && !controls.ShiftKey && !PlateOn && !HalfPlatesExist())
+        if (Built && !controls.ShiftKey && !PlateOn && !HalfPlatesExist())
             return !server || Error(byPlayer, "error-no-halfplates");
         if (Folding.ClassOfPlate(code) != 0 && !PlateOn)
-        {
             // a click loads it; held on, the steps that follow work the lever
-            return !server || TryLoadPlate(slot!, byPlayer);
-        }
-        if (controls.ShiftKey || !_parts.Complete)
+            return !server || TryLoadPlate(slot, byPlayer);
+        if (controls.ShiftKey || !Built)
             return false;
         if (!server)
             return true;
         if (!PlateOn)
             return Error(byPlayer, "error-no-plate");
-        return StartWork(byPlayer);
+        return StartHold(byPlayer);
     }
-
-    private bool StartWork(IPlayer byPlayer)
-    {
-        _holds.Hold(byPlayer.PlayerUID, Api.World.ElapsedMilliseconds);
-        UpdateHeld();
-        return true;
-    }
-
-    /// <summary>
-    /// Right-click still held on the brake (both sides, every tick, as the quern's grinding): the
-    /// server counts the player as working the lever; the client marks its own player as working for
-    /// the renderer. Whether the player goes on: while the brake is complete and has a plate on.
-    /// </summary>
-    public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
-    {
-        long now = Api.World.ElapsedMilliseconds;
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = now;
-            return _parts.Complete && (PlateOn || secondsUsed < 0.5f);
-        }
-        if (!_parts.Complete)
-            return false;
-        if (!PlateOn)
-        {
-            Release(byPlayer);
-            return false;
-        }
-        _holds.Hold(byPlayer.PlayerUID, now);
-        UpdateHeld();
-        return true;
-    }
-
-    /// <summary>The player let go of the lever.</summary>
-    public void Release(IPlayer byPlayer)
-    {
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = long.MinValue / 2;
-            return;
-        }
-        _holds.Release(byPlayer.PlayerUID);
-        UpdateHeld();
-    }
-
-    // The server's "someone is working the lever", synced when it changes.
-    private void UpdateHeld()
-    {
-        bool held = _holds.Any(Api.World.ElapsedMilliseconds) && _parts.Complete && PlateOn;
-        if (held == _held)
-            return;
-        _held = held;
-        MarkDirty(false);
-    }
-
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a brake with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
-    {
-        var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fits the next stage's first item with nothing
-    /// taken from the player.</summary>
-    public bool FitNextPart(IPlayer? byPlayer)
-    {
-        if (_parts.NextPart is not { } next)
-            return false;
-        if (PartStack(Api.World, next) is not { } stack)
-        {
-            Api.Logger.Warning("[seraphhorizons] Press brake: no {0} for the creative shortcut", next);
-            return false;
-        }
-        return TryFitPart(new DummySlot(stack), byPlayer, free: true);
-    }
-
-    /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
-    /// false, with an error to the player, when the rules say no. One item is taken from the slot
-    /// unless the player is in creative mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        if (code == null)
-            return false;
-        switch (_parts.CanFit(code, out _))
-        {
-            case PressBrakeFitVerdict.Fits:
-                break;
-            case PressBrakeFitVerdict.OutOfOrder:
-                return Error(byPlayer, "error-order", StageName(_parts.Next));
-            case PressBrakeFitVerdict.AlreadyFitted:
-                return Error(byPlayer, "error-part-fitted");
-            default:
-                return Error(byPlayer, "error-not-a-part");
-        }
-        _parts.Fit(code);
-        if (!free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(1);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        return true;
-    }
-
-    /// <summary>A stage's name as the block info and the errors show it.</summary>
-    public static string StageName(PressBrakeStage? stage) =>
-        stage is { } s ? Lang.Get(PressBrakeSystem.Domain + ":pressbrake-info-stage-" + PressBrakeRequires.Name(s)) : "";
 
     /// <summary>Ctrl + right-click (server side): a half plate still flat comes off the bed; one being
     /// folded stays.</summary>
@@ -393,7 +139,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     public bool TryLoadPlate(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        switch (Folding.CanLoad(code, _parts.Complete, PlateOn))
+        switch (Folding.CanLoad(code, Built, PlateOn))
         {
             case FoldLoadVerdict.Loads:
                 break;
@@ -414,7 +160,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     private void Load(ItemStack plate)
     {
         _plate = plate;
-        _job = new FoldJob(Folding.ClassOfPlate(plate.Collectible.Code.ToString()), 0);
+        _job = Folding.Start(Folding.ClassOfPlate(plate.Collectible.Code.ToString()));
         var at = WorldPoint(Rig?.Plate ?? new Float3(0.5f, 0.5f, 0.5f));
         Api.World.PlaySoundAt(PlateSound, at.X, at.Y, at.Z);
         MarkDirty(true);
@@ -423,7 +169,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     private void ClearJob()
     {
         _plate = null;
-        _job = FoldJob.None;
+        _job = MachineJob.None;
     }
 
     private void Give(IPlayer byPlayer, ItemStack stack)
@@ -432,6 +178,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
     }
 
+    /// <summary>The brake's own message (<c>seraphhorizons:pressbrake-{key}</c>) to the player; false.</summary>
     private bool Error(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
@@ -439,13 +186,26 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         return false;
     }
 
+    /// <summary>The help once built: a half plate goes on an empty bed; the lever is worked with one on, and
+    /// Ctrl takes it back while it is still flat.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => PressBrakeSystem.Domain + ":blockhelp-pressbrake-" + action;
+        if (!PlateOn && Stacks(Api.World, [Folding.LeadHalfPlate, Folding.CopperHalfPlate], 1) is { Length: > 0 } plates)
+            help.Add(new WorldInteraction { ActionLangCode = Key("loadplate"), MouseButton = EnumMouseButton.Right, Itemstacks = plates });
+        if (PlateOn)
+            help.Add(new WorldInteraction { ActionLangCode = Key("work"), MouseButton = EnumMouseButton.Right });
+        if (PlateOn && _job.Untouched)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takeplate"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
     // ---- The fold ----
 
-    private void OnTick(float dt)
+    // The fold syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool WorkUnpowered(float dt)
     {
-        UpdateHeld();
-        if (_held)
-            Fold(Folding.LeverRadiansPerSecond * dt);
+        Fold(Folding.LeverRadiansPerSecond * dt);
+        return false;
     }
 
     /// <summary>Folds by <paramref name="radians"/> of the lever clock (server side): W advances by
@@ -453,11 +213,11 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     /// at W = 1 the half plate is used up and its angle comes off. Returns the angles delivered.</summary>
     public int Fold(double radians)
     {
-        if (!PlateOn || !_parts.Complete)
+        if (!PlateOn || !Built)
             return 0;
         var before = _job;
-        (_job, bool finished) = _job.Advance(radians, Config.LeverTurnsPerPlate(_job.Class));
-        if (Rig is { } rig && FoldJob.Crossed(rig.FoldMoments, before.Work, _job.Work) > 0)
+        (_job, bool finished) = Folding.Advance(_job, radians, Config.LeverTurnsPerPlate(_job.Class));
+        if (Rig is { } rig && MachineJob.Crossed(rig.FoldMoments, before.Work, _job.Work) > 0)
         {
             var at = WorldPoint(rig.Edge);
             Api.World.PlaySoundAt(BendSound, at.X, at.Y, at.Z, null, true, 16, 0.6f);
@@ -468,7 +228,6 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
             ClearJob();
             if (AngleItem(k) is { } angle)
                 Deliver(new ItemStack(angle, Folding.AnglesPerPlate));
-            UpdateHeld();
             MarkDirty(true);
             return Folding.AnglesPerPlate;
         }
@@ -488,20 +247,9 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         Api.World.PlaySoundAt(AngleSound, at.X, at.Y, at.Z);
     }
 
-    // Once a second: the ghost.
-    private void OnSlowTick(float dt) => EnsureGhosts();
-
-    // The client's own: the client removes a broken brake at once, and an update the server sent
-    // before it heard of the break then brings the block entity back over air: drop it. A worked
-    // brake creaks.
-    private void OnClientTick(float dt)
+    // A worked brake creaks.
+    protected override void OnClientTick(float dt)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockPressBrake)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
         if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Running)
         {
             _creakSeconds = 0.3f;
@@ -515,46 +263,64 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         }
     }
 
+    // ---- The renderer's ----
+
+    /// <summary>The plates (<c>platelead</c>, <c>platecopper</c>) while that metal's half plate is on the bed, as
+    /// the clock shows it; every other part as its stage is fitted.</summary>
+    public override bool ShowsPart(string? requires) =>
+        requires is PressBrakeRequires.PlateLead or PressBrakeRequires.PlateCopper ? _clock.ShowsPlate(requires) : base.ShowsPart(requires);
+
+    /// <summary>The edges' texture follows their metal.</summary>
+    public override string TextureKey => EdgeMetal ?? "";
+
+    /// <summary>The block's textures with the edges' metal in place of <c>edge</c>; the screws, made from metal
+    /// parts, are always the block's own <c>cupronickel</c>.</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi) =>
+        new FittedTextureSource(base.PartTextures(capi), MachineMeshes.MetalTexture(capi, EdgeMetal));
+
+    /// <summary>The lever clock θ, turning while the lever is worked, and W, k and p (<see cref="PressBrakeClock"/>);
+    /// while the leaf swings, metal dust at the folding edge.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        int k = PlateOn ? _job.Class : 0;
+        bool held = Held && k != 0;
+        _clock.Advance(dt, k, _job.Work, held, LeverTurnsPerPlate(k));
+        if (!far && held && Rig is { } rig && rig.IsFolding(_clock.Work) && (_dustTimer += dt) >= DustInterval)
+        {
+            _dustTimer = 0;
+            SpawnDust(rig, k);
+        }
+        return _clock.Input();
+    }
+
+    private void SpawnDust(PressBrakeRig rig, int k)
+    {
+        var at = WorldPoint(rig.Edge);
+        // fine metal off the folding edge: lead grey, copper red
+        int colour = k == 2 ? ColorUtil.ToRgba(200, 70, 120, 190) : ColorUtil.ToRgba(200, 120, 110, 105);
+        Api.World.SpawnParticles(2, colour,
+            at.AddCopy(-0.35, -0.02, -0.03), at.AddCopy(0.35, 0.02, 0.03),
+            new Vec3f(-0.15f, 0f, -0.15f), new Vec3f(0.15f, 0.25f, 0.15f), 0.6f, 1f, 0.12f, EnumParticleModel.Cube, null);
+    }
+
+    /// <summary>The block's textures with the edges' metal in place of <c>edge</c>.</summary>
+    private sealed class FittedTextureSource(ITexPositionSource inner, TextureAtlasPosition? edge) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+        public TextureAtlasPosition this[string textureCode] =>
+            textureCode == "edge" && edge != null ? edge : inner[textureCode]!;
+    }
+
     // ---- Breaking ----
 
     /// <summary>What breaking the frame gives besides the frame: every fitted part, and the half plate
     /// if it is still flat (once folding has begun, it is lost with the brake).</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        foreach (var code in _parts.Returns())
-            if (PartStack(Api.World, code) is { } stack)
-                yield return stack;
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (PlateOn && _job.Untouched)
             yield return _plate!.Clone();
-    }
-
-    /// <summary>One of a part, by its code: an item, or a block (the screws' metal parts are one);
-    /// null when the game has neither.</summary>
-    public static ItemStack? PartStack(IWorldAccessor world, string code)
-    {
-        var loc = new AssetLocation(code);
-        if (world.GetItem(loc) is { } item)
-            return new ItemStack(item);
-        return world.GetBlock(loc) is { Id: > 0 } block ? new ItemStack(block) : null;
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -562,17 +328,12 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var stage in PressBrakeRequires.Stages)
-            tree.RemoveAttribute(PartKeyPrefix + PressBrakeRequires.Name(stage));
-        foreach (var (requires, code) in _parts.Snapshot())
-            tree.SetString(PartKeyPrefix + requires, code);
         if (PlateOn)
             tree.SetItemstack("plate", _plate);
         else
             tree.RemoveAttribute("plate");
         tree.SetInt("class", _job.Class);
         tree.SetDouble("work", _job.Work);
-        tree.SetBool("held", _held);
         if (Api?.Side == EnumAppSide.Server)
         {
             tree.SetFloat("leverTurnsLead", Config.LeverTurnsPerPlateLead);
@@ -583,21 +344,14 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        var fitted = new Dictionary<string, string>();
-        foreach (var stage in PressBrakeRequires.Stages)
-            if (tree.GetString(PartKeyPrefix + PressBrakeRequires.Name(stage)) is { Length: > 0 } code)
-                fitted[PressBrakeRequires.Name(stage)] = code;
-        _parts = PressBrakeParts.Restore(fitted);
         _plate = tree.GetItemstack("plate");
         if (_plate != null && !_plate.ResolveBlockOrItem(worldForResolving))
             _plate = null;
-        _job = _plate == null ? FoldJob.None : FoldJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
+        _job = _plate == null ? MachineJob.None : Folding.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
             _plate = null;
         if (worldForResolving.Side == EnumAppSide.Client)
         {
-            // who works the lever is the server's to say; a loaded world starts with no one at it
-            _held = tree.GetBool("held");
             _serverTurnsLead = tree.TryGetFloat("leverTurnsLead");
             _serverTurnsCopper = tree.TryGetFloat("leverTurnsCopper");
         }
@@ -618,24 +372,20 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The half plate on the bed and how far it is folded.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        string L(string key, params object[] args) => Lang.Get(PressBrakeSystem.Domain + ":pressbrake-" + key, args);
-        if (_parts.Next is { } next)
-        {
-            dsc.AppendLine(L("info-next", StageName(next)));
-            var after = PressBrakeRequires.Stages.Where(s => s > next && !_parts.Has(s)).ToList();
-            if (after.Count > 0)
-                dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));
-        }
         if (PlateOn)
-        {
-            string metal = L("metal-" + Folding.MetalOf(_job.Class));
-            int percent = (int)Math.Floor(_job.Work * 100 + 1e-9);
-            dsc.AppendLine(Running ? L("info-folding", metal, percent) : L("info-plate", metal, percent));
-        }
-        else if (_parts.Complete)
-            dsc.AppendLine(L("info-empty"));
+            dsc.AppendLine(Lang.Get(PressBrakeSystem.Domain + ":pressbrake-info-plate",
+                Lang.Get(PressBrakeSystem.Domain + ":pressbrake-metal-" + Folding.MetalOf(_job.Class)), (int)Math.Floor(_job.Work * 100 + 1e-9)));
+    }
+
+    /// <summary>For a wrench: the fold cycle W exactly, and the lever turns a half plate of its metal takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (PlateOn)
+            dsc.AppendLine(Lang.Get(PressBrakeSystem.Domain + ":pressbrake-info-fold",
+                _job.Work.ToString("0.000", CultureInfo.InvariantCulture),
+                LeverTurnsPerPlate(_job.Class).ToString("0.##", CultureInfo.InvariantCulture)));
     }
 }

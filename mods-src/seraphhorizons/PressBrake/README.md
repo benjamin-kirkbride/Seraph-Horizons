@@ -255,27 +255,29 @@ The model has been reviewed in projections rendered from the written files and i
 
 ## Gameplay
 
-The rules are game-independent in `Core/` (`PressBrakeParts.cs`, `Folding.cs`, `PressBrakeConfig.cs`,
-`PressBrakeRig.cs`, and `PressBrakeView.cs`: the renderer's view of the brake and its clock); the game
-side is `Game/` (`PressBrakeSystem`, the controller `BlockPressBrake` and `BEPressBrake`, the ghost
-`BlockPressBrakeGhost` with `BEPressBrakeGhost`, and `PressBrakeRenderer`), copied from the draw bench's
-(`../DrawBench/README.md`, "Gameplay") without its power ghost, its mechanical power behaviour and its
-oil. The mod's README, "Press brake", is the player-facing summary; the decisions are here. Everything
+The rules are game-independent in `Core/` (`Folding.cs` with the `requires` vocabulary, `PressBrakeConfig.cs`,
+`PressBrakeRig.cs`, and `PressBrakeClock.cs`: the renderer's lever clock), and its build is data,
+`assets/seraphhorizons/config/builds/pressbrake.json`. The game side is the shared machine base
+(`../Machines/Game/`, docs/modeling/machine-base.md): the frame is `BlockMachine`, the far cell the shared
+`machine-cell`, the parts are drawn by `MachineRenderer`; `Game/` holds only `PressBrakeSystem` (its
+settings and rig, which it names to `MachinesSystem`) and `BEPressBrake : BEMachine`, a hand machine
+(`HandWorked`) with no power anchor and no oil. The mod's README, "Press brake", is the player-facing summary; the decisions are here. Everything
 is read from the rig through its anchors, `requires` and the stable part id `leaf`, never element names.
 
 **Blocks.** `seraphhorizons:pressbrake-frame-{side}` (`assets/seraphhorizons/blocktypes/pressbrake/frame.json`,
 drawing `pressbrake_frame.json`; its textures are every texture of both shapes, `edge` and `cupronickel`
-included) and `pressbrake-ghost` for the far cell. Placement (`side` = the player's look,
-`PressBrakeRig.PlacedSide`, so the brake runs away from them with the leaf end nearest), the ghost, its
-repair, breaking through it and the boxes (selection from the rig's cells, collision with their lids)
-are the draw bench's. The frame recipe (`assets/seraphhorizons/recipes/grid/pressbrake.json`): three oak
+included; class `seraphhorizons.Machine`) and the shared `machine-cell` in the far cell. Placement (`side`
+= the player's look, `PressBrakeRig.PlacedSide`, every machine's rule, so the brake runs away from them with
+the leaf end nearest), the cell, its repair, breaking through it and the boxes (selection from the rig's
+cells, collision with their lids) are the machine base's. The frame recipe (`assets/seraphhorizons/recipes/grid/pressbrake.json`): three oak
 planks, two oak logs, four nails and strips of iron, meteoric iron or steel, and a hammer. It takes no
 plate and no metal parts: the contract puts the frame's own iron (gallows, nuts, hinge pins, bail arms)
 in the frame, and the screws and edges are the stages, so the nails and strips stand for the frame's
 iron and the metal parts and plate are fitted.
 
-**Stages** (`PressBrakeParts`), one item a stage, in `PressBrakeStage` order, the next missing stage the
-only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart` otherwise):
+**Stages** (`config/builds/pressbrake.json`, kept by the base's `MachineAssembly`), one item a stage, in
+order, the next missing stage the only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart`
+otherwise, with the shared messages):
 
 | # | `requires` | Item (verified in game 1.22.7's `survival/blocktypes/metal/metalpartsandscraps.json` and `survival/itemtypes/resource/metalplate.json`) |
 |---|---|---|
@@ -289,24 +291,23 @@ takes the half plate off while it is still flat (W = 0); one being folded stays 
 With no half plate on, a Ctrl click is an ordinary click. Breaking drops every part and a flat half
 plate (a part-folded one is lost). The creative shortcut (Ctrl in creative mode on an
 incomplete brake) fits each stage's first code (metal parts, then an iron plate). A save restores the stages as a run
-from the first; a save's screws may also be a rod, from before they were metal parts (kept, and given
-back on breaking).
+from the first (a brake saved before the shared base loads as a bare frame; its old keys are not read).
 
 **Hold to work** (the quern's pattern, `BlockQuern`/`BlockEntityQuern`): the block forwards the
-interaction's start, every step, the stop and the cancel to the block entity (the ghost forwards them
-too). A click with a part fits it; with a half plate on an empty bed, loads it (and, held on, the steps
+interaction's start, every step, the stop and the cancel to the block entity (`BlockMachine`; the cell
+forwards them too). A click with a part fits it; with a half plate on an empty bed, loads it (and, held on, the steps
 that follow work it); anything else (an empty hand, a tool, a whole plate, a half plate on a loaded bed)
 on a complete brake is a work click, Shift excepted so a held block can still be placed against the
 brake. The server keeps the
-players working the lever in `LeverHolds`, refreshed by each step and dropped on the stop, or after
-`Folding.HoldTimeoutMs` (600) without a step, as the quern forgets a grinder after a second. Its 50 ms
-tick folds while anyone holds: θ, the lever clock, turns `Folding.LeverTurnsPerSecond` (1) a second,
+players working the lever in the base's `HandHolds`, refreshed by each step and dropped on the stop, or
+after `HandHolds.DefaultTimeoutMs` (600) without a step, as the quern forgets a grinder after a second. Its
+50 ms tick folds while anyone holds (the base's `Working` state, `WorkUnpowered`): θ, the lever clock, turns `Folding.LeverTurnsPerSecond` (1) a second,
 and `BEPressBrake.Fold(radians)` advances W by `PlatesFor(radians, LeverTurnsPerPlate(k))` (the Atlas
 scenarios call it to finish a half plate). Whether anyone holds is synced (`held`), and the client's own
 player counts as holding for 250 ms after its last step, so the renderer answers at once. No hand
 animation of its own: the game's held-interaction pose is used, as the quern's.
 
-**The fold** (`Folding`, `FoldJob`). The work is a half plate, `seraphhorizons:halfplate-lead` (k 1) or
+**The fold** (`Folding`, the base's `MachineJob` ending at 1). The work is a half plate, `seraphhorizons:halfplate-lead` (k 1) or
 `-copper` (k 2) (`Folding.LeadHalfPlate`, `CopperHalfPlate`), the rig's `fold.plates`, folded once across
 its middle at a right angle; what comes off is `fold.angles[k]` (`seraphhorizons:angle-{metal}`),
 `fold.anglesPerPlate` (1) of it. Nothing else goes on: the game's whole plate (the squaring shear's

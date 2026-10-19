@@ -78,13 +78,13 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         World.SetBlock("seraphhorizons:eidolongantry-oak-south", pos);
         await World.Ticks(5);
         var gantry = W.BlockAccessor.GetBlockEntity(pos) as BEEidolonGantry ?? throw new Xunit.Sdk.XunitException($"no eidolon gantry at {pos}");
-        gantry.PlaceGhosts();
+        gantry.PlaceCells();
         gantry.FitAll();
         Assert.True(gantry.WinchComplete);
         return gantry;
     }
 
-    private static BEBehaviorEidolonBody BodyOf(BEEidolonGantry gantry) => gantry.GetBehavior<BEBehaviorEidolonBody>()!;
+    private static GantryBody BodyOf(BEEidolonGantry gantry) => gantry.Body;
 
     /// <summary>A woken eidolon owned by <paramref name="owner"/>, standing <paramref name="west"/> blocks out
     /// of the gantry's front, free to work.</summary>
@@ -322,7 +322,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         AssertHung(e, gantry);
         long id = e.EntityId;
         int cx = origin.X / GlobalConstants.ChunkSize, cz = origin.Z / GlobalConstants.ChunkSize;
-        foreach (var c in gantry.GhostCells().Append(gantry.BodyPoint!.AsBlockPos))
+        foreach (var c in gantry.CellBlocks().Select(c => c.Pos).Append(gantry.BodyPoint!.AsBlockPos))
             Assert.Equal((cx, cz), (c.X / GlobalConstants.ChunkSize, c.Z / GlobalConstants.ChunkSize));
 
         // nobody near: the column is saved and unloaded, then loaded again
@@ -414,7 +414,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
             dropped[item.Itemstack.Collectible.Code.ToString()] = dropped.GetValueOrDefault(item.Itemstack.Collectible.Code.ToString()) + item.Itemstack.StackSize;
         Log("dropped: " + string.Join(", ", dropped.Select(kv => $"{kv.Value} {kv.Key}")));
         // the winch's chain and the skirt's one loose chain
-        Assert.Equal(GantryParts.Needed(GantryStage.Chain) + 1, dropped.GetValueOrDefault("game:metalchain-iron"));
+        Assert.Equal(4 + 1, dropped.GetValueOrDefault("game:metalchain-iron"));
         Assert.DoesNotContain("game:metalplate-steel", dropped.Keys);
         Assert.DoesNotContain(BodyBill.Torso, dropped.Keys);
         Assert.Contains("seraphhorizons:eidolongantry-oak-north", dropped.Keys);

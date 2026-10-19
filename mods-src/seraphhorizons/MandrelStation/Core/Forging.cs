@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.MandrelStation.Core;
 
 /// <summary>The mandrel station's <c>requires</c> vocabulary (the model's contract, "Build order"):
@@ -25,15 +27,6 @@ public static class MandrelRequires
     public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { Mandrel, HollowLead, HollowCopper, RodSteel };
 }
 
-/// <summary>Why a held item can or cannot be fitted as the mandrel.</summary>
-public enum MandrelFitVerdict
-{
-    Fits,
-    NotAMandrel,
-    /// <summary>A mandrel is already in the bracket.</summary>
-    AlreadyFitted,
-}
-
 /// <summary>Why a hollow can or cannot go on the mandrel.</summary>
 public enum HollowLoadVerdict
 {
@@ -47,8 +40,8 @@ public enum HollowLoadVerdict
 
 /// <summary>
 /// The station's one fitted part, the mandrel: a rod of iron, meteoric iron or steel, recognised by
-/// full code (<c>domain:path</c>). Its code is kept, so taking back and breaking return exactly what
-/// went in. Ctrl + right-click takes it back while no hollow is on.
+/// full code (<c>domain:path</c>). It is the station's one build stage (<c>config/builds/mandrelstation.json</c>,
+/// kept by the shared machine base), which keeps its code, so breaking returns exactly what went in.
 /// </summary>
 public static class MandrelPart
 {
@@ -64,21 +57,6 @@ public static class MandrelPart
     /// <summary>The metal of a mandrel's code (<c>game:rod-steel</c> is <c>steel</c>); null for anything else.</summary>
     public static string? MetalOf(string? code) =>
         Normalise(code) is { } c && IsMandrel(c) ? c[(c.LastIndexOf('-') + 1)..] : null;
-
-    /// <summary>Whether <paramref name="code"/> goes in as the mandrel, <paramref name="fitted"/> the
-    /// one in the bracket (null with none).</summary>
-    public static MandrelFitVerdict CanFit(string? code, string? fitted) =>
-        !IsMandrel(code) ? MandrelFitVerdict.NotAMandrel
-        : fitted != null ? MandrelFitVerdict.AlreadyFitted
-        : MandrelFitVerdict.Fits;
-
-    /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn as a part: null
-    /// always, the mandrel once fitted. The hollows are the work's, not a part's: never here.</summary>
-    public static bool Fitted(string? requires, string? fitted) =>
-        requires == null || requires == MandrelRequires.Mandrel && fitted != null;
-
-    /// <summary>A saved mandrel: its code if it is one, else none.</summary>
-    public static string? Restore(string? code) => IsMandrel(code) ? Normalise(code) : null;
 }
 
 /// <summary>
@@ -88,6 +66,8 @@ public static class MandrelPart
 /// blowsPerHollow[k] a blow (<see cref="WorkPerBlow"/>): blowsPerHollow is the count for the base
 /// hammer, the copper one, and a better hammer forges faster. At the blow that brings W to 1 the hollow
 /// is used up and <see cref="SectionsPerHollow"/> pipe sections of its metal come off the mandrel's tip.
+/// The hollow on the mandrel is a <see cref="MachineJob"/> ending at 1, its steps the blows struck
+/// (<see cref="Start"/>, <see cref="Strike"/>).
 /// </summary>
 public static class Forging
 {
@@ -180,38 +160,21 @@ public static class Forging
                 return i;
         return -1;
     }
-}
 
-/// <summary>A hollow on the mandrel: its class, the blows struck on it and W, the forging so far (0..1).</summary>
-public readonly record struct ForgeJob(int Class, int Blows, double Work)
-{
-    public static readonly ForgeJob None = new(0, 0, 0);
-
-    public bool On => Class is 1 or 2;
-
-    public bool Done => On && Work >= 1 - 1e-9;
-
-    /// <summary>Whether nothing has been done to the hollow yet (it can be taken back).</summary>
-    public bool Untouched => On && Blows == 0 && Work <= 0;
+    /// <summary>The forging of a hollow of class <paramref name="k"/> just put on the mandrel (W ends at 1, no
+    /// blows struck); none for a class the station does not forge.</summary>
+    public static MachineJob Start(int k) => MachineJob.Start(k is 1 or 2 ? k : 0, 1);
 
     /// <summary>The job after one blow of the base hammer, of <paramref name="blowsPerHollow"/> the
     /// hollow takes, W held at 1, and whether this blow finished it.</summary>
-    public (ForgeJob Job, bool Finished) Strike(int blowsPerHollow) => Strike(blowsPerHollow, 0, 0);
+    public static (MachineJob Job, bool Finished) Strike(MachineJob job, int blowsPerHollow) => Strike(job, blowsPerHollow, 0, 0);
 
     /// <summary>The job after one blow of a hammer of tool tier <paramref name="tier"/>
-    /// (<see cref="Forging.WorkPerBlow"/>: <paramref name="blowsPerHollow"/> is the base hammer's count,
-    /// <paramref name="baseTier"/> its tier), W held at 1, and whether this blow finished it.</summary>
-    public (ForgeJob Job, bool Finished) Strike(int blowsPerHollow, int tier, int baseTier)
-    {
-        if (!On || Done || blowsPerHollow < 1)
-            return (this, false);
-        var next = this with { Blows = Blows + 1, Work = Math.Min(1, Work + Forging.WorkPerBlow(blowsPerHollow, tier, baseTier)) };
-        if (next.Work >= 1 - 1e-9)
-            next = next with { Work = 1 };
-        return (next, next.Done);
-    }
+    /// (<see cref="WorkPerBlow"/>: <paramref name="blowsPerHollow"/> is the base hammer's count,
+    /// <paramref name="baseTier"/> its tier), a step more, W held at 1, and whether this blow finished it.</summary>
+    public static (MachineJob Job, bool Finished) Strike(MachineJob job, int blowsPerHollow, int tier, int baseTier) =>
+        blowsPerHollow < 1 ? (job, false) : job.Step(WorkPerBlow(blowsPerHollow, tier, baseTier));
 
     /// <summary>A saved job: W clamped to 0..1, blows at least 0; none when the class is not a hollow's.</summary>
-    public static ForgeJob Restore(int k, int blows, double work) =>
-        k is 1 or 2 ? new ForgeJob(k, Math.Max(0, blows), double.IsFinite(work) ? Math.Clamp(work, 0, 1) : 0) : None;
+    public static MachineJob Restore(int k, int blows, double work) => MachineJob.Restore(k is 1 or 2 ? k : 0, work, 1, blows);
 }

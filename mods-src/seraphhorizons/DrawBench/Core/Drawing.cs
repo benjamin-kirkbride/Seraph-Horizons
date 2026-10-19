@@ -1,4 +1,25 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.DrawBench.Core;
+
+/// <summary>The draw bench's <c>requires</c> vocabulary: its five build stages (<c>config/builds/drawbench.json</c>;
+/// the die's is also its wearing part's), and the work's (<c>billetlead</c>, <c>billetcopper</c>: a hollow section
+/// of that metal on the bench).</summary>
+public static class DrawBenchRequires
+{
+    public const string Die = "die";
+    public const string BilletLead = "billetlead";
+    public const string BilletCopper = "billetcopper";
+
+    /// <summary>The stages' requires, in order.</summary>
+    public static readonly IReadOnlyList<string> Stages = ["gearbox", "chain", "dog", "mandrel", Die];
+
+    /// <summary>The billet <c>requires</c> of class <paramref name="k"/>: 1 lead, 2 copper.</summary>
+    public static string? Billet(int k) => k switch { 1 => BilletLead, 2 => BilletCopper, _ => null };
+
+    /// <summary>Every <c>requires</c> value the rig may use.</summary>
+    public static readonly IReadOnlySet<string> KnownRequires = Stages.Concat([BilletLead, BilletCopper]).ToHashSet();
+}
 
 /// <summary>Why a hollow section can or cannot go on the bench.</summary>
 public enum DrawLoadVerdict
@@ -20,7 +41,7 @@ public enum DrawLoadVerdict
 /// stroke cycle of <c>TurnsPerSection(k)</c> axle turns, its progress W in sections advancing with the
 /// shaft's angle as the gear cutter's teeth do. Pipe section m + 1 comes off as W crosses
 /// m + <see cref="HandOut"/>, as its draw finishes and the jaws open; the job ends at W = 4, the dog
-/// back at the die.
+/// back at the die. The hollow on the bench is a <see cref="MachineJob"/> ending at 4 (<see cref="Start"/>).
 /// </summary>
 public static class Drawing
 {
@@ -35,6 +56,22 @@ public static class Drawing
 
     /// <summary>The die metals there are: <c>seraphhorizons:drawdie-{metal}</c>.</summary>
     public static readonly IReadOnlyList<string> DieMetalNames = ["iron", "steel"];
+
+    public const string DieIronCode = "seraphhorizons:drawdie-iron";
+    public const string DieSteelCode = "seraphhorizons:drawdie-steel";
+
+    /// <summary>The die's wearing part in the build file.</summary>
+    public const string DiePart = "die";
+
+    /// <summary>A die's metal: <c>iron</c> or <c>steel</c>; null for anything else.</summary>
+    public static string? DieMetalOf(string? code) => code switch
+    {
+        DieIronCode => "iron",
+        DieSteelCode => "steel",
+        _ => null,
+    };
+
+    public static string? DieCodeFor(string? metal) => metal switch { "iron" => DieIronCode, "steel" => DieSteelCode, _ => null };
 
     /// <summary>The class of a metal: 1 lead, 2 copper, 0 else.</summary>
     public static int ClassOfMetal(string? metal) => metal switch { "lead" => 1, "copper" => 2, _ => 0 };
@@ -75,37 +112,24 @@ public static class Drawing
     /// <paramref name="minSpeed"/> or faster.</summary>
     public static bool Running(bool complete, bool jobOn, float speed, float minSpeed) =>
         complete && jobOn && Math.Abs(speed) >= minSpeed;
-}
 
-/// <summary>A hollow on the bench: its class and the pipe sections drawn so far, W (0..4).</summary>
-public readonly record struct DrawJob(int Class, double Work)
-{
-    public static readonly DrawJob None = new(0, 0);
-
-    public bool On => Class is 1 or 2;
-
-    /// <summary>The work's end: four sections.</summary>
-    public int End => On ? Drawing.SectionsPerHollow : 0;
-
-    public bool Done => On && Work >= End - 1e-9;
-
-    /// <summary>Sections handed out so far: those whose hand-out, m + <see cref="Drawing.HandOut"/>,
-    /// W has reached.</summary>
-    public int SectionsDone => On ? Math.Clamp((int)Math.Floor(Math.Min(Work, End) - Drawing.HandOut + 1 + 1e-9), 0, End) : 0;
-
-    /// <summary>The draw after <paramref name="radians"/> more of the axle, W held at the end;
-    /// how many sections came off in this step (W crossing 0.43125, 1.43125, 2.43125 or 3.43125); and
-    /// whether it finished the hollow (W reaching 4).</summary>
-    public (DrawJob Job, int Sections, bool Finished) Advance(double radians, double turnsPerSection)
-    {
-        if (!On || Done)
-            return (this, 0, false);
-        double w = Math.Min(End, Work + Drawing.SectionsFor(radians, turnsPerSection));
-        var next = this with { Work = w };
-        return (next, next.SectionsDone - SectionsDone, next.Done);
-    }
+    /// <summary>The draw of a hollow of class <paramref name="k"/> just put on (W ends at 4); none for a class
+    /// the bench does not draw.</summary>
+    public static MachineJob Start(int k) => MachineJob.Start(k is 1 or 2 ? k : 0, SectionsPerHollow);
 
     /// <summary>A saved draw: W clamped to 0..4; none when the class is not a hollow's.</summary>
-    public static DrawJob Restore(int k, double work) =>
-        k is 1 or 2 ? new DrawJob(k, double.IsFinite(work) ? Math.Clamp(work, 0, Drawing.SectionsPerHollow) : 0) : None;
+    public static MachineJob Restore(int k, double work) => MachineJob.Restore(k is 1 or 2 ? k : 0, work, SectionsPerHollow);
+
+    /// <summary>Sections handed out so far: those whose hand-out, m + <see cref="HandOut"/>, W has reached.</summary>
+    public static int SectionsDone(MachineJob job) =>
+        job.On ? Math.Clamp((int)Math.Floor(Math.Min(job.Work, job.End) - HandOut + 1 + 1e-9), 0, (int)job.End) : 0;
+
+    /// <summary>The draw after <paramref name="radians"/> more of the axle, W held at the end; how many
+    /// sections came off in this step (W crossing 0.43125, 1.43125, 2.43125 or 3.43125); and whether it
+    /// finished the hollow (W reaching 4).</summary>
+    public static (MachineJob Job, int Sections, bool Finished) Advance(MachineJob job, double radians, double turnsPerSection)
+    {
+        var (next, finished) = job.Advance(SectionsFor(radians, turnsPerSection));
+        return (next, SectionsDone(next) - SectionsDone(job), finished);
+    }
 }

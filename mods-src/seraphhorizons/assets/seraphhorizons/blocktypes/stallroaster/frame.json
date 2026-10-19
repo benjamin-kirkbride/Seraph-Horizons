@@ -5,9 +5,9 @@
 // disables it with StallRoaster or OreProcessing off.
 {
 	code: "stallroaster",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.StallRoaster",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the stall's open front faces
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the stall's open front faces
 	// the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -31,7 +31,7 @@
 		"sulfur":  { base: "game:item/resource/crushed/sulfur" }
 	},
 	attributes: {
-		oreMachine: {
+		machine: {
 			machine: "stallroaster",
 			extraRequires: [
 				"wood", "kindling", "sulfur", "fronthalf", "frontwalled", "outletcap",

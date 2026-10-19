@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
@@ -16,39 +17,32 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.Rosser;
 
 /// <summary>
-/// The rosser's controller. Holds the fitted parts (<see cref="RosserParts"/>: every item's code,
-/// and the scraper heads' wear), the trunk as its whole Logging Expanded item stack, its trip
-/// (<see cref="RosserTrip"/>: travel, rate and what has dropped) and the drip's reservoir. The
-/// server feeds the trunk from the power ghost's shaft angle, drops sticks and bark at the chute
-/// as the trunk passes the limb breaker and the ring, debarks it at the end of the trip, pulls
-/// trunks from a rack at the infeed end and pushes finished ones into a rack at the outfeed end
-/// (or leaves them to the bucking mill in line, <see cref="ITrunkFeeder"/>), draws water from a
-/// pipe, and keeps the ghost cells stamped; the client follows the trunk between syncs and shows
-/// it. Every cell's collision and selection boxes, with the travelling trunk's
-/// (<see cref="TrunkBox.BoundsOnPath"/>), come from here. The rules are Rosser/Core's.
+/// The rosser's controller, on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/rosser.json</c> with the scraper heads its wearing part; its cells, power cell and water
+/// anchor; its oil (<see cref="OilMachine.Rosser"/>); the drip's reservoir, filled from a ppex pipe at the water
+/// face once the drip's pipes are in; its block info). It keeps the trunk as its whole Logging Expanded item
+/// stack and its trip (<see cref="RosserTrip"/>: travel, rate and what has dropped). The server feeds the trunk
+/// from the power cell's shaft angle, drops sticks and bark at the chute as the trunk passes the limb breaker and
+/// the ring, debarks it at the end of the trip, pulls trunks from a rack at the infeed end and pushes finished
+/// ones into a rack at the outfeed end (or leaves them to the bucking mill in line, <see cref="ITrunkFeeder"/>);
+/// the client follows the trunk between syncs and draws it (<see cref="RosserRenderer"/>). Every cell's collision
+/// and selection boxes, with the travelling trunk's (<see cref="TrunkBox.BoundsOnPath"/>), come from here. The
+/// rules are Rosser/Core's.
 /// </summary>
-public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
+public class BERosser : BEMachine, ITrunkFeeder
 {
     private static readonly AssetLocation BreakSound = new("game", "sounds/effect/toolbreak");
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation StickSound = new("game", "sounds/block/stickbreak");
     private static readonly AssetLocation TrunkSound = new("game", "sounds/block/planks");
-    private const string PartKeyPrefix = "part-";
     // The server syncs the travel at least this often (blocks); the client follows it between.
     private const double SyncStep = 0.25;
 
-    private RosserParts _parts = new();
     private ItemStack? _trunk;
     private RosserTrip _trip = RosserTrip.None;
-    private RosserWater _water = RosserWater.Dry;
     private RosserRackState _rackState;
     private RosserOutfeedState _outfeedState;
-    private float _lastAngle;
-    private bool _angleSeeded;
     private bool _warnedNoDebark;
-    // The oil tank (MachineOil): none with the switch off, or on a client of a server without it.
-    private OilState? _oil;
-    private float _smokeSeconds;
     // The client's estimate of T, advanced with the shaft between syncs, and the shown T one client
     // tick back with when and how long that tick was: frames between ticks draw part way.
     private double _clientTravel;
@@ -57,43 +51,54 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     private float _clientTravelSeconds;
     private float _clientLastAngle;
     private bool _clientAngleSeeded;
-    private float? _serverMinSpeed;
     private bool _serverWet;
-    private double? _serverReservoir;
     // Every cell's boxes for the trunk at one quantised T, turned to the facing: built whole, then
     // published; collision lookups, which can run off the main thread, only read it.
     private volatile BoxTable? _boxes;
     private Dictionary<Int3, Cuboidf[]>? _frameBoxes;
     private Dictionary<Int3, Cuboidf>? _lidBoxes;
-    private RosserRenderer? _renderer;
 
     private sealed record BoxTable(TrunkClass Class, double Travel, (Float3 Min, Float3 Max) Trunk,
         IReadOnlyDictionary<Int3, Cuboidf[]> Cells, IReadOnlyDictionary<Int3, Cuboidf[]> Collision);
 
-    public Side Side { get; private set; } = Side.North;
     public BlockFacing Facing => BlockFacing.FromCode(Side.Code());
-    public bool Complete => _parts.Complete;
-    /// <summary>The fitted parts (read only by callers).</summary>
-    public RosserParts Parts => _parts;
     /// <summary>The trip as the server knows it (the client's copy carries the server's last T).</summary>
     public RosserTrip Trip => _trip;
-    public RosserWater Water => _water;
     public RosserRackState RackState => _rackState;
     public RosserOutfeedState OutfeedState => _outfeedState;
 
-    /// <summary>The rosser's oil, or null without the <c>MachineOil</c> switch.</summary>
-    public OilState? Oiling => _oil;
-    /// <summary>The configured slowest shaft speed that feeds; a client uses the server's value.</summary>
-    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
-
     private RosserSystem System => RosserSystem.Of(Api);
     private RosserConfig Config => System.Config;
-    private RosserRig? Rig => System.Rig;
+    private new RosserRig? Rig => System.Rig;
     private RosserPace? Pace => System.Pace;
 
-    // IRosserVisualState
-    public bool Fitted(string? requires) => _parts.Fitted(requires);
-    public string? HeadMetal => _parts.HeadMetal;
+    /// <summary>The fitted scraper heads: their code and wear points left; null without (spent heads are gone).</summary>
+    public (string Code, double Left)? Heads => Assembly?.Wearing.Fitted(RosserBuild.HeadsPart);
+
+    /// <summary>The scraper heads' metal (the tips' texture); null without heads.</summary>
+    public string? HeadMetal => RosserBuild.HeadMetalOf(Heads?.Code);
+
+    /// <summary>The heads' wear points left; 0 without heads.</summary>
+    public int HeadsLeft => Heads is { } h ? (int)Math.Round(h.Left) : 0;
+
+    /// <summary>The heads' wear points when fitted (their metal's); 0 without heads.</summary>
+    public int HeadsCapacity => HeadMetal is { } metal && Api != null ? System.HeadCapacity(metal) : 0;
+
+    /// <summary>Whether the heads are fitted and have never been used (they can come back out).</summary>
+    public bool HeadsUnworn => Assembly is { } a && RosserBuild.HeadsUnworn(a);
+
+    /// <summary>Whether the four ring sections are in: the tyres and the heads go on it.</summary>
+    public bool RingIn => Assembly is { } a && RosserBuild.RingIn(a);
+
+    /// <summary>The drip's pipes' metal, copper or lead, once all four are in; null before, or while the
+    /// rosser needs none.</summary>
+    public string? PipeMetal => Assembly is { } a ? RosserBuild.PipeMetal(a) : null;
+
+    /// <summary>Whether the drip's water comes in: through its pipes once they are in, or straight from a pipe
+    /// at the water face while the rosser needs none (Pipes and Power Expanded without UnifiedPipes' metals).</summary>
+    public bool DripPiped => PipeMetal != null || !System.PipesNeeded;
+
+    // What the renderer draws
     public ItemStack? Trunk => _trunk;
     public TrunkClass TrunkClass => (TrunkClass)_trip.Class;
     public double ClientTravel
@@ -109,79 +114,84 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     }
     /// <summary>T as this side knows it: the client's estimate there, the server's own here.</summary>
     public double SideTravel => Api?.Side == EnumAppSide.Client ? _clientTravel : _trip.Travel;
-    public RosserState State => Pace is { } pace ? (_trip with { Travel = SideTravel }).State(pace) : _trunk == null ? RosserState.Empty : RosserState.Waiting;
-    public bool Running => RosserTrip.Running(_parts.Complete, ShaftSpeed, MinSpeed);
-    public bool Wet => Api?.Side == EnumAppSide.Client ? _serverWet : _water.Wet(Config);
-    public float ShaftAngle => Power?.AngleRad ?? 0;
-    public float ShaftSpeed => Math.Abs(Power?.TrueSpeed ?? 0);
+    /// <summary>Where the trunk is, from this side's trip.</summary>
+    public RosserState TripState => Pace is { } pace ? (_trip with { Travel = SideTravel }).State(pace) : _trunk == null ? RosserState.Empty : RosserState.Waiting;
+    /// <summary>Assembled with its heads and turning at <see cref="BEMachine.MinSpeed"/> or faster: the feed runs.</summary>
+    public bool ShaftRuns => RosserTrip.Running(Ready, ShaftSpeed, MinSpeed);
+    /// <summary>Whether the next log would be scraped wet: the reservoir holds a log's water (synced: the drip's
+    /// particles).</summary>
+    public bool DripWet => Api?.Side == EnumAppSide.Client ? _serverWet : Water.Holds(Config.WaterPerLog);
 
-    /// <summary>The power ghost's mechanical power behavior, looked up afresh each time.</summary>
-    public BEBehaviorRosserMP? Power =>
-        Api != null && Rig is { } rig
-            ? Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.PowerCell))?.GetBehavior<BEBehaviorRosserMP>()
-            : null;
+    // ---- The machine base ----
+
+    /// <summary>The heads' uses are their metal's capacity; the hoops, rods and plates any metal while the
+    /// woodworking machines are not iron work.</summary>
+    protected override MachineBuild? BuildSpec(IWorldAccessor world)
+    {
+        var system = RosserSystem.Of(world.Api);
+        var build = base.BuildSpec(world)?.WithUses(RosserBuild.HeadsPart, code =>
+            RosserBuild.HeadMetalOf(code) is { } metal ? system.HeadCapacity(metal) : 0);
+        return build != null && world.Side == EnumAppSide.Server && system.PartMetals == null ? RosserBuild.AnyMetal(build) : build;
+    }
+
+    protected override OilMachine? OilKind => OilMachine.Rosser;
+    protected override float ConfigMinSpeed => Config.MinSpeed;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 50;
+
+    /// <summary>Whole with its heads on: until then it is the frame, puts the token load on its shaft and takes
+    /// the creative shortcut (the woodworking stations', with <c>UnifiedWoodworking</c>: steel heads last).</summary>
+    public override bool Complete => Ready;
+    protected override bool LoadsShaft => Ready;
+    protected override bool CreativeFills => !Ready && WoodworkingShortcut;
+    protected override double ShaftLoad => Config.Resistance;
+    protected override Float3? SmokePoint => new Float3(0.5f, 1.2f, 0.5f);
+
+    /// <summary>A trunk waiting or feeding, with Logging Expanded as the rosser needs it.</summary>
+    public override bool HasWork =>
+        Pace != null && System.Logging != null && TripState is RosserState.Waiting or RosserState.Feeding;
+
+    public override double? WorkProgress =>
+        TripState == RosserState.Feeding && Pace is { } p && _trip.End(p) > 0 ? Math.Clamp(SideTravel / _trip.End(p), 0, 1) : null;
+
+    // The drip: a log's water, through its pipes from a ppex pipe at the water face; a dry drip still debarks.
+    public override double WaterPerItem => Config.WaterPerLog;
+    public override double ReservoirCapacity => Config.ReservoirLitres;
+    protected override double WaterIntakePerSecond => DripPiped ? Config.WaterIntakeLitresPerSecond : 0;
+    protected override bool Wet => true;
+
+    /// <summary>The drip's pipes are drawn in the metal fitted only, the infeed rolls once two rods are in.</summary>
+    public override bool ShowsPart(string? requires) => Assembly is { } a ? RosserBuild.Shows(a, requires) : requires == null;
+
+    /// <summary>Whether the creative shortcut is on: with <c>UnifiedWoodworking</c>, whose creative
+    /// shortcut on the woodworking stations this is, running (as the bucking mill's).</summary>
+    public bool WoodworkingShortcut => Api?.ModLoader.GetModSystem<SeraphHorizonsSystem>()?.Woodworking is { Active: true };
 
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        // (a new rosser's parts have not been through FromTreeAttributes: whether it needs pipes is set here)
-        _parts = api.Side == EnumAppSide.Server
-            ? _parts.WithMetals(System.PartMetals, System.PartMetals == null, System.PipesNeeded)
-            : _parts.WithMetals(anyMetal: true, pipesNeeded: System.PipesNeeded);
         RebuildBoxes(force: true);
         if (api.Side == EnumAppSide.Server)
-        {
-            _oil ??= Oil.NewOwn(api, OilMachine.Rosser);
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(OnTick, 50);
             RegisterGameTickListener(OnSlowTick, 1000);
-        }
         else
-        {
             _clientTravel = _clientTravelBefore = _trip.Travel;
-            RegisterGameTickListener(OnClientTick, 50);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockRosser)
-                _renderer = new RosserRenderer(capi, this, rig);
-        }
     }
+
+    protected override IRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) => new RosserRenderer(capi, this, (RosserRig)rig);
 
     // ---- Footprint ----
-
-    public enum CellKind { Plain, Power, Water }
-
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>Every ghost cell's world position, with which ghost it is.</summary>
-    public IEnumerable<(BlockPos Pos, CellKind Kind)> GhostCells() =>
-        Rig is { } rig
-            ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell ? CellKind.Power : c.Pos == rig.WaterCell ? CellKind.Water : CellKind.Plain))
-            : [];
 
     /// <summary>A cell's selection boxes, turned to the rosser's facing, with the trunk's part in
     /// that cell; an empty set for a hollow cell the trunk is not in; null when the cell is not the
     /// rosser's. Safe off the main thread: the table is built whole and only read here.</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Table(cellPos, collision: false);
+    public override Cuboidf[]? CellBoxes(BlockPos cellPos) => Table(cellPos, collision: false);
 
     /// <summary>A cell's collision boxes: its <see cref="CellBoxes"/> and, on a column's top cell
     /// (hollow or not), the rig's collision-only lid, so nothing falls into the rosser from above.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Table(cellPos, collision: true);
+    public override Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Table(cellPos, collision: true);
 
-    private Cuboidf[]? Table(BlockPos cellPos, bool collision)
-    {
-        if (_boxes is not { } table)
-            return null;
-        var local = Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
-        return (collision ? table.Collision : table.Cells).GetValueOrDefault(local);
-    }
+    private Cuboidf[]? Table(BlockPos cellPos, bool collision) =>
+        _boxes is { } table ? (collision ? table.Collision : table.Cells).GetValueOrDefault(LocalOf(cellPos)) : null;
 
     /// <summary>Rebuilds the box table when the trunk's class or its quantised travel
     /// (<see cref="RosserTrip.BoxTravel"/>, 1/16 block) changed, on either side.</summary>
@@ -222,181 +232,125 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         return TrunkBox.Contains(table.Trunk, local);
     }
 
-    private Block? GhostBlock(CellKind kind) => Api.World.GetBlock(new AssetLocation(RosserSystem.Domain, kind switch
-    {
-        CellKind.Power => "rosser-ghostpower-" + Side.Code(),
-        CellKind.Water => "rosser-ghostwater-" + Side.Code(),
-        _ => "rosser-ghost",
-    }));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        foreach (var (pos, kind) in GhostCells())
-            if (GhostBlock(kind) is { } ghost)
-                StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BERosserGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, kind) in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null || GhostBlock(kind) is not { } expected)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BERosserGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockRosserGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, _) in GhostCells())
-            if (ba.GetBlock(pos) is BlockRosserGhost && ba.GetBlockEntity(pos) is BERosserGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
-    }
-
     // ---- Interaction ----
 
-    /// <summary>Right-click on the rosser or any ghost (<paramref name="onTrunk"/>: on the trunk).
-    /// Ctrl takes the waiting or delivered trunk back (into Carry On's hands with trunk entities),
-    /// else the unworn heads; a part in hand is fitted (as many as its stage still needs); with an
-    /// empty hand the trunk carried in Carry On's hands (with trunk entities), else a trunk in hand
-    /// or one from the hotbar or backpack, is loaded onto the infeed bed. Anything else held is the item's own
-    /// business, except on the trunk, where the click is the rosser's and does nothing (a block
-    /// would be placed inside the trunk); so is a straight pipe once the drip's pipes are in, which
-    /// is then placed against the rosser (<see cref="RosserParts.TakesClick"/>), as on the water
-    /// face. In creative mode, Ctrl on an unassembled rosser fits its next stage instead. Decided
-    /// and done on the server; the client only says whether the click is the rosser's.</summary>
-    public bool OnInteract(IPlayer byPlayer, bool onTrunk = false)
+    /// <summary>Before the build's: Ctrl takes the waiting or delivered trunk back (into Carry On's hands with
+    /// trunk entities), else the unworn heads (the creative shortcut comes first while a part is still to fit);
+    /// a straight pipe once the drip's pipes are in, or while the rosser needs none, is placed against the
+    /// rosser as any pipe is, as on the water face; the tyres and the heads go on the ring once it is in; a
+    /// hoop, rod or plate not of the metals it takes is refused as such.</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        // Holding oil, a click anywhere on the rosser pours it.
-        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
-            return oiled;
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
+        if (CreativeShortcut(byPlayer))
+            return null;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
-        var held = slot?.Itemstack;
-        bool part = _parts.TakesClick(held?.Collectible?.Code?.ToString());
-        bool trunk = Trunks.IsTrunk(held);
-        if (!take && !part && !trunk && held != null)
-            return onTrunk;
+        if (controls.CtrlKey && !controls.ShiftKey)
+        {
+            if (Api.Side == EnumAppSide.Server)
+                TakeBack(byPlayer);
+            return true;
+        }
+        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
+        if (RosserBuild.PipeMetalOf(code) is { } pipe)
+        {
+            if (DripPiped)
+                return false;
+            if (!RosserBuild.PipeMetals.Contains(pipe))
+                return Api.Side != EnumAppSide.Server || !Refuse(byPlayer, "error-wrong-pipe-metal");
+        }
+        if (RosserBuild.HeadMetalOf(code) != null)
+        {
+            if (Api.Side == EnumAppSide.Server)
+                TryFitHeads(slot!, byPlayer);
+            return true;
+        }
+        if (RosserBuild.IsHoop(code) && !RingIn)
+            return Api.Side != EnumAppSide.Server || !Refuse(byPlayer, "error-needs-ring");
+        if (RosserBuild.IsIronWork(code) && !Built && slot!.Itemstack is { } stack
+            && Assembly?.Check(code, stack.StackSize, stack.Collectible.MaxStackSize).Verdict == AssemblyVerdict.NotAPart)
+            return Api.Side != EnumAppSide.Server || !Refuse(byPlayer, "error-wrong-metal");
+        return null;
+    }
+
+    /// <summary>After the build's: with an empty hand the trunk carried in Carry On's hands (with trunk
+    /// entities), else a trunk in hand or one from the hotbar or backpack, is loaded onto the infeed bed.
+    /// Anything else held is the item's own business, except on the trunk, where the click is the rosser's and
+    /// does nothing (a block would be placed inside the trunk).</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
+    {
+        bool trunk = Trunks.IsTrunk(slot.Itemstack);
+        if (!trunk && slot.Itemstack != null)
+            return HitsTrunk(blockSel.Position, blockSel.HitPosition);
         if (Api.Side != EnumAppSide.Server)
             return true;
-
-        if (CreativeShortcutApplies(byPlayer))
-            FitNextPart(byPlayer);
-        else if (take)
-            TakeBack(byPlayer);
-        else if (part)
-            TryFitPart(slot!, byPlayer);
-        else if (trunk)
-            TryLoadFromSlot(slot!, byPlayer);
+        if (trunk)
+            TryLoadFromSlot(slot, byPlayer);
         else
             TryLoadFromInventory(byPlayer);
         return true;
     }
 
-    /// <summary>Whether the creative shortcut is on: with <c>UnifiedWoodworking</c>, whose creative
-    /// shortcut on the woodworking stations this is, running (as the bucking mill's).</summary>
-    public bool CreativeShortcut => Api?.ModLoader.GetModSystem<SeraphHorizonsSystem>()?.Woodworking is { Active: true };
-
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a rosser with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
+    /// <summary>Fits what <paramref name="slot"/> holds (server side), as a right-click holding it does: the
+    /// heads and the tyres by the ring's rule, any other part into the build, as many as it still needs. The
+    /// parts are taken from the slot unless the player is in creative mode or it is <paramref name="free"/>.
+    /// False, with an error to the player, when it does not go in.</summary>
+    public bool TryFitPart(ItemSlot slot, IPlayer byPlayer, bool free = false)
     {
-        var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete && CreativeShortcut
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
+        string? code = slot.Itemstack?.Collectible?.Code?.ToString();
+        if (RosserBuild.HeadMetalOf(code) != null)
+            return TryFitHeads(slot, byPlayer, free);
+        if (RosserBuild.IsHoop(code) && !RingIn)
+            return Refuse(byPlayer, "error-needs-ring");
+        if (free)
+            slot = new DummySlot(slot.Itemstack?.Clone());
+        bool fitted = TryFit(slot, byPlayer) == true;
+        RefreshState();
+        return fitted;
     }
 
-    /// <summary>The creative shortcut (server side): fits the next missing stage (in
-    /// <see cref="RosserStage"/> order, metal parts and heads of <see cref="AssembledMachines.DefaultMetal"/>,
-    /// the pipes copper) with nothing taken from the player.</summary>
-    public bool FitNextPart(IPlayer byPlayer)
+    /// <summary>Fits four scraper heads of one metal from <paramref name="slot"/> (server side): on the ring once
+    /// it is in, any metal, lasting their metal's capacity. False, with an error to the player, when the ring is
+    /// not in, heads are already on, or fewer than four are held.</summary>
+    public bool TryFitHeads(ItemSlot slot, IPlayer? byPlayer, bool free = false)
     {
-        if (_parts.NextPart(AssembledMachines.DefaultMetal) is not { } next)
-            return false;
-        if (Collectible(next.Code) is not { } part)
-        {
-            Api.Logger.Warning("[seraphhorizons] Rosser: no {0} for the creative shortcut", next.Code);
-            return false;
-        }
-        return TryFitPart(new DummySlot(new ItemStack(part, next.Count)), byPlayer, free: true);
-    }
-
-    /// <summary>A part by its code: an item, or a block (the pipes); null when the game has neither.</summary>
-    private CollectibleObject? Collectible(string code)
-    {
-        var location = new AssetLocation(code);
-        if (Api.World.GetItem(location) is { } item)
-            return item;
-        return Api.World.GetBlock(location) is { Id: > 0 } block ? block : null;
-    }
-
-    /// <summary>Fits as many of the part in <paramref name="slot"/> as its stage(s) still need
-    /// (server side); false, with an error to the player, when the rules say no. The parts are taken
-    /// from the slot unless the player is in creative mode (then a whole set goes in from a single
-    /// item) or it is <paramref name="free"/> (then exactly the slot's stack goes in, one stage's set).</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        var stack = slot.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack == null || RosserParts.StageOf(code, out var metal) is not { } stage)
+        if (Assembly is not { } assembly || slot.Itemstack is not { } stack || stack.Collectible?.Code?.ToString() is not { } code)
             return false;
         bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
-        // a free fit (the creative shortcut) is one stage's set, so the rods fill one roll set a
-        // click; a player in creative fits as many as the stage(s) take from a single item
-        int available = consumes || free ? stack.StackSize : 64;
-        var check = _parts.CanFit(code, available);
-        if (!check.Fitted)
+        // a player in creative fits a whole set from a single head
+        int available = consumes || free ? stack.StackSize : RosserBuild.HeadsNeeded;
+        switch (RosserBuild.FitHeads(assembly, code, available))
         {
-            bool pipes = stage == RosserStage.Pipes;
-            Error(byPlayer, check.Verdict switch
-            {
-                RosserFitVerdict.AlreadyFitted => "error-part-fitted",
-                RosserFitVerdict.NeedsRing => "error-needs-ring",
-                RosserFitVerdict.WrongMetal => pipes ? "error-wrong-pipe-metal" : "error-wrong-metal",
-                RosserFitVerdict.NeedsFullSet => pipes ? "error-needs-all-pipes" : "error-needs-full-set",
-                _ => "error-not-a-part",
-            });
-            return false;
+            case HeadsVerdict.Fits:
+                break;
+            case HeadsVerdict.NeedsRing:
+                return Refuse(byPlayer, "error-needs-ring");
+            case HeadsVerdict.AlreadyFitted:
+                return Refuse(byPlayer, "error-part-fitted");
+            case HeadsVerdict.NeedsFullSet:
+                return Refuse(byPlayer, "error-needs-full-set");
+            default:
+                return Refuse(byPlayer, "error-not-a-part");
         }
-        int capacity = stage == RosserStage.Heads && metal != null ? System.HeadCapacity(metal) : 1;
-        var fit = _parts.Fit(code, available, capacity);
         if (consumes)
         {
-            slot.TakeOut(fit.Taken);
+            slot.TakeOut(RosserBuild.HeadsNeeded);
             slot.MarkDirty();
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
         MarkDirty(true);
+        RefreshState();
+        return true;
+    }
+
+    /// <summary>The creative shortcut (server side): fits the next stage (every part still missing, metal parts
+    /// steel, the pipes copper), then steel heads, with nothing taken from the player.</summary>
+    public bool FitNextPart(IPlayer byPlayer)
+    {
+        if (Assembly is not { } assembly || Ready || !assembly.FillNext())
+            return false;
+        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
+        MarkDirty(true);
+        RefreshState();
         return true;
     }
 
@@ -404,7 +358,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     /// unworn heads (<see cref="RosserTrip.TakeBack"/>).</summary>
     public bool TakeBack(IPlayer byPlayer)
     {
-        switch (RosserTrip.TakeBack(State, _parts.HeadMetal != null, _parts.HeadsUnworn))
+        switch (RosserTrip.TakeBack(TripState, Heads != null, HeadsUnworn))
         {
             case RosserTakeBack.Trunk:
                 var trunk = _trunk!;
@@ -413,18 +367,19 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
                 ClearTrunk();
                 Api.World.PlaySoundAt(TrunkSound, Pos, 0, byPlayer);
                 MarkDirty(true);
+                RefreshState();
                 return true;
             case RosserTakeBack.InRolls:
-                return Error(byPlayer, "error-trunk-in-rolls");
+                return Refuse(byPlayer, "error-trunk-in-rolls");
             case RosserTakeBack.Heads:
-                var code = _parts.FittedIn(RosserStage.Heads)[0];
-                if (Api.World.GetItem(new AssetLocation(code)) is not { } item || _parts.RemoveHeads() is not { } heads)
+                if (Api.World.GetItem(new AssetLocation(Heads!.Value.Code)) is not { } item || Assembly!.Take(RosserBuild.HeadsPart) == null)
                     return false;
-                Give(byPlayer, new ItemStack(item, heads.Count));
+                Give(byPlayer, new ItemStack(item, RosserBuild.HeadsNeeded));
                 MarkDirty(true);
+                RefreshState();
                 return true;
             case RosserTakeBack.HeadsWorn:
-                return Error(byPlayer, "error-heads-worn");
+                return Refuse(byPlayer, "error-heads-worn");
             default:
                 return false;
         }
@@ -462,7 +417,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
                 first ??= slot;
             }
         }
-        return first != null ? TryLoadFromSlot(first, byPlayer) : Error(byPlayer, "error-no-trunk");
+        return first != null ? TryLoadFromSlot(first, byPlayer) : Refuse(byPlayer, "error-no-trunk");
     }
 
     /// <summary>Loads the trunk the player carries in Carry On's hands, if the rosser takes it
@@ -470,7 +425,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     public bool TryLoadFromHands(IPlayer byPlayer)
     {
         if (TrunkStations.Carried(Api, byPlayer) is not { } carried)
-            return Error(byPlayer, "error-no-trunk");
+            return Refuse(byPlayer, "error-no-trunk");
         if (!CanLoad(carried, byPlayer) || byPlayer is not IServerPlayer sp || TrunkCarry.Take(sp) is not { } trunk)
             return false;
         Load(trunk);
@@ -485,14 +440,14 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         if (!Trunks.IsTrunk(trunk) || Pace == null)
             return false;
         if (System.Logging == null)
-            return Error(byPlayer, "error-no-logging");
-        return RosserTrip.CanLoad(_parts.Complete, State, Trunks.IsDebarked(trunk), Trunks.StoredLogs(trunk, Api.World)) switch
+            return Refuse(byPlayer, "error-no-logging");
+        return RosserTrip.CanLoad(Ready, TripState, Trunks.IsDebarked(trunk), Trunks.StoredLogs(trunk, Api.World)) switch
         {
             RosserLoadVerdict.Loads => true,
-            RosserLoadVerdict.Incomplete => Error(byPlayer, "error-incomplete"),
-            RosserLoadVerdict.Occupied => Error(byPlayer, "error-occupied"),
-            RosserLoadVerdict.AlreadyDebarked => Error(byPlayer, "error-already-debarked"),
-            _ => Error(byPlayer, "error-empty-trunk"),
+            RosserLoadVerdict.Incomplete => Refuse(byPlayer, "error-incomplete"),
+            RosserLoadVerdict.Occupied => Refuse(byPlayer, "error-occupied"),
+            RosserLoadVerdict.AlreadyDebarked => Refuse(byPlayer, "error-already-debarked"),
+            _ => Refuse(byPlayer, "error-empty-trunk"),
         };
     }
 
@@ -502,11 +457,12 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     {
         _trunk = trunk;
         _trip = RosserTrip.Load(Pace!, TrunkBox.ClassOf(trunk.Block?.Variant["size"]), Trunks.StoredLogs(trunk, Api.World),
-                                trunk.Attributes.GetInt(Trunks.BranchCountKey), System.HeadTier(_parts.HeadMetal));
+                                trunk.Attributes.GetInt(Trunks.BranchCountKey), System.HeadTier(HeadMetal));
         RebuildBoxes();
         // the trunk's weight on the treadle throws the feed dog in
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
+        RefreshState();
     }
 
     private void ClearTrunk()
@@ -540,31 +496,53 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 0.6, 0.5));
     }
 
-    private bool Error(IPlayer? byPlayer, string key, params object[] args)
+    /// <summary>The rosser's own message (<c>seraphhorizons:rosser-{key}</c>) to the player; false.</summary>
+    private bool Refuse(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
             sp.SendIngameError("rosser-" + key, Lang.GetL(sp.LanguageCode, RosserSystem.Domain + ":rosser-" + key, args));
         return false;
     }
 
+    /// <summary>The help: the base's (the parts still to fit, heads once worn out), the drip's pipes and the
+    /// heads once the ring is in while the parts are still going in, then a trunk to load and Ctrl for the
+    /// trunk or the unworn heads.</summary>
+    public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
+    {
+        var help = base.InteractionHelp(forPlayer).ToList();
+        if (!Built)
+        {
+            if (Heads == null && RingIn && System.HeadStacks() is { Length: > 0 } heads)
+                help.Add(new WorldInteraction { ActionLangCode = Key("fitheads"), MouseButton = EnumMouseButton.Right, Itemstacks = heads });
+            AddTakeBackHelp(help);
+        }
+        return help.ToArray();
+    }
+
+    private static string Key(string action) => RosserSystem.Domain + ":blockhelp-rosser-" + action;
+
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        if (Ready && TripState == RosserState.Empty && System.TrunkStacks() is { Length: > 0 } trunks)
+            help.Add(new WorldInteraction { ActionLangCode = Key("loadtrunk"), MouseButton = EnumMouseButton.Right, Itemstacks = trunks });
+        AddTakeBackHelp(help);
+    }
+
+    private void AddTakeBackHelp(List<WorldInteraction> help)
+    {
+        if (TripState is RosserState.Waiting or RosserState.Delivered)
+            help.Add(new WorldInteraction { ActionLangCode = Key("taketrunk"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+        else if (TripState == RosserState.Empty && HeadsUnworn)
+            help.Add(new WorldInteraction { ActionLangCode = Key("removeheads"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
     // ---- The trip ----
 
-    // Feeds while complete and turning fast enough; nothing moves without a trunk or once delivered.
-    private void OnTick(float dt)
+    // The trip syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool Work(double radians)
     {
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = Math.Abs(power?.TrueSpeed ?? 0);
-        bool feeds = Pace != null && System.Logging != null && RosserTrip.Running(_parts.Complete, speed, Config.MinSpeed)
-                     && State is RosserState.Waiting or RosserState.Feeding;
-        if (!feeds || !_angleSeeded)
-        {
-            _lastAngle = angle;
-            _angleSeeded = true;
-            return;
-        }
-        float advance = ShaftClock.AngleAdvance(_lastAngle, angle, speed, dt);
-        _lastAngle = angle;
-        Feed(advance);
+        Feed((float)radians);
+        return false;
     }
 
     /// <summary>Feeds the trunk by <paramref name="radians"/> of shaft rotation (server side; call
@@ -601,12 +579,15 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             _warnedNoDebark = true;
             Api.Logger.Warning("[seraphhorizons] Rosser: no debarked trunk for {0} at {1}; it leaves as it came", _trunk?.Collectible?.Code, Pos);
         }
-        Oil.Drain(_oil, OilDrain.PerTrunk(_trip.Logs, Oil.DrainPerJob(Api, OilMachine.Rosser)));
-        if (_parts.WearHeads(RosserParts.WearFor(_trip.Logs, Config.HeadWearPerStoredLog)))
+        // a stored log's oil, rounded up a trunk (OilDrain.PerTrunk), as jobs of the setting's drain
+        if (Oiling is { } oil && oil.DrainPerJob(Api) is > 0 and var perLog)
+            DrainOil(OilDrain.PerTrunk(_trip.Logs, perLog) / perLog);
+        if (Assembly!.Wearing.Wear(RosserBuild.HeadsPart, RosserBuild.WearFor(_trip.Logs, Config.HeadWearPerStoredLog)))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         // the last top roll drops and its weight throws the dog out
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
+        RefreshState();
         PushToRack();
     }
 
@@ -641,8 +622,8 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
 
     /// <summary>Immersive Woodworking's bark for <paramref name="logs"/> scraped logs of the
     /// trunk's wood, one roll each (<see cref="BarkDrops.Roll"/>): wet while the reservoir holds a
-    /// log's water (<see cref="RosserWater.SpendForLog"/>), which raises the roll's chance
-    /// multiplier and the count (<see cref="RosserBark.WetCount"/>) as the settings say.</summary>
+    /// log's water, which it spends, raising the roll's chance multiplier and the count
+    /// (<see cref="RosserBark.WetCount"/>) as the settings say.</summary>
     private void DropBark(int logs)
     {
         if (!System.BarkBound || _trunk == null)
@@ -652,7 +633,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         var drops = new List<ItemStack>();
         for (int i = 0; i < logs; i++)
         {
-            (_water, bool wet) = _water.SpendForLog(config);
+            bool wet = SpendWater(config.WaterPerLog);
             if (BarkDrops.Roll(Api.World, species, wet ? config.WetBarkMultiplier : config.DryBarkMultiplier) is not { } bark)
                 continue;
             if (wet)
@@ -669,21 +650,11 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     }
 
     // The client follows the trunk with the shaft between syncs, by the server's rate.
-    private void OnClientTick(float dt)
+    protected override void OnClientTick(float dt)
     {
-        // The client removes a broken rosser at once, and an update the server sent before it heard
-        // of the break then brings the block entity back over air, renderer and all: drop it.
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockRosser)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = Math.Abs(power?.TrueSpeed ?? 0);
+        float angle = ShaftAngle, speed = ShaftSpeed;
         float advance = 0;
-        if (_clientAngleSeeded && Pace is { } pace && RosserTrip.Running(_parts.Complete, speed, MinSpeed)
-            && State is RosserState.Waiting or RosserState.Feeding)
+        if (_clientAngleSeeded && Pace != null && ShaftRuns && TripState is RosserState.Waiting or RosserState.Feeding)
             advance = ShaftClock.AngleAdvance(_clientLastAngle, angle, speed, dt);
         _clientLastAngle = angle;
         _clientAngleSeeded = true;
@@ -693,53 +664,25 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         _clientTravelMs = Api.World.ElapsedMilliseconds;
         _clientTravelSeconds = dt;
         RebuildBoxes();
-
-        // A dry rosser smokes while it turns.
-        if ((_smokeSeconds += dt) >= 0.4f)
-        {
-            _smokeSeconds = 0;
-            if (_oil is { Dry: true } && _parts.Complete && speed >= Oil.TurningSpeed && Api is ICoreClientAPI capi)
-                Oil.Smoke(capi, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
-        }
     }
 
-    // ---- Racks, the mill, water ----
+    // ---- Racks, the mill ----
 
-    // Once a second: the ghosts, the water, and the racks at both ends (and the in-line mill).
+    // Once a second: the racks at both ends (and the in-line mill).
     private void OnSlowTick(float dt)
     {
-        // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
-        EnsureGhosts();
-        DrawWater(dt);
-        if (State == RosserState.Empty && !PullFromRack())
+        if (TripState == RosserState.Empty && !PullFromRack())
             PullFromGround();
-        else if (State == RosserState.Delivered)
+        else if (TripState == RosserState.Delivered)
             PushToRack();
         var rack = CheckRack(out _);
         var outfeed = CheckOutfeed(out _);
-        if (rack != _rackState || outfeed != _outfeedState)
+        bool wet = DripWet;
+        if (rack != _rackState || outfeed != _outfeedState || wet != _serverWet)
         {
-            (_rackState, _outfeedState) = (rack, outfeed);
+            (_rackState, _outfeedState, _serverWet) = (rack, outfeed, wet);
             MarkDirty();
         }
-    }
-
-    /// <summary>Tops the reservoir up from a water pipe on the water face (server side), through the
-    /// drip's own pipes: none come in until they are fitted (while the rosser needs them).</summary>
-    private void DrawWater(float seconds)
-    {
-        if (Rig is not { } rig || _parts.PipesNeeded && !_parts.Has(RosserStage.Pipes))
-            return;
-        double wanted = _water.Wanted(Config, seconds);
-        if (wanted <= 0)
-            return;
-        bool wasWet = _water.Wet(Config);
-        double got = PpexWater.Draw(Api, CellPos(rig.WaterCell), BlockRosserGhostWater.WaterFaceFor(rig, Side.Code()), wanted);
-        if (got <= 0)
-            return;
-        _water = _water.Fill(got, Config);
-        if (_water.Wet(Config) != wasWet)
-            MarkDirty();
     }
 
     /// <summary>What the racks at the infeed end offer (server side): the first with a trunk the
@@ -778,7 +721,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     /// is already debarked or holds no logs (it waits there). Returns whether one went on.</summary>
     public bool PullFromRack()
     {
-        if (State != RosserState.Empty || !Running || CheckRack(out var rack) != RosserRackState.Ready || System.Logging is not { } logging)
+        if (TripState != RosserState.Empty || !ShaftRuns || CheckRack(out var rack) != RosserRackState.Ready || System.Logging is not { } logging)
             return false;
         var trunk = logging.PopTrunk(rack!);
         if (trunk == null)
@@ -801,7 +744,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     /// whether one went on.</summary>
     public bool PullFromGround()
     {
-        if (State != RosserState.Empty || !Running || !Config.AutoPullFromRack || Pace == null || System.Logging == null
+        if (TripState != RosserState.Empty || !ShaftRuns || !Config.AutoPullFromRack || Pace == null || System.Logging == null
             || Rig is not { } rig || !TrunkEntitySystem.Of(Api).Enabled)
             return false;
         var cells = rig.InfeedNeighbours().Select(CellPos).ToList();
@@ -866,7 +809,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     public bool PushToRack()
     {
         // only a new trip needs heads: a trunk debarked by the heads' last points still leaves
-        if (State != RosserState.Delivered || ShaftSpeed < MinSpeed || !Config.AutoPushToRack || _trunk == null
+        if (TripState != RosserState.Delivered || ShaftSpeed < MinSpeed || !Config.AutoPushToRack || _trunk == null
             || CheckOutfeed(out var rack) != RosserOutfeedState.Rack || System.Logging is not { } logging)
             return false;
         logging.PushTrunk(rack!, _trunk.Clone());
@@ -888,31 +831,28 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             return false;
         var ba = Api.World.BlockAccessor;
         foreach (var local in rig.OutfeedNeighbours())
-        {
-            var be = ba.GetBlockEntity(CellPos(local));
-            var mill = be as BEBuckingMill ?? (be as BEMillGhost)?.Mill;
-            if (mill != null && mill.Side == Side && millRig.InfeedNeighbours().Any(n => mill.CellPos(n).Equals(Pos)))
+            if (MachineFire.MachineAt(ba, CellPos(local)) is BEBuckingMill mill && mill.Side == Side
+                && millRig.InfeedNeighbours().Any(n => mill.CellPos(n).Equals(Pos)))
                 return true;
-        }
         return false;
     }
 
     // ---- ITrunkFeeder (the bucking mill in line) ----
 
     /// <summary>Only the controller's cell: the outfeed end's cell on the trunk's line.</summary>
-    public bool HasOutfeedCell(BlockPos world) =>
-        Footprint.ToLocal(new Int3(world.X - Pos.X, world.Y - Pos.Y, world.Z - Pos.Z), Side) == Int3.Zero;
+    public bool HasOutfeedCell(BlockPos world) => LocalOf(world) == Int3.Zero;
 
-    public bool Busy => State is RosserState.Waiting or RosserState.Feeding;
+    public bool Busy => TripState is RosserState.Waiting or RosserState.Feeding;
 
-    public ItemStack? PeekFinished() => State == RosserState.Delivered ? _trunk : null;
+    public ItemStack? PeekFinished() => TripState == RosserState.Delivered ? _trunk : null;
 
     public ItemStack? TakeFinished()
     {
-        if (State != RosserState.Delivered || _trunk is not { } trunk)
+        if (TripState != RosserState.Delivered || _trunk is not { } trunk)
             return null;
         ClearTrunk();
         MarkDirty(true);
+        RefreshState();
         _outfeedState = CheckOutfeed(out _);
         return trunk;
     }
@@ -922,12 +862,21 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     /// <summary>What breaking the frame gives besides the frame: every fitted part (the heads only
     /// while unworn), and the trunk as far as it got (<see cref="RosserTrip.Broken"/>), so breaking
     /// and running it again never gives its sticks or bark twice.</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        foreach (var (code, count) in _parts.Returns())
-            if (Collectible(code) is { } part)
-                for (int left = count; left > 0; left -= Math.Max(1, part.MaxStackSize))
-                    yield return new ItemStack(part, Math.Min(left, Math.Max(1, part.MaxStackSize)));
+        if (Assembly is { } assembly)
+            foreach (var drop in RosserBuild.Returns(assembly))
+            {
+                if (StackOf(drop) is not { } stack)
+                    continue;
+                int max = Math.Max(1, stack.Collectible.MaxStackSize);
+                for (int left = drop.Count; left > 0; left -= max)
+                {
+                    var part = stack.Clone();
+                    part.StackSize = Math.Min(left, max);
+                    yield return part;
+                }
+            }
         if (_trunk == null)
             yield break;
         var broken = Pace is { } pace ? _trip.Broken(pace) : RosserBrokenTrunk.AsLoaded;
@@ -940,34 +889,11 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         yield return trunk ?? _trunk.Clone();
     }
 
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
-    }
-
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var (requires, codes) in _parts.Snapshot())
-            tree.SetString(PartKeyPrefix + requires, string.Join(",", codes));
-        tree.SetInt("headsLeft", _parts.HeadsLeft);
-        tree.SetInt("headsCapacity", _parts.HeadsCapacity);
         if (_trunk != null)
             tree.SetItemstack("trunk", _trunk);
         else
@@ -978,32 +904,18 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         tree.SetDouble("rate", _trip.Rate);
         tree.SetInt("sticksDone", _trip.SticksDone);
         tree.SetInt("barkDone", _trip.BarkDone);
-        tree.SetDouble("water", _water.Litres);
         if (Api?.Side == EnumAppSide.Server)
         {
-            tree.SetFloat("minSpeed", Config.MinSpeed);
-            tree.SetBool("wet", _water.Wet(Config));
-            tree.SetDouble("reservoir", Config.ReservoirLitres);
+            tree.SetBool("wet", DripWet);
             tree.SetInt("rackState", (int)_rackState);
             tree.SetInt("outfeedState", (int)_outfeedState);
         }
-        if (_oil != null)
-            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
         var system = RosserSystem.Of(worldForResolving.Api);
-        var fitted = RosserRequires.Stages.Select(RosserRequires.Name).ToDictionary(n => n, n =>
-            (IReadOnlyList<string>)(tree.GetString(PartKeyPrefix + n) ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries));
-        // What went in passed the metal rule of its day; what goes in next follows today's. A save
-        // from before the drip's pipes has none: they go in as a stage like any other.
-        _parts = RosserParts.Restore(fitted, tree.GetInt("headsLeft"), tree.GetInt("headsCapacity"), anyMetal: true,
-                                     pipesNeeded: system.PipesNeeded);
-        if (worldForResolving.Side == EnumAppSide.Server)
-            _parts = _parts.WithMetals(system.PartMetals, system.PartMetals == null);
-
         var oldTrunk = _trunk;
         int oldClass = _trip.Class;
         _trunk = tree.GetItemstack("trunk");
@@ -1014,16 +926,12 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         double travel = tree.GetDouble("travel"), rate = tree.GetDouble("rate");
         int? sticksDone = tree.TryGetInt("sticksDone"), barkDone = tree.TryGetInt("barkDone");
         _trip = system.Pace is { } pace
-            ? RosserTrip.Restore(pace, k, logs, branches, travel, rate, sticksDone, barkDone, system.HeadTier(_parts.HeadMetal))
+            ? RosserTrip.Restore(pace, k, logs, branches, travel, rate, sticksDone, barkDone, system.HeadTier(HeadMetal))
             : k == TrunkClass.None ? RosserTrip.None : new RosserTrip((int)k, logs, branches, travel, rate, sticksDone ?? 0, barkDone ?? 0);
-        _water = RosserWater.Restore(tree.GetDouble("water"), system.Config);
-        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.Rosser);
 
         if (worldForResolving.Side == EnumAppSide.Client)
         {
-            _serverMinSpeed = tree.TryGetFloat("minSpeed");
             _serverWet = tree.GetBool("wet");
-            _serverReservoir = tree.TryGetDouble("reservoir");
             _rackState = (RosserRackState)tree.GetInt("rackState");
             _outfeedState = (RosserOutfeedState)tree.GetInt("outfeedState");
             // A new trunk (or none) starts the estimate at the server's T; otherwise a sync that
@@ -1052,58 +960,60 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    private static string L(string key, params object[] args) => Lang.Get(RosserSystem.Domain + ":rosser-" + key, args);
+
+    /// <summary>The rosser's own lines: the heads while the parts are still going in (the wearing line says
+    /// them once the parts are all in), the drip's pipes, the trunk and where it is, and why the racks' trunks
+    /// are, or are not, coming and going.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        string L(string key, params object[] args) => Lang.Get(RosserSystem.Domain + ":rosser-" + key, args);
-        if (!_parts.Complete)
+        if (!Built)
         {
-            dsc.AppendLine(L(_parts.Has(RosserStage.Ring) && _parts.Missing().All(m => m.Stage == RosserStage.Heads) ? "info-noheads" : "info-incomplete"));
-            foreach (var (stage, _, count) in _parts.Missing())
-            {
-                string name = L("info-stage-" + RosserRequires.Name(stage));
-                dsc.AppendLine("• " + (count > 1 ? L("info-count", count, name) : name));
-            }
+            if (Heads == null)
+                dsc.AppendLine(L(RingIn ? "info-needs-heads" : "info-needs-heads-ring"));
+            else
+                dsc.AppendLine(L("info-heads", Lang.Get("material-" + HeadMetal), HeadsLeft, HeadsCapacity));
         }
-        if (_parts.PipeMetal is { } pipes)
+        if (PipeMetal is { } pipes)
             dsc.AppendLine(L("info-pipes", Lang.Get("material-" + pipes)));
-        if (_parts.HeadMetal is { } metal)
+        if (!Ready && _trunk == null)
+            return;
+        var state = TripState;
+        if (_trunk != null)
+            dsc.AppendLine(L("info-trunk", _trunk.GetName(), _trip.Logs, _trip.Branches));
+        switch (state)
         {
-            dsc.AppendLine(L("info-heads", Lang.Get("material-" + metal), _parts.HeadsLeft, _parts.HeadsCapacity));
-            if (Pace is { } pace)
-                dsc.AppendLine(L("info-head-speed", pace.HeadSpeed(System.HeadTier(metal)).ToString("0.##")));
+            case RosserState.Empty:
+                dsc.AppendLine(L("info-empty"));
+                break;
+            case RosserState.Waiting:
+                dsc.AppendLine(L(ShaftRuns ? "info-waiting" : "info-waiting-stopped"));
+                break;
+            case RosserState.Feeding:
+                double end = Pace is { } p ? _trip.End(p) : 0;
+                int percent = end > 0 ? (int)(Math.Clamp(SideTravel / end, 0, 1) * 100) : 0;
+                if (!ShaftRuns)
+                    dsc.AppendLine(L("info-stalled", percent));
+                break;
+            case RosserState.Delivered:
+                dsc.AppendLine(L("info-delivered"));
+                if (_outfeedState != RosserOutfeedState.Unknown)
+                    dsc.AppendLine(L("info-outfeed-" + _outfeedState.ToString().ToLowerInvariant()));
+                break;
         }
-        if (_parts.Complete || _trunk != null)
-        {
-            var state = State;
-            if (_trunk != null)
-                dsc.AppendLine(L("info-trunk", _trunk.GetName(), _trip.Logs, _trip.Branches));
-            switch (state)
-            {
-                case RosserState.Empty:
-                    dsc.AppendLine(L("info-empty"));
-                    break;
-                case RosserState.Waiting:
-                    dsc.AppendLine(L(Running ? "info-waiting" : "info-waiting-stopped"));
-                    break;
-                case RosserState.Feeding:
-                    double end = Pace is { } p ? _trip.End(p) : 0;
-                    int percent = end > 0 ? (int)(Math.Clamp(SideTravel / end, 0, 1) * 100) : 0;
-                    dsc.AppendLine(Running ? L("info-feeding", percent) : L("info-stalled", percent));
-                    break;
-                case RosserState.Delivered:
-                    dsc.AppendLine(L("info-delivered"));
-                    if (_outfeedState != RosserOutfeedState.Unknown)
-                        dsc.AppendLine(L("info-outfeed-" + _outfeedState.ToString().ToLowerInvariant()));
-                    break;
-            }
-            if (state == RosserState.Empty && _rackState != RosserRackState.Unknown)
-                dsc.AppendLine(L("info-rack-" + _rackState.ToString().ToLowerInvariant()));
-        }
-        double reservoir = _serverReservoir ?? Config.ReservoirLitres;
-        dsc.AppendLine(Wet ? L("info-water", _water.Litres.ToString("0"), reservoir.ToString("0")) : L("info-dry"));
-        Oil.Info(_oil, dsc);
-        float speed = ShaftSpeed;
-        dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
+        if (state == RosserState.Empty && _rackState != RosserRackState.Unknown)
+            dsc.AppendLine(L("info-rack-" + _rackState.ToString().ToLowerInvariant()));
+        if (!DripWet)
+            dsc.AppendLine(L("info-dry"));
+    }
+
+    /// <summary>With a wrench: how fast the heads feed, and the trip in blocks.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (HeadMetal is { } metal && Pace is { } pace)
+            dsc.AppendLine(L("info-head-speed", pace.HeadSpeed(System.HeadTier(metal)).ToString("0.##", CultureInfo.InvariantCulture)));
+        if (_trunk != null && Pace is { } p)
+            dsc.AppendLine(L("info-travel", SideTravel.ToString("0.0", CultureInfo.InvariantCulture),
+                _trip.End(p).ToString("0.0", CultureInfo.InvariantCulture)));
     }
 }
