@@ -47,11 +47,18 @@ public sealed class MinePlan
     /// <summary>How many times the simulation ran again holding what it stranded (0 when none was).</summary>
     public int Reruns { get; init; }
 
+    /// <summary>The cells its last sweep dug where precedence had stalled (README "Eidolon", mining,
+    /// *Stations*): each may be dug whatever band's turn it is.</summary>
+    public IReadOnlySet<MarkPos> Free { get; init; } = new HashSet<MarkPos>();
+
     /// <summary>A cell's band (<see cref="MineBands"/>): <see cref="MineBands.Never"/> for one it does not dig.</summary>
     public int Band(MarkPos cell) => Targets.Contains(cell) ? MineBands.BandOf(Area, Tunnel, Stair, cell) : MineBands.Never;
 
     /// <summary>The bands over <paramref name="remaining"/> (a live state's), for dispatch.</summary>
-    public MineBands Bands(IEnumerable<MarkPos> remaining) => new(Area, Tunnel, Stair, remaining.Where(Targets.Contains), widen: false);
+    public MineBands Bands(IEnumerable<MarkPos> remaining) => new(Area, Tunnel, Stair, remaining.Where(Targets.Contains), widen: false)
+    {
+        Free = Free,
+    };
 }
 
 /// <summary>
@@ -159,7 +166,10 @@ public sealed class MineBands
         _widen = other._widen;
     }
 
-    public MineBands Clone() => new(this);
+    public MineBands Clone() => new(this) { Free = Free };
+
+    /// <summary>Cells that may be dug whatever band's turn it is (<see cref="MinePlan.Free"/>).</summary>
+    public IReadOnlySet<MarkPos> Free { get; init; } = new HashSet<MarkPos>();
 
     /// <summary>How many tunnel bands the covered part has (0 without one); the open band's number.</summary>
     public int CoveredBands { get; }
@@ -221,6 +231,8 @@ public sealed class MineBands
     {
         if (!_remaining.Contains(cell))
             return false;
+        if (Free.Count > 0 && Free.Contains(cell))
+            return true;
         int band = Band(cell);
         if (band == Stair)
             return StairOpen;

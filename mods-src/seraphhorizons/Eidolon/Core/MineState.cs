@@ -179,8 +179,10 @@ public sealed class MineState
     /// the cells to blame (<paramref name="blame"/>): those under the stand's way out, or those that were
     /// the last footing of a potential stand (one of them a starved target's last); and the stands of
     /// <paramref name="keep"/> (stations still to be worked before it) that were out must stay out.</summary>
+    /// <paramref name="exact"/>: the reach bound follows the stands the dig cuts off too (<see cref="MineReach.Exact"/>;
+    /// the live job's strike).
     public MineRefusal Check(PathCell stand, IReadOnlyList<MarkPos> cells, IReadOnlyList<MineWorkerAt> workers, ICollection<MarkPos>? blame,
-        IReadOnlyList<PathCell>? keep = null)
+        IReadOnlyList<PathCell>? keep = null, bool exact = false)
     {
         Refresh();
         if (!Site.Standable(stand) || BadStands.Contains(stand))
@@ -211,7 +213,9 @@ public sealed class MineState
         foreach (var c in cells)
             Site.Dig(c);
         Walk.Try(cells);
+        Reach.Exact = exact;
         Reach.Dig(cells, starved, killed);
+        Reach.Exact = false;
         var result = MineRefusal.None;
         var cellSet = cells.ToHashSet();
         MineWork.Add(cells.Count + starved.Count + killed.Count);
@@ -243,8 +247,9 @@ public sealed class MineState
         return result;
     }
 
-    /// <summary>Cells broken (by the job, or seen gone): dug for good.</summary>
-    public void Apply(IEnumerable<MarkPos> broken)
+    /// <summary>Cells broken (by the job, or seen gone): dug for good; <paramref name="exact"/>, the stands
+    /// they cut off followed too (<see cref="MineReach.Exact"/>; the live job's own).</summary>
+    public void Apply(IEnumerable<MarkPos> broken, bool exact = false)
     {
         Refresh();
         Version++;
@@ -259,7 +264,9 @@ public sealed class MineState
             dug.Add(c);
         }
         Walk.Dig(dug);
+        Reach.Exact = exact;
         Reach.Dig(dug, null);
+        Reach.Exact = false;
     }
 
     /// <summary>A change seen in the world that the job did not make (placed, broken by a player, a

@@ -89,13 +89,19 @@ public class MineStateTests
         // what it stands on to get off the pillar is to blame
         Assert.NotEmpty(blame);
         Assert.Subset(bridge.ToHashSet(), blame);
-        // another eidolon on the pillar is cut off by the same dig from the far end of the bridge
+        // from the far end of the bridge the same dig strands the pillar, reached only from the bridge: the
+        // strike's guard, following the stands it cuts off (those in the pit, led out over the pillar's
+        // top only once its blocks are dug), refuses it
         var far = new PathCell(9, L, 5);
+        Assert.Equal(MineRefusal.Starves, state.Check(far, bridge, [], null, exact: true));
+        // with only the bridge to dig, another eidolon on the pillar is cut off by it
+        var bridgeOnly = new MineState(world.Site(area), Home);
+        bridgeOnly.BuildNow(bridge.ToHashSet());
         var other = new MineWorkerAt(2, OnPillar.X, OnPillar.Y, OnPillar.Z, []);
-        Assert.Equal(MineRefusal.CutsOffWorker, state.Check(far, bridge, [other]));
+        Assert.Equal(MineRefusal.CutsOffWorker, bridgeOnly.Check(far, bridge, [other]));
         // the station of the plan's to come is kept the same way
-        Assert.Equal(MineRefusal.CutsOffStation, state.Check(far, bridge, [], null, [OnPillar]));
-        Assert.Equal(MineRefusal.None, state.Check(far, bridge, []));
+        Assert.Equal(MineRefusal.CutsOffStation, bridgeOnly.Check(far, bridge, [], null, [OnPillar]));
+        Assert.Equal(MineRefusal.None, bridgeOnly.Check(far, bridge, []));
     }
 
     [Fact]

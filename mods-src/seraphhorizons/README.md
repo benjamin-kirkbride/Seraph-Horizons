@@ -3477,7 +3477,16 @@ reach for good (`MinePlan.OutOfReach`), held with its floor as above, the bound 
 holds. The plan then digs the area in its head, station by station, each accepted only past a guard
 (`MineState.Check`, after TERMES' and BFD's): its place is one to stand at and out, its blocks are in
 reach, and once they are dug its place is still out (it can walk away) and no block still to dig has
-lost its last place it could be reached from. Precedence is by band (`MineBands`): a tunnel's bands
+lost its last place it could be reached from (the bound's places are kept as the bound found them: a
+block that loses the place it was first reached from, with none found before it to take its place, is
+found again from the places left or goes, and the places standing in it go with it, so ceiling blocks
+each reached only from under another go together once the places they began from are dug away, and the
+dig that would leave them is refused, in the plan and in the world; the job's own strikes and digs
+follow the places a dig cuts off from the ways out too, `MineReach.Exact`: a place led out only by one
+dug away, with no way round found through what is dug or air, goes, so a ceiling reached only from a
+place joined to the rest through the ceiling itself is not counted reached; the plan's simulation and
+the dispatch over the next stations do not, a search of the potential graph on every try costing too
+much on a deep pit, and there the count is an upper bound). Precedence is by band (`MineBands`): a tunnel's bands
 first, top down (*Tunnels*, below); in the open the highest layer with blocks left and the one under it
 (floors within a climb, `EidolonTeamwork.Lowest`), never under the floor of the tunnel band being driven;
 the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
@@ -3486,7 +3495,10 @@ ordered, each row the other way to the last (a sweep). When no station is left t
 could stand is asked again (a few times at most: one the guard refused waits for a dig near it, and what
 refused it may have gone far off), and a tunnel band its lanes alone cannot finish is struck from any place
 that reaches its face, not only one in the lane (a lane whose front is on low ground, beside one whose
-front has a step). What the plan still cannot place a station for, of the blocks its precedence lets it
+front has a step). When even that is dry with blocks left, a last sweep takes any block left that the
+guard lets it, whatever its band (the plan marks those, `MinePlan.Free`, and the job lets them be dug
+out of their band's turn), so a ceiling reached only by way of ground the bands would have it dig first
+is struck from a step left in that ground, the step dug after. What the plan still cannot place a station for, of the blocks its precedence lets it
 dig next, is held as out of reach and the plan made again, at most twice (`MinePlanner.MaxReruns`); the
 blocks only waiting behind those (the open part under the band's floor, the bands under it) are planned
 again, not held. *The stair*: where the
@@ -3536,7 +3548,8 @@ checked against the live state (`MineDispatch.Executable`, `MineState.Check`), s
 a worse order, never a stranding. *Out of reach*: the owner is told once, by the job (`eidolon-mine-outofreach`: how many, how
 many kept under them, and how high a step in front of the face would bring them in reach,
 `MinePlan.StepNeeded`; `-nostep` without), again only when that grows, or when the world changes so it
-can reach them (`eidolon-mine-inreach-now`), the count saved with the order (`outofreach`); and the boxes
+can reach them; a block kept under one out of reach stays kept, so one dug round (a pillar left
+standing) is told as kept still, never as newly out of reach (`MinePlanInput.Kept`, the last plan's) (`eidolon-mine-inreach-now`), the count saved with the order (`outofreach`); and the boxes
 of those blocks go to the owner's client (`MineOutOfReachPacket`, channel `seraphhorizons-eidolonmine`,
 `MineOutlines.Boxes`), outlined in red while they hold the command tool in mine mode (sent again when
 they join), until the job is done. The marking itself is never refused for it: the plan runs after the click.
@@ -3550,7 +3563,10 @@ column), and the covered part is driven in face-first: in bands 4 high from the 
 ceiling, so the ceiling is always the first thing struck; each band in lanes 2 wide across the way in
 (an odd width's last lane 3), each lane's face struck upright, two blocks across and two high at a time,
 the top half first, then the bottom half, then a step in to the next slice (`EidolonTunnels.LaneFront`,
-`MineStations.NextGroup`), never more than a slice past the face at a layer, so the face goes in level.
+`MineStations.NextGroup`), never more than a slice past the face at a layer, so the face goes in level
+(the face counted by the heading's own blocks: one of the open part standing in a lane where the
+hill's edge wanders across the tunnel, reached only from inside it, is quarried with the open part and
+never holds the face).
 The way in is the side whose first slice it reaches most of from in front of the mouth, standing on what
 is there now (the ground, a ledge, a step against the face: the reach bound, `EidolonTunnels.Shape`),
 the one nearest where it was ordered on a tie. A band with no face of its own at its level is driven from
