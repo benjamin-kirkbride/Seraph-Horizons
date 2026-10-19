@@ -3658,7 +3658,8 @@ one that waited stepping away (`Core/EidolonParting.cs`). A member walking home 
 short and parts so whatever its job's dispatch, today's too (nothing is mined any more, and nothing else
 parted two walking home: in single file along a trench 5 wide, the one behind pressed into the one ahead for
 11 seconds, #1329); two walking home in single file part by the way they go, not their ids: the one behind
-stops and sets off again a little later, the one ahead walks on, and neither steps aside. It lets its claims go while it waits, drops a stop whose claim stays taken 2
+stops and sets off again a little later, the one ahead walks on, and neither steps aside (on one level, the
+one ahead walking: one standing ahead, or a climb between them, they part by ids as before). It lets its claims go while it waits, drops a stop whose claim stays taken 2
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold

@@ -1109,8 +1109,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>Walking home, whether it is behind (true) or ahead of (false) every eidolon it touches in single
     /// file: each of them walking home too, going much its way (their headings, by their motion or the end of
     /// their path, within 60 degrees), and the one behind the other along their mean heading, so that of two
-    /// exactly one is behind and they never both stop. Null when any of them is not so (one at work, one
-    /// coming the other way, one beside it): they part by the rule of ids.</summary>
+    /// exactly one is behind and they never both stop. Only on one level with the one ahead walking: the one
+    /// behind waits on it walking on, so with it standing (stopped short itself) both would stand, and on a
+    /// climb (#1360's queue run: two standing 2.4 s at the foot and top of a step out of the open pit, each
+    /// waiting on the other) they part as before. Null when any of them is not so (one at work, one coming
+    /// the other way, one beside it, one standing ahead, one a level off): they part by the rule of ids.</summary>
     private bool? InFile(EntityLaborEidolon eidolon, List<EntityLaborEidolon> touching)
     {
         if (Heading(eidolon, home) is not { } mine)
@@ -1124,12 +1127,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             // along their mean heading, the same for both: where one finds the other ahead, the other finds it behind
             double hx = mine.X + theirs.X, hz = mine.Z + theirs.Z;
             double along = (o.Pos.X - eidolon.Pos.X) * hx + (o.Pos.Z - eidolon.Pos.Z) * hz;
-            if (Math.Abs(along) < 0.1)
+            if (Math.Abs(along) < 0.1 || Math.Abs(o.Pos.Y - eidolon.Pos.Y) >= 1 || !Walking(along > 0 ? o : eidolon))
                 return null;
             behind = behind == true || along > 0;
         }
         return behind;
     }
+
+    private static bool Walking(EntityLaborEidolon e) =>
+        Math.Sqrt(e.Pos.Motion.X * e.Pos.Motion.X + e.Pos.Motion.Z * e.Pos.Motion.Z) >= EidolonNavigator.StandingMotion;
 
     /// <summary>The way it goes, a horizontal unit: by its motion walking, else to the end of its path, else to
     /// <paramref name="home"/>; null when it has none.</summary>
