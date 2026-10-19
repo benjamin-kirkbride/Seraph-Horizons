@@ -50,6 +50,9 @@ public class BEParkesKettle : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.ParkesKettle;
 
+    /// <summary>Oiled (its stirrer's shaft), its job a charge stirred, by its share of a full charge.</summary>
+    protected override OilMachine? OilKind => OilMachine.ParkesKettle;
+
     /// <summary>Nothing goes in by chute: the kettle is charged by hand (<see cref="InteractContent"/>).</summary>
     public override bool Takes(ItemStack stack) => false;
 
@@ -252,6 +255,7 @@ public class BEParkesKettle : BEOreMachine
         _zincBack = y.ZincBits;
         _silverCarry = y.SilverCarry;
         _zincCarry = y.ZincCarry;
+        DrainOil(ParkesKettling.Fill(_lead, ChargeUnits));
         _lead = 0;
         _zinc = 0;
         _progress = 0;

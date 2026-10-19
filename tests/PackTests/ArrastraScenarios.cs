@@ -55,6 +55,7 @@ public partial class SharedWorldScenarios
             Assert.True(CutterClick(player, at, CutterItem(code, count)) == null, $"{code} x{count} was not fitted");
         }
         Assert.True(arrastra.Built);
+        OilUp(arrastra);
     }
 
     private static string ArrastraInfo(BEArrastra arrastra, IPlayer player)

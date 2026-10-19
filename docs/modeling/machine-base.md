@@ -188,6 +188,11 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
   subclass (`Machines.Tailings.Discard` stopped compiling).
 - **`new` on `Rig`.** A subclass that wants its own rig type hides the base's: `private new DrawBenchRig? Rig =>
   base.Rig as DrawBenchRig;`.
+- **Oil makes a built machine dry.** A machine newly taking oil is built with an empty tank, so it loads its
+  shaft three times its own: every scenario that asserts its working load, or turns it on a creative rotor set
+  for that load, must fill its tank first (`OilUp` in `OreMachinesScenarios.cs`). An ore machine whose job is
+  the default `Work` (an item at a time) drains in `BEOreMachine.WorkItem`, a job an item; one with its own
+  `Work` calls `DrainOil` itself (the arrastra's charge, the roaster's item by weight, the kettle's charge).
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 

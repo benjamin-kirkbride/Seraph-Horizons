@@ -1563,8 +1563,10 @@ The game, Immersive Woodworking (`immersivewoodworking`, 1.3.13) and this mod's 
 heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
 Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench, the gear
 cutter and the cylinder borer (whose oil wears their cutter kit and cutter head instead of loading their shafts: "Gear
-cutter" and "Cylinder borer" below). Nothing else
-does: the quern, axles, gears and every other transmission part are exempt. A machine is built
+cutter" and "Cylinder borer" below), and every ore machine that turns on a shaft: the jaw breaker, the stamp battery,
+the arrastra, the ball mill, the jig, the shaking table, the vanner, and the reverberatory roaster's rabbles and the
+Parkes kettle's stirrer. Nothing else
+does (the sluice, the amalgamation plates and the hand stations take no shaft): the quern, axles, gears and every other transmission part are exempt. A machine is built
 **dry**, and runs dry again when its oil is used up. Dry, its load on its shaft is
 `DryResistanceMultiplier` (3) times what it is otherwise; nothing else changes (it wears and works
 as before). Any oil at all is not dry. While dry and turning, it puffs dark smoke.
@@ -1588,7 +1590,9 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
-  double), the draw bench per pipe section drawn, and the cylinder borer per cylinder bored.
+  double), the draw bench per pipe section drawn, the cylinder borer per cylinder bored, the ore machines
+  per rock worked (the arrastra's drained a charge at a time as it is ground), the reverberatory roaster per
+  item roasted by its weight, and the Parkes kettle per charge stirred by its share of a full charge.
 - **Block info** (every oiled machine's, the shared machine base's layout; the machines not yet on
   the base still write the older lines): `Oil: <points> of <tank>` (rounded up, so a tank with any oil
   never shows 0, and an empty one 0, not -0) and, while dry, `Dry: it takes 3× the power to turn. Apply
@@ -1619,12 +1623,21 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `GearCutter` | tank 1000, 10 a gear | A large gear drains double; never a dry load ("Gear cutter") |
 | `DrawBench` | tank 1000, 2 a pipe section | Four pipe sections a hollow, 8 points ("Draw bench") |
 | `CylinderBorer` | tank 1000, 10 a cylinder | Either metal; never a dry load ("Cylinder borer") |
+| `JawBreaker` | tank 4000, 3.8 a rock | The ore machines' are scaled by load (below) |
+| `StampBattery` | tank 3750, 14.3 a rock | |
+| `Arrastra` | tank 500, 43 a rock | Drained a charge at a time |
+| `BallMill` | tank 5500, 21 a rock | |
+| `Jig` | tank 500, 1.4 a rock | |
+| `ShakingTable` | tank 500, 1.6 a rock | |
+| `Vanner` | tank 400, 3.1 a rock | |
+| `ReverberatoryRoaster` | tank 2500, 0.75 an item | Times the item's weight |
+| `ParkesKettle` | tank 1000, 115 a charge | Times its share of a full charge |
 
 Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
 to its default with a warning.
 
-**Why these sizes.** Every tank holds 1000 points, one 10 litre bucket, so "a bucket fills a dry
-machine" holds for all six and the block info reads the same everywhere. The drains are set so
+**Why these sizes.** Every workshop machine's tank holds 1000 points, one 10 litre bucket, so "a bucket
+fills a dry machine" holds for all of them and the block info reads the same everywhere. The drains are set so
 that a full tank lasts several days of steady play at a busy workshop's pace, by each machine's
 own rate of work: a helve hammer strikes about three times a second at speed 1, so 0.1 a strike
 is 10 000 strikes (some 50 minutes of hammering, a few weeks of smithing sessions); a pulverizer
@@ -1632,6 +1645,16 @@ is 10 000 strikes (some 50 minutes of hammering, a few weeks of smithing session
 the bucking sawmill and the rosser 500 stored logs (a thin trunk stores about 10). Oil is not
 cheap: vanilla flax oil comes 0.1 litre a cooking pot, a press gives more, and tallow is half a
 litre a lump, so a bucket is a real cost that is paid rarely.
+
+**The ore machines' sizes are scaled by load.** The workshop machines above set the scale: the bucking
+mill (load 0.17) and the draw bench (0.2, 0.35 drawing copper) hold 1000 points, about 5000 points a unit
+of load, and drain 2 points a job for 1.4 load·turns (the mill's stored log, 0.17 × 8 turns) and 1.0
+(the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. So an ore machine's tank is 5000
+points a unit of its working load, and a job drains 2 × its load × the shaft turns the job takes at the
+reference speed 0.6 (`ore-processing.json`'s rate, 57.3 turns an hour), rounded: the heavier machines have
+the bigger tanks and drink more a job (the ball mill 21 a rock, the stamp battery 14.3, the jig 1.4), and
+every one runs about 44 hours of work on a full tank. Each machine's README, "Oil", has its arithmetic, and
+`MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds the defaults to the shipped figures.
 
 **How.** The four foreign machines are patched (`MachineOil/ForeignMachines.cs`), on both sides
 and once per process (own Harmony id `seraphhorizons.machineoil`): their block entities cannot

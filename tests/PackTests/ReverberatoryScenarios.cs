@@ -125,6 +125,7 @@ public partial class SharedWorldScenarios
             Assert.True(CutterClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(code, missing)) == null, $"{code} x{missing} was not fitted");
         }
         Assert.True(f.Built);
+        OilUp(f);
         Assert.True(f.ShowsPart("arch") && f.ShowsPart("rabbles") && f.ShowsPart("pipecopper") && !f.ShowsPart("pipelead"));
         Assert.True(f.ShowsPart("damperopen") && !f.ShowsPart("dampershut") && !f.ShowsPart("fire") && !f.ShowsPart("charge"));
         // the rabbles' load follows the bed: empty 0.1
@@ -251,6 +252,7 @@ public partial class SharedWorldScenarios
         while (partner.Assembly!.FillNext()) { }
         partner.MarkDirty(true);
         Assert.True(partner.Built);
+        OilUp(partner);
         Assert.Same(f, partner.Partner());
         Assert.Same(partner, f.Partner());
         await World.Until(() => f.Row.Problem == RowProblem.OutletOpen, 5000);

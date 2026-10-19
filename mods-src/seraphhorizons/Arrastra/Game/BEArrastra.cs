@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.Arrastra.Core;
 using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using Vintagestory.API.Client;
@@ -43,6 +44,9 @@ public class BEArrastra : BEOreMachine
     private int _shownPercent = -1;
 
     public override OreMachine? Kind => OreMachine.Arrastra;
+
+    /// <summary>Oiled, its job a rock ground, drained a charge at a time as it is ground.</summary>
+    protected override OilMachine? OilKind => OilMachine.Arrastra;
 
     /// <summary>Nothing automated feeds it: the charge is tipped in by hand (<see cref="InteractContent"/>).</summary>
     public override bool Takes(ItemStack stack) => false;
@@ -101,6 +105,7 @@ public class BEArrastra : BEOreMachine
             return true;
         }
         SpendWater(water);
+        DrainOil(InfeedSlot.StackSize);
         GrindCharge();
         _grind = 0;
         _shownPercent = -1;

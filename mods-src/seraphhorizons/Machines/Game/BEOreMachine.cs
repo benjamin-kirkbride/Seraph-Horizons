@@ -295,13 +295,14 @@ public abstract class BEOreMachine : BEMachine
     }
 
     /// <summary>Works one item of the infeed as the default <see cref="Work"/> does (its water, a use of
-    /// every wearing part, its products at their anchors); false when it cannot now.</summary>
+    /// every wearing part, a job's oil, its products at their anchors); false when it cannot now.</summary>
     protected bool WorkItem()
     {
         if (Assembly is not { } assembly || !HasWork || !OutputRoom || !Water.Holds(WaterPerItem))
             return false;
         SpendWater(WaterPerItem);
         assembly.Wearing.WearAll(1);
+        DrainOil(1);
         var fed = InfeedSlot.TakeOut(1);
         InfeedSlot.MarkDirty();
         foreach (var (anchor, product) in Products(fed))

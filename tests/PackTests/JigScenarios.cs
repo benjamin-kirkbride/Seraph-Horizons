@@ -46,6 +46,7 @@ public partial class SharedWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(jig.Assembly.Ready);
+        OilUp(jig);
     }
 
     private static int JigChestCount(BlockEntityContainer chest, string code) =>

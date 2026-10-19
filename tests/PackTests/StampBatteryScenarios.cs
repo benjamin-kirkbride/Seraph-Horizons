@@ -39,6 +39,7 @@ public partial class SharedWorldScenarios
         while (!battery.Built)
             Assert.True(battery.Assembly!.FillNext());
         Assert.True(battery.Assembly!.Ready);
+        OilUp(battery);
         battery.MarkDirty(true);
     }
 
@@ -149,6 +150,7 @@ public partial class SharedWorldScenarios
             }
         Assert.True(battery.Built);
         Assert.True(battery.Assembly.Ready);
+        OilUp(battery);
         Assert.True(battery.ShowsPart("pipecopper") ^ battery.ShowsPart("pipelead"));
 
         // breaking it gives every part back, the shoes and the frame with them

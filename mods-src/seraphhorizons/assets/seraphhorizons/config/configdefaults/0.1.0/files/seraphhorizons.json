@@ -197,6 +197,42 @@
     "CylinderBorer": {
       "Tank": 1000.0,
       "DrainPerJob": 10.0
+    },
+    "JawBreaker": {
+      "Tank": 4000.0,
+      "DrainPerJob": 3.8
+    },
+    "StampBattery": {
+      "Tank": 3750.0,
+      "DrainPerJob": 14.3
+    },
+    "Arrastra": {
+      "Tank": 500.0,
+      "DrainPerJob": 43.0
+    },
+    "BallMill": {
+      "Tank": 5500.0,
+      "DrainPerJob": 21.0
+    },
+    "Jig": {
+      "Tank": 500.0,
+      "DrainPerJob": 1.4
+    },
+    "ShakingTable": {
+      "Tank": 500.0,
+      "DrainPerJob": 1.6
+    },
+    "Vanner": {
+      "Tank": 400.0,
+      "DrainPerJob": 3.1
+    },
+    "ReverberatoryRoaster": {
+      "Tank": 2500.0,
+      "DrainPerJob": 0.75
+    },
+    "ParkesKettle": {
+      "Tank": 1000.0,
+      "DrainPerJob": 115.0
     }
   },
   "TrunkEntities": true,
