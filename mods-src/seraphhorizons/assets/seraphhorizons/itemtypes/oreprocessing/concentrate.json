@@ -1,6 +1,12 @@
 // Concentrate (OreProcessing): the heavy fraction off a concentrator, one per ore, 5 units of metal
 // each, a slot 640. Smelts whole in every furnace (set in code), except a sulfide's, which smelts only
 // once roasted. Marked disabled with the switch off.
+// Texture: a fine powder shows its mineral's streak, so each is the ore's nugget texture with a crushed one
+// blended over it for grain (blend modes: EnumColorBlendMode). The sulfides and dark oxides, and the placer
+// black sands, take crushed galena multiplied ("*", dark); the pale or coloured ores have their own keys,
+// above "*" (first match wins): screened lighter (malachite, azurite, the white zinc and lead carbonates,
+// rhodochrosite, vanadinite, limonite, sphalerite), wulfenite overlaid with quartz, hematite crushed
+// hematite's red-brown, and native copper lightened and overlaid with bauxite's copper.
 {
 	"code": "concentrate",
 	"class": "seraphhorizons.ItemOreProduct",
@@ -87,6 +93,118 @@
 				{
 					"base": "game:item/resource/crushed/galena",
 					"blendMode": "Multiply"
+				}
+			]
+		},
+		"concentrate-malachite": {
+			"base": "game:item/resource/nugget/malachite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/galena",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-azurite": {
+			"base": "game:item/resource/nugget/azurite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/lapislazuli",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-cerussite": {
+			"base": "game:item/resource/nugget/cerussite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/lime",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-smithsonite": {
+			"base": "game:item/resource/nugget/smithsonite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/lime",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-hemimorphite": {
+			"base": "game:item/resource/nugget/hemimorphite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/lime",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-rhodochrosite": {
+			"base": "game:item/resource/nugget/rhodochrosite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/galena",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-wulfenite": {
+			"base": "game:item/resource/nugget/wulfenite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/quartz",
+					"blendMode": "Overlay"
+				}
+			]
+		},
+		"concentrate-vanadinite": {
+			"base": "game:item/resource/nugget/vanadinite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/galena",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-hematite": {
+			"base": "game:item/resource/crushed/hematite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/bauxite",
+					"blendMode": "Overlay"
+				}
+			]
+		},
+		"concentrate-limonite": {
+			"base": "game:item/resource/nugget/limonite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/charcoal",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-sphalerite": {
+			"base": "game:item/resource/nugget/sphalerite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/limonite",
+					"blendMode": "Screen"
+				}
+			]
+		},
+		"concentrate-nativecopper": {
+			"base": "game:item/resource/nugget/nativecopper",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/bauxite",
+					"blendMode": "Lighten"
+				},
+				{
+					"base": "game:item/resource/crushed/bauxite",
+					"blendMode": "Overlay"
 				}
 			]
 		},
