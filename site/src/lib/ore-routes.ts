@@ -42,6 +42,8 @@ export interface OreProcessingExport {
   fineUnground: number;
   freeUnamalgamated: number;
   machines: Record<string, { recovery: number }>;
+  /** The share of a rich lead bar's lead that is silver (bullion.richLeadSilver); exports before it lack it. */
+  richLeadSilver?: number;
   smeltByGrade: Record<string, number>;
   smelt: Record<string, number>;
   ores: OreSpec[];
@@ -81,6 +83,9 @@ interface Stream {
 }
 
 type Lifted = "classified" | "ground" | "amalgamated";
+
+/** The mod's default bullion.richLeadSilver, for exports made before the section carried it. */
+const DEFAULT_RICH_LEAD_SILVER = 0.1;
 
 const raw = (units: number): Stream => ({ units, locked: null, classified: false, ground: false, amalgamated: false, worked: [] });
 
@@ -172,12 +177,22 @@ export class Recovery {
     return { caught, rest: { ...lifted, units: lifted.units - caught } };
   }
 
+  /**
+   * Whether the Parkes kettle takes the ore's bullion (Bullion.TakenBy): silver-lead leaner than its own
+   * rich lead (plain galena's). Argentiferous galena's is richer already and is cupelled directly.
+   */
+  kettleTakes(): boolean {
+    const silver = this.ore.byProducts.filter((b) => b.metal === "silver" && b.partedBy === "cupellation");
+    const share = silver.reduce((a, b) => a + b.share, 0);
+    return this.ore.metal === "lead" && silver.length > 0 && share < (this.data.richLeadSilver ?? DEFAULT_RICH_LEAD_SILVER);
+  }
+
   /** The last step of the ore's ideal route, which recovers whatever is left (FinalStep). */
   finalStep(): string {
     const bp = this.ore.byProducts[0];
     if (bp)
       return bp.partedBy === "cupellation"
-        ? this.ore.metal === "lead"
+        ? this.kettleTakes()
           ? "parkeskettle"
           : "cupellationfurnace"
         : bp.partedBy === "liquation"
@@ -296,8 +311,11 @@ export function oreRoutes(data: OreProcessingExport, ore: OreSpec, grade: Grade)
   const rock = (step: StepId, children: RouteNode[], variant?: StepVariant): RouteNode => node(step, rockUnits, children, variant ? { variant } : {});
   const conc = data.smelt["concentrate"] ?? 1;
 
-  // Bullion and its parting, by hand (the cupel, the liquation pan) or by machine; `whole` of the
-  // units came off the whole route, which the ore's last step makes whole.
+  // Parting `main` units of the main metal; `whole` of them came off the whole route, which the ore's
+  // last step makes whole. By hand (`hand`: a firepit's roasted concentrate) the cupel or the liquation
+  // pan parts the roasted concentrate itself, not a bar. By machine it smelts to bullion first, which
+  // the cupellation furnace parts (for silver-lead the kettle takes, the Parkes kettle's rich lead
+  // first), the liquation furnace or the acid parting vessel.
   const parting = (main: number, how: "hand" | "machine", whole = 0): RouteNode[] => {
     const bp = ore.byProducts[0];
     if (!bp) return [];
@@ -305,13 +323,12 @@ export function oreRoutes(data: OreProcessingExport, ore: OreSpec, grade: Grade)
       const s = r.smelted(main, station, whole);
       return node(station, s.main, [], { byProduct: s.byProduct!, ...(whole > 0 && r.finalStep() === station ? { final: true } : {}) });
     };
+    if (how === "hand") return bp.partedBy === "cupellation" ? [at("cupel")] : bp.partedBy === "liquation" ? [at("liquationpan")] : [];
     const unparted = r.smelted(main, null);
     let children: RouteNode[];
-    if (how === "hand") children = bp.partedBy === "cupellation" ? [at("cupel")] : bp.partedBy === "liquation" ? [at("liquationpan")] : [];
-    else if (bp.partedBy === "cupellation")
-      // Lead with silver: the cupellation furnace on the bullion, or the Parkes kettle's rich lead
-      // (the kettle's figure: it takes the silver whole into the rich lead the furnace then cupels).
-      children = ore.metal === "lead" ? [at("cupellationfurnace"), node("parkeskettle", null, [{ ...at("parkeskettle"), step: "cupellationfurnace", variant: "richlead" }])] : [at("cupellationfurnace")];
+    if (bp.partedBy === "cupellation")
+      // The kettle's figure: it takes the silver whole into the rich lead the furnace then cupels.
+      children = r.kettleTakes() ? [at("cupellationfurnace"), node("parkeskettle", null, [{ ...at("parkeskettle"), step: "cupellationfurnace", variant: "richlead" }])] : [at("cupellationfurnace")];
     else children = [at(bp.partedBy === "liquation" ? "liquationfurnace" : "acidparting")];
     return [node("bullion", unparted.main, children, { byProduct: unparted.byProduct! })];
   };
@@ -320,8 +337,9 @@ export function oreRoutes(data: OreProcessingExport, ore: OreSpec, grade: Grade)
   // whole, or for a sulfide roasted first.
   const concentrate = (step: StepId, units: number, how: "hand" | "machine", whole = 0, more: Partial<RouteNode> = {}, roast = true): RouteNode => {
     if (!sulfide) {
-      // Acid parting has no hand form: gold quartz washed by hand smelts unparted.
-      const kids = how === "machine" || ore.byProducts[0]?.partedBy !== "acidparting" ? parting(units * conc, how, whole * conc) : [];
+      // The hand stations part only roasted concentrate (and acid parting has no hand form): gold
+      // quartz washed by hand smelts unparted.
+      const kids = how === "machine" ? parting(units * conc, how, whole * conc) : [];
       return node(step, r.smelted(units * conc, null).main, kids, { ...more, ...(ore.byProducts[0] ? { byProduct: { metal: ore.byProducts[0].metal, units: 0 } } : {}) });
     }
     const roasts: RouteNode[] = [];
@@ -393,7 +411,8 @@ export function oreRoutes(data: OreProcessingExport, ore: OreSpec, grade: Grade)
   const spallingKids = [rock("riddle", riddleKids), ...byHand(mined, "unriddled")];
   if (sulfide) {
     const roasted = U * r.gradeShare() * r.roasting("firepit");
-    spallingKids.push(node("firepit", roasted, parting(roasted, "hand"), { variant: "rock" }));
+    // Roasted rock is not concentrate: the hand stations refuse it, and it smelts to bullion for the machines.
+    spallingKids.push(node("firepit", roasted, parting(roasted, "machine"), { variant: "rock" }));
   }
 
   // By machine: the stamp battery screens (the ball mill grinds poor ore), the plates amalgamate free metal, the four concentrators.
@@ -417,7 +436,7 @@ export function oreRoutes(data: OreProcessingExport, ore: OreSpec, grade: Grade)
   return rock("mined", minedKids);
 }
 
-/** Every route a block of placer takes: panned, rocked, or through the four concentrators (each on the one before's tailings). */
+/** Every route a block of placer takes: panned or rocked (gravel), or through the four concentrators (each on the one before's tailings). */
 export function placerRoutes(data: OreProcessingExport, placer: Placer): RouteNode {
   const total = placer.contents.reduce((a, c) => a + c.units, 0);
   const share = (m: string) => Math.min(1, Math.max(0, data.machines[m]?.recovery ?? 0));
@@ -433,8 +452,9 @@ export function placerRoutes(data: OreProcessingExport, placer: Placer): RouteNo
     tail = m === "vanner" ? node(m, total, [], { final: true }) : node(m, cumulative[i]!, tail ? [tail] : []);
   }
   const kids: RouteNode[] = [];
-  if (placer.kind === "gravel") kids.push(node("pan", total * (data.handStations["pan"] ?? 0)));
-  kids.push(node("rocker", total * (data.handStations["rocker"] ?? 0)), tail!);
+  // The gold pan and the rocker take rich gravel only (Rocker/Core/Rocking.cs): bog iron goes to the concentrators.
+  if (placer.kind === "gravel") kids.push(node("pan", total * (data.handStations["pan"] ?? 0)), node("rocker", total * (data.handStations["rocker"] ?? 0)));
+  kids.push(tail!);
   return node("dug", null, kids);
 }
 

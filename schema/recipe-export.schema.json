@@ -113,6 +113,7 @@
             "properties": { "recovery": { "type": "number", "minimum": 0 } }
           }
         },
+        "richLeadSilver": { "description": "Optional (later exports): the share of a rich lead bar's lead that is silver (bullion.richLeadSilver). The Parkes kettle takes only silver-lead leaner than this; readers assume 0.1 without it.", "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
         "smeltByGrade": { "description": "The share of its units rock of each grade gives in a furnace.", "$ref": "#/$defs/shares" },
         "smelt": { "description": "The share of its units each other form gives in a furnace: concentrate, roastedconcentrate, sponge.", "$ref": "#/$defs/shares" },
         "ores": {
