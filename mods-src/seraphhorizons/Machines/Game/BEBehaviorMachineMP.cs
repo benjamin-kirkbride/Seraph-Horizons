@@ -1,3 +1,4 @@
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -24,7 +25,9 @@ public interface IMachinePower
 /// power cell's block entity is the <see cref="IMachinePower"/>, or gives one as
 /// <see cref="IMachinePowerCell.Power"/> (a ghost cell passing it on to its controller). A renderer
 /// reads the shaft's angle as <c>Network.AngleRad * GearedRatio</c> and its speed as
-/// <see cref="BEBehaviorMPBase.TrueSpeed"/>. Without an owner it is a token load facing up.
+/// <see cref="BEBehaviorMPBase.TrueSpeed"/>. Without an owner it is a token load facing up. The block
+/// draws its own shape: nothing is handed to the mechanical power renderer
+/// (<see cref="OnTesselation"/>).
 /// </summary>
 public class BEBehaviorMachineMP : BEBehaviorMPConsumer
 {
@@ -41,6 +44,12 @@ public class BEBehaviorMachineMP : BEBehaviorMPConsumer
         OutFacingForNetworkDiscovery = Owner?.PowerFace ?? BlockFacing.UP;
         base.Initialize(api, properties);
     }
+
+    /// <summary>The block's own shape is drawn. The game's consumer returns true here whenever it has a
+    /// block, skipping that shape for the mechanical power renderer to draw <c>Shape</c> instead; with
+    /// <c>mechPartShape: null</c> that is nothing, and a frame that is its own power cell (the shaking
+    /// table, the amalgam pan) went unseen.</summary>
+    public override bool OnTesselation(ITerrainMeshPool mesher, ITesselatorAPI tesselator) => false;
 
     public override float GetResistance() => Owner?.Resistance ?? Core.MachineLoad.Unassembled;
 

@@ -6520,7 +6520,9 @@ same energy at any speed. **Load is constant**: once built the job's figure
 (`OreRecovery.LoadAt`, the full load for every machine but the jaw breaker, the reverberatory's
 rabbles and the Parkes kettle, which follow their charge, never an item), 0.005 unbuilt, three times
 dry of oil where the machine takes oil (`MachineLoad.Resistance`). The power cell's behaviour is
-`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`).
+`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`). It leaves the
+block's own shape drawn, where the game's consumer would skip it for the mechanical power renderer
+(which, with `mechPartShape: null`, draws nothing), so a frame that is its own power cell is seen.
 
 **The reservoir** (`MachineReservoir`): a wet machine fills its own from a ppex pipe on its water face
 (`PpexWater`, moved here from the rosser, which shares it) at up to `WaterIntakeLitresPerSecond` (10 L/s),
