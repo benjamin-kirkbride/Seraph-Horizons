@@ -81,7 +81,7 @@ defaults).
 | Immersive Woodworking's sawmill and chopper | `SawmillResistance`, `ChopperResistance` 0.085 (`ImmersiveWoodworkingModSystem.Config`); 0.005 until assembled. A sawmill with a flywheel takes × 0.6, a separate entry. |
 | smex's Bessemer transmission; mechanical blower | `BessemerTransmissionResistance` 0.25. The blower takes `MpBlowerBaseLoad` 0.05 + `MpBlowerLoadPerAtm` 0.05 per atm of back-pressure, up to `MpBlowerMaxPressure` 2: load 0.05, loadMax 0.15 (`SteelmakingExpanded.SmexValues`). Its port behavior is added to the blower's structure in code, so the entry is found by the block `smex:mpblower`. |
 | ppex's mechanical fluid pump | `MpPumpBaseLoad` 0.05 + `MpPumpLoadPerAtm` 0.05 × `MpPumpDeliveryPressure` 1.5 = 0.125. |
-| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`BEBehaviorMillMP.IncompleteResistance`). |
+| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`BEBehaviorMillMP.IncompleteResistance`; on the shared machine base `MachineLoad.Unassembled`). |
 
 **Oil.** The pack's MachineOil (`mods-src/seraphhorizons/README.md`, "Machines need oil") gives
 some machines an oil tank: the helve hammer, the pulverizer, Immersive Woodworking's sawmill and
@@ -154,7 +154,7 @@ that is not loaded leaves its entries out.
   `config/ore-processing.json` (constant, or from `emptyLoad` to `load` for the machines whose load
   follows their job), 0.005 until built. Their power cells all carry `seraphhorizons.MachineMP`, so a
   `Spec` could not tell them apart.
-- **A seraphhorizons workshop machine on the shared machine base** (the draw bench; docs/modeling/machine-base.md)
+- **A seraphhorizons workshop machine on the shared machine base** (the draw bench, the gear cutter, the cylinder borer; docs/modeling/machine-base.md)
   has the same shared power cell, so its `Spec` names `BEBehaviorMachineMP` with `ByFrame`: it is found
   by its frame (`ItemPrefix`), not by the behavior. Its build file has no `block`, so the ore
   machines' scan leaves it out.
