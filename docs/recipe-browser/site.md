@@ -411,7 +411,12 @@ pass on the one before's tailings, the hand stations, amalgamation, the ore's la
 it makes whole, roasting, smelting and parting). `oreRoutes` builds the tree of routes for one raw
 ore item at one grade, `placerRoutes` one for a block of placer; each node is a step with what
 one item gives smelted right after it (main metal, and the second metal where the ore has one).
-Grinding steps appear only for poor ore, which is the only grade they change. `bestRoute` finds
+Grinding steps appear only for poor ore, which is the only grade they change. As in the mod, the
+hand parting stations (the cupel, the liquation pan) hang off a firepit's roasted concentrate, not
+off bullion: bars, and roasted rock, are parted by the machines only. The Parkes kettle appears
+only for silver-lead leaner than rich lead (the section's `richLeadSilver`, 0.1 when an older
+export lacks it: plain galena), so argentiferous galena's last step is the cupellation furnace;
+the gold pan and the rocker take rich gravel, not bog iron. `bestRoute` finds
 the step that gives the most in all (the deeper on a tie), optionally among hand steps only.
 `test/ore-routes.test.ts` checks the trees against hand-worked figures, and `e2e/ores.spec.ts`
 checks the page against the export's own rocker record, which the mod computed.
