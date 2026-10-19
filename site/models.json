@@ -755,7 +755,7 @@
               { "id": "quartz_nativegold", "label": "Gold concentrate", "path": "game:item/resource/nugget/nativegold", "colour": "#5a4e31" },
               { "id": "cassiterite", "label": "Cassiterite concentrate", "path": "game:item/resource/nugget/cassiterite", "colour": "#140e08" },
               { "id": "galena", "label": "Galena concentrate", "path": "game:item/resource/nugget/galena", "colour": "#1c2325" },
-              { "id": "malachite", "label": "Malachite concentrate", "path": "game:item/resource/nugget/malachite", "colour": "#133f31" },
+              { "id": "malachite", "label": "Malachite concentrate", "path": "game:item/resource/nugget/malachite", "colour": "#85c3b0" },
               { "id": "magnetite", "label": "Magnetite concentrate", "path": "game:item/resource/nugget/magnetite", "colour": "#202021" }
             ]
           }
