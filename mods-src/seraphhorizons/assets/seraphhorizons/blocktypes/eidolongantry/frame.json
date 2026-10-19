@@ -4,12 +4,13 @@
 // eidolon: the server disables it with Eidolon off.
 {
 	code: "eidolongantry",
-	class: "seraphhorizons.EidolonGantry",
+	// The shared machine frame (docs/modeling/machine-base.md); its block entity keeps the winch and the
+	// eidolon's body stages on the spine, and wakes it (BEEidolonGantry, GantryBody, #672).
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.EidolonGantry",
-	// The eidolon's body stages on the spine, and waking it (BEBehaviorEidolonBody, #672).
-	entityBehaviors: [ { name: "seraphhorizons.EidolonBody" } ],
-	// No HorizontalOrientable: BlockEidolonGantry.TryPlaceBlock picks the side so the open front faces
-	// the player, and places the controller so the front's middle is the block they clicked.
+	// No HorizontalOrientable: the shared frame takes the side from the rig, so the open front faces
+	// the player (GantryRig.PlacedSide), and places the controller so the front's middle is the block
+	// they clicked (GantryRig.PlaceCell).
 	variantgroups: [
 		{ code: "wood", loadFromProperties: "block/wood" },
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -56,7 +57,7 @@
 	sidesolid: { all: false },
 	lightAbsorption: 0,
 	// A plain frame of each wood, and one oak gantry that places with its winch and spine fitted
-	// (BlockEidolonGantry.AssembledAttribute).
+	// (BlockMachine.AssembledAttribute).
 	creativeinventoryStacksByType: {
 		"*-oak-north": [ {
 			tabs: [ "general", "mechanics" ],

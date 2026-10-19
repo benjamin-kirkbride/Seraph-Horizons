@@ -6,8 +6,8 @@
 	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.GearCutter",
 	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the cutter extends
-	// away from the player as the bucking mill does (attributes.machine.placement "mill":
-	// Machines/Core/Footprint.cs, PlacedFacing).
+	// away from the player as the bucking mill does (its rig's PlacedSide: Machines/Core/Footprint.cs,
+	// PlacedFacing).
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -34,7 +34,6 @@
 		"marble":      { base: "game:block/stone/rock/whitemarble2" }
 	},
 	attributes: {
-		machine: { placement: "mill" },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:gearcutter-handbook-assembly-title", text: "seraphhorizons:gearcutter-handbook-assembly-text" },

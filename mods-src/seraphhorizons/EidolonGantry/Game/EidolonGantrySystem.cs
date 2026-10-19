@@ -2,15 +2,18 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.EidolonGantry.Core;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
 namespace SeraphHorizons.Mod.EidolonGantry;
 
 /// <summary>
-/// The eidolon gantry (#671): registers its classes and holds what its blocks share, the rig
+/// The eidolon gantry (#671): registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame and cells are the shared blocks, its winch
+/// <c>config/builds/eidolongantry.json</c>) and holds the rig
 /// (assets/seraphhorizons/config/eidolongantry-rig.json). Part of the eidolon (#668), behind the
-/// <c>Eidolon</c> switch: with it off the server leaves its blocks, its recipes and the stainless
+/// <c>Eidolon</c> switch: with it off the server leaves its block, its recipes and the stainless
 /// fittings' items (<see cref="StainlessPatchAsset"/>) out of the game (<see cref="Disable"/>). A hand-built frame: no power, no oil, no settings of its own.
 /// </summary>
 public class EidolonGantrySystem : ModSystem
@@ -21,7 +24,6 @@ public class EidolonGantrySystem : ModSystem
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/eidolongantry/frame.json"),
-        new(Domain, "blocktypes/eidolongantry/ghost.json"),
         // The torso, crafted and placed on the spine as the body's first stage.
         new(Domain, "itemtypes/eidolontorso.json"),
     ];
@@ -70,11 +72,8 @@ public class EidolonGantrySystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         _api = api;
-        api.RegisterBlockClass("seraphhorizons.EidolonGantry", typeof(BlockEidolonGantry));
-        api.RegisterBlockClass("seraphhorizons.EidolonGantryGhost", typeof(BlockEidolonGantryGhost));
         api.RegisterBlockEntityClass("seraphhorizons.EidolonGantry", typeof(BEEidolonGantry));
-        api.RegisterBlockEntityClass("seraphhorizons.EidolonGantryGhost", typeof(BEEidolonGantryGhost));
-        api.RegisterBlockEntityBehaviorClass(BEBehaviorEidolonBody.Code, typeof(BEBehaviorEidolonBody));
+        MachinesSystem.Of(api).RegisterRig(GantryBuild.MachineId, () => Rig);
         // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
         // only: a client has no assets in Start, and takes the item types from the server.
         if (!Applies(api) && api.Side == EnumAppSide.Server && api.Assets.TryGet(StainlessPatchAsset) is { } patch)

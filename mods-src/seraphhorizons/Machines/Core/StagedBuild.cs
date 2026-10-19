@@ -205,10 +205,13 @@ public sealed class StagedBuild
         }
         if (material < 0)
         {
+            // a stage still to come that takes it says so before an earlier one that took it (the eidolon
+            // gantry's rods: the crank shaft's, then the crank's)
+            if (anyMaterial < 0 && Find(code, next + 1, Stages.Count).Stage >= 0)
+                return new StageFit(StageFitVerdict.OutOfOrder, next, -1, 0);
             if (anyMaterial >= 0 || Find(code, 0, next).Stage >= 0)
                 return new StageFit(StageFitVerdict.AlreadyFitted, next, anyMaterial, 0);
-            return new StageFit(Find(code, next + 1, Stages.Count).Stage >= 0 ? StageFitVerdict.OutOfOrder : StageFitVerdict.NotAMaterial,
-                next, -1, 0);
+            return new StageFit(StageFitVerdict.NotAMaterial, next, -1, 0);
         }
         var picked = Stages[next].Materials[material];
         if (picked.Picks != null && _fitted[next][material].Keys.Any(c => picked.PickOf(c) != picked.PickOf(code)))

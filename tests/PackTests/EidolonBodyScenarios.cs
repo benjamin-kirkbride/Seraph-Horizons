@@ -18,8 +18,7 @@ namespace SeraphHorizons.PackTests;
 // with a player in range).
 public partial class SharedWorldScenarios
 {
-    private BEBehaviorEidolonBody BodyOf(BEEidolonGantry gantry) =>
-        gantry.GetBehavior<BEBehaviorEidolonBody>() ?? throw new Xunit.Sdk.XunitException("the gantry has no body behavior");
+    private static GantryBody BodyOf(BEEidolonGantry gantry) => gantry.Body;
 
     private List<EntityLaborEidolon> EidolonsNear(BlockPos pos, double range = 16) =>
         W.GetEntitiesAround(new Vec3d(pos.X, pos.Y, pos.Z), (float)range, 8, e => e is EntityLaborEidolon && e.Alive)
@@ -212,8 +211,8 @@ public partial class SharedWorldScenarios
         var dropped = CutterItemsNear(gantry.Pos, 10);
         var expected = new Dictionary<string, int> { ["seraphhorizons:eidolongantry-birch-north"] = 1 };
         void Add(string code, int n) => expected[code] = expected.GetValueOrDefault(code) + n;
-        foreach (var stage in GantryRequires.Stages)
-            Add(GantryParts.CodesFor(stage, "birch")[0], GantryParts.Needed(stage));
+        foreach (var stage in GantryWinch("birch").Stages)
+            Add(stage.Materials[0].Codes[0], stage.Materials[0].Quantity);
         foreach (var ing in BodyBill.Of("torso").Concat(BodyBill.Of("bones", wood)))
             Add(ing.Code, ing.Count);
         Add("game:jonasframes-spring01", 1);

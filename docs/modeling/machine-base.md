@@ -55,6 +55,11 @@ do not:
 - **A stage that comes back off** (the gear cutter's master, changed for the other size): keep it the build's
   last stage and take it with `Assembly.Build.TakeStage(index)`, which refuses unless the stage is complete and
   nothing after it holds anything. What chooses among its items' parts is a `picks` (`master`, `masterlarge`).
+  override `BuildSpec` and return `base.BuildSpec(world)?.WithUses(id, setting)`.
+- **An assembled stack**: a frame stack with the attribute `assembled` (`BlockMachine.AssembledAttribute`)
+  places with every stage and wearing part fitted (`BEMachine.OnBlockPlaced`), named by
+  `seraphhorizons:{machine}-assembled` ("{0} (assembled)") and `-assembled-info` where the machine has them
+  (the creative inventory's eidolon gantry).
 - **No `block`** for a workshop machine whose construction record the recipe export writes by hand (the press
   brake, the draw bench): with a `block` the exporter's generic ore-machine pass would add a second construction
   record and a power consumer (`RecipeSection.OreMachines.cs`, `Power/OreMachineConsumers.cs`). Reworking the
@@ -106,6 +111,8 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | Box its work | `CellBoxes`, `CollisionBoxes` (the base's from the rig): the borer adds its casting's while one is in the cradle, its tables built once in `Initialize` after the base's. |
 | Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`. |
 | Take its work | `InteractContent` (before the build: take the work back, a bucket), `InteractWork` (after it: load the work, start a hold). Return whether the click was the machine's; act on the server. `CreativeShortcut(player)` tells a creative Ctrl from the machine's own Ctrl. |
+| Be placed otherwise | The rig's `IMachineRig.PlaceCell` (the cell put on the clicked block, the controller by default) and `PlacedSide(look)` (native north towards the player by default): the eidolon gantry's open front, native west, faces them with its middle on the click. |
+| Have open cells or another selection | `HollowCellsOpen` (a hollow cell has no boxes), `SelectionBoxes(cell)` (the gantry's crank in a hollow cell). |
 | Say when it is whole | `Complete` (the name), `CreativeFills` (the creative shortcut), `LoadsShaft`: each `Built` by default; `Ready` (built and every wearing part in) for a machine that stops without its wearing part. |
 | Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
 | Save | `ToTreeAttributes`/`FromTreeAttributes` for the work only, calling the base: the build, wearing parts, state, oil, water and holds are the base's. |
@@ -204,16 +211,27 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
 - **A machine whose dry tank wears its cutter** (`OilDryEffect.Wear`: the gear cutter, the borer) reads `OilFill`
   when its job finishes, before `DrainOil`: the wear is the fill the job ran at. The shared oil lines say "Dry: it
   wears its cutter fast" and never the dry multiplier; the machine says what the next job does to the cutter itself.
-- **The shared messages are the build's view.** A material two stages take (the gear cutter's spindle and index
-  bill) held before the later stage is next reads as the earlier stage's, "already fitted", not "not yet". A wearing
-  part held while a stage after its own is open (the cutter kit with the master off) reads "already fitted" too: say
-  what to fit first in `InteractContent` (the gear cutter does).
+- **The shared messages are the build's view.** A wearing part held while a stage after its own is open (the
+  cutter kit with the master off) reads "already fitted": say what to fit first in `InteractContent` (the gear
+  cutter does).
 - **`Error` and a machine's own message helper.** The base's `Error(player, message, code)` takes three strings; a
   machine's own `Error(player, key, params object[] args)` hides it for a three-argument call (C# drops base
   candidates when a derived one applies) and sends the message as a lang key. Name the machine's own differently
-  (`Say`), and call `base.Error` for a shared message.
+  (`Say`, the gantry's `Refuse`), and call `base.Error` for a shared message.
 - **The renderer's cache key.** The shared renderer's meshes are cached by shape and `TextureKey` alone: anything
   else `PartTextures` depends on must be in `TextureKey`, or every machine of the kind shows the first one's.
+- **A material two stages take** (the eidolon gantry's rods: the crank shaft's, then the crank's). Held
+  between them it is `OutOfOrder` (a stage still to come takes it), not `AlreadyFitted` (the earlier one
+  did): `StagedBuild.CanFit` asks the later stages first.
+- **The machine's own work taking the build's materials** (the gantry's body layers take rods, plates, nails
+  and chain, as its winch did). Once built, the build refuses them as already fitted before
+  `InteractWork` sees them: take them in `InteractContent` while `Built`, returning null for what is not
+  the work's.
+- **Hollow cells are full cubes** unless the machine says `HollowCellsOpen` (the gantry's open middle and
+  front, nothing to collide with or select); the Parkes kettle's three hollow cells are still cubes, as they
+  were before the base.
+- **A build in the frame's variant** (the gantry's drum and spine in its own wood): write a token in the
+  codes (`game:plank-{wood}`) and fill it in `BuildSpec` (`GantryBuild.ForWood`); a `*` would take any wood.
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 

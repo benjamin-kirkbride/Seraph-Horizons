@@ -14,9 +14,9 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.EidolonGantry;
 
 /// <summary>
-/// The eidolon's body on the gantry's spine (#672, the fittings), a block entity behavior of the gantry's
-/// controller (<c>entityBehaviors</c> in <c>blocktypes/eidolongantry/frame.json</c>) plugged in through
-/// <see cref="IEidolonGantryExtension"/>. Once the winch and spine are fitted, the seven stages of
+/// The eidolon's body on the gantry's spine (#672, the fittings), a piece of the gantry's controller
+/// (<see cref="BEEidolonGantry.Body"/>), which hands it every click its winch does not take, the crank's
+/// turns, its drops, saving and its block info. Once the winch and spine are fitted, the seven stages of
 /// <see cref="BodyBill"/> go on in order (<see cref="BodyParts"/>): the crafted torso, used on the gantry;
 /// the five layers, fitted item by item in any material the layer allows (its first piece fixes it);
 /// the mind, a temporal gear. Within a stage a click fits what the held stack can give toward one
@@ -36,9 +36,8 @@ namespace SeraphHorizons.Mod.EidolonGantry;
 /// (<see cref="Strip"/>); the crank wakes it once all five layers are on; breaking the gantry lets it go,
 /// layers and all, and gives back only the pieces of a layer part fitted.</para>
 /// </summary>
-public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavior(blockentity), IEidolonGantryExtension
+public sealed class GantryBody(BEEidolonGantry gantry)
 {
-    public const string Code = "seraphhorizons.EidolonBody";
     private const string TreeKey = "eidolonBody";
     private const string DockedKey = "eidolonDocked";
 
@@ -58,7 +57,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     public BodyParts Parts => _parts;
 
-    private BEEidolonGantry? Gantry => Blockentity as BEEidolonGantry;
+    private ICoreAPI Api => gantry.Api;
 
     /// <summary>Every stage fitted, the mind too: only the crank is left (the creative shortcut passes it by).</summary>
     public bool Complete => _parts.Complete;
@@ -79,22 +78,22 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     /// <summary>Whether <paramref name="eidolon"/> may dock here: the spine is built and bare (no body
     /// being built on it, no other eidolon docked), or it is already this eidolon's.</summary>
     public bool SpineFreeFor(Entity eidolon) =>
-        Gantry is { WinchComplete: true } && (_dockedId == eidolon.EntityId || _dockedId == 0 && !_parts.Started);
+        gantry.WinchComplete && (_dockedId == eidolon.EntityId || _dockedId == 0 && !_parts.Started);
 
-    public override void Initialize(ICoreAPI api, JsonObject properties)
+    /// <summary>From the gantry's <c>Initialize</c>, after the machine base's.</summary>
+    public void Initialize(ICoreAPI api)
     {
-        base.Initialize(api, properties);
         // A body saved before fittings may have left parts the new stages do not take: given back at the
         // open front once the chunk is in.
         if (api.Side == EnumAppSide.Server && _parts.Spare.Count > 0 && !HoldsEidolon)
-            Blockentity.RegisterDelayedCallback(_ => GiveBackSpare(), 500);
+            gantry.RegisterDelayedCallback(_ => GiveBackSpare(), 500);
         if (api.Side == EnumAppSide.Server)
-            Blockentity.RegisterGameTickListener(_ => CheckDocked(), DockCheckMs);
+            gantry.RegisterGameTickListener(_ => CheckDocked(), DockCheckMs);
     }
 
     private void GiveBackSpare()
     {
-        if (Gantry is not { } gantry || EidolonGantrySystem.Of(Api).Rig is not { } rig || _parts.Spare.Count == 0)
+        if (gantry.Rig is not { } rig || _parts.Spare.Count == 0)
             return;
         var at = gantry.WorldPoint(rig.Exit).Add(0, 0.5, 0);
         foreach (var drop in _parts.TakeSpare())
@@ -106,7 +105,10 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     // ---- Clicks ----
 
-    public bool OnGantryInteract(BEEidolonGantry gantry, IPlayer byPlayer, ItemSlot? slot)
+    /// <summary>A right-click on the gantry (any of its cells) that its winch did not take: every click once
+    /// the winch is built, and one with an item that is no winch part before. Both sides; the server acts.
+    /// True when the click is the body's (on the client: that it would be).</summary>
+    public bool OnInteract(IPlayer byPlayer, ItemSlot? slot)
     {
         // Oil, on any cell: the docked eidolon's (the cells round it can take the click before it).
         if (DockedEidolon?.Oil is { } oil && oil.PourFrom(byPlayer))
@@ -122,12 +124,12 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         Reconcile();
         if (!gantry.WinchComplete)
         {
-            gantry.Error(byPlayer, "error-body-needs-spine");
+            gantry.Refuse(byPlayer, "error-body-needs-spine");
             return true;
         }
         if (HoldsEidolon && DockedEidolon == null)
         {
-            gantry.Error(byPlayer, "error-dock-away");
+            gantry.Refuse(byPlayer, "error-dock-away");
             return true;
         }
         bool consumes = byPlayer.WorldData.CurrentGameMode != EnumGameMode.Creative;
@@ -135,13 +137,13 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         switch (verdict)
         {
             case BodyFitVerdict.OutOfOrder:
-                gantry.Error(byPlayer, "error-body-order", StageName(_parts.Next));
+                gantry.Refuse(byPlayer, "error-body-order", StageName(_parts.Next));
                 return true;
             case BodyFitVerdict.AlreadyFitted:
-                gantry.Error(byPlayer, _parts.Complete ? "error-body-complete" : "error-body-fitted", StageName(_parts.Next));
+                gantry.Refuse(byPlayer, _parts.Complete ? "error-body-complete" : "error-body-fitted", StageName(_parts.Next));
                 return true;
             case BodyFitVerdict.WrongMaterial:
-                WrongMaterial(gantry, byPlayer, stage);
+                WrongMaterial(byPlayer, stage);
                 return true;
             case BodyFitVerdict.NotAPart:
                 return true;
@@ -160,17 +162,19 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         return true;
     }
 
-    private void WrongMaterial(BEEidolonGantry gantry, IPlayer byPlayer, string stage)
+    private void WrongMaterial(IPlayer byPlayer, string stage)
     {
         if (BodyBill.LayerOf(stage) is not { } layer)
             return;
         if (_parts.Material(layer) is { } material)
-            gantry.Error(byPlayer, "error-body-samematerial", StageName(stage), MaterialName(layer, material));
+            gantry.Refuse(byPlayer, "error-body-samematerial", StageName(stage), MaterialName(layer, material));
         else
-            gantry.Error(byPlayer, "error-body-material", StageName(stage), Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-materials-" + stage));
+            gantry.Refuse(byPlayer, "error-body-material", StageName(stage), Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-materials-" + stage));
     }
 
-    public bool CreativeFitNext(BEEidolonGantry gantry, IPlayer? byPlayer)
+    /// <summary>The creative shortcut once the winch is built (server side): fits the body's next stage with
+    /// nothing taken. False when there is nothing to fit.</summary>
+    public bool CreativeFitNext(IPlayer? byPlayer)
     {
         Reconcile();
         if (!gantry.WinchComplete || HoldsEidolon && DockedEidolon == null || _parts.FitNextStage(Api.World.Rand) == null)
@@ -185,17 +189,17 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     /// <summary>A turn of the crank: wakes a complete body (server side). Nothing on the spine is not
     /// the body's turn; a body still being built is refused, naming its next stage.</summary>
-    public bool OnCrank(BEEidolonGantry gantry, IPlayer byPlayer)
+    public bool OnCrank(IPlayer byPlayer)
     {
         if (!gantry.WinchComplete || !_parts.Started && !HoldsEidolon)
             return false;
         if (Api.Side != EnumAppSide.Server)
             return true;
         if (HoldsEidolon)
-            WakeDocked(gantry, byPlayer);
+            WakeDocked(byPlayer);
         else if (!_parts.Complete)
-            gantry.Error(byPlayer, "error-body-notready", StageName(_parts.Next));
-        else if (Wake(gantry, byPlayer))
+            gantry.Refuse(byPlayer, "error-body-notready", StageName(_parts.Next));
+        else if (Wake(byPlayer))
         {
             Api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/latch"), gantry.Pos, -0.25, byPlayer);
             gantry.MarkDirty(true);
@@ -207,15 +211,15 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     /// front, wearing the body's layers, owned by <paramref name="byPlayer"/> and charged with the mind's
     /// temporal gear, playing <c>activate</c>; orders it out of the front; and empties the spine. False,
     /// with an error and nothing changed, when it cannot be spawned.</summary>
-    public bool Wake(BEEidolonGantry gantry, IPlayer? byPlayer)
+    public bool Wake(IPlayer? byPlayer)
     {
         if (gantry.BodyPoint is not { } at || gantry.WalkOutTarget(WalkOutBlocks) is not { } target
             || EidolonSystem.Of(Api) is not { } eidolons)
-            return gantry.Error(byPlayer, "error-body-nowake");
+            return gantry.Refuse(byPlayer, "error-body-nowake");
         var build = _parts.Build;
         var eidolon = eidolons.Spawn(Api.World, at, gantry.OutwardYaw, byPlayer, activate: true, gears: 1, build: build);
         if (eidolon == null)
-            return gantry.Error(byPlayer, "error-body-nowake");
+            return gantry.Refuse(byPlayer, "error-body-nowake");
         eidolon.Orders?.SetOrder(GoToOrder.OrderCode, GoToOrder.Args(target, run: false));
         _parts.Clear();
         Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: an eidolon ({1}) woke for {2}", gantry.Pos, build,
@@ -230,7 +234,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     /// spine is not free for it.</summary>
     public bool TakeHold(EntityLaborEidolon eidolon)
     {
-        if (Gantry is not { } gantry || !SpineFreeFor(eidolon))
+        if (!SpineFreeFor(eidolon))
             return false;
         if (_dockedId != eidolon.EntityId)
             _parts = BodyParts.Docked(eidolon.Build);
@@ -255,13 +259,13 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     public StripVerdict Strip(EntityLaborEidolon eidolon, IPlayer? byPlayer, out FittingLayer? layer)
     {
         layer = null;
-        if (Gantry is not { } gantry || !Holds(eidolon))
+        if (!Holds(eidolon))
             return StripVerdict.NotDocked;
         Reconcile();
         var build = eidolon.Build;
         if (_parts.Loose(build).Count > 0)
         {
-            Give(gantry, byPlayer, eidolon, _parts.TakeLoose(build));
+            Give(byPlayer, eidolon, _parts.TakeLoose(build));
             gantry.MarkDirty(true);
             return StripVerdict.Strips;
         }
@@ -272,7 +276,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         string material = build[off]!;
         _parts.Strip(off);
         eidolon.Build = stripped;
-        Give(gantry, byPlayer, eidolon, EidolonFittings.Bill(off, material).Select(i => new GantryDrop(i.Code, i.Count)));
+        Give(byPlayer, eidolon, EidolonFittings.Bill(off, material).Select(i => new GantryDrop(i.Code, i.Count)));
         Api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/latch"), gantry.Pos, -0.25, byPlayer);
         Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: an eidolon's {1} ({2}) stripped by {3}", gantry.Pos,
             EidolonFittings.TextureCode(off), material, byPlayer?.PlayerName ?? "nobody");
@@ -282,7 +286,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     }
 
     // Gives the player each stack, dropping at their feet (or the eidolon's) what does not fit.
-    private void Give(BEEidolonGantry gantry, IPlayer? byPlayer, Entity eidolon, IEnumerable<GantryDrop> drops)
+    private void Give(IPlayer? byPlayer, Entity eidolon, IEnumerable<GantryDrop> drops)
     {
         var at = byPlayer?.Entity?.Pos.XYZ ?? eidolon.Pos.XYZ;
         foreach (var drop in drops)
@@ -323,28 +327,28 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         if (before.Count == after.Count && before.All(kv => after.TryGetValue(kv.Key, out int n) && n == kv.Value))
             return;
         Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: the docked eidolon's body was made again from its build ({1})",
-            Blockentity.Pos, eidolon.Build);
-        Gantry?.MarkDirty(true);
+            gantry.Pos, eidolon.Build);
+        gantry.MarkDirty(true);
     }
 
     /// <summary>A turn of the crank with an eidolon docked: wakes it when all five layers are on (it plays
     /// <c>activate</c>, steps off and walks out of the front, then goes back to the order it docked from),
     /// else says which layer is missing.</summary>
-    private void WakeDocked(BEEidolonGantry gantry, IPlayer byPlayer)
+    private void WakeDocked(IPlayer byPlayer)
     {
         if (DockedEidolon is not { } eidolon || eidolon.Dock is not { } dock)
         {
-            gantry.Error(byPlayer, "error-dock-away");
+            gantry.Refuse(byPlayer, "error-dock-away");
             return;
         }
         Reconcile();
         if (EidolonDocking.CanWake(eidolon.Build) != DockWakeVerdict.Wakes)
         {
-            gantry.Error(byPlayer, "error-dock-notready", StageName(_parts.Next));
+            gantry.Refuse(byPlayer, "error-dock-notready", StageName(_parts.Next));
             return;
         }
         dock.Wake(gantry.WalkOutTarget(WalkOutBlocks));
-        Unhold(gantry);
+        Unhold();
         Api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/latch"), gantry.Pos, -0.25, byPlayer);
         Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: a docked eidolon ({1}) woke for {2}", gantry.Pos,
             eidolon.Build, byPlayer.PlayerName);
@@ -352,10 +356,10 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     // The spine is bare again; any pieces of a layer part fitted are given back at the open front (never
     // a layer the eidolon wears: it leaves in them).
-    private void Unhold(BEEidolonGantry gantry)
+    private void Unhold()
     {
         var loose = _parts.Loose(DockedBuild);
-        if (loose.Count > 0 && EidolonGantrySystem.Of(Api).Rig is { } rig)
+        if (loose.Count > 0 && gantry.Rig is { } rig)
         {
             var at = gantry.WorldPoint(rig.Exit).Add(0, 0.5, 0);
             foreach (var drop in loose)
@@ -384,31 +388,31 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     // the spine: missing from a loaded chunk a few checks running, or loaded and no longer docked here.
     private void CheckDocked()
     {
-        if (!HoldsEidolon || Gantry is not { } gantry)
+        if (!HoldsEidolon)
             return;
         if (DockedEidolon is { } eidolon)
         {
             _dockMisses = 0;
             if (eidolon.Dock?.HeldAt(gantry.Pos) != true)
-                Lost(gantry);
+                Lost();
             else
                 Reconcile();
             return;
         }
         if (gantry.BodyPoint is { } body && Api.World.BlockAccessor.GetChunkAtBlockPos(body.AsBlockPos) != null
             && ++_dockMisses >= DockMissesAllowed)
-            Lost(gantry);
+            Lost();
     }
 
-    private void Lost(BEEidolonGantry gantry)
+    private void Lost()
     {
         Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: the docked eidolon {1} is gone; the spine is free", gantry.Pos, _dockedId);
-        Unhold(gantry);
+        Unhold();
     }
 
-    public override void OnBlockRemoved()
+    /// <summary>The gantry was broken: a docked eidolon is let go.</summary>
+    public void OnBlockRemoved()
     {
-        base.OnBlockRemoved();
         if (Api?.Side == EnumAppSide.Server)
             ReleaseDocked();
     }
@@ -425,14 +429,15 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     /// <summary>Everything fitted; with an eidolon docked, only the pieces of a layer part fitted (the
     /// rest is the eidolon's, let go whole).</summary>
-    public IEnumerable<ItemStack> Drops(IWorldAccessor world)
+    public IEnumerable<ItemStack> Drops()
     {
         foreach (var drop in HoldsEidolon ? _parts.Loose(DockedBuild) : _parts.Returns())
-            if (Gantry?.Collectible(drop.Code) is { } collectible)
+            if (gantry.Collectible(drop.Code) is { } collectible)
                 yield return new ItemStack(collectible, drop.Count);
     }
 
-    public IEnumerable<WorldInteraction> Help(BEEidolonGantry gantry, IPlayer? forPlayer)
+    /// <summary>The body's help lines once the winch is built.</summary>
+    public IEnumerable<WorldInteraction> Help(IPlayer? forPlayer)
     {
         if (!gantry.WinchComplete)
             yield break;
@@ -445,7 +450,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             };
             yield break;
         }
-        var stacks = _parts.StillNeeded(stage).SelectMany(i => NeededStacks(gantry, stage, i)).ToArray();
+        var stacks = _parts.StillNeeded(stage).SelectMany(i => NeededStacks(stage, i)).ToArray();
         if (stacks.Length > 0)
             yield return new WorldInteraction
             {
@@ -458,7 +463,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     }
 
     // What the help shows for an ingredient: a material not yet chosen as every material the layer allows.
-    private static IEnumerable<ItemStack> NeededStacks(BEEidolonGantry gantry, string stage, BodyIngredient i)
+    private IEnumerable<ItemStack> NeededStacks(string stage, BodyIngredient i)
     {
         IEnumerable<string> codes = [i.Code];
         if (i.AnyMaterial && BodyBill.LayerOf(stage) is { } layer)
@@ -478,14 +483,14 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     /// <summary>A layer's material as the info shows it: the name of its (first) item.</summary>
     private string MaterialName(FittingLayer layer, string material) =>
-        EidolonFittings.MaterialCodes(layer, material) is { Count: > 0 } codes && Gantry?.Collectible(codes[0]) is { } c
+        EidolonFittings.MaterialCodes(layer, material) is { Count: > 0 } codes && gantry.Collectible(codes[0]) is { } c
             ? new ItemStack(c).GetName()
             : material;
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The body's lines in the gantry's block info, after the machine base's, once the winch is built.</summary>
+    public void AppendInfo(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        if (Gantry is not { WinchComplete: true } gantry)
+        if (!gantry.WinchComplete)
             return;
         string L(string key, params object[] args) => Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-" + key, args);
         if (HoldsEidolon)
@@ -527,9 +532,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     // ---- Saving and syncing ----
 
-    public override void ToTreeAttributes(ITreeAttribute tree)
+    public void ToTreeAttributes(ITreeAttribute tree)
     {
-        base.ToTreeAttributes(tree);
         var body = new TreeAttribute();
         foreach (var (key, n) in _parts.Snapshot())
             body.SetInt(key, n);
@@ -540,9 +544,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             tree.RemoveAttribute(DockedKey);
     }
 
-    public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
+    public void FromTreeAttributes(ITreeAttribute tree)
     {
-        base.FromTreeAttributes(tree, worldAccessForResolve);
         var snapshot = new Dictionary<string, int>();
         if (tree.GetTreeAttribute(TreeKey) is { } body)
             foreach (var (key, value) in body)
@@ -552,7 +555,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         _dockedId = tree.GetLong(DockedKey);
         _reconciled = false;
         // a live block entity given an old body's state (a schematic, a command): its spare goes back too
-        if (Api?.Side == EnumAppSide.Server && _parts.Spare.Count > 0 && !HoldsEidolon)
-            Blockentity.RegisterDelayedCallback(_ => GiveBackSpare(), 500);
+        if (gantry.Api?.Side == EnumAppSide.Server && _parts.Spare.Count > 0 && !HoldsEidolon)
+            gantry.RegisterDelayedCallback(_ => GiveBackSpare(), 500);
     }
 }

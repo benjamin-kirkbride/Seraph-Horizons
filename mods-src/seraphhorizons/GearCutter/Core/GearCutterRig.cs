@@ -40,6 +40,10 @@ public sealed class GearCutterRig : IMachineRig
 
     public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
 
+    /// <summary>Placed as the mills are (<see cref="Footprint.PlacedFacing"/>): the column's back, native west, away
+    /// from the player.</summary>
+    public Side PlacedSide(Side look) => Footprint.PlacedFacing(look);
+
     public GearCutterRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side outputSide,
                          Float3 output, Float3 chips, Float3 drip, WorkQuantity work, float turnsPerTooth, RigParts? movingParts = null)
     {

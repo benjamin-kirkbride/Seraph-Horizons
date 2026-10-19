@@ -51,7 +51,7 @@ public sealed class DockOrder(BlockPos gantry, ITreeAttribute? then) : IEidolonO
     {
         double now = eidolon.World.ElapsedMilliseconds / 1000.0;
         if (BEEidolonGantry.At(eidolon.World.BlockAccessor, gantry) is not { BodyPoint: { } point } be
-            || be.GetBehavior<BEBehaviorEidolonBody>() is not { } body || !be.WinchComplete)
+            || be.Body is not { } body || !be.WinchComplete)
         {
             _nav?.Stop();
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-nogantry");
@@ -140,7 +140,7 @@ public class EidolonDockSystem : ModSystem
     }
 
     private static bool Free(BEEidolonGantry gantry, EntityLaborEidolon eidolon) =>
-        gantry.WinchComplete && gantry.GetBehavior<BEBehaviorEidolonBody>()?.SpineFreeFor(eidolon) == true
+        gantry.WinchComplete && gantry.Body.SpineFreeFor(eidolon)
                              && !DockOrder.Claimed(eidolon.World, gantry.Pos, eidolon);
 
     /// <summary>The nearest gantry to <paramref name="eidolon"/> with its spine free for it, within

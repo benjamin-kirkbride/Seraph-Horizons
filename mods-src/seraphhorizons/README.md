@@ -3023,7 +3023,8 @@ Its models are described in `EidolonGantry/README.md` and `Eidolon/README.md`.
 **The gantry** (#671, `EidolonGantry/`: rules in `EidolonGantry/Core/`, the game side in
 `EidolonGantry/Game/`). `seraphhorizons:eidolongantry-{wood}-{side}`, a wood-typed block (the game's
 `block/wood` woods; its timbers drawn in that wood), is the controller, the foot of the front right post
-of a frame 6 deep, 5 wide and 5.5 high, plus a ghost (`eidolongantryghost`) in each of the rig's other
+of a frame 6 deep, 5 wide and 5.5 high, on the shared machine base (its frame `seraphhorizons.Machine`,
+`BEEidolonGantry` a `BEMachine`), plus the shared cell (`machine-cell`) in each of the rig's other
 180 cells. 88 of them are hollow, with no boxes (the space the body hangs in and walks out of, and the
 crank's cell outside the box, south of the back left post, a block up), so nothing can be built there. It
 is placed with its open front towards the player, its middle on the block they click. The frame is a
@@ -3031,7 +3032,8 @@ grid recipe: 24 `game:supportbeam-{wood}` of one wood (two slots of 12), 16 nail
 meteoric iron or steel, a hammer and a saw; the eidolon schematic's gate (`config/schematic-gates.json`,
 machine `eidolon`) adds the schematic, kept. The gantry takes the beams' wood.
 
-Then nine stages are fitted by right-click on any of its cells, in order, each taking its whole count
+Then nine stages (its build file, `config/builds/eidolongantry.json`) are fitted by right-click on any of
+its cells, in order, each taking its whole count
 from the held stack in one click (fewer is refused, as is a later stage's item, and nothing is taken):
 8 `game:woodenaxle-ud`, a `game:rod-{metal}` (the crank shaft), 4 `game:spurgear-s`, 10
 `game:plank-{wood}`, 10 `game:metalnailsandstrips-{metal}`, a `game:metalplate-{metal}` (the ratchet and
@@ -3041,23 +3043,23 @@ gantry's own wood (the epic's decision; the model's README allowed any). Nothing
 breaking the gantry, which drops the frame and every item that went in. In creative mode Ctrl +
 right-click fits the next stage with nothing taken (a body layer whose material is not yet chosen in any
 allowed material at random: wood, metal, leather or cloth and colour), and the creative inventory has an assembled oak
-gantry (the stack attribute `assembled`) that places with the winch and spine fitted. The block info
-names the next stage and what it takes.
+gantry (the stack attribute `assembled`, `BlockMachine.AssembledAttribute`) that places with the winch
+and spine fitted. The block info, in the machines' shared layout, names the next stage and what it takes;
+with a wrench, also how far the winch is let down and the docked eidolon's entity.
 
-**Drawn.** The block draws `eidolongantry_frame.json`; the renderer splits `eidolongantry.json` by the
-rig's parts (one mesh set per wood, shared) and draws each winch stage once fitted, posed by the winch's
+**Drawn.** The block draws `eidolongantry_frame.json`; the shared renderer splits `eidolongantry.json` by
+the rig's parts and draws each winch stage once fitted, posed by the winch's
 depth (`BEEidolonGantry.WinchDepth`, 0 hung, 1 let down: the crank, layshaft, drum and sheave turn, the
 pawl is thrown off, the chain pays out and the spine comes down; nothing drives it yet). The body's
-baked stages (`torso` to `mind`) are drawn only when a gantry extension says so.
+baked stages (`torso` to `mind`) are drawn only when the body says so.
 
-**Extending it** (the body stages, #672): a block entity behavior on the gantry's controller that
-implements `IEidolonGantryExtension` is asked, after the winch, for every click the winch does not take
-(`OnGantryInteract`), for the creative shortcut once the winch is complete (`CreativeFitNext`,
-`Complete`), whether a body stage's rig parts are drawn (`Shows`), what breaking returns (`Drops`) and its
-help lines (`Help`); it saves its own state and writes its own block info as a behavior does.
+**The body's seam** (the body stages, #672): the gantry's block entity keeps the body (`Body`, a
+`GantryBody`) and hands it a turn of the crank, then, once the winch is complete, the creative shortcut
+and every click before its build's (`OnInteract`); the body says whether a body stage's rig parts are
+drawn (`Shows`), what breaking returns (`Drops`), its help lines (`Help`) and its block info lines
+(`AppendInfo`), and is saved with the gantry.
 
-**The body and waking it** (#672 and the fittings, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the
-gantry's one extension; rules in `EidolonGantry/Core/BodyParts.cs` over `Eidolon/Core/EidolonFittings.cs`).
+**The body and waking it** (#672 and the fittings, `EidolonGantry/Game/GantryBody.cs`; rules in `EidolonGantry/Core/BodyParts.cs` over `Eidolon/Core/EidolonFittings.cs`).
 Once the spine hangs, the body is built on it in seven stages, in order: the torso, the five layers of
 material (bones; joints, bars and clamps; plates; sash and fauld; chain skirt) and the mind (`BodyBill`,
 whose layers are `EidolonFittings.Bill`, counts `FittingCounts`; the stages file
@@ -3089,9 +3091,9 @@ The torso item (`itemtypes/eidolontorso.json`, its shape the torso stage's two l
 `shapes/item/eidolontorso.json`) is one of the gantry's switch-owned assets (`EidolonGantrySystem.TypeAssets`,
 `RecipeAssets`). Each finished stage is drawn on the spine (`Shows`), the layers in their materials: the
 renderer draws the body's rig parts with the body's `EidolonBuild.Textures()` over the block's layer codes
-(one mesh set per set of materials, shared). **A turn of the winch's crank wakes it**: the crank's cell
+(`BEEidolonGantry.PartTextures`, built again when the layers change). **A turn of the winch's crank wakes it**: the crank's cell
 (`crankCell`, hollow, nothing to collide with) has a selection box once the crank stage is fitted
-(`BEEidolonGantry.CrankBox`), and a right-click there goes to the extensions' `OnCrank` instead of
+(`BEEidolonGantry.CrankBox`), and a right-click there goes to the body's `OnCrank` instead of
 fitting. With nothing on the spine it does nothing; with a body still being built it names the next stage;
 with every stage in, the mind too, `EidolonSystem.Spawn` puts the eidolon at the rig's `body` point,
 facing out of the open front, owned by the player who turned the crank (and so their company), charged
@@ -3121,7 +3123,7 @@ skirt, a plain leather sash.
 `gantry.Docks(pos)` asks one gantry. For repair in the gantry (#674).
 
 **Docking, stripping and refitting** (`Eidolon/Game/EntityBehaviorEidolonDock.cs`, `DockOrder.cs`, the
-gantry's side in `BEBehaviorEidolonBody`; rules in `Eidolon/Core/EidolonDocking.cs`; `Eidolon/README.md`,
+gantry's side in `GantryBody`; rules in `Eidolon/Core/EidolonDocking.cs`; `Eidolon/README.md`,
 "Docking"). The command tool's *Dock in a gantry* mode (wheel place 90, the map's home icon) sends a woken
 eidolon to a built gantry: point at any cell of one, or at the air for the nearest within 24 blocks whose
 spine is free (a gantry with a body being built on it, another eidolon docked, or another on its way is
@@ -3227,7 +3229,7 @@ would also hide it from AI, since players' clicks need that to repair it.
 machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by right-click with what
 oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
 lists), as much as fits, refused when full. Docked, a click on any gantry cell pours into it too
-(`BEBehaviorEidolonBody.OnGantryInteract`). Holding oil, the click always pours: the game gives a click on
+(`GantryBody.OnInteract`). Holding oil, the click always pours: the game gives a click on
 an entity to the held item first, and rendered fat is food, so it was eaten instead; a prefix on
 `CollectibleObject.OnHeldUseStart` (`EidolonHeldClicks`, both sides) leaves such a click to the eidolon. It wakes with `InitialOilShare` of it (a quarter). Each job
 done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
@@ -4004,8 +4006,8 @@ leaves it out (`SwitchesOffScenarios`).
 
 **In the recipe browser** (#681, `tools/recipe-export/Recipes/EidolonExport.cs`,
 `RecipeSection.Eidolon.cs`). The frame's grid recipe exports as any recipe; the two builds are records
-of type `construction` (blocks built in place, `docs/recipe-browser/schema.md`), read by reflection
-from `GantryParts` and `BodyBill`, so they cannot drift from the rules: the gantry's winch
+of type `construction` (blocks built in place, `docs/recipe-browser/schema.md`), read from the winch's
+build file and by reflection from `GantryBuild.Woods` and `BodyBill`, so they cannot drift from the rules: the gantry's winch
 (`construction|seraphhorizons:eidolongantry-<wood>-north|0`, the placed frame then the nine stages, a
 variant per wood binding the drum's planks and the spine's beams) and the body
 (`construction|seraphhorizons:creature-eidolon|0`, a gantry as its first stage, role `station`, never

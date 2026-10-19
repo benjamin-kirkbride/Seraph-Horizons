@@ -380,8 +380,9 @@ is left out when its switch is off or what it names is not registered.
   `Riddle` switch (or `OreProcessing`) leaves it out when off.
 - The eidolon (`Recipes/EidolonExport.cs`, `RecipeSection.Eidolon.cs`, type `construction`): the
   gantry's winch and the body on its spine, two blocks built in place that no engine behavior builds.
-  What each stage takes is read by reflection from the mod's game-independent rules,
-  `EidolonGantry/Core/GantryParts.cs` (`Woods`, `CodesFor(stage, wood)`, `Needed`) and `BodyParts.cs`
+  What each stage takes is the mod's own: the winch's its build file, `config/builds/eidolongantry.json`
+  (the shared machine base's, `{wood}` for the gantry's wood), the woods and the body's read by reflection
+  from its game-independent rules, `EidolonGantry/Core/GantryBuild.cs` (`Woods`) and `BodyParts.cs`
   (`BodyBill.Stages`, `Order`), so the records cannot drift from the game. A stage's alternatives
   (iron, meteoric iron or steel) are one wildcard ingredient with `allowedVariants`; the gantry's wood
   is a `{wood}` binding, a variant per wood whose gantry is registered, the record named after the first

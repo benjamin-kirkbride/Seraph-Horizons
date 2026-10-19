@@ -431,6 +431,14 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// <summary>A cell's selection boxes: the rig's, by default (the cylinder borer adds its casting's while one is in).</summary>
     public virtual Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
 
+    /// <summary>A cell's selection boxes: its <see cref="CellBoxes"/>, by default (the eidolon gantry adds its
+    /// crank's in a hollow cell).</summary>
+    public virtual Cuboidf[]? SelectionBoxes(BlockPos cellPos) => CellBoxes(cellPos);
+
+    /// <summary>Whether a hollow cell of the rig (<see cref="RigCell.Hollow"/>) has no boxes at all, nothing to
+    /// collide with or select (the eidolon gantry's open middle and front); false by default, a full cube.</summary>
+    protected virtual bool HollowCellsOpen => false;
+
     /// <summary>A cell's selection boxes and the rig's collision-only lid.</summary>
     public virtual Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
 
@@ -445,7 +453,9 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
             var w = Footprint.ToWorld(b, side);
             return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
         }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
+        bool open = HollowCellsOpen;
+        var cells = rig.Cells.ToDictionary(c => c.Pos, c =>
+            c.Hollow && open ? [] : c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
         var collision = new Dictionary<Int3, Cuboidf[]>(cells);
         foreach (var c in rig.Cells)
             if (c.LidBox is { } lid)
@@ -807,6 +817,20 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         if (drop.Durability is { } left && left < c.GetMaxDurability(stack))
             stack.Attributes.SetInt("durability", Math.Max(1, (int)Math.Round(left)));
         return stack;
+    }
+
+    /// <summary>A stack that places built (<see cref="BlockMachine.AssembledAttribute"/>, the creative
+    /// inventory's): every stage and wearing part fitted, nothing taken (server side).</summary>
+    public override void OnBlockPlaced(ItemStack? byItemStack = null)
+    {
+        base.OnBlockPlaced(byItemStack);
+        if (Api?.Side != EnumAppSide.Server || !BlockMachine.Assembled(byItemStack) || _assembly is not { } assembly)
+            return;
+        while (assembly.FillNext())
+        {
+        }
+        OnAssemblyChanged();
+        MarkDirty(true);
     }
 
     public override void OnBlockRemoved()

@@ -11,7 +11,7 @@ It never heals by itself (only repair restores health), and creatures leave it b
 **Status: the model and the entity.** This folder holds the shape's generator (`tools/`) and the
 entity (#673): its type, ownership, charge, slumping and a first pathfinder for its size, in `Core/`
 and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantry, upkeep, command tool
-and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehaviorEidolonBody`,
+and jobs plug into; the body stages and the waking (#672: the gantry's `GantryBody`,
 `../EidolonGantry/`), oil and repair (#674), and the command tool's binding, mode wheel and marking,
 following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
 bucking mill (#678), mining a marked area (`Game/MineOrder.cs`, `Core/EidolonMining.cs`, its slam
@@ -489,7 +489,7 @@ and `Game/DockOrder.cs`.
 - **The clamp.** `dock` is 60 frames, its clamps closing on frame 46 (`EVENTS["dock"]["clamp"]` in
   `tools/make_shape.py`; `EidolonDocking.ClampFrame` and `DockFrames`, held to them by
   `tools/tests/test_eidolon_model.py`): at 46/30 s the gantry
-  takes hold (`BEBehaviorEidolonBody.TakeHold`), the phase goes from `docking` to `docked`, and at 2 s
+  takes hold (`GantryBody.TakeHold`), the phase goes from `docking` to `docked`, and at 2 s
   `hung` starts (one frame, held) as `dock` stops, the same pose. A spine taken by then (or the gantry
   gone) and it stands down and goes back to its order. Loaded mid-dock, it goes straight to the clamp.
 - **Held.** The entity's watched tree `seraphhorizons:dock` (the gantry's position, the point, the yaw,

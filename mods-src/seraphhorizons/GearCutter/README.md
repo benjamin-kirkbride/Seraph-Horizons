@@ -471,7 +471,7 @@ shared machine base (`docs/modeling/machine-base.md`): the frame is `BlockMachin
 **Blocks.** `seraphhorizons:gearcutter-frame-{side}` (`blocktypes/gearcutter/frame.json`, class
 `seraphhorizons.Machine`, drawing `gearcutter_frame.json`, its textures every texture of both shapes, since
 the renderer draws the parts with the block's texture source). It is placed as the mills are
-(`attributes.machine.placement` `"mill"`: `Footprint.PlacedFacing`, the column's back away from the player).
+(`GearCutterRig`'s `IMachineRig.PlacedSide`: `Footprint.PlacedFacing`, the column's back away from the player).
 Placement, the cells, their repair, breaking through a cell and the boxes (selection from the rig's cells,
 collision with their lids) are the shared base's. The frame recipe (`recipes/grid/gearcutter.json`):
 8 steel ingots (4 in each ingot slot, steel only), 4 planks, 32 nails and strips of iron, meteoric
