@@ -3,44 +3,8 @@ using SeraphHorizons.Mod.Machines.Core;
 namespace SeraphHorizons.Mod.MandrelStation.Core;
 
 /// <summary>
-/// What the mandrel station's renderer reads of the station, and nothing else: its facing, the
-/// mandrel fitted and its metal, the job on it (class k: a hollow, or a rod being wound), the server's
-/// W, the blows struck, whether someone winds, the winding's pace and the rod's temperature. The block
-/// entity implements it; the renderer turns it into the rig's inputs through <see cref="MandrelStationClock"/>.
-/// </summary>
-public interface IMandrelStationView
-{
-    Side Side { get; }
-
-    /// <summary>Whether a part needing <c>requires</c> (null or <c>mandrel</c>) is drawn. The
-    /// work is the clock's (<see cref="MandrelStationClock.ShowsWork"/>).</summary>
-    bool PartFitted(string? requires);
-
-    /// <summary>The fitted mandrel's metal (<c>iron</c>, <c>meteoriciron</c>, <c>steel</c>), or null.</summary>
-    string? MandrelMetal { get; }
-
-    /// <summary>The job on the mandrel: 1 a lead hollow, 2 a copper one, 3 a rod being wound, 0 none.</summary>
-    int JobClass { get; }
-
-    /// <summary>The server's W: the forging of the hollow on, or the winding of the rod, 0..1.</summary>
-    double JobWork { get; }
-
-    /// <summary>The blows struck on the hollow on so far.</summary>
-    int Blows { get; }
-
-    /// <summary>Someone winds the rod (the server's word, or this client's own player holding right-click).</summary>
-    bool Held { get; }
-
-    /// <summary>Turns of the held clock a rod takes, as the server runs.</summary>
-    double TurnsPerRod { get; }
-
-    /// <summary>The rod's temperature on the station, °C (0 with none): its parts glow by it.</summary>
-    float RodTemperature { get; }
-}
-
-/// <summary>
-/// The renderer's θ, W, presence and class, from the view each frame (the model's contract, "The
-/// work"). For a hollow, blows land as the server says; the clock eases W and the hammer's clock θ (2π a
+/// The renderer's θ, W, presence and class, from the station each frame (the model's contract, "The
+/// work"; <c>BEMandrelStation.FrameInput</c>). For a hollow, blows land as the server says; the clock eases W and the hammer's clock θ (2π a
 /// blow) to them over about a tenth of a second (<see cref="WorkEaseRate"/>), so the walls close and the
 /// tube creeps rather than jump; a new hollow starts from the server's W (0) with p easing in. For a
 /// spring (class 3) p is 1 at once (the spring's parts are drawn only at p 1: a side's stretch is 1 − p ×

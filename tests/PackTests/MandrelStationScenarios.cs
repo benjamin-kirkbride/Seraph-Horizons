@@ -1,4 +1,5 @@
 using Atlas.XUnit;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.MandrelStation;
 using SeraphHorizons.Mod.MandrelStation.Core;
@@ -37,12 +38,12 @@ public partial class SharedWorldScenarios
         World.SetBlock($"seraphhorizons:mandrelstation-frame-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BEMandrelStation ?? throw new Xunit.Sdk.XunitException($"no mandrel station at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
 
-    /// <summary>The far cell, the ghost under the mandrel's tip.</summary>
-    private static BlockPos MandrelGhost(BEMandrelStation station) => station.GhostCells().Single();
+    /// <summary>The far cell under the mandrel's tip, the shared machine cell.</summary>
+    private static BlockPos MandrelGhost(BEMandrelStation station) => station.CellBlocks().Single().Pos;
 
     /// <summary>The mandrel fitted by a right-click with a real rod.</summary>
     private void FitMandrel(BEMandrelStation station, IPlayer player, string rod = "game:rod-iron")
@@ -55,13 +56,13 @@ public partial class SharedWorldScenarios
     /// tick apart until the station takes it (a blow struck, or the hollow finished).</summary>
     private async Task MandrelBlow(BEMandrelStation station, IPlayer player, ItemStack hammer, BlockPos? at = null)
     {
-        int before = station.Job.Blows;
+        int before = station.Blows;
         for (int i = 0; i < 60; i++)
         {
             await World.Ticks(1);
             CutterClick(player, at ?? station.Pos, hammer);
             Assert.True(_cutterHandled, "the station did not take the hammer's click");
-            if (station.Job.Blows != before || !station.HollowOn)
+            if (station.Blows != before || !station.HollowOn)
                 return;
         }
         throw new Xunit.Sdk.XunitException("no blow was struck");
@@ -85,9 +86,14 @@ public partial class SharedWorldScenarios
     {
         Assert.True(MandrelStationSystem.Applies(World.Api));
         Assert.NotNull(MandrelMod.Rig);
+        // its frame is the shared machine block, its far cell the shared cell, its build the shared build's
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockMandrelStation>(W.GetBlock(new AssetLocation($"seraphhorizons:mandrelstation-frame-{side}")));
-        Assert.IsType<BlockMandrelStationGhost>(W.GetBlock(new AssetLocation("seraphhorizons:mandrelstation-ghost")));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:mandrelstation-frame-{side}")));
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:mandrelstation-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(MandrelRig, ((BlockMachine)W.GetBlock(new AssetLocation(MandrelFrame))).Rig);
+        var build = MachinesSystem.Of(World.Api).Build(MandrelStationSystem.MachineId)!;
+        Assert.Equal(["mandrel"], build.Stages.Select(s => s.Id));
+        Assert.Equal(MandrelPart.Codes, build.Stages.Single().Materials.Single().Codes);
         // the mandrels: the game's rods
         foreach (var code in MandrelPart.Codes)
             Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false }, $"no {code}");
@@ -102,7 +108,7 @@ public partial class SharedWorldScenarios
         Assert.True(W.GetItem(new AssetLocation(MandrelHammer)) is { Id: > 0, IsMissing: false });
         // the base tier is the copper hammer's, as the game defines it
         Assert.Equal(W.GetItem(new AssetLocation(MandrelHammer))!.ToolTier, MandrelMod.Config.BaseHammerTier);
-        Assert.Equal("Mandrel forging station frame", new ItemStack(W.GetBlock(BlockMandrelStation.ItemCode)).GetName());
+        Assert.Equal("Mandrel forging station frame", new ItemStack(W.GetBlock(new AssetLocation(MandrelFrame))).GetName());
 
         // the grid: the frame, an oak log, an iron plate and nails and strips, with a hammer
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == MandrelFrame && r.Enabled);
@@ -114,7 +120,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(MandrelRig.BlowsPerHollow[1], MandrelMod.Config.BlowsPerHollowLead);
         Assert.Equal(MandrelRig.BlowsPerHollow[2], MandrelMod.Config.BlowsPerHollowCopper);
         // in the creative inventory's mechanics tab
-        Assert.Contains("mechanics", W.GetBlock(BlockMandrelStation.ItemCode)!.CreativeInventoryTabs ?? []);
+        Assert.Contains("mechanics", W.GetBlock(new AssetLocation(MandrelFrame))!.CreativeInventoryTabs ?? []);
     }
 
     // ---- Placing ----
@@ -136,7 +142,7 @@ public partial class SharedWorldScenarios
             var ghost = MandrelGhost(station);
             var n = side.Normal();
             Assert.Equal(pos.AddCopy(n.X, 0, n.Z), ghost);
-            Assert.Equal(pos, Assert.IsType<BEMandrelStationGhost>(W.BlockAccessor.GetBlockEntity(ghost)).Principal);
+            Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(ghost)).Principal);
             int c = 0;
             foreach (var cell in new[] { pos, ghost })
             {
@@ -170,7 +176,7 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "east");
         var ghost = MandrelGhost(station);
-        Assert.Contains("Next part: mandrel", MandrelInfo(station, player));
+        Assert.Contains("Build: stage 1 of 1, mandrel (an iron, meteoric iron or steel rod)", MandrelInfo(station, player));
 
         // no hollow before the mandrel, and no blow on a bare frame
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Forging.LeadHollow))?.StackSize);
@@ -191,7 +197,7 @@ public partial class SharedWorldScenarios
         Assert.Equal("game:rod-steel", station.Mandrel);
         Assert.Equal("Mandrel forging station", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         Assert.Contains("Mandrel bare", MandrelInfo(station, player));
-        Assert.True(station.PartFitted("mandrel"));
+        Assert.True(station.ShowsPart("mandrel"));
 
         // a save keeps it
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
@@ -255,7 +261,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, station.HollowClass);
         Assert.Equal(Forging.LeadHollow, station.Hollow?.Collectible.Code.ToString());
         Assert.Equal(2, CutterClick(player, pos, CutterItem(Forging.LeadHollow, 2))?.StackSize);
-        Assert.Contains("A lead tube blank on the mandrel: 0 blows struck, 0% forged", MandrelInfo(station, player));
+        Assert.Contains("On the mandrel: a lead tube blank, 0 blows struck, 0% forged", MandrelInfo(station, player));
 
         // nothing moves without blows; each blow, from the stump or the ghost, is a ninth
         await World.Ticks(10);
@@ -265,7 +271,7 @@ public partial class SharedWorldScenarios
         for (int b = 1; b <= 8; b++)
         {
             await MandrelBlow(station, player, hammer, b % 2 == 0 ? MandrelGhost(station) : pos);
-            Assert.Equal(b, station.Job.Blows);
+            Assert.Equal(b, station.Blows);
             Assert.Equal(b / 9.0, station.Job.Work, 6);
             Assert.True(station.HollowOn);
         }
@@ -275,7 +281,7 @@ public partial class SharedWorldScenarios
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         station.ToTreeAttributes(tree);
         station.FromTreeAttributes(tree, W);
-        Assert.Equal((1, 8), (station.Job.Class, station.Job.Blows));
+        Assert.Equal((1, 8), (station.Job.Class, station.Blows));
         Assert.Equal(8 / 9.0, station.Job.Work, 6);
 
         // the last blow: two lead pipe sections drop beyond the tip, the hollow is used up
@@ -369,12 +375,12 @@ public partial class SharedWorldScenarios
             Assert.Equal(2, leadSlot.StackSize);
             // held on, the next lead hollow from the hotbar, not the copper one
             Assert.True(await HoldUntilOn());
-            Assert.Equal((1, 0), (station.Job.Class, station.Job.Blows));
+            Assert.Equal((1, 0), (station.Job.Class, station.Blows));
             Assert.Equal(1, leadSlot.StackSize);
             Assert.Equal(1, copperSlot.StackSize);
             // and the blows go on
             await MandrelBlow(station, player, hammer);
-            Assert.Equal(1, station.Job.Blows);
+            Assert.Equal(1, station.Blows);
             await Finish();
             Assert.True(await HoldUntilOn());
             Assert.True(leadSlot.Empty);

@@ -42,7 +42,7 @@ public static class MandrelStationExport
     public static readonly AssetLocation RigAsset = new(GearChain.Mod, "config/mandrelstation-rig.json");
     public const string FrameCode = "seraphhorizons:mandrelstation-frame-north";
 
-    // MandrelStation/Core/Forging.cs: the mandrel's alternatives.
+    // config/builds/mandrelstation.json (the shared staged build): the mandrel's alternatives.
     public static readonly string[] MandrelCodes = ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"];
     /// <summary>The hammer the definition names: the base hammer (MandrelStationSettings.BaseHammerTier,
     /// the copper one's tier), whose blows the record's turns count. The variant lists every hammer; a

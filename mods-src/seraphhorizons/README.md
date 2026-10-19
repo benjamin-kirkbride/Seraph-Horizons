@@ -2907,17 +2907,19 @@ is hammered down, blow by blow, into two pipe sections (`seraphhorizons:pipesect
 `UnifiedPipes`' item). Two angles and solder make a hollow; the draw bench makes four pipe sections of
 one; a pipe section and solder make a pipe. Its model, rig and generator are described in
 `MandrelStation/README.md`, which also records the gameplay's decisions; this is the gameplay, in
-`MandrelStation/` (rules in `MandrelStation/Core/`, the game side in `MandrelStation/Game/`). A hand
-station: no mechanical power, no oil, and nothing of it wears.
+`MandrelStation/` (rules in `MandrelStation/Core/`, the game side in `MandrelStation/Game/`, on the shared
+machine base: docs/modeling/machine-base.md). A hand station: no mechanical power, no oil, and nothing of
+it wears.
 
 **Blocks.** `seraphhorizons:mandrelstation-frame-{side}` is the controller: the stump, the block the
-player clicks, with the station running two blocks away from them along their line of sight and a ghost
-in the far cell, under the mandrel's tip (`mandrelstation-ghost`). The frame is a grid recipe: an oak log
+player clicks, with the station running two blocks away from them along their line of sight and the
+shared machine cell in the far cell, under the mandrel's tip (`machine-cell`). The frame is a grid recipe: an oak log
 (the stump), an iron or steel plate (the bracket and the swage), two nails and strips of iron, meteoric
 iron or steel (the hoop and the straps) and a hammer.
 
-**The mandrel.** Fitted by right-click on the stump or the ghost: `game:rod-iron`, `-meteoriciron` or
-`-steel` (smithing, the game's). In creative mode Ctrl + right-click on a station with no mandrel fits an
+**The mandrel.** Fitted by right-click on the stump or the cell: `game:rod-iron`, `-meteoriciron` or
+`-steel` (smithing, the game's), the one stage of `config/builds/mandrelstation.json` (the shared staged
+build). In creative mode Ctrl + right-click on a station with no mandrel fits an
 iron one with nothing taken. Once fitted, the mandrel stays in: the station has no consumable part to
 take out, and breaking the frame drops the frame, the mandrel and a hollow not yet struck (one being
 forged is lost). **Ctrl + right-click** takes a hollow back off before its first blow.
@@ -2933,8 +2935,11 @@ and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
 and two pipe sections of its metal drop just past the tip (native south). The station never takes
 from or puts into a chest or other container beside it. Right-click held
 with the hammer as a hollow is finished puts the next of the same item on from the player's hotbar (not
-the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
-station needs and the hollow on, its blows struck and how far it is forged.
+the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info is the
+shared layout: what the station needs, its state (bare, ready to be struck or wound, winding with its
+percent) and the hollow on, its blows struck and how far it is forged, or the rod, its heat and how far it
+is wound; a wrench adds W and the blows a hollow takes with the base hammer, or the turns a rod takes, and
+the station's facing.
 
 **Springs (`MandrelSprings`).** The station's second job winds a **steel spring**
 (`seraphhorizons:spring-steel`, `itemtypes/spring.json`: a square coil of six turns of steel wire, the
@@ -2973,7 +2978,7 @@ sides grow by stretching gauges, whole at p 0), W following the held clock, and 
 | `TurnsPerRod` | 8 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
 | `TongsWearPerRod` | 1 | Durability a spring costs the tongs it is wound with |
 
-With the switch off the server marks both block types and the recipe file disabled before the game
+With the switch off the server marks its block type and the recipe file disabled before the game
 loads them, so none of it exists and stations already placed are lost; the mod's own text no longer
 links it, and there are no springs. The hollows and the pipe sections exist either way (the sections are `UnifiedPipes`'; with
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic

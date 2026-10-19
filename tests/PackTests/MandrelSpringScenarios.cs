@@ -149,7 +149,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(3, station.JobClass);
         Assert.False(station.HollowOn);
         Assert.InRange(station.RodTemperature, 1000, 1100);
-        Assert.Contains("A steel rod on the mandrel", MandrelInfo(station, player));
+        Assert.Contains("On the mandrel: a steel rod", MandrelInfo(station, player));
         // no tongs: nothing else goes on (a click is a refused hold), the hold is refused and nothing winds
         HoldTongs(player, null);
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Forging.LeadHollow))?.StackSize);

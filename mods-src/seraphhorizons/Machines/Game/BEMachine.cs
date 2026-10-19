@@ -326,6 +326,10 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// <summary>How far away the moving parts are drawn, blocks.</summary>
     public virtual int RenderRange => 64;
 
+    /// <summary>How a rig part needing <paramref name="requires"/> glows, as the game draws hot metal (its
+    /// incandescence colour and extra glow: the mandrel station's rod by its temperature); null, none, by default.</summary>
+    public virtual (Vec4f Colour, int Extra)? PartGlow(string? requires) => null;
+
     private double _theta, _psi, _lastRenderAngle;
     private bool _renderSeeded;
 
