@@ -54,7 +54,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     private float _smokeSeconds;
     private Dictionary<Int3, Cuboidf[]>? _cells;
     private Dictionary<Int3, Cuboidf[]>? _collision;
-    private MachineRenderer? _renderer;
+    private IRenderer? _renderer;
 
     // A client's own player holding right-click counts as working for this long after its last step.
     private const long LocalHoldMs = 250;
@@ -362,8 +362,9 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         return (_theta, _psi);
     }
 
-    /// <summary>The client's renderer for this machine: the shared one, by default.</summary>
-    protected virtual MachineRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) => new(capi, this, rig);
+    /// <summary>The client's renderer for this machine: the shared one, by default (the crucible furnace's is its own:
+    /// its pots' metals and the fire's glow).</summary>
+    protected virtual IRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) => new MachineRenderer(capi, this, rig);
 
     // ---- Life ----
 
@@ -428,10 +429,11 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// through <paramref name="face"/> into its buffer (<see cref="BEMachineCell"/>): never, by default.</summary>
     public virtual bool CellTakes(BlockPos cell, BlockFacing face, ItemStack stack) => false;
 
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
+    /// <summary>A cell's selection boxes: the rig's, by default (the crucible furnace's change with its build and lid).</summary>
+    public virtual Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
 
     /// <summary>A cell's selection boxes and the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
+    public virtual Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
 
     // The boxes never change: built once, then only read (collision lookups can run off the main thread).
     private void BuildBoxes()
