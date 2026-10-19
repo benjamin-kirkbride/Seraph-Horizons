@@ -77,8 +77,9 @@ crucible furnace's.
 **Footprint and cells.** The setting's **18 cells**, and over it **four cells** for the gallows and the drive (the
 middle row's three, where the standards, the beams and the gears stand, and the back middle one, the power cell, with
 the pedestal), and **three hollow cells** over the kettle's mouth (the front row's: the machine's, with no boxes of
-their own, so nothing is built over the kettle where the lead and zinc go in and the crust and lead come out, and the
-flange's proud top is in its own cells): **25 cells**. The cell over the outlet, the back east one, is the
+their own in the rig, so nothing is built over the kettle where the lead and zinc go in and the crust and lead come out,
+and the flange's proud top is in its own cells; in the game each is a full cube, which a click on the mouth goes to and
+a player stands on, as every hollow cell is unless its machine opens them, `BEMachine.HollowCellsOpen`): **25 cells**. The cell over the outlet, the back east one, is the
 chimney's, and the back west one is free: neither is the machine's. The **controller is the front middle cell at
 ground level**, `[0,0,0]`, the fire's front, by the crucible furnace's convention; the setting extends a block to each
 side (x) and two back (z) from it, away from the player.

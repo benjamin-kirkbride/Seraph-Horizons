@@ -9,7 +9,8 @@ namespace SeraphHorizons.Mod.Machines;
 /// Draws a machine's parts that are not its frame block's shape (client only; created and disposed by
 /// <see cref="BEMachine"/>, <see cref="BEMachine.CreateRenderer"/>): one mesh per rig part of
 /// <c>shapes/block/{machine}.json</c> (<see cref="MachineMeshes.PartMeshes"/>) with the block's textures, one
-/// tessellation shared by every machine of the kind and texture key (<see cref="MachinePartMeshes"/>: a second
+/// tessellation shared by every machine of the kind, frame variant (its side excepted) and texture key
+/// (<see cref="MachinePartMeshes"/>: a second
 /// machine, or a chunk reload, builds nothing),
 /// each drawn with its rig matrix turned to the machine's facing, and only when
 /// <see cref="BEMachine.ShowsPart"/> says so (its stage fitted, by default). A static part with no
@@ -64,7 +65,9 @@ public class MachineRenderer : IRenderer
         _textureKey = _be.TextureKey;
         _meshes = [];
         var loc = new AssetLocation(MachinesSystem.Domain, $"shapes/block/{_be.Machine}.json");
-        var set = MachinePartMeshes.Get(_capi, "machine|" + _textureKey, loc, _parts, i => _drawn[i], () => _be.PartTextures(_capi), _be.Machine);
+        // the frame's variant but its side (the gantry's wood) is in the block's own textures, so in the key too
+        string variant = string.Join(",", _be.Block.Variant.Where(kv => kv.Key != "side").Select(kv => kv.Key + "=" + kv.Value));
+        var set = MachinePartMeshes.Get(_capi, $"machine|{variant}|{_textureKey}", loc, _parts, i => _drawn[i], () => _be.PartTextures(_capi), _be.Machine);
         if (set == null)
         {
             _capi.Logger.Error("[seraphhorizons] {0} is missing; the {1}'s moving parts are not drawn", loc, _be.Machine);
