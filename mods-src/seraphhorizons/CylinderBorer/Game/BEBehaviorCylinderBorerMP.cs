@@ -7,7 +7,7 @@ using Vintagestory.GameContent.Mechanics;
 namespace SeraphHorizons.Mod.CylinderBorer;
 
 /// <summary>The cylinder borer's load on its shaft, on the power ghost: a consumer whose network is
-/// found through the power face only, as the mill's (<see cref="BEBehaviorMillMP"/>). Resistance is
+/// found through the power face only, as the mill's (<see cref="Machines.BEBehaviorMachineMP"/>). Resistance is
 /// the configured resistance once the borer is complete, oiled or dry: as the gear cutter's, the
 /// borer's oil spares its cutter head, never its load. A token 0.005 before.</summary>
 public class BEBehaviorCylinderBorerMP : BEBehaviorMPConsumer
@@ -26,7 +26,7 @@ public class BEBehaviorCylinderBorerMP : BEBehaviorMPConsumer
     public override float GetResistance()
     {
         if ((Blockentity as BECylinderBorerGhost)?.Borer is not { Complete: true } borer)
-            return BEBehaviorMillMP.IncompleteResistance;
+            return Machines.Core.MachineLoad.Unassembled;
         float resistance = CylinderBorerSystem.Of(Api).Config.Resistance;
         // remembered for the block info's load line, never multiplied
         return borer.Oiling is { } oil ? Oil.Asked(oil, resistance, borer, dryLoad: false) : resistance;

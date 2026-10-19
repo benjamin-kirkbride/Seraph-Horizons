@@ -70,19 +70,21 @@ public partial class WoodworkingRosserScenarios
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
         Assert.NotNull(RosserMod.Rig);
         Assert.NotNull(RosserMod.Logging);
+        // its frame is the shared machine block, placed lengthwise, its cells and power cell the shared ones
         foreach (var side in Sides.All)
-        {
-            Assert.IsType<BlockRosser>(BlockOf($"seraphhorizons:rosser-frame-{side.Code()}"));
-            Assert.IsType<BlockRosserGhostPower>(BlockOf($"seraphhorizons:rosser-ghostpower-{side.Code()}"));
-            Assert.IsType<BlockRosserGhostWater>(BlockOf($"seraphhorizons:rosser-ghostwater-{side.Code()}"));
-        }
-        Assert.IsType<BlockRosserGhost>(BlockOf("seraphhorizons:rosser-ghost"));
+            Assert.True(Assert.IsType<BlockMachine>(BlockOf($"seraphhorizons:rosser-frame-{side.Code()}")).Lengthwise);
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:rosser-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(RosserMod.Rig, ((BlockMachine)BlockOf("seraphhorizons:rosser-frame-north")).Rig);
+        // its build is the shared build's, the pipes in it (they exist here), the heads its wearing part
+        var build = MachinesSystem.Of(World.Api).Build(RosserSystem.MachineId)!;
+        Assert.Equal(7, Assert.Single(build.Stages).Materials.Count);
+        Assert.Equal(RosserBuild.HeadsPart, Assert.Single(build.Wearing).Id);
         // The parts it is built from exist in the pack, as do the bark spud's (for the heads' wear).
-        foreach (var code in new[] { RosserParts.ShaftCode, RosserParts.RingCode, RosserParts.LeversCode, "game:hoop-iron", "game:rod-iron",
+        foreach (var code in new[] { RosserBuild.ShaftCode, RosserBuild.RingCode, RosserBuild.LeversCode, "game:hoop-iron", "game:rod-iron",
                                      "game:metalplate-iron", $"{Iw}:barkspudhead-copper", $"{Iw}:barkspudhead-steel", "game:chutesection-copper" })
             Assert.NotNull(ItemOf(code));
         // the drip's pipes: ppex's straight pipe in UnifiedPipes' copper and lead, so they are a stage
-        foreach (var metal in RosserParts.PipeMetals)
+        foreach (var metal in RosserBuild.PipeMetals)
             Assert.NotNull(PipeOf(metal));
         Assert.True(RosserMod.PipesNeeded);
         Assert.Equal(4 * 2250, RosserMod.HeadCapacity("steel"));
@@ -126,18 +128,14 @@ public partial class WoodworkingRosserScenarios
         Assert.True(Sides.TryParse(look, out var lookSide));
         Assert.Equal(Footprint.PlacedFacing(lookSide), rosser.Side);
         var rig = RosserRig;
-        var cells = rosser.GhostCells().ToList();
+        var cells = RosserCells(rosser).ToList();
         Assert.Equal(rig.Cells.Count - 1, cells.Count);
         string side = rosser.Side.Code();
         foreach (var (cell, kind) in cells)
         {
-            Assert.Equal(kind switch
-            {
-                BERosser.CellKind.Power => $"seraphhorizons:rosser-ghostpower-{side}",
-                BERosser.CellKind.Water => $"seraphhorizons:rosser-ghostwater-{side}",
-                _ => "seraphhorizons:rosser-ghost",
-            }, W.BlockAccessor.GetBlock(cell).Code.ToString());
-            Assert.Equal(pos, Assert.IsType<BERosserGhost>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
+            Assert.Equal(kind == RosserCell.Power ? BlockMachineCellPower.CodeFor(rosser.PowerFace).ToString() : BlockMachineCell.CellCode.ToString(),
+                W.BlockAccessor.GetBlock(cell).Code.ToString());
+            Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
         }
         // the infeed end is the far one: its rack cells are beyond every cell
         int Along(BlockPos p) => (p.X - pos.X) * d.X + (p.Z - pos.Z) * d.Z;
@@ -148,8 +146,9 @@ public partial class WoodworkingRosserScenarios
         // power and water on side faces, opposite each other, the cells beyond them free
         var power = rosser.CellPos(rig.PowerCell);
         var water = rosser.CellPos(rig.WaterCell);
-        var powerFace = Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(power)).PowerFace;
-        var waterFace = Assert.IsType<BlockRosserGhostWater>(W.BlockAccessor.GetBlock(water)).WaterFace;
+        var powerFace = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(power)).PowerFace;
+        Assert.IsType<BlockMachineCell>(W.BlockAccessor.GetBlock(water));
+        var waterFace = RosserWaterFace(rosser);
         Assert.Equal(Footprint.ToWorld(rig.PowerFace, rosser.Side).Code(), powerFace.Code);
         Assert.Equal(Footprint.ToWorld(rig.WaterFace, rosser.Side).Code(), waterFace.Code);
         Assert.Equal(0, powerFace.Normali.X * d.X + powerFace.Normali.Z * d.Z);
@@ -177,8 +176,8 @@ public partial class WoodworkingRosserScenarios
         }
 
         // some parts in, then broken through a ghost: everything comes back, the cells are clear
-        Assert.Null(Click(player, pos, ItemOf(RosserParts.ShaftCode)));
-        Assert.Null(Click(player, pos, ItemOf(RosserParts.RingCode, 4)));
+        Assert.Null(Click(player, pos, ItemOf(RosserBuild.ShaftCode)));
+        Assert.Null(Click(player, pos, ItemOf(RosserBuild.RingCode, 4)));
         Assert.Null(Click(player, pos, ItemOf("game:rod-steel", 3)));
         KillItemsNear(pos, 20);
         var broken = cells[cells.Count / 2].Pos;
@@ -188,8 +187,8 @@ public partial class WoodworkingRosserScenarios
         Assert.All(cells, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c.Pos).Id));
         var drops = ItemsNear(pos, 20);
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:rosser-frame-north"));
-        Assert.Equal(1, drops.GetValueOrDefault(RosserParts.ShaftCode));
-        Assert.Equal(4, drops.GetValueOrDefault(RosserParts.RingCode));
+        Assert.Equal(1, drops.GetValueOrDefault(RosserBuild.ShaftCode));
+        Assert.Equal(4, drops.GetValueOrDefault(RosserBuild.RingCode));
         Assert.Equal(3, drops.GetValueOrDefault("game:rod-steel"));
         KillItemsNear(pos, 20);
     }
@@ -202,7 +201,7 @@ public partial class WoodworkingRosserScenarios
         var pos = await RosserSky(160, 230);
         var player = await Player("rosserbuilder");
         var rosser = await PlaceRosser(pos, "north");
-        var ghost = rosser.GhostCells().Last().Pos;
+        var ghost = RosserCells(rosser).Last().Pos;
 
         string info = Info(rosser, player);
         Assert.Contains("Unassembled", info);
@@ -214,26 +213,26 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(2, Click(player, pos, ItemOf("game:hoop-iron", 2))?.StackSize);
         Assert.Equal(4, Click(player, ghost, ItemOf($"{Iw}:barkspudhead-iron", 4))?.StackSize);
         // the ring takes four sections from a bigger stack
-        Assert.Equal(2, Click(player, ghost, ItemOf(RosserParts.RingCode, 6))?.StackSize);
-        Assert.True(rosser.Parts.Has(RosserStage.Ring));
+        Assert.Equal(2, Click(player, ghost, ItemOf(RosserBuild.RingCode, 6))?.StackSize);
+        Assert.True(RosserHas(rosser, "ring"));
         Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitheads");
         // hoops, rods and plates are iron work (IronWoodworkingMachines is on)
         Assert.Equal(2, Click(player, pos, ItemOf("game:hoop-tinbronze", 2))?.StackSize);
-        Assert.False(rosser.Parts.Has(RosserStage.Tyres));
+        Assert.False(RosserHas(rosser, "tyres"));
         Assert.Null(Click(player, pos, ItemOf("game:hoop-iron", 2)));
         // one click of rods fills both roll sets, infeed first, and leaves the rest in hand
         Assert.Null(Click(player, pos, ItemOf("game:rod-meteoriciron", 3)));
-        Assert.True(rosser.Parts.Has(RosserStage.RollsIn));
-        Assert.False(rosser.Parts.Has(RosserStage.RollsOut));
+        Assert.True(RosserHas(rosser, "rollsin"));
+        Assert.False(RosserHas(rosser, "rollsout"));
         Assert.Equal(2, Click(player, pos, ItemOf("game:rod-iron", 3))?.StackSize);
-        Assert.True(rosser.Parts.Has(RosserStage.RollsOut));
+        Assert.True(RosserHas(rosser, "rollsout"));
         Assert.Equal(1, Click(player, pos, ItemOf("game:rod-iron", 1))?.StackSize);
         // the heads go on as four of one metal: three are refused
         Assert.Equal(3, Click(player, pos, ItemOf($"{Iw}:barkspudhead-copper", 3))?.StackSize);
         Assert.Null(Click(player, pos, ItemOf($"{Iw}:barkspudhead-copper", 4)));
         Assert.Equal("copper", rosser.HeadMetal);
-        Assert.Equal((1000, 1000), (rosser.Parts.HeadsLeft, rosser.Parts.HeadsCapacity));
-        Assert.Null(Click(player, pos, ItemOf(RosserParts.ShaftCode)));
+        Assert.Equal((1000, 1000), (rosser.HeadsLeft, rosser.HeadsCapacity));
+        Assert.Null(Click(player, pos, ItemOf(RosserBuild.ShaftCode)));
         Assert.Null(Click(player, pos, ItemOf("game:metalplate-steel", 2)));
         // the drip's pipes: copper or lead (not iron), four of one metal from one stack, drawn in that metal
         Assert.True(RosserMod.PipesNeeded);
@@ -243,9 +242,9 @@ public partial class WoodworkingRosserScenarios
         Assert.True(_handled);
         Assert.Equal(3, Click(player, ghost, PipeOf("lead", 3))?.StackSize);
         Assert.Equal(2, Click(player, ghost, PipeOf("lead", 6))?.StackSize);
-        Assert.Equal("lead", rosser.Parts.PipeMetal);
-        Assert.True(rosser.Fitted("pipelead"));
-        Assert.False(rosser.Fitted("pipecopper"));
+        Assert.Equal("lead", rosser.PipeMetal);
+        Assert.True(rosser.ShowsPart("pipelead"));
+        Assert.False(rosser.ShowsPart("pipecopper"));
         Assert.Contains("Drip pipes: Lead", Info(rosser, player));
         Assert.DoesNotContain(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitpipes");
         // once they are in, a pipe in hand is not the rosser's: the click places it, as on the water face
@@ -256,7 +255,7 @@ public partial class WoodworkingRosserScenarios
         Assert.False(_handled);
         Assert.False(rosser.Complete);
         Assert.Contains("Sawmill feed levers", Info(rosser, player));
-        Assert.Null(Click(player, ghost, ItemOf(RosserParts.LeversCode)));
+        Assert.Null(Click(player, ghost, ItemOf(RosserBuild.LeversCode)));
         Assert.True(rosser.Complete);
         Assert.Equal("Rosser", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         info = Info(rosser, player);
@@ -288,8 +287,8 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(3, drops.GetValueOrDefault("game:rod-meteoriciron"));
         Assert.Equal(1, drops.GetValueOrDefault("game:rod-iron"));
         Assert.Equal(2, drops.GetValueOrDefault("game:metalplate-steel"));
-        Assert.Equal(4, drops.GetValueOrDefault(RosserParts.RingCode));
-        Assert.Equal(4, drops.GetValueOrDefault(RosserParts.PipeCode("lead")));
+        Assert.Equal(4, drops.GetValueOrDefault(RosserBuild.RingCode));
+        Assert.Equal(4, drops.GetValueOrDefault(RosserBuild.PipeCode("lead")));
         Assert.Equal(0, drops.GetValueOrDefault($"{Iw}:barkspudhead-copper"));
         KillItemsNear(pos, 20);
     }
@@ -308,12 +307,12 @@ public partial class WoodworkingRosserScenarios
         using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "south");
         AssembleRosser(rosser, player);
-        int capacity = rosser.Parts.HeadsCapacity;
+        int capacity = rosser.HeadsCapacity;
         KillItemsNear(pos, 20);
 
         // loads without power, onto the infeed bed; its boxes are there and on the trunk a click is the rosser's
         Assert.Null(Click(player, pos, RosserTrunk("oak", 6, branches: 6)));
-        Assert.Equal(RosserState.Waiting, rosser.State);
+        Assert.Equal(RosserState.Waiting, rosser.TripState);
         Assert.Equal(TrunkClass.Thin, rosser.TrunkClass);
         Assert.True(rosser.Busy);
         Assert.Null(rosser.PeekFinished());
@@ -331,7 +330,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Contains("6 logs, 6 branches", Info(rosser, player));
 
         await PowerRosser(rosser);
-        await World.Until(() => rosser.State == RosserState.Delivered, 90_000);
+        await World.Until(() => rosser.TripState == RosserState.Delivered, 90_000);
 
         var trunk = rosser.PeekFinished();
         Assert.NotNull(trunk);
@@ -342,7 +341,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(frameOf[startOnly], Boxes(startOnly));
         Assert.Equal(frameOf[endOnly] + 1, Boxes(endOnly));
         // one point per stored log
-        Assert.Equal(capacity - 6, rosser.Parts.HeadsLeft);
+        Assert.Equal(capacity - 6, rosser.HeadsLeft);
         Assert.Contains("Debarked", Info(rosser, player));
 
         // three sticks (one per two branches) and oak's tan bark, three pieces a log, at the chute
@@ -364,14 +363,14 @@ public partial class WoodworkingRosserScenarios
                     ?? World.EntitiesIn(new Cuboidi(pos.X - 3, pos.Y - 2, pos.Z - 3, pos.X + 3, pos.Y + 3, pos.Z + 3))
                         .OfType<EntityItem>().FirstOrDefault(e => e.Alive && Trunks.IsTrunk(e.Itemstack))?.Itemstack;
         Assert.Equal("loggingmod:treetrunk-oak-sm-debarked-north", taken?.Collectible.Code.ToString());
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         Assert.Equal(frameOf[endOnly], Boxes(endOnly));
         // a debarked trunk is refused at the infeed
         Assert.NotNull(Click(player, pos, taken));
         Assert.Null(rosser.Trunk);
         KillItemsNear(pos, 20);
         W.BlockAccessor.SetBlock(0, rosser.CellPos(RosserRig.PowerCell).AddCopy(
-            Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(rosser.CellPos(RosserRig.PowerCell))).PowerFace));
+            Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(rosser.CellPos(RosserRig.PowerCell))).PowerFace));
     }
 
     // ---- Rows ----
@@ -396,7 +395,7 @@ public partial class WoodworkingRosserScenarios
             travel = rosser.Trip.End(pace) + 1;
         int sticks = 0, bark = 0;
         bool delivered = false;
-        for (int guard = 0; guard < 10_000 && rosser.Trip.Travel < travel - 1e-6 && rosser.State is RosserState.Waiting or RosserState.Feeding; guard++)
+        for (int guard = 0; guard < 10_000 && rosser.Trip.Travel < travel - 1e-6 && rosser.TripState is RosserState.Waiting or RosserState.Feeding; guard++)
         {
             double step = Math.Min(0.25, travel - rosser.Trip.Travel);
             var s = rosser.Feed((float)(step / rosser.Trip.Rate));
@@ -412,7 +411,7 @@ public partial class WoodworkingRosserScenarios
 
     /// <summary>Every box of the rosser's cells, in world coordinates, as the game asks for them.</summary>
     private List<Cuboidd> RosserWorldBoxes(BERosser rosser, bool selection) =>
-        rosser.GhostCells().Select(c => c.Pos).Prepend(rosser.Pos).SelectMany(c =>
+        RosserCells(rosser).Select(c => c.Pos).Prepend(rosser.Pos).SelectMany(c =>
         {
             var block = W.BlockAccessor.GetBlock(c);
             var boxes = selection ? block.GetSelectionBoxes(W.BlockAccessor, c) : block.GetCollisionBoxes(W.BlockAccessor, c);
@@ -432,7 +431,7 @@ public partial class WoodworkingRosserScenarios
     /// <summary>The rosser's cell whose selection boxes hold <paramref name="p"/>, with the point relative to it.</summary>
     private (BlockPos Cell, Vec3d Hit) RosserCellHolding(BERosser rosser, Vec3d p)
     {
-        foreach (var c in rosser.GhostCells().Select(c => c.Pos).Prepend(rosser.Pos))
+        foreach (var c in RosserCells(rosser).Select(c => c.Pos).Prepend(rosser.Pos))
             foreach (var b in W.BlockAccessor.GetBlock(c).GetSelectionBoxes(W.BlockAccessor, c) ?? [])
                 if (p.X >= c.X + b.X1 - 1e-4 && p.X <= c.X + b.X2 + 1e-4 && p.Y >= c.Y + b.Y1 - 1e-4 && p.Y <= c.Y + b.Y2 + 1e-4
                     && p.Z >= c.Z + b.Z1 - 1e-4 && p.Z <= c.Z + b.Z2 + 1e-4)
@@ -491,12 +490,12 @@ public partial class WoodworkingRosserScenarios
         RosserReady(rosser, player);
         var rig = RosserRig;
         var power = rosser.CellPos(rig.PowerCell);
-        var ghost = Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(power));
+        var ghost = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(power));
         var face = ghost.PowerFace;
         foreach (var f in BlockFacing.ALLFACES)
             Assert.Equal(f == face, ghost.HasMechPowerConnectorAt(W, power, f, null!));
-        foreach (var (cell, kind) in rosser.GhostCells())
-            if (kind != BERosser.CellKind.Power)
+        foreach (var (cell, kind) in RosserCells(rosser))
+            if (kind != RosserCell.Power)
                 Assert.False(W.BlockAccessor.GetBlock(cell) is IMechanicalPowerBlock, $"{kind} cell {cell} is a power block");
         Assert.False(W.BlockAccessor.GetBlock(pos) is IMechanicalPowerBlock);
 
@@ -504,9 +503,9 @@ public partial class WoodworkingRosserScenarios
         // A turning axle against the outer side faces of other cells: the water ghost's (the far
         // side) and the plain ghost beside the power cell (the near side). Nothing turns.
         var water = rosser.CellPos(rig.WaterCell);
-        var waterFace = BlockRosserGhostWater.WaterFaceFor(rig, side);
+        var waterFace = RosserWaterFace(rosser);
         var beside = rosser.CellPos(rig.PowerCell + new Int3(1, 0, 0));
-        Assert.IsType<BlockRosserGhost>(W.BlockAccessor.GetBlock(beside));
+        Assert.IsType<BlockMachineCell>(W.BlockAccessor.GetBlock(beside));
         foreach (var (cell, f) in new[] { (water, waterFace), (beside, face) })
         {
             var axle = cell.AddCopy(f);
@@ -583,7 +582,7 @@ public partial class WoodworkingRosserScenarios
         output.WriteLine($"{side}: reversed, AngleRad moved {reversed:0.00} rad in 10 ticks; T {travelBefore:0.000} -> {rosser.Trip.Travel:0.000}");
         Assert.True(Math.Sign(reversed) == -Math.Sign(turned), $"the network did not turn the other way ({reversed:0.00} after {turned:0.00})");
         Assert.True(rosser.Trip.Travel > travelBefore, "the trunk did not feed with the shaft turning backwards");
-        await World.Until(() => rosser.State == RosserState.Delivered, 60000);
+        await World.Until(() => rosser.TripState == RosserState.Delivered, 60000);
         W.BlockAccessor.SetBlock(0, rotorPos);
         W.BlockAccessor.SetBlock(0, axlePos);
         KillItemsNear(pos, 20);
@@ -635,7 +634,7 @@ public partial class WoodworkingRosserScenarios
         RosserReady(rosser, player);
         var rig = RosserRig;
         var water = rosser.CellPos(rig.WaterCell);
-        var waterFace = Assert.IsType<BlockRosserGhostWater>(W.BlockAccessor.GetBlock(water)).WaterFace;
+        var waterFace = RosserWaterFace(rosser);
         string axis = waterFace.Axis == EnumAxis.X ? "we" : "ns";
         var pipe = BlockOf($"ppex:pipe-straight-{axis}-iron");
 
@@ -681,7 +680,7 @@ public partial class WoodworkingRosserScenarios
         float volume = StateValue<float>(state, "Volume");
         await World.Until(() => rosser.Water.Litres >= config.ReservoirLitres - 1e-6, 10000);
         Assert.Equal(config.ReservoirLitres, rosser.Water.Litres, 3);
-        Assert.True(rosser.Wet);
+        Assert.True(rosser.DripWet);
         var tree = new TreeAttribute();
         rosser.ToTreeAttributes(tree);
         Assert.True(tree.GetBool("wet"));
@@ -711,7 +710,7 @@ public partial class WoodworkingRosserScenarios
         var dryPos = pos.AddCopy(8, 0, 0);
         var dry = await PlaceRosser(dryPos, "east");
         RosserReady(dry, player);
-        Assert.False(dry.Wet);
+        Assert.False(dry.DripWet);
         Assert.Contains("Drip: dry", Info(dry, player));
         KillItemsNear(pos, 20);
         Assert.Null(Click(player, dryPos, RosserTrunk("acacia", 10, 0)));
@@ -764,7 +763,7 @@ public partial class WoodworkingRosserScenarios
         Assert.True(HelpHas("removeheads"));
         Assert.False(HelpHas("taketrunk"));
 
-        int left = rosser.Parts.HeadsLeft;
+        int left = rosser.HeadsLeft;
         var cases = new (string Size, int Logs, int Branches, TrunkClass Class)[]
         {
             ("sm", 6, 7, TrunkClass.Thin), ("md", 12, 0, TrunkClass.Thin), ("xl", 30, 13, TrunkClass.Thick), ("xxl", 40, 0, TrunkClass.Thick),
@@ -781,13 +780,13 @@ public partial class WoodworkingRosserScenarios
             if (first)
             {
                 // waiting, stopped: it can be taken back; then the shaft turns
-                Assert.Equal(RosserState.Waiting, rosser.State);
+                Assert.Equal(RosserState.Waiting, rosser.TripState);
                 Assert.Contains("goes in when the shaft turns", Info(rosser, player));
                 Assert.Contains($"{logs} logs, {branches} branches", Info(rosser, player));
                 Assert.True(HelpHas("taketrunk"));
                 Assert.False(HelpHas("loadtrunk"));
                 await PowerRosser(rosser);
-                await World.Until(() => rosser.State == RosserState.Feeding && rosser.Trip.Travel > 1, 30000);
+                await World.Until(() => rosser.TripState == RosserState.Feeding && rosser.Trip.Travel > 1, 30000);
                 Assert.Contains("Debarking: ", Info(rosser, player));
                 Assert.Contains("Drive speed: ", Info(rosser, player));
                 Assert.False(HelpHas("taketrunk"));
@@ -796,7 +795,7 @@ public partial class WoodworkingRosserScenarios
                 double held = rosser.Trip.Travel;
                 await World.Ticks(20);
                 Assert.Equal(held, rosser.Trip.Travel);
-                Assert.Equal(RosserState.Feeding, rosser.State);
+                Assert.Equal(RosserState.Feeding, rosser.TripState);
                 Assert.Contains("Stopped with the trunk in the rolls", Info(rosser, player));
                 Assert.Null(Click(player, pos, null, ctrl: true));
                 Assert.NotNull(rosser.Trunk);
@@ -804,11 +803,11 @@ public partial class WoodworkingRosserScenarios
                 first = false;
             }
             long started = W.ElapsedMilliseconds;
-            for (int poll = 0; rosser.State != RosserState.Delivered; poll++)
+            for (int poll = 0; rosser.TripState != RosserState.Delivered; poll++)
             {
                 var since = TimeSpan.FromMilliseconds(W.ElapsedMilliseconds - started);
                 if (poll % 20 == 0)
-                    output.WriteLine($"{since:mm\\:ss} {size}: {rosser.State} T {rosser.Trip.Travel:0.000} / {RosserMod.Pace!.TripLength((int)k):0.000}, rate {rosser.Trip.Rate:0.0000}, speed {rosser.ShaftSpeed:0.00}");
+                    output.WriteLine($"{since:mm\\:ss} {size}: {rosser.TripState} T {rosser.Trip.Travel:0.000} / {RosserMod.Pace!.TripLength((int)k):0.000}, rate {rosser.Trip.Rate:0.0000}, speed {rosser.ShaftSpeed:0.00}");
                 Assert.True(since < TimeSpan.FromSeconds(90), "not delivered");
                 await World.Ticks(1);
             }
@@ -820,7 +819,7 @@ public partial class WoodworkingRosserScenarios
             Assert.Equal(2, done.Attributes.GetInt("resinLogCount"));
             Assert.False(done.Attributes.HasAttribute(Trunks.BranchCountKey));
             left -= logs;
-            Assert.Equal(left, rosser.Parts.HeadsLeft);
+            Assert.Equal(left, rosser.HeadsLeft);
             info = Info(rosser, player);
             Assert.Contains("Debarked: the trunk waits on the outfeed bed", info);
             Assert.Contains("Take it with Ctrl + right click", info);
@@ -835,7 +834,7 @@ public partial class WoodworkingRosserScenarios
             Assert.All(items.Keys, key => Assert.Contains(key, new[] { "game:stick", $"{Iw}:bark-tan-green" }));
             Click(player, pos, null, ctrl: true);
             Assert.NotNull(TakeFromPlayer(player, s => Trunks.IsTrunk(s)));
-            Assert.Equal(RosserState.Empty, rosser.State);
+            Assert.Equal(RosserState.Empty, rosser.TripState);
         }
         W.BlockAccessor.SetBlock(0, RosserRotorPos(rosser));
         KillItemsNear(pos, 20);
@@ -857,19 +856,19 @@ public partial class WoodworkingRosserScenarios
         rosser.ToTreeAttributes(tree);
         tree.SetInt("headsLeft", 5);
         rosser.FromTreeAttributes(tree, W);
-        Assert.Equal((5, 1000), (rosser.Parts.HeadsLeft, rosser.Parts.HeadsCapacity));
+        Assert.Equal((5, 1000), (rosser.HeadsLeft, rosser.HeadsCapacity));
         Assert.True(rosser.Complete);
 
         Assert.Null(Click(player, pos, RosserTrunk("oak", 6, 0)));
         // copper heads feed at copper's pace (steel's is checked on the trips)
         Assert.Equal(RosserMod.Pace!.Rate(1, RosserMod.HeadTier("copper")), rosser.Trip.Rate, 9);
         Assert.True(FeedTo(rosser, 100).Delivered);
-        Assert.Equal(RosserState.Delivered, rosser.State);
+        Assert.Equal(RosserState.Delivered, rosser.TripState);
         Assert.NotNull(rosser.PeekFinished());
         Assert.True(Trunks.IsDebarked(rosser.Trunk));
         Assert.False(rosser.Complete);
         Assert.Null(rosser.HeadMetal);
-        Assert.False(rosser.Fitted("heads"));
+        Assert.False(rosser.ShowsPart("heads"));
         Assert.Contains("No scraper heads", Info(rosser, player));
         Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitheads");
         // the trunk still comes off; the next one is refused
@@ -882,7 +881,7 @@ public partial class WoodworkingRosserScenarios
         Assert.True(rosser.Complete);
         Assert.Equal("iron", rosser.HeadMetal);
         Assert.Null(Click(player, pos, RosserTrunk("oak", 4, 0)));
-        Assert.Equal(RosserState.Waiting, rosser.State);
+        Assert.Equal(RosserState.Waiting, rosser.TripState);
         Click(player, pos, null, ctrl: true);
         TakeFromPlayer(player, s => Trunks.IsTrunk(s));
         KillItemsNear(pos, 20);
@@ -975,17 +974,17 @@ public partial class WoodworkingRosserScenarios
         await PowerRosser(rosser);
         // a trunk with no logs waits there, running or not
         await World.Ticks(30);
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         Assert.Equal(2, RackCount(inRack));
         Assert.Equal(0, Trunks.StoredLogs(RosserMod.Logging.PopTrunk(RackAt(inRack)!)!, W));
         RackAt(inRack)!.MarkDirty(true);
 
         // pulled, debarked, pushed into the outfeed rack
-        await World.Until(() => rosser.State != RosserState.Empty, 5000);
+        await World.Until(() => rosser.TripState != RosserState.Empty, 5000);
         Assert.Equal(0, RackCount(inRack));
         Assert.Equal("empty", W.BlockAccessor.GetBlock(inRack).Variant["fill"]);
         await World.Until(() => RackCount(outRack) == 1, 60000);
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         var pushed = RosserMod.Logging.PeekTrunk(RackAt(outRack)!)!;
         Assert.Equal("loggingmod:treetrunk-oak-sm-debarked-north", pushed.Collectible.Code.ToString());
         Assert.Equal(6, Trunks.StoredLogs(pushed, W));
@@ -995,9 +994,9 @@ public partial class WoodworkingRosserScenarios
             PushOnRack(outRack, DebarkedTrunk("oak", 4));
         Assert.Equal(4, RackCount(outRack));
         PushOnRack(inRack, RosserTrunk("birch", 5, 0));
-        await World.Until(() => rosser.State == RosserState.Delivered, 60000);
+        await World.Until(() => rosser.TripState == RosserState.Delivered, 60000);
         await World.Ticks(50);
-        Assert.Equal(RosserState.Delivered, rosser.State);
+        Assert.Equal(RosserState.Delivered, rosser.TripState);
         Assert.Equal(RosserOutfeedState.RackFull, rosser.OutfeedState);
         Assert.Contains("The rack at the near end is full", Info(rosser, player));
         Assert.Equal(4, RackCount(outRack));
@@ -1006,7 +1005,7 @@ public partial class WoodworkingRosserScenarios
         var taken = RosserMod.Logging.PopTrunk(RackAt(outRack)!);
         RackAt(outRack)!.MarkDirty(true);
         Assert.NotNull(taken);
-        await World.Until(() => rosser.State == RosserState.Empty, 5000);
+        await World.Until(() => rosser.TripState == RosserState.Empty, 5000);
         Assert.Equal(4, RackCount(outRack));
         Assert.Equal("loggingmod:treetrunk-birch-sm-debarked-north", RosserMod.Logging.PeekTrunk(RackAt(outRack)!)?.Collectible.Code.ToString());
         await World.Until(() => rosser.RackState == RosserRackState.Empty, 3000);
@@ -1044,14 +1043,14 @@ public partial class WoodworkingRosserScenarios
             await World.Until(() => rosser.RackState == RosserRackState.Off, 3000);
             Assert.Contains("Rack: not taking trunks from a rack (AutoPullFromRack is off)", Info(rosser, player));
             await World.Ticks(40);
-            Assert.Equal(RosserState.Empty, rosser.State);
+            Assert.Equal(RosserState.Empty, rosser.TripState);
             Assert.Equal(1, RackCount(inRack));
 
             // by hand instead: delivered, it stays with room on the rack
             Assert.Null(Click(player, pos, RosserTrunk("birch", 4, 0)));
-            await World.Until(() => rosser.State == RosserState.Delivered, 60000);
+            await World.Until(() => rosser.TripState == RosserState.Delivered, 60000);
             await World.Ticks(40);
-            Assert.Equal(RosserState.Delivered, rosser.State);
+            Assert.Equal(RosserState.Delivered, rosser.TripState);
             Assert.Equal(0, RackCount(outRack));
             Assert.Equal(RosserOutfeedState.Off, rosser.OutfeedState);
             string info = Info(rosser, player);
@@ -1060,12 +1059,12 @@ public partial class WoodworkingRosserScenarios
 
             config.AutoPushToRack = true;
             await World.Until(() => RackCount(outRack) == 1, 5000);
-            Assert.Equal(RosserState.Empty, rosser.State);
+            Assert.Equal(RosserState.Empty, rosser.TripState);
             await World.Ticks(40);
             Assert.Equal(1, RackCount(inRack));
             config.AutoPullFromRack = true;
             await World.Until(() => RackCount(inRack) == 0, 5000);
-            Assert.NotEqual(RosserState.Empty, rosser.State);
+            Assert.NotEqual(RosserState.Empty, rosser.TripState);
             await World.Until(() => RackCount(outRack) == 2, 60000);
         }
         finally
@@ -1077,32 +1076,33 @@ public partial class WoodworkingRosserScenarios
         }
     }
 
-    /// <summary>In creative mode, Ctrl + right click fits the next stage, in <see cref="RosserStage"/>
-    /// order, with nothing taken from the player; the load on the shaft is a token until the rosser
-    /// is complete. Complete, the same click takes the unworn heads back, as in survival.</summary>
+    /// <summary>In creative mode, Ctrl + right click fits every part still missing (the build's one stage), then
+    /// the heads, with nothing taken from the player; the load on the shaft is a token until the rosser is
+    /// complete. Complete, the same click takes the unworn heads back, as in survival.</summary>
     [AtlasScenario(TimeoutMs = 60_000)]
     public async Task In_creative_a_Ctrl_click_fits_the_rossers_next_stage()
     {
         var pos = await RosserSky(225, 500);
         var player = await Player("rossercreative");
         var rosser = await PlaceRosser(pos, "north");
-        Assert.True(rosser.CreativeShortcut);
-        Assert.Equal(BEBehaviorMillMP.IncompleteResistance, rosser.Power!.GetResistance());
-        var stages = Enum.GetValues<RosserStage>();
-        for (int i = 0; i < stages.Length; i++)
-        {
-            Assert.False(rosser.Complete);
-            Assert.Null(Click(player, pos, null, ctrl: true, creative: true));
-            Assert.True(_handled);
-            for (int j = 0; j < stages.Length; j++)
-                Assert.True(rosser.Parts.Has(stages[j]) == j <= i, $"after {i + 1} clicks, {stages[j]} fitted: {rosser.Parts.Has(stages[j])}");
-        }
+        Assert.True(rosser.WoodworkingShortcut);
+        Assert.Equal(MachineLoad.Unassembled, rosser.Power!.GetResistance());
+        string[] parts = ["shaft", "ring", "tyres", "rollsin", "rollsout", "breaker", "levers", "pipecopper"];
+        Assert.Null(Click(player, pos, null, ctrl: true, creative: true));
+        Assert.True(_handled);
+        Assert.All(parts, p => Assert.True(RosserHas(rosser, p), p));
+        Assert.False(RosserHas(rosser, "pipelead"));
+        Assert.Null(rosser.Heads);
+        Assert.False(rosser.Complete);
+        Assert.Equal(MachineLoad.Unassembled, rosser.Power!.GetResistance());
+        Assert.Null(Click(player, pos, null, ctrl: true, creative: true));
+        Assert.Equal("steel", rosser.HeadMetal);
         Assert.True(rosser.Complete);
         // Built dry (MachineOil), then oiled.
         Assert.Equal(RosserMod.Config.Resistance * 3, rosser.Power!.GetResistance(), 4);
         Oil(rosser.Oiling);
         Assert.Equal(RosserMod.Config.Resistance, rosser.Power!.GetResistance());
-        Assert.Equal(RosserMod.HeadCapacity(rosser.HeadMetal!), rosser.Parts.HeadsCapacity);
+        Assert.Equal(RosserMod.HeadCapacity(rosser.HeadMetal!), rosser.HeadsCapacity);
         var heads = Click(player, pos, null, ctrl: true, creative: true);
         Assert.Equal($"{Iw}:barkspudhead-steel", heads?.Collectible.Code.ToString());
         Assert.Equal(4, heads?.StackSize);
@@ -1115,9 +1115,9 @@ public partial class WoodworkingRosserScenarios
     {
         var tree = new TreeAttribute();
         rosser.ToTreeAttributes(tree);
-        tree.SetInt("headsLeft", left);
+        ((ITreeAttribute)((ITreeAttribute)tree["wearing"])[RosserBuild.HeadsPart]).SetDouble("left", left);
         rosser.FromTreeAttributes(tree, W);
-        Assert.Equal(left, rosser.Parts.HeadsLeft);
+        Assert.Equal(left, rosser.HeadsLeft);
     }
 
     /// <summary>Only a new trip needs heads: the trunk whose trip spends them still leaves, onto a
@@ -1149,11 +1149,11 @@ public partial class WoodworkingRosserScenarios
         await World.Until(() => RackCount(outRack) == 1, 60000);
         Assert.False(rosser.Complete);
         Assert.Null(rosser.HeadMetal);
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         Assert.Equal("loggingmod:treetrunk-oak-sm-debarked-north", RosserMod.Logging!.PeekTrunk(RackAt(outRack)!)?.Collectible.Code.ToString());
         await World.Ticks(40);
         Assert.Equal(1, RackCount(inRack));
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         Assert.Contains("No scraper heads", Info(rosser, player));
         // new heads: the waiting trunk goes in
         Assert.Null(Click(player, pos, ItemOf($"{Iw}:barkspudhead-copper", 4)));
@@ -1174,7 +1174,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Null(Click(player, lined.Pos, RosserTrunk("oak", 6, 0)));
         await World.Until(() => mill.Trunk != null, 60000);
         Assert.False(lined.Complete);
-        Assert.Equal(RosserState.Empty, lined.State);
+        Assert.Equal(RosserState.Empty, lined.TripState);
         Assert.True(Trunks.IsDebarked(mill.Trunk));
         await World.Until(() => mill.Trunk == null, 30000);
         W.BlockAccessor.SetBlock(0, RosserRotorPos(lined));
@@ -1229,8 +1229,8 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(3 * trip.BarkDone, dropped.GetValueOrDefault($"{Iw}:bark-tan-green"));
         KillItemsNear(pos, 20);
 
-        var cells = rosser.GhostCells().ToList();
-        var broken = cells.First(c => c.Kind == BERosser.CellKind.Plain).Pos;
+        var cells = RosserCells(rosser).ToList();
+        var broken = cells.First(c => c.Kind == RosserCell.Plain).Pos;
         W.BlockAccessor.GetBlock(broken).OnBlockBroken(W, broken, player);
         await World.Ticks(2);
         Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
@@ -1238,12 +1238,12 @@ public partial class WoodworkingRosserScenarios
         var drops = ItemsNear(pos, 20);
         output.WriteLine($"{stage}, broken: " + string.Join(", ", drops.Select(kv => $"{kv.Key} ×{kv.Value}")));
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:rosser-frame-north"));
-        Assert.Equal(1, drops.GetValueOrDefault(RosserParts.ShaftCode));
-        Assert.Equal(4, drops.GetValueOrDefault(RosserParts.RingCode));
+        Assert.Equal(1, drops.GetValueOrDefault(RosserBuild.ShaftCode));
+        Assert.Equal(4, drops.GetValueOrDefault(RosserBuild.RingCode));
         Assert.Equal(2, drops.GetValueOrDefault("game:hoop-iron"));
         Assert.Equal(4, drops.GetValueOrDefault("game:rod-iron"));
         Assert.Equal(2, drops.GetValueOrDefault("game:metalplate-iron"));
-        Assert.Equal(1, drops.GetValueOrDefault(RosserParts.LeversCode));
+        Assert.Equal(1, drops.GetValueOrDefault(RosserBuild.LeversCode));
         Assert.Equal(stage == "Delivered" ? 0 : 4, drops.GetValueOrDefault($"{Iw}:barkspudhead-steel"));
         Assert.Equal(0, drops.GetValueOrDefault("game:stick"));
         Assert.Equal(0, drops.GetValueOrDefault($"{Iw}:bark-tan-green"));
@@ -1451,7 +1451,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(mill.Side, rosser.Side);
         int Along(BlockPos p) => (p.X - millPos.X) * d.X + (p.Z - millPos.Z) * d.Z;
         Assert.Equal(6, Along(rosser.Pos));
-        Assert.Equal(21, rosser.GhostCells().Max(c => Along(c.Pos)));
+        Assert.Equal(21, RosserCells(rosser).Max(c => Along(c.Pos)));
 
         foreach (var n in Rig.InfeedNeighbours())
         {
@@ -1478,7 +1478,7 @@ public partial class WoodworkingRosserScenarios
                 depthAtTake = mill.Depth;
             return mill.Trunk != null;
         }, 90_000);
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         Assert.Null(rosser.Trunk);
         Assert.True(depthAtTake <= 0.2f, $"taken with the saws at {depthAtTake}");
         Assert.True(Trunks.IsDebarked(mill.Trunk));
@@ -1492,14 +1492,14 @@ public partial class WoodworkingRosserScenarios
         // Mid hand-off: the mill stopped, a finished trunk on the rosser's outfeed bed, the rosser broken.
         await Unpower(mill);
         Assert.Null(Click(player, at, RosserTrunk("oak", 4, 0)));
-        await World.Until(() => rosser.State == RosserState.Delivered, 60000);
+        await World.Until(() => rosser.TripState == RosserState.Delivered, 60000);
         await World.Until(() => mill.RackState == RackState.FeederReady, 3000);
         Assert.Contains("Rosser: its debarked trunk goes on when the saws come to the top", Info(mill, player));
         await World.Until(() => rosser.OutfeedState == RosserOutfeedState.Mill, 3000);
         Assert.Contains("The bucking mill in line takes it when its saws come to the top", Info(rosser, player));
         KillItemsNear(at, 25);
         W.BlockAccessor.SetBlock(0, RosserRotorPos(rosser));
-        var ghost = rosser.GhostCells().First(c => c.Kind == BERosser.CellKind.Plain).Pos;
+        var ghost = RosserCells(rosser).First(c => c.Kind == RosserCell.Plain).Pos;
         W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
         await World.Ticks(2);
         Assert.Equal(RackState.None, mill.CheckRack(out _));
@@ -1551,7 +1551,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Null(Click(player, pos, RosserTrunk("oak", 5, 0)));
         await World.Until(() => mill.Trunk != null, 90_000);
         Assert.Equal(0, RackCount(rackPos));
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         await World.Until(() => mill.Trunk == null, 30000);
 
         // with the mills not pulling (their AutoPullFromRack off) the mill does not count as a
@@ -1564,7 +1564,7 @@ public partial class WoodworkingRosserScenarios
             Assert.Null(Click(player, pos, RosserTrunk("oak", 5, 0)));
             await World.Until(() => RackCount(rackPos) == 1, 60000);
             Assert.Null(mill.Trunk);
-            Assert.Equal(RosserState.Empty, rosser.State);
+            Assert.Equal(RosserState.Empty, rosser.TripState);
             Assert.NotNull(RosserMod.Logging!.PopTrunk(RackAt(rackPos)!));
             RackAt(rackPos)!.MarkDirty(true);
         }
@@ -1582,7 +1582,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(RosserOutfeedState.Rack, rosser.CheckOutfeed(out _));
         Assert.Null(Click(player, pos, RosserTrunk("oak", 5, 0)));
         await World.Until(() => RackCount(rackPos) == 1, 60000);
-        Assert.Equal(RosserState.Empty, rosser.State);
+        Assert.Equal(RosserState.Empty, rosser.TripState);
         W.BlockAccessor.SetBlock(0, RosserRotorPos(rosser));
         KillItemsNear(pos, 22);
     }
@@ -1635,11 +1635,11 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(0, Mod32(pos.X));
         var player = await Player("rosserunload");
         var rosser = await PlaceRosser(pos, "north");
-        Assert.All(rosser.GhostCells(), c => Assert.Equal(pos.X / 32, c.Pos.X / 32));
+        Assert.All(RosserCells(rosser), c => Assert.Equal(pos.X / 32, c.Pos.X / 32));
         var millPos = pos.AddCopy(-6, 0, 0);
         var mill = await PlaceMill(millPos, "north");
         Assert.Equal(pos, mill.CellPos(new Int3(-6, 0, 0)));
-        Assert.All(mill.GhostCells(), c => Assert.Equal(pos.X / 32 - 1, c.Pos.X / 32));
+        Assert.All(Cells(mill), c => Assert.Equal(pos.X / 32 - 1, c.Pos.X / 32));
         Assemble(mill, player);
         RosserReady(rosser, player);
         var pace = RosserMod.Pace!;
@@ -1661,7 +1661,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(trip.Travel, again.Trip.Travel, 9);
         Assert.Equal(trip.Rate, again.Trip.Rate, 12);
         Assert.Equal((trip.SticksDone, trip.BarkDone, trip.Logs, trip.Branches), (again.Trip.SticksDone, again.Trip.BarkDone, again.Trip.Logs, again.Trip.Branches));
-        Assert.Equal(RosserState.Feeding, again.State);
+        Assert.Equal(RosserState.Feeding, again.TripState);
         Assert.True(again.Complete);
         Assert.Equal(TrunkClass.Thin, again.TrunkClass);
         Assert.Equal(before, ItemsNear(pos, 20));
@@ -1680,7 +1680,7 @@ public partial class WoodworkingRosserScenarios
         KillItemsNear(pos, 20);
 
         // mid hand-off: delivered, the mill stopped and peeking; the rosser's column unloads
-        Assert.Equal(RosserState.Delivered, again.State);
+        Assert.Equal(RosserState.Delivered, again.TripState);
         Assert.Equal(RackState.FeederReady, mill.CheckRack(out _));
         var third = await UnloadAndReload<BERosser>(pos, again, async () =>
         {
@@ -1689,7 +1689,7 @@ public partial class WoodworkingRosserScenarios
             Assert.Null(mill.Trunk);
             await World.Ticks(5);
         });
-        Assert.Equal(RosserState.Delivered, third.State);
+        Assert.Equal(RosserState.Delivered, third.TripState);
         Assert.Equal(12, Trunks.StoredLogs(third.Trunk!, W));
         Assert.Equal(RackState.FeederReady, mill.CheckRack(out _));
         await StandBy(player, pos);
@@ -1697,7 +1697,7 @@ public partial class WoodworkingRosserScenarios
         using var clock = VirtualClock.Start(World);
         await Power(mill, full: true);
         await World.Until(() => mill.Trunk != null, 30000);
-        Assert.Equal(RosserState.Empty, third.State);
+        Assert.Equal(RosserState.Empty, third.TripState);
         Assert.Equal(12, Trunks.StoredLogs(mill.Trunk!, W));
         Assert.Empty(TrunksNear(pos, 25));
         await World.Until(() => mill.Trunk == null, 30000);

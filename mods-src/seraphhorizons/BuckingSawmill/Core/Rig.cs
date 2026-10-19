@@ -9,9 +9,9 @@ namespace SeraphHorizons.Mod.BuckingSawmill.Core;
 /// the model's tooling). Everything is in the native, south-facing frame with the controller cell
 /// at (0,0,0), in blocks. The moving parts and the trunk bed are optional (the gameplay does not
 /// need them), and so is the saws' travel (defaults apply); keys this parser does not know are
-/// ignored.
+/// ignored. Its power cell and face are the shared machine base's <c>power</c> anchor (<see cref="IMachineRig"/>).
 /// </summary>
-public sealed class Rig
+public sealed class Rig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     public Int3 PowerCell { get; }
@@ -30,6 +30,17 @@ public sealed class Rig
     /// <summary>How far the saws travel (rig.json's <c>saw</c>), or <see cref="SawTravel.Default"/>
     /// when the file has none.</summary>
     public SawTravel Saw { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>Its one anchor for the shared machine base: <c>power</c>, the axle on <see cref="PowerFace"/> of
+    /// <see cref="PowerCell"/>.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors =>
+        _anchors ??= new Dictionary<string, MachineAnchor> { [MachineRigs.Power] = new(MachineRigs.Power, PowerCell, PowerFace.Face()) };
+
+    private IReadOnlyDictionary<string, MachineAnchor>? _anchors;
+
+    public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
 
     public Rig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side infeedSide, Side outputSide, Float3 outputPos,
                RigParts? movingParts = null, TrunkBed? trunkBed = null, SawTravel? saw = null)
@@ -54,9 +65,6 @@ public sealed class Rig
         if (Saw.TopY <= Saw.BottomY)
             throw new FormatException($"saw.topY {Saw.TopY} must be above saw.bottomY {Saw.BottomY}");
     }
-
-    /// <summary>The cells other than the controller's, in file order.</summary>
-    public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
     public RigCell? CellAt(Int3 pos) => Cells.FirstOrDefault(c => c.Pos == pos);
 

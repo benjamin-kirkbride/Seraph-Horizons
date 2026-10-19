@@ -21,9 +21,10 @@ public sealed record RosserFeed(float BlocksPerRadian, IReadOnlyList<float> Gear
 /// The rosser's footprint and anchors, from assets/seraphhorizons/config/rosser-rig.json (written
 /// by Rosser/tools/make_shape.py). Native, south-facing frame, controller cell at (0,0,0), blocks.
 /// The keys are documented in build/rosser/w2d-rig-keys.md and the rosser's README; unknown keys
-/// are ignored. Throws <see cref="FormatException"/> naming what is wrong.
+/// are ignored. Throws <see cref="FormatException"/> naming what is wrong. Its power and water cells and faces
+/// are the shared machine base's <c>power</c> and <c>water</c> anchors (<see cref="IMachineRig"/>).
 /// </summary>
-public sealed class RosserRig
+public sealed class RosserRig : IMachineRig
 {
     public const string BreakerStation = "breaker";
     public const string RingStation = "ring";
@@ -48,6 +49,21 @@ public sealed class RosserRig
     public RosserFeed Feed { get; }
     /// <summary>The model's moving parts; empty when the file has none.</summary>
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>Its anchors for the shared machine base: <c>power</c>, the axle on <see cref="PowerFace"/> of
+    /// <see cref="PowerCell"/>, and <c>water</c>, the drip's pipe on <see cref="WaterFace"/> of <see cref="WaterCell"/>.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors =>
+        _anchors ??= new Dictionary<string, MachineAnchor>
+        {
+            [MachineRigs.Power] = new(MachineRigs.Power, PowerCell, PowerFace.Face()),
+            [OreMachineRig.Water] = new(OreMachineRig.Water, WaterCell, WaterFace.Face()),
+        };
+
+    private IReadOnlyDictionary<string, MachineAnchor>? _anchors;
+
+    public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
 
     public RosserRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Int3 waterCell, Side waterFace,
                      Side infeedSide, Side outputSide, RosserChute chute, TrunkPath path, RosserFeed feed, RigParts? movingParts = null,
@@ -130,9 +146,6 @@ public sealed class RosserRig
     /// <summary>Where the heads touch a trunk of class <paramref name="k"/>, along the path: bark
     /// comes off as the trunk passes it. The ring's position for class 0 (none).</summary>
     public float TipAt(int k) => k is 1 or 2 ? Tips[k] : Ring;
-
-    /// <summary>The cells other than the controller's, in file order.</summary>
-    public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
     public RigCell? CellAt(Int3 pos) => Cells.FirstOrDefault(c => c.Pos == pos);
 

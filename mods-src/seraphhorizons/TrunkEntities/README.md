@@ -560,7 +560,9 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   default, unless Carry On's `RemoveInteractDelayWhileCarrying` is on), and sends it on to the server.
   `patches/trunkentities-stations.json` adds `CarryableInteract`, for a carried `BlockTreeTrunk` only,
   to Logging Expanded's three sawhorses, Trunk Storage Rack and heating rack, and to the rosser's
-  and bucking mill's frame and ghosts. Without it a carried trunk could not reach a station.
+  and bucking mill's frames and the shared machine cells (`blocktypes/machine/cell.json`, `cellpower.json`) their
+  other cells are, which a click while carrying anything but a trunk does not reach, so no other machine changes.
+  Without it a carried trunk could not reach a station.
 
 ## Tools where it lies
 

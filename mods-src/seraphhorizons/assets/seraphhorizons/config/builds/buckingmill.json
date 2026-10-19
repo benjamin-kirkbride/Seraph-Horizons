@@ -1,0 +1,18 @@
+{
+	"_comment": "The bucking sawmill's build (BuckingSawmill/README.md, 'Assembly'): Immersive Woodworking's sawmill parts, in any order, one a click, each drawn as it goes in (draws: the rig's sash1, sash2, crankshaft and levers); read by Machines/Core/MachineBuildJson.cs (its schema) and kept by the shared machine base (docs/modeling/machine-base.md). The blade kit is the wearing part: one sawmillblade-{metal}, a blade in each saw, durable (its uses are the kit's own durability, BEBuckingMill.BuildSpec), worn BladeWearPerStoredLog a stored log, taken back out by Ctrl with what is left, and gone when worn out. It goes in once both sashes are in, before or after the crankshaft and levers (BEBuckingMill fits it), so it is fitted with no stage. No block: the mill has no construction record in the recipe export.",
+	"machine": "buckingmill",
+	"stages": [
+		{
+			"id": "parts", "name": "parts", "adds": ["sash1", "sash2", "crankshaft", "levers"],
+			"materials": [
+				{ "codes": ["immersivewoodworking:sawmillsash"], "quantity": 1, "draws": ["sash1"] },
+				{ "codes": ["immersivewoodworking:sawmillsash"], "quantity": 1, "draws": ["sash2"] },
+				{ "codes": ["immersivewoodworking:sawmillcrankshaft"], "quantity": 1, "draws": ["crankshaft"] },
+				{ "codes": ["immersivewoodworking:sawmilllevers"], "quantity": 1, "draws": ["levers"] }
+			]
+		}
+	],
+	"wearing": [
+		{ "id": "blade", "codes": ["immersivewoodworking:sawmillblade-steel", "immersivewoodworking:sawmillblade-*"], "count": 1, "uses": 1, "requires": "blade", "durable": true }
+	]
+}

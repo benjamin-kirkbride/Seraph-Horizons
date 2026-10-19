@@ -168,14 +168,14 @@ public static class Consumers
         },
 
         // The pack's own mod (mods-src/seraphhorizons)
-        new("BEBehaviorMillMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.BuckingSawmill.BuckingSawmillSystem", "Config.Resistance", 0.17, "ModConfig/seraphhorizons.json (BuckingSawmillSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.BuckingSawmill.BuckingSawmillSystem", "Config.Resistance", 0.17, "ModConfig/seraphhorizons.json (BuckingSawmillSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:buckingmill", ItemPrefix = "seraphhorizons:buckingmill-frame", Name = "Bucking sawmill",
+            Mod = Seraph, Id = "seraphhorizons:buckingmill", ItemPrefix = "seraphhorizons:buckingmill-frame", Name = "Bucking sawmill", ByFrame = true,
             Idle = SeraphIdle, Oil = "BuckingMill",
         },
-        new("BEBehaviorRosserMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.Rosser.RosserSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (RosserSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.Rosser.RosserSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (RosserSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:rosser", ItemPrefix = "seraphhorizons:rosser-frame", Name = "Rosser",
+            Mod = Seraph, Id = "seraphhorizons:rosser", ItemPrefix = "seraphhorizons:rosser-frame", Name = "Rosser", ByFrame = true,
             Idle = SeraphIdle, Oil = "Rosser",
         },
         new("BEBehaviorGearCutterMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.GearCutter.GearCutterSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (GearCutterSettings)"))
@@ -203,8 +203,9 @@ public static class Consumers
     private static string Brass(string name, string part) =>
         part.EndsWith("brass", StringComparison.Ordinal) && !name.Contains("brass", StringComparison.OrdinalIgnoreCase) ? name + ", brass" : name;
 
+    // every pack machine's token load until it is built (the shared machine base's)
     private static Load SeraphIdle(Live live) => Load.Of(live.Number("IncompleteResistance (until assembled)",
-        "SeraphHorizons.Mod.BuckingSawmill.BEBehaviorMillMP", "IncompleteResistance", 0.005, "BEBehaviorMillMP.IncompleteResistance"));
+        "SeraphHorizons.Mod.Machines.Core.MachineLoad", "Unassembled", 0.005, "MachineLoad.Unassembled"));
 
     // Notes for the game's plain MPConsumer blocks, by id.
     private static readonly Dictionary<string, string> ConsumerNames = new()
