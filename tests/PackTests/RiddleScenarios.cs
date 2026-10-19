@@ -1,4 +1,5 @@
 using Atlas.XUnit;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Riddle;
 using SeraphHorizons.Mod.Riddle.Core;
@@ -59,9 +60,14 @@ public partial class SharedWorldScenarios
         Assert.True(RiddleSystem.Applies(World.Api));
         var rig = RiddleMod.Rig ?? throw new Xunit.Sdk.XunitException("the riddle's rig did not load");
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockRiddle>(W.GetBlock(new AssetLocation($"seraphhorizons:riddle-frame-{side}")));
-        Assert.Equal("Riddle box", new ItemStack(W.GetBlock(BlockRiddle.ItemCode)).GetName());
-        foreach (var code in RiddleParts.MeshCodes)
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:riddle-frame-{side}")));
+        Assert.Equal("Riddle box", new ItemStack(W.GetBlock(new AssetLocation(RiddleFrame))).GetName());
+        // its frame is the shared machine block, its build the shared build's
+        Assert.Same(rig, ((BlockMachine)W.GetBlock(new AssetLocation(RiddleFrame))).Rig);
+        var build = MachinesSystem.Of(World.Api).Build(RiddleSystem.MachineId)!;
+        Assert.Equal(["riddle"], build.Stages.Select(s => s.Id));
+        Assert.Equal(RiddleBuild.MeshCodes, build.Stages.Single().Materials.Single().Codes);
+        foreach (var code in RiddleBuild.MeshCodes)
             Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false }, $"no {code}");
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == RiddleFrame && r.Enabled);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:plank-oak");
@@ -83,7 +89,7 @@ public partial class SharedWorldScenarios
         RiddleClearInventory(player);
         var riddle = await PlaceRiddle(pos, "east");
         Assert.Equal(Side.East, riddle.Side);
-        Assert.Contains("Next part", RiddleInfo(riddle, player));
+        Assert.Contains("Build: stage 1 of 1, the riddle's wire mesh", RiddleInfo(riddle, player));
 
         // no charge on a bare frame, and one nails and strips is too few for the mesh
         Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);

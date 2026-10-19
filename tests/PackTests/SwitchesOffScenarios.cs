@@ -763,7 +763,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.Riddle.RiddleSystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("riddle"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("riddle") == true);
-        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleParts.MeshCodes)
+        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleBuild.MeshCodes)
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)

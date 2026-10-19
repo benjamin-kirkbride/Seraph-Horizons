@@ -3,37 +3,8 @@ using SeraphHorizons.Mod.Machines.Core;
 namespace SeraphHorizons.Mod.Riddle.Core;
 
 /// <summary>
-/// What the riddle's renderer reads of the station, and nothing else: its facing, whether the riddle is
-/// fitted, the charge on it (and the server's W), whether the box holds fines, and whether someone is
-/// riddling. The block entity implements it; the renderer turns it into the rig's inputs through
-/// <see cref="RiddleClock"/>.
-/// </summary>
-public interface IRiddleView
-{
-    Side Side { get; }
-
-    /// <summary>The riddle is on its bearers.</summary>
-    bool RiddleFitted { get; }
-
-    /// <summary>A charge is on the riddle: being riddled, or riddled with its oversize still on the mesh.</summary>
-    bool ChargeOn { get; }
-
-    /// <summary>The server's W: the charge's riddling, synced in steps.</summary>
-    double RiddleWork { get; }
-
-    /// <summary>The box holds fines (from a charge's loading until the player takes them out).</summary>
-    bool BoxHoldsFines { get; }
-
-    /// <summary>Someone is riddling (the server's word, or this client's own player holding right-click).</summary>
-    bool Held { get; }
-
-    /// <summary>Shakes a charge takes, as the server runs.</summary>
-    double ShakesPerCharge { get; }
-}
-
-/// <summary>
-/// The renderer's own clock θ, W, presence and class, from the view each frame (the model's contract,
-/// "Presence"). A charge goes on at p 1 at once and is no longer drawn (k 0) once taken off, since the
+/// The renderer's own clock θ, W, presence and class, from the riddle each frame (the model's contract,
+/// "Presence"; <c>BERiddle.FrameInput</c>). A charge goes on at p 1 at once and is no longer drawn (k 0) once taken off, since the
 /// rig's gauges are right only at p 1. While the riddling runs, θ turns at
 /// <see cref="Riddling.ShakeRadiansPerSecond"/>, and W is predicted at the charge's pace and eased toward
 /// the server's (<see cref="HeldWorkFollower"/>), so the model moves at frame rate; once riddled, W is 1
@@ -77,13 +48,14 @@ public sealed class RiddleClock
     }
 
     /// <summary>Whether a part needing <paramref name="requires"/> is drawn: the frame always, the riddle
-    /// when fitted, the charge while one is on, the fines while the box holds them.</summary>
-    public static bool Shows(IRiddleView view, string? requires) => requires switch
+    /// when fitted, the charge while one is on (<paramref name="chargeOn"/>: being riddled, or riddled with
+    /// its oversize still on the mesh), the fines while the box holds them.</summary>
+    public static bool Shows(string? requires, bool riddleFitted, bool chargeOn, bool boxHoldsFines) => requires switch
     {
         null => true,
-        RiddleRequires.Riddle => view.RiddleFitted,
-        RiddleRequires.Charge => view.ChargeOn && view.RiddleFitted,
-        RiddleRequires.Fines => view.BoxHoldsFines,
+        RiddleRequires.Riddle => riddleFitted,
+        RiddleRequires.Charge => chargeOn && riddleFitted,
+        RiddleRequires.Fines => boxHoldsFines,
         _ => false,
     };
 

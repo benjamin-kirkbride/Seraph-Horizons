@@ -6069,13 +6069,15 @@ and recipe do not exist). How it plays, builds and draws is in `Riddle/README.md
 
 - **Building.** The frame (`seraphhorizons:riddle-frame-{side}`) is a grid recipe of six oak planks, one nails and
   strips of iron, meteoric iron or steel and a hammer; the riddle is fitted on it by right-click with two nails and
-  strips at once (its wire mesh). Breaking returns everything that went in and whatever it holds.
+  strips at once (its wire mesh; the one stage of `config/builds/riddle.json`, on the shared machine base:
+  docs/modeling/machine-base.md). Breaking returns everything that went in and whatever it holds.
 - **Riddling.** A charge is `LumpsPerCharge` (3) unclassified crushed ore of one kind, on in one click; holding
   right-click riddles it, a shake every 0.75 s, `ShakesPerCharge` (12) a charge. At the end `OversizePerCharge` (1)
   stays on the mesh as raw ore of its ore and grade (in its rock, the rock under the station, or granite), back to
   spalling, and the rest falls into the box as the same crushed ore with ore-core's classified flag (`oreState` 1,
   #765). Nothing is lost. An empty hand takes the oversize out, then the fines; the next charge waits until both are
-  out.
+  out. The block info is the shared layout (the build, the state, what it holds; a wrench adds W and the shakes a
+  charge takes).
 - **Recipe browser.** A `riddle` record per crushed ore (power `hand`, `work` in shakes).
 
 Code: `Riddle/Core/`, `Riddle/Game/`. Tests: `tests/Riddle/`; `tests/PackTests/RiddleScenarios.cs`,

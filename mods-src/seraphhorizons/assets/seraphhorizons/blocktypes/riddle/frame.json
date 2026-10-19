@@ -3,9 +3,9 @@
 // north) faces the player who placed it. The server disables it with Riddle or OreProcessing off.
 {
 	code: "riddle",
-	class: "seraphhorizons.Riddle",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.Riddle",
-	// No HorizontalOrientable: BlockRiddle.TryPlaceBlock picks the side so the operator's side faces the
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the operator's side faces the
 	// player, as the other hand stations do.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },
