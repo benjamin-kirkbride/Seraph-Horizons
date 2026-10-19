@@ -1,5 +1,8 @@
 // Roasted concentrate (OreProcessing): a sulfide's concentrate roasted, its sulfur driven off, 5 units
 // of metal each. Smelts whole (set in code). Marked disabled with the switch off.
+// Texture: the ore's nugget texture with crushed hematite multiplied over it, the iron-bearing sulfides'
+// reddish-brown calcine ("*"); galena's lead calcine is screened pale and multiplied by sulfur's yellow, and
+// sphalerite's zinc calcine screened pale grey with bonemeal (keys above "*": first match wins).
 {
 	"code": "roastedconcentrate",
 	"class": "seraphhorizons.ItemOreProduct",
@@ -43,30 +46,38 @@
 		"base": "game:item/resource/crushed/normal"
 	},
 	"textureByType": {
-		"roastedconcentrate-quartz_nativegold*": {
-			"base": "game:item/resource/nugget/nativegold",
-			"blendedOverlays": [
-				{
-					"base": "game:item/resource/crushed/hematite",
-					"blendMode": "Multiply"
-				}
-			]
-		},
-		"roastedconcentrate-quartz_nativesilver*": {
-			"base": "game:item/resource/nugget/nativesilver",
-			"blendedOverlays": [
-				{
-					"base": "game:item/resource/crushed/hematite",
-					"blendMode": "Multiply"
-				}
-			]
-		},
 		"roastedconcentrate-galena_nativesilver*": {
 			"base": "game:item/resource/nugget/nativesilver",
 			"blendedOverlays": [
 				{
-					"base": "game:item/resource/crushed/hematite",
+					"base": "game:item/resource/crushed/lime",
+					"blendMode": "Screen"
+				},
+				{
+					"base": "game:item/resource/crushed/sulfur",
 					"blendMode": "Multiply"
+				}
+			]
+		},
+		"roastedconcentrate-galena": {
+			"base": "game:item/resource/nugget/galena",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/lime",
+					"blendMode": "Screen"
+				},
+				{
+					"base": "game:item/resource/crushed/sulfur",
+					"blendMode": "Multiply"
+				}
+			]
+		},
+		"roastedconcentrate-sphalerite": {
+			"base": "game:item/resource/nugget/sphalerite",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/bonemeal",
+					"blendMode": "Screen"
 				}
 			]
 		},
