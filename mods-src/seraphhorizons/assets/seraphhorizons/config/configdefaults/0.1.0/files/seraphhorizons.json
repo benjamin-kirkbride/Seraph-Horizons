@@ -26,6 +26,7 @@
   "PanningDropsTrimmed": true,
   "GearboxSourceRatio": true,
   "ScrewPortOutput": true,
+  "ChutesNoBacktrack": true,
   "LargerTunRack": true,
   "BarrelRackKegs": true,
   "HeatingRackKeepsPosition": true,

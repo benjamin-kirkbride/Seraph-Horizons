@@ -990,6 +990,20 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(Harmony.GetPatchInfo(ScrewPortOutput.MoveItem)?.Prefixes.Any(p => p.owner == SeraphHorizonsSystem.HarmonyId) == true);
     }
 
+    /// <summary><c>ChutesNoBacktrack</c>: the item flow's <c>TryPushInto</c> and <c>TrySpitOut</c> are
+    /// not patched, so a chute can send an item back the way it came, as the game ships it.</summary>
+    [AtlasScenario]
+    public void Chutes_no_backtrack_off_item_flow_is_the_games()
+    {
+        Assert.True(Off("ChutesNoBacktrack"));
+        Assert.False(ChutesNoBacktrack.Enabled);
+        foreach (var method in new[] { ChutesNoBacktrack.TryPushInto, ChutesNoBacktrack.TrySpitOut })
+        {
+            Assert.NotNull(method);
+            Assert.False(Harmony.GetPatchInfo(method)?.Prefixes.Any(p => p.owner == SeraphHorizonsSystem.HarmonyId) == true);
+        }
+    }
+
     /// <summary><c>GearConsumers</c>: every recipe takes the gears its mod ships it with, ppex still
     /// smiths and shows its gears, and smex's converter is not patched.</summary>
     [AtlasScenario]

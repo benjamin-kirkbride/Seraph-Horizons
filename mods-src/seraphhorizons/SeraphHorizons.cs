@@ -183,6 +183,8 @@ public class SeraphHorizonsSystem : ModSystem
             GearboxSourceRatio.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         if (Config(api).ScrewPortOutput)
             ScrewPortOutput.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
+        if (Config(api).ChutesNoBacktrack)
+            ChutesNoBacktrack.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         if (_tunRack)
             TunRackCapacity.Patch(_harmony ??= new Harmony(HarmonyId));
         if (_debarkedTrunks)
@@ -309,6 +311,7 @@ public class SeraphHorizonsSystem : ModSystem
         FellingWear.Unbind();
         RailVehicleSpeed.Unbind();
         RuinSurfaceMedian.Unbind();
+        ChutesNoBacktrack.Unbind();
         if (ClearSky != null)
         {
             ClearSky.Dispose();
@@ -507,6 +510,12 @@ public class SeraphHorizonsConfig
     /// (server side; off means the top screw of a stack throws its items out of its top into air,
     /// and capped by a block sends only about half through its port at speed).</summary>
     public bool ScrewPortOutput { get; set; } = true;
+
+    /// <summary>The game's chutes and Archimedes screws never push or throw an item out of the face it
+    /// came in by: a blocked item waits (server side; off means an elbow in front of a full machine
+    /// pushes its item back, a two-way chute sends it either way, and an item that bounces until its
+    /// three sideways moves are spent can wedge a line for good, #1348).</summary>
+    public bool ChutesNoBacktrack { get; set; } = true;
 
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>
