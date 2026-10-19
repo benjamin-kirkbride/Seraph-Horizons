@@ -111,7 +111,8 @@ Then decide, and check against each other:
 - **Footprint:** which cells, and which cell is the controller. Make the controller the block the
   player clicks: the sawmill's is the middle of the near end.
 - **Orientation at placement:** which way the machine extends from the player
-  (`Footprint.PlacedFacing`; `BlockBuckingMill.TryPlaceBlock` sets the variant itself). Note that
+  (`Footprint.PlacedFacing`; the shared `BlockMachine.TryPlaceBlock` sets the variant itself for a frame placed
+  lengthwise, `attributes.machine.lengthwise`). Note that
   `Block.SuggestedHVOrientation` returns the direction the player is looking, not the direction
   back toward them.
 - **Material in and out:** the sawmill takes trunks in at one end and drops logs at the other.
@@ -315,13 +316,14 @@ two halves agree where the direction changes, so nothing jumps. `gauge` stands f
 weight, and `roll` for rolling contact, so neither needs information no part could carry; the
 rosser needed them because its parts move with where the trunk is, which no shaft angle says.
 
-**The contract with gameplay.** The block entity implements a small read-only interface
-(`IMillVisualState`): facing, fitted parts, blade metal, trunk, phase, client-side progress and
-depth, direction, shaft angle and speed. The renderer polls it and nothing else. A part's
+**The contract with gameplay.** The renderer reads a small read-only part of the block entity: facing, the
+parts it shows (`BEMachine.ShowsPart`), blade metal, trunk, phase, client-side progress and
+depth, direction, shaft angle and speed. It polls that and nothing else. A part's
 `requires` (`crankshaft`, `levers`, `sash1`, ...) hides it until that item is fitted. Gameplay
 reads only the rig's anchors, never element names. This contract let the model and the gameplay
-be rebuilt separately many times. The rosser's is `IRosserVisualState` (fitted parts, heads' metal,
-trunk and class, client-side travel, state, running, wet, shaft angle and speed).
+be rebuilt separately many times. The rosser's renderer reads the same of `BERosser` (the parts it shows, heads'
+metal, trunk and class, client-side travel, trip state, running, wet, shaft angle and speed). Both machines now
+sit on the shared machine base (`machine-base.md`), each keeping its own renderer for its trunk.
 
 **Keeping the implementations in step.** The driver maths exists three times:
 - the Python reference, `Machines/tools/machinegen/rigmath.py`;
