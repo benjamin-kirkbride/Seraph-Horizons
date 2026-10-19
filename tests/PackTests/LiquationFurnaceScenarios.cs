@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // shared ore machine fire, its damper and fire door worked from the back, sweated under a chimney (aged rather than
 // waited on), its tin and lead taken out, then capped and broken back into everything that went in. Built on granite
 // floors 40 above spawn at x 780, z -780; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string LiquationFrame = "seraphhorizons:liquationfurnace-";
     private const string TealliteBar = "seraphhorizons:bullion-teallite-tin";

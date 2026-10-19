@@ -22,7 +22,7 @@ namespace SeraphHorizons.PackTests;
 // its roasted concentrate and native sulfur's powder pushed into a chest at its output face; the damper shut stops it,
 // the coal running short puts the fire out, a furnace back to back with it shares the chimney once capped; broken, every
 // item back. Built on granite floors 40 above spawn at x 780, z 700; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string ReverbFrame = "seraphhorizons:reverberatory-";
 
