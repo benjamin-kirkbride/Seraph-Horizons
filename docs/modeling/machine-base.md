@@ -92,13 +92,15 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 |---|---|
 | Take power | Give the rig a `power` anchor. `ShaftLoad` (the built load before oil), `ConfigMinSpeed` (else 0.05), and `Work(radians)` for the shaft's advance while `Working`. `LoadsShaft` when the token 0.005 lasts past the build (the bench's: until the die is in). |
 | Take oil | `OilKind => OilMachine.X` (add `X` to `OilMachine` and a property `X` to `MachineOilConfig` with its defaults: that is all the settings need), `DryEffect` (`Load`, the default, multiplies the load while dry; `Wear` leaves it and the machine wears its cutter by `OilFill`, the gear cutter's and cylinder borer's rule), `DrainOil(jobs)` at each finished job, `SmokePoint`. The base does the rest through its `MachineOiling` (below). |
-| Be worked by hand | `HandWorked => true`, `HoldTimeoutMs` if not 600 (the rocker's 400), `StartHold(byPlayer)` from `InteractWork` on a work click, `HasWork`, and `WorkUnpowered(dt)` while held. The base forwards the steps and the stop, keeps the holds, syncs `Held`, and gives the state `Unworked` ("hold right mouse") while work is on and no one holds. |
+| Be worked by hand | `HandWorked => true`, `HoldTimeoutMs` if not 600 (the rocker's 400), `StartHold(byPlayer)` from `InteractWork` on a work click, `HasWork`, and `WorkUnpowered(dt)` while held. The base forwards the steps and the stop, keeps the holds, syncs `Held`, and gives the state `Unworked` ("hold right mouse") while work is on and no one holds. A hand machine with a `power` anchor too (the amalgam pan) is worked by its shaft while that turns (`Work`) and by hand while it does not (`WorkUnpowered`): it is never `NoPower`. Override `OnInteractStep` to end a step the machine's own way (the mandrel station's with no rod on, so a hammer's held click stays clicks; the rocker's without water), calling the base to hold. |
 | Hold water | `WaterPerItem`, `ReservoirCapacity`, `WaterIntakePerSecond`, a `water` anchor on the rig; `SpendWater` per item. |
 | Hold items | `NewInventory()` (the base's is empty), `CellTakes` for a chute into a cell. |
 | Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`. |
 | Take its work | `InteractContent` (before the build: take the work back, a bucket), `InteractWork` (after it: load the work, start a hold). Return whether the click was the machine's; act on the server. `CreativeShortcut(player)` tells a creative Ctrl from the machine's own Ctrl. |
 | Say when it is whole | `Complete` (the name), `CreativeFills` (the creative shortcut), `LoadsShaft`: each `Built` by default; `Ready` (built and every wearing part in) for a machine that stops without its wearing part. |
-| Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
+| Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`; `PartGlow` for a part drawn hot (the mandrel station's rod, by its temperature). Particles go in `FrameInput`, sounds in `OnClientTick`. |
+| Be placed whole | Override `BuildSpec` with a build of no stages (`new MachineBuild(id, null, FeedMode.Continuous, [], [])`: the rocker); a build file may not be empty. |
+| Stand on the ground | `attributes.machine.needsSolidGround: true` on the block type: placed only on a solid top, broken when it goes (the rocker). |
 | Save | `ToTreeAttributes`/`FromTreeAttributes` for the work only, calling the base: the build, wearing parts, state, oil, water and holds are the base's. |
 | Help | `WorkHelp` for the built machine's lines; the build's, the renewal's and the creative shortcut's are the base's. |
 
@@ -188,6 +190,17 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
   subclass (`Machines.Tailings.Discard` stopped compiling).
 - **`new` on `Rig`.** A subclass that wants its own rig type hides the base's: `private new DrawBenchRig? Rig =>
   base.Rig as DrawBenchRig;`.
+- **`State` is the base's.** A machine's own state object named `State` hides `BEMachine.State` (the rocker's
+  is `Washing`).
+- **A one-cell machine is a container.** `BEMachine` is a `BlockEntityContainer`; with the default inventory of no
+  slots, no hopper or chute reaches it, which keeps the hand stations' "no automated input or output" rule. A test
+  asserting `is not IBlockEntityContainer` asserts an empty inventory instead.
+- **A part held on a built machine.** The base checks the build before `InteractWork`: on a built machine a
+  stage's material is "already fitted" (the shared message), where some old machines let it be the item's own
+  business. A machine whose work takes a stage's material (the mandrel station's steel rod) catches it in
+  `InteractContent`.
+- **Hand holds are shared.** `HandHolds` keeps several players; a machine that works with one player's item (the
+  rocker's bucket) keeps that player's id from its own step (`OnInteractStep`) and the click.
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 
