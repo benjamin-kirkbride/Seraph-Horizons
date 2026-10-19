@@ -1,6 +1,7 @@
 using Atlas.XUnit;
 using SeraphHorizons.Mod.CrucibleFurnace;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -153,13 +154,13 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
     }
 
     /// <summary>The frame placed at <paramref name="pos"/> facing <paramref name="side"/> (the furnace
-    /// extending that way from it), with its ghosts.</summary>
+    /// extending that way from it), with its cells.</summary>
     private async Task<BECrucibleFurnace> Place(BlockPos pos, string side = "south")
     {
         World.SetBlock($"seraphhorizons:cruciblefurnace-frame-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BECrucibleFurnace ?? throw new Xunit.Sdk.XunitException($"no crucible furnace at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
 
@@ -239,8 +240,11 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.NotNull(Mod.Rig);
         Assert.NotNull(Mod.Lid);
         foreach (var side in Sides.All)
-            Assert.IsType<BlockCrucibleFurnace>(W.GetBlock(new AssetLocation($"seraphhorizons:cruciblefurnace-frame-{side.Code()}")));
-        Assert.IsType<BlockCrucibleFurnaceGhost>(W.GetBlock(new AssetLocation("seraphhorizons:cruciblefurnace-ghost")));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:cruciblefurnace-frame-{side.Code()}")));
+        // on the shared machine base: its build file, its rig registered, no ghost block of its own
+        Assert.NotNull(MachinesSystem.Of(World.Api).Build(CrucibleFurnaceSystem.MachineId));
+        Assert.Same(Mod.Rig, MachinesSystem.Of(World.Api).RegisteredRig(CrucibleFurnaceSystem.MachineId, out _));
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:cruciblefurnace-ghost")) is null or { Id: 0 });
         foreach (var code in new[] { "seraphhorizons:meltingpot-raw", CrucibleFurnaceSystem.FiredPot, CrucibleFurnaceSystem.SmeltedPot })
             Assert.True(W.GetBlock(new AssetLocation(code)) is { Id: > 0 }, $"no {code}");
         // the old melting holes are gone, with their recipe
@@ -268,18 +272,18 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal("Making stainless steel", Lang.GetL("en", CrucibleFurnaceSystem.GuideTitleKey));
         Assert.NotNull(World.Api.Assets.TryGet(new AssetLocation("seraphhorizons:config/handbook/cruciblefurnace.json")));
         Assert.DoesNotContain("meltinghole", Lang.GetL("en", "seraphhorizons:cruciblefurnace-text"));
-        Assert.Equal("Crucible furnace frame", new ItemStack(W.GetBlock(BlockCrucibleFurnace.ItemCode)).GetName());
+        Assert.Equal("Crucible furnace frame", new ItemStack(W.GetBlock(new AssetLocation(CrucibleFurnaceSystem.FrameCode))).GetName());
         // no multiblock structure for the recipe browser: the furnace is a model now
-        Assert.Null(W.GetBlock(BlockCrucibleFurnace.ItemCode).Attributes?["multiblockStructure"]?.Exists == true ? "" : null);
+        Assert.Null(W.GetBlock(new AssetLocation(CrucibleFurnaceSystem.FrameCode)).Attributes?["multiblockStructure"]?.Exists == true ? "" : null);
     }
 
     // ---- Placing ----
 
-    // On all four facings: room for every cell, a ghost stamped in each of the 23, the furnace running
+    // On all four facings: room for every cell, a cell stamped in each of the 23, the furnace running
     // away along the facing from the controller, the outlet in the back row's middle; broken through a
-    // ghost, every cell is cleared and the frame drops.
+    // cell, every cell is cleared and the frame drops.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task The_frame_places_on_all_four_facings_with_ghosts()
+    public async Task The_frame_places_on_all_four_facings_with_its_cells()
     {
         var site = await Build("framer", 0, furnaces: 6);
         int i = 0;
@@ -288,10 +292,10 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
             var pos = site.Origin.AddCopy(5 * i++, 0, 0);
             var f = await Place(pos, side.Code());
             Assert.Equal(side, f.Side);
-            var cells = f.GhostCells().ToList();
+            var cells = f.CellBlocks().Select(c => c.Pos).ToList();
             Assert.Equal(23, cells.Count);
             foreach (var cell in cells)
-                Assert.Equal(pos, Assert.IsType<BECrucibleFurnaceGhost>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
+                Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
             var n = side.Normal();
             Assert.Equal(pos.AddCopy(n.X * 2, 1, n.Z * 2), f.CellPos(Rig.OutletCell));
             // before the brickwork, the top cells can be clicked but not walked into; the hollow ones have no box
@@ -315,29 +319,30 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
     // ---- Building ----
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task The_stages_go_in_a_stack_a_click_in_order_of_one_brick()
+    public async Task The_stages_go_in_order_of_one_brick()
     {
         var site = await Build("bricklayer", 40);
         var f = await Place(site.Origin, "east");
-        Assert.Contains("Next, the brickwork: 25 fired bricks of one colour", site.Info(f));
+        Assert.Contains("Build: stage 1 of 3, brickwork", site.Info(f));
+        Assert.Contains("Still takes: 25 × ", site.Info(f));
         // a later stage's material is refused and stays in hand
         Assert.Equal(9, site.Click(f, HolePoint, null, site.Stack("game:refractorybrick-fired-tier3", 9))?.StackSize);
         Assert.True(site.Handled);
         // no pot before the furnace is built
         Assert.Equal(1, site.Click(f, PotPoint(0), null, site.Stack(CrucibleFurnaceSystem.FiredPot))?.StackSize);
-        // a stack a click, as many as the stage still needs
-        Assert.Null(site.Click(f, HolePoint, null, site.Stack("game:burnedbrick-black", 16)));
+        // fewer than the stage needs and not a full stack: refused, kept (the shared build's rule)
+        Assert.Equal(16, site.Click(f, HolePoint, null, site.Stack("game:burnedbrick-black", 16))?.StackSize);
+        Assert.Null(f.BrickType);
+        // as many of a stack as the stage still needs
+        Assert.Equal(39, site.Click(f, AshPoint, Side.North, site.Stack("game:burnedbrick-black", 64))?.StackSize);
         Assert.Equal("black", f.BrickType);
-        Assert.Contains("Next, the brickwork: 9 ", site.Info(f));
         Assert.Contains("Brick: black brick", site.Info(f));
-        // a second type is refused
-        Assert.Equal(16, site.Click(f, AshPoint, Side.North, site.Stack("game:burnedbrick-red", 16))?.StackSize);
-        Assert.Equal(55, site.Click(f, AshPoint, Side.North, site.Stack("game:burnedbrick-black", 64))?.StackSize);
-        Assert.True(f.Build!.Has(FurnaceRequires.Brickwork));
+        Assert.True(f.Assembly!.Build.Fitted(FurnaceRequires.Brickwork));
         // collision now the brickwork's, with the decks on the top cells
         var top = f.CellPos(new Int3(1, 1, 1));
         Assert.True(W.BlockAccessor.GetBlock(top).GetCollisionBoxes(W.BlockAccessor, top).Length >= 2);
-        Assert.Contains("Next, the lining: 9 ", site.Info(f));
+        Assert.Contains("Build: stage 2 of 3, lining", site.Info(f));
+        Assert.Contains("Still takes: 9 × ", site.Info(f));
         Assert.Null(site.Click(f, OutletPoint, null, site.Stack("game:clay-fire", 4)));
         Assert.Equal(11, site.Click(f, OutletPoint, null, site.Stack("game:refractorybrick-fired-tier3", 20))?.StackSize);
         Assert.True(f.LiningIn);
@@ -369,8 +374,8 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Null(site.Click(f, OutletPoint, null, site.Stack("game:metalplate-iron")));
         Assert.True(f.Capped);
         KillItems(site.Origin);
-        var ghost = f.CellPos(new Int3(-1, 0, 2));
-        W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, site.Player);
+        var cell = f.CellPos(new Int3(-1, 0, 2));
+        W.BlockAccessor.GetBlock(cell).OnBlockBroken(W, cell, site.Player);
         await World.Ticks(3);
         var drops = ItemsNear(site.Origin);
         Assert.Equal(1, drops.GetValueOrDefault(CrucibleFurnaceSystem.FrameCode));
@@ -394,7 +399,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         }
         Assert.Equal(3, stages);
         Assert.Equal("red", f.BrickType);
-        Assert.Equal(new[] { 25, 9, 4, 4, 2 }, f.Build!.Returns().Select(d => d.Count));
+        Assert.Equal(new[] { 25, 13, 4, 2 }, f.Assembly!.Returns().Select(d => d.Count));
     }
 
     // ---- The chimney, the damper and the lid ----

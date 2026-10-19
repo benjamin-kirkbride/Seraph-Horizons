@@ -30,7 +30,7 @@ namespace SeraphHorizons.Mod.ParkesKettle;
 /// <para>Its state is in its own fields, not the inventory (which stays empty): breaking it gives back what is in
 /// it.</para>
 /// </summary>
-public class BEParkesKettle : BEOreMachine
+public class BEParkesKettle : BEFiredOreMachine
 {
     private static readonly AssetLocation SplashSound = new("game", "sounds/effect/water-fill");
     private static readonly AssetLocation CoalSound = new("game", "sounds/block/charcoal");
@@ -39,14 +39,13 @@ public class BEParkesKettle : BEOreMachine
     private double _lead;
     private int _zinc;
     private double _coal;
-    private bool _lit, _capped, _done, _skimmed;
+    private bool _lit, _done, _skimmed;
     private Damper _damper;
     private double _progress;
     private int _rich, _leadOut, _zincBack;
     private double _silverCarry, _zincCarry;
     private double _lastHours = double.NaN;
     private double _syncedProgress;
-    private FurnaceRow _row = new(0, 1, null, 0, null, RowProblem.NoChimney);
 
     public override OreMachine? Kind => OreMachine.ParkesKettle;
 
@@ -63,6 +62,8 @@ public class BEParkesKettle : BEOreMachine
     private ParkesKettleSystem Kettle => ParkesKettleSystem.Of(Api);
     private ParkesKettleConfig KettleConfig => Kettle.Config;
     public ParkesKettleRig? KettleRig => Api == null ? null : Kettle.Rig;
+    protected override FiredRig? FiredRig => KettleRig;
+    protected override bool RowInOwnTick => true;
 
     /// <summary>The bullion's ore (<c>galena</c>), while lead is in.</summary>
     public string? Ore => _ore;
@@ -70,8 +71,7 @@ public class BEParkesKettle : BEOreMachine
     public double LeadUnits => _lead;
     public int ZincBits => _zinc;
     public double Coal => _coal;
-    public bool Lit => _lit;
-    public bool Capped => _capped;
+    public override bool Lit => _lit;
     public Damper Damper => _damper;
     /// <summary>Shaft turns of the charge worked (heat-weighted).</summary>
     public double Progress => _progress;
@@ -79,7 +79,6 @@ public class BEParkesKettle : BEOreMachine
     public int LeadOut => _leadOut;
     public int ZincBack => _zincBack;
     public bool Skimmed => _skimmed;
-    public FurnaceRow Row => _row;
 
     /// <summary>The units a full charge holds (ore-processing.json <c>machines.parkeskettle.charge</c>).</summary>
     public double ChargeUnits => Spec?.ChargeItems ?? KettleRig?.ChargeUnits ?? 0;
@@ -91,7 +90,7 @@ public class BEParkesKettle : BEOreMachine
     public KettlePhase Phase => ParkesKettling.PhaseOf(_lead, _zinc, _done, KettleConfig);
 
     /// <summary>The share of its heat the fire gives the bath now.</summary>
-    public double Heat => ParkesKettling.Heat(_lit, _row.Works, _damper, KettleConfig);
+    public double Heat => ParkesKettling.Heat(_lit, Row.Works, _damper, KettleConfig);
 
     /// <summary>Shaft turns this charge takes.</summary>
     public double TurnsNeeded => ParkesKettling.TurnsFor(_lead, ChargeUnits, Spec?.TurnsPerCharge ?? 0);
@@ -102,10 +101,6 @@ public class BEParkesKettle : BEOreMachine
 
     /// <summary>Units in the bath: the charge's, or once done the lead still to ladle out and the crust's.</summary>
     public double BathUnits => _done ? (_leadOut + (_skimmed ? 0 : _rich)) * Bullion.UnitsPerItem : _lead;
-
-    /// <summary>The fired brick type of its brickwork (<c>red</c>), once the first is in.</summary>
-    public string? BrickType =>
-        Assembly?.Build.CodeIn(0, 0) is { } code && KettleRig is { } rig ? rig.Bricks.TypeOf(code) : null;
 
     public override bool HasWork => Phase == KettlePhase.Stirring && Heat > 0;
 
@@ -121,36 +116,6 @@ public class BEParkesKettle : BEOreMachine
 
     // ---- The row and its chimney ----
 
-    /// <summary>The chimney standing on the outlet, counted as the crucible furnace counts its own.</summary>
-    public ChimneyColumn ChimneyOnOutlet()
-    {
-        if (KettleRig is not { } rig)
-            return default;
-        var ba = Api.World.BlockAccessor;
-        var pos = CellPos(rig.ChimneyBase);
-        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), CrucibleFurnaceSystem.Of(Api).Config);
-    }
-
-    /// <summary>The kettle at offset <paramref name="k"/> along its row (built, facing the same way), or null.</summary>
-    private BEParkesKettle? Neighbour(int k)
-    {
-        if (KettleRig is not { } rig)
-            return null;
-        var w = Footprint.ToWorld(new Int3(k * rig.Width, 0, 0), Side);
-        return Api.World.BlockAccessor.GetBlockEntity(Pos.AddCopy(w.X, w.Y, w.Z)) is BEParkesKettle { Built: true } s && s.Side == Side ? s : null;
-    }
-
-    /// <summary>Its row: kettles side by side along their width, one chimney on any outlet, the others capped.</summary>
-    public FurnaceRow FindRow()
-    {
-        if (KettleRig is not { } rig || !Built)
-            return new FurnaceRow(0, 1, null, 0, null, RowProblem.NoChimney);
-        RowMember? At(int k) => k == 0
-            ? new RowMember(_capped, ChimneyOnOutlet())
-            : Neighbour(k) is { } other ? new RowMember(other.Capped, other.ChimneyOnOutlet()) : null;
-        return FurnaceRow.Find(At, rig.RowMax, rig.MinChimney);
-    }
-
     // ---- The fire ----
 
     private void OnFireTick(float dt)
@@ -158,19 +123,14 @@ public class BEParkesKettle : BEOreMachine
         if (!Built)
             return;
         bool dirty = false;
-        var row = FindRow();
-        if (row != _row)
-        {
-            _row = row;
-            dirty = true;
-        }
+        dirty |= RefreshRow();
         double now = Api.World.Calendar.TotalHours;
         double hours = double.IsNaN(_lastHours) ? 0 : now - _lastHours;
         _lastHours = now;
         if (_lit)
         {
             int layers = Layers;
-            var (coal, burntOut) = ParkesKettling.Burn(_coal, hours, CoalPerHour, ParkesKettling.BurnShare(_row.Works, _damper, KettleConfig));
+            var (coal, burntOut) = ParkesKettling.Burn(_coal, hours, CoalPerHour, ParkesKettling.BurnShare(Row.Works, _damper, KettleConfig));
             _coal = coal;
             if (burntOut)
             {
@@ -189,30 +149,16 @@ public class BEParkesKettle : BEOreMachine
     /// <summary>Ages a burning fire by <paramref name="hours"/>, as if they had passed (tests).</summary>
     public void Age(double hours) => _lastHours = (double.IsNaN(_lastHours) ? Api.World.Calendar.TotalHours : _lastHours) - hours;
 
-    public override bool Ignitable => Built;
-
-    public override bool Burning => _lit;
-
     public override string? CannotIgnite() =>
         !Built ? Lang.Get("seraphhorizons:parkeskettle-error-notbuilt")
         : ParkesKettling.CannotLight(_lit, _coal) is var r and not KettleRefusal.None ? RefusalText(r)
         : null;
 
-    public override void Ignite(IPlayer? byPlayer)
+    protected override void Light(IPlayer? byPlayer)
     {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        if (CannotIgnite() is { } why)
-        {
-            if (byPlayer is IServerPlayer sp)
-                sp.SendIngameError("parkeskettle", why);
-            return;
-        }
         _lit = true;
         _lastHours = Api.World.Calendar.TotalHours;
-        _row = FindRow();
         Api.World.PlaySoundAt(new AssetLocation("game", "sounds/torch-ignite"), Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, byPlayer, true, 16, 0.6f);
-        MarkDirty(true);
     }
 
     // ---- The stirring ----
@@ -277,9 +223,6 @@ public class BEParkesKettle : BEOreMachine
         return true;
     }
 
-    private bool IsOutletTop(BlockSelection sel) =>
-        KettleRig is { } rig && sel.Face == BlockFacing.UP && sel.Position.Equals(CellPos(rig.OutletCell));
-
     /// <summary>The ore of a bullion bar, or null for anything else.</summary>
     private static string? BullionOre(ItemStack stack) =>
         stack.Collectible.Code is { } code && code.ToString() != Bullion.RichLeadCode ? Bullion.OreOf(code.ToString()) : null;
@@ -309,14 +252,9 @@ public class BEParkesKettle : BEOreMachine
                 }
                 return true;
             }
-            if (_capped && IsOutletTop(blockSel))
+            if (Capped && IsOutletTop(blockSel))
             {
-                if (server && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-                {
-                    _capped = false;
-                    Give(byPlayer, new ItemStack(plate, rig.CapCount));
-                    MarkDirty(true);
-                }
+                Uncap(byPlayer);
                 return true;
             }
             if (Phase != KettlePhase.Done)
@@ -327,20 +265,8 @@ public class BEParkesKettle : BEOreMachine
         }
 
         string code = stack.Collectible.Code.ToString();
-        if (!_capped && code == rig.CapCode && IsOutletTop(blockSel))
-        {
-            if (stack.StackSize < rig.CapCount)
-                return false;
-            if (server)
-            {
-                slot!.TakeOut(rig.CapCount);
-                slot.MarkDirty();
-                _capped = true;
-                Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/anvil1"), Pos, -0.25, byPlayer);
-                MarkDirty(true);
-            }
-            return true;
-        }
+        if (!Capped && code == rig.CapCode && IsOutletTop(blockSel))
+            return Cap(byPlayer, slot!);
         if (ParkesKettling.IsFuel(code))
         {
             var (take, why) = ParkesKettling.AddFuel(_coal, stack.StackSize, rig.Grate);
@@ -434,7 +360,8 @@ public class BEParkesKettle : BEOreMachine
         MarkDirty(true);
     }
 
-    private void Give(IPlayer byPlayer, ItemStack? stack)
+    // over the kettle's rim: it stands two blocks tall
+    protected override void Give(IPlayer byPlayer, ItemStack? stack)
     {
         if (stack == null || stack.StackSize <= 0)
             return;
@@ -458,7 +385,7 @@ public class BEParkesKettle : BEOreMachine
             help.Add(new WorldInteraction
             {
                 ActionLangCode = Key("light"), MouseButton = EnumMouseButton.Right,
-                Itemstacks = ObjectCacheUtil.GetOrCreate(world.Api, "parkeskettle-ignitestacks", () => BlockBehaviorCanIgnite.CanIgniteStacks(world.Api, true).ToArray()),
+                Itemstacks = FurnaceFiring.IgniteStacks(world.Api),
             });
         switch (Phase)
         {
@@ -473,7 +400,7 @@ public class BEParkesKettle : BEOreMachine
                 break;
         }
         help.Add(new WorldInteraction { ActionLangCode = Key("damper"), MouseButton = EnumMouseButton.Right, HotKeyCode = "shift" });
-        help.Add(_capped
+        help.Add(Capped
             ? new WorldInteraction { ActionLangCode = Key("uncap"), MouseButton = EnumMouseButton.Right }
             : new WorldInteraction { ActionLangCode = Key("cap"), MouseButton = EnumMouseButton.Right, Itemstacks = Of(rig.CapCode) });
         return help.ToArray();
@@ -491,7 +418,7 @@ public class BEParkesKettle : BEOreMachine
         if (requires is null or KettleRequires.Brickwork or KettleRequires.Lining or KettleRequires.Kettle or KettleRequires.Stirrer)
             return base.ShowsPart(requires);
         if (requires == KettleRequires.OutletCap)
-            return _capped;
+            return Capped;
         if (KettleRig is not { } rig || !base.ShowsPart(KettleRequires.Kettle))
             return false;
         bool secondHalf = Phase == KettlePhase.Stirring && _progress >= TurnsNeeded / 2;
@@ -515,30 +442,6 @@ public class BEParkesKettle : BEOreMachine
     private static int Index(string requires, string prefix) =>
         int.TryParse(requires.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : int.MaxValue;
 
-    public override string TextureKey => BrickType ?? "";
-
-    /// <summary>The block's textures, the brickwork's <c>brick</c> code in the setting's brick type: its base with its
-    /// overlays, composed into the block atlas as the crucible furnace's are.</summary>
-    public override ITexPositionSource PartTextures(ICoreClientAPI capi)
-    {
-        var inner = capi.Tesselator.GetTextureSource(Block);
-        if (KettleRig is not { } rig || (rig.Bricks.Get(BrickType) ?? rig.Bricks.Get(rig.Bricks.Default)) is not { } brick)
-            return inner;
-        var composite = new CompositeTexture(new AssetLocation(brick.Base))
-        {
-            BlendedOverlays = brick.Overlays.Select(o => new BlendedOverlayTexture { Base = new AssetLocation(o) }).ToArray(),
-        };
-        return capi.BlockTextureAtlas.GetOrInsertTexture(composite, out _, out var pos) && pos != null
-            ? new CodeTextureSource(inner, rig.Bricks.TextureCode, pos)
-            : inner;
-    }
-
-    private sealed class CodeTextureSource(ITexPositionSource inner, string code, TextureAtlasPosition pos) : ITexPositionSource
-    {
-        public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] => textureCode == code ? pos : inner[textureCode]!;
-    }
-
     // ---- Breaking ----
 
     /// <summary>The frame and every stage's items, the cap, and what is in it: the silver-lead and zinc of a charge
@@ -554,7 +457,6 @@ public class BEParkesKettle : BEOreMachine
             n > 0 && world.GetItem(new AssetLocation(code)) is { Id: > 0 } item ? new ItemStack(item, n) : null;
         var drops = new[]
         {
-            _capped ? Of(rig.CapCode, rig.CapCount) : null,
             _ore != null ? Of(Bullion.Code(OreProcessingSystem.RecoveryFor(Api).Ore(_ore)), (int)Math.Floor(_lead / Bullion.UnitsPerItem + 1e-9)) : null,
             Of(ParkesKettling.ZincBit, _zinc + _zincBack),
             Of(ParkesKettling.Fuels[0], (int)Math.Floor(_coal + 1e-9)),
@@ -579,7 +481,6 @@ public class BEParkesKettle : BEOreMachine
         tree.SetInt("zinc", _zinc);
         tree.SetDouble("coal", _coal);
         tree.SetBool("lit", _lit);
-        tree.SetBool("capped", _capped);
         tree.SetBool("done", _done);
         tree.SetBool("skimmed", _skimmed);
         tree.SetInt("damper", (int)_damper);
@@ -590,12 +491,6 @@ public class BEParkesKettle : BEOreMachine
         tree.SetDouble("silverCarry", _silverCarry);
         tree.SetDouble("zincCarry", _zincCarry);
         tree.SetDouble("lastHours", _lastHours);
-        tree.SetInt("rowFirst", _row.First);
-        tree.SetInt("rowCount", _row.Count);
-        tree.SetInt("rowChimneyAt", _row.ChimneyAt ?? int.MinValue);
-        tree.SetInt("rowChimneyHeight", _row.ChimneyHeight);
-        tree.SetInt("rowOpenOutlet", _row.OpenOutlet ?? int.MinValue);
-        tree.SetInt("rowProblem", (int)_row.Problem);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
@@ -606,7 +501,6 @@ public class BEParkesKettle : BEOreMachine
         _zinc = Math.Max(0, tree.GetInt("zinc"));
         _coal = Math.Max(0, tree.GetDouble("coal"));
         _lit = tree.GetBool("lit");
-        _capped = tree.GetBool("capped");
         _done = tree.GetBool("done");
         _skimmed = tree.GetBool("skimmed");
         _damper = (Damper)Math.Clamp(tree.GetInt("damper"), 0, 2);
@@ -617,9 +511,6 @@ public class BEParkesKettle : BEOreMachine
         _silverCarry = Math.Max(0, tree.GetDouble("silverCarry"));
         _zincCarry = Math.Max(0, tree.GetDouble("zincCarry"));
         _lastHours = tree.GetDouble("lastHours", double.NaN);
-        int? Opt(string key) => tree.GetInt(key, int.MinValue) is var v && v != int.MinValue ? v : null;
-        _row = new FurnaceRow(tree.GetInt("rowFirst"), Math.Max(1, tree.GetInt("rowCount", 1)), Opt("rowChimneyAt"),
-            tree.GetInt("rowChimneyHeight"), Opt("rowOpenOutlet"), (RowProblem)tree.GetInt("rowProblem", (int)RowProblem.NoChimney));
     }
 
     // ---- Info ----
@@ -646,7 +537,7 @@ public class BEParkesKettle : BEOreMachine
                 double needed = TurnsNeeded;
                 dsc.AppendLine(L("stirring", N(_lead), (int)Math.Floor(100 * (needed > 0 ? _progress / needed : 1))));
                 if (Heat <= 0)
-                    dsc.AppendLine(L(!_lit ? "cold" : !_row.Works ? "nodraught" : "banked"));
+                    dsc.AppendLine(L(!_lit ? "cold" : !Row.Works ? "nodraught" : "banked"));
                 else if (Heat < 1)
                     dsc.AppendLine(L("halfheat", (int)Math.Round(100 * Heat)));
                 break;
@@ -654,15 +545,6 @@ public class BEParkesKettle : BEOreMachine
                 dsc.AppendLine(_skimmed ? L("ladle", _leadOut) : L("done", _rich, _zincBack, _leadOut));
                 break;
         }
-        dsc.AppendLine(_row.Problem switch
-        {
-            RowProblem.None => L("row", _row.Count, _row.ChimneyHeight),
-            RowProblem.TooManyFurnaces => L("row-toomany", rig.RowMax),
-            RowProblem.OutletOpen => L("row-open"),
-            RowProblem.ChimneyTooShort => L("row-short", _row.ChimneyHeight, rig.MinChimney),
-            RowProblem.NoChimneyTop => L("row-notop"),
-            RowProblem.ChimneyTopBuried => L("row-buried"),
-            _ => L(_capped && _row.Count == 1 ? "row-capped" : "row-none", rig.MinChimney),
-        });
+        dsc.AppendLine(RowLine());
     }
 }
