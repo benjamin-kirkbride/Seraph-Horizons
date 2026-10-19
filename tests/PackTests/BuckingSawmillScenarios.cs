@@ -43,12 +43,17 @@ public partial class WoodworkingScenarios
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
         Assert.NotNull(Mod.Rig);
+        // its frame is the shared machine block, placed lengthwise, its cells and power cell the shared ones
         foreach (var side in Sides.All)
-        {
-            Assert.IsType<BlockBuckingMill>(BlockOf($"seraphhorizons:buckingmill-frame-{side.Code()}"));
-            Assert.IsType<BlockMillGhostPower>(BlockOf($"seraphhorizons:buckingmill-ghostpower-{side.Code()}"));
-        }
-        Assert.IsType<BlockMillGhost>(BlockOf("seraphhorizons:buckingmill-ghost"));
+            Assert.True(Assert.IsType<BlockMachine>(BlockOf($"seraphhorizons:buckingmill-frame-{side.Code()}")).Lengthwise);
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:buckingmill-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(Rig, ((BlockMachine)BlockOf("seraphhorizons:buckingmill-frame-north")).Rig);
+        // its build is the shared build's: the parts, a click each, and the blade kit its wearing part
+        var build = MachinesSystem.Of(World.Api).Build(BuckingSawmillSystem.MachineId)!;
+        Assert.Equal(4, Assert.Single(build.Stages).Materials.Count);
+        Assert.Equal(BladeKits.Part, Assert.Single(build.Wearing).Id);
+        foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
+            Assert.True(W.GetItem(new AssetLocation(code)) != null, $"no {code}");
 
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:buckingmill-frame-north");
         Assert.NotNull(recipe.Output!.ResolvedItemStack);
@@ -75,24 +80,24 @@ public partial class WoodworkingScenarios
     // ---- Placing and breaking ----
 
     [AtlasTheory, MemberData(nameof(Facings))]
-    public async Task Placing_stamps_the_ghosts_and_breaking_drops_the_parts(string side, int index)
+    public async Task Placing_stamps_the_cells_and_breaking_drops_the_parts(string side, int index)
     {
         // Not at z 60: the parts would fall into ChopperOutput's hopper room at x -60.
         var pos = Sky(-60 + 30 * index, -90);
         var player = await Player("breaker" + index);
         var mill = await PlaceMill(pos, side);
 
-        var cells = mill.GhostCells().ToList();
+        var cells = Cells(mill);
         Assert.Equal(Rig.Cells.Count - 1, cells.Count);
         foreach (var (cell, power) in cells)
         {
             var block = W.BlockAccessor.GetBlock(cell);
-            Assert.Equal(power ? $"seraphhorizons:buckingmill-ghostpower-{side}" : "seraphhorizons:buckingmill-ghost", block.Code.ToString());
-            var ghost = Assert.IsType<BEMillGhost>(W.BlockAccessor.GetBlockEntity(cell));
+            Assert.Equal(power ? BlockMachineCellPower.CodeFor(mill.PowerFace).ToString() : BlockMachineCell.CellCode.ToString(), block.Code.ToString());
+            var ghost = Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell));
             Assert.Equal(pos, ghost.Principal);
         }
-        // The power ghost takes the axle on the rig's power face, turned with the mill.
-        var powerGhost = Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(mill.CellPos(Rig.PowerCell)));
+        // The power cell takes the axle on the rig's power face, turned with the mill.
+        var powerGhost = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(mill.CellPos(Rig.PowerCell)));
         Assert.Equal(Footprint.ToWorld(Rig.PowerFace, mill.Side).Code(), powerGhost.PowerFace.Code);
 
         Assert.True(mill.TryFitPart(new DummySlot(ItemOf($"{Iw}:sawmillsash")), player));
@@ -138,12 +143,12 @@ public partial class WoodworkingScenarios
         Assert.True(Sides.TryParse(look, out var lookSide));
         Assert.Equal(Footprint.PlacedFacing(lookSide), mill.Side);
         int Along(BlockPos p) => (p.X - pos.X) * d.X + (p.Z - pos.Z) * d.Z;
-        var cells = mill.GhostCells().Select(c => c.Pos).ToList();
+        var cells = Cells(mill).Select(c => c.Pos).ToList();
         Assert.Equal(0, cells.Min(Along));
         var power = mill.CellPos(Rig.PowerCell);
         Assert.Equal(cells.Max(Along), Along(power));
         Assert.Equal(5, Along(power));
-        Assert.Equal(look, Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(power)).PowerFace.Code);
+        Assert.Equal(look, Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(power)).PowerFace.Code);
         // the rack's cells are beyond the far end, the logs come out of the near end
         Assert.All(Rig.InfeedNeighbours(), n => Assert.Equal(6, Along(mill.CellPos(n))));
         var o = Footprint.ToWorld(Rig.OutputPos, mill.Side);
@@ -151,15 +156,15 @@ public partial class WoodworkingScenarios
     }
 
     [AtlasScenario]
-    public async Task A_lost_ghost_is_restamped_after_reload()
+    public async Task A_lost_cell_is_restamped_after_reload()
     {
         var pos = Sky(60, 60);
         var mill = await PlaceMill(pos, "south");
-        var (cell, _) = mill.GhostCells().First();
+        var (cell, _) = Cells(mill).First();
         W.BlockAccessor.SetBlock(0, cell);
         Assert.Equal(0, W.BlockAccessor.GetBlock(cell).Id);
-        mill.EnsureGhosts();
-        Assert.Equal(pos, Assert.IsType<BEMillGhost>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
+        mill.EnsureCells();
+        Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell)).Principal);
     }
 
     // ---- Assembly ----
@@ -170,17 +175,18 @@ public partial class WoodworkingScenarios
         var pos = Sky(-60, -60);
         var player = await Player("assembler");
         var mill = await PlaceMill(pos, "east");
-        var ghost = mill.GhostCells().First().Pos;
+        var ghost = Cells(mill).First().Pos;
 
         // Info and help lead the player through it (built on the server here; the client's help
         // also lists the part stacks).
         string info = Info(mill, player);
-        Assert.Contains("Unassembled", info);
+        Assert.Contains("Build: stage 1 of 1", info);
         Assert.Contains("2 × Saw sash", info);
         Assert.Contains("Sawmill crankshaft", info);
         Assert.Contains("Sawmill feed levers", info);
+        Assert.Contains("And a sawmill blade kit, once both sashes are in", info);
         Assert.Contains(W.BlockAccessor.GetBlock(pos).GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos }, player),
-            wi => wi.ActionLangCode == "seraphhorizons:blockhelp-buckingmill-fitpart");
+            wi => wi.ActionLangCode == "seraphhorizons:machine-help-fit");
 
         // The blade kit needs both sashes: refused, and kept in hand.
         Assert.NotNull(Click(player, pos, ItemOf($"{Iw}:sawmillblade-copper")));
@@ -222,12 +228,15 @@ public partial class WoodworkingScenarios
         // Not turning: stopped, with the saws at the top where a trunk can go on.
         Assert.Equal(MillPhase.Stopped, mill.Phase);
         info = Info(mill, player);
-        Assert.DoesNotContain("Unassembled", info);
-        // Immersive Woodworking's 250, tripled (DurableSawmillBlades), and copper's speed.
-        Assert.Contains("750 / 750", info);
-        Assert.Contains("Cuts 1× as fast as copper blades", info);
-        Assert.Contains("Stopped", info);
+        Assert.DoesNotContain("Build: stage", info);
+        Assert.Contains("Blade kit: 100% left", info);
+        Assert.Contains("No power", info);
         Assert.Contains("Saws at the top", info);
+        Assert.Contains("Hold a wrench to see more", info);
+        // With a wrench: Immersive Woodworking's 250, tripled (DurableSawmillBlades), and copper's speed.
+        info = WrenchInfo(mill, player);
+        Assert.Contains("Blade kit: 750 of 750 uses left", info);
+        Assert.Contains("Cuts 1× as fast as copper blades", info);
         Assert.Equal("Bucking sawmill", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         // Built dry (MachineOil): three times the load until oiled.
         Assert.Equal(Mod.Config.Resistance * 3, mill.Power!.GetResistance(), 4);
@@ -238,7 +247,7 @@ public partial class WoodworkingScenarios
         Assert.Equal("sawmillblade-copper", Click(player, pos, null, ctrl: true)?.Collectible.Code.Path);
         Assert.False(mill.HasBladeKit);
         Assert.False(mill.Complete);
-        Assert.Equal(BEBehaviorMillMP.IncompleteResistance, mill.Power!.GetResistance());
+        Assert.Equal(MachineLoad.Unassembled, mill.Power!.GetResistance());
     }
 
     // ---- Trunks ----
@@ -258,8 +267,7 @@ public partial class WoodworkingScenarios
 
         Assemble(mill, player);
         // Six left: the first 4-log trunk leaves 2, the second breaks the kit.
-        var kit = mill.BladeKit!;
-        kit.Collectible.SetDurability(kit, 6);
+        SetBladeLeft(mill, 6);
 
         // A branched trunk is refused while Logging Expanded requires debranching.
         Assert.NotNull(Click(player, pos, Trunk("oak", 4, branched: true)));
@@ -299,7 +307,8 @@ public partial class WoodworkingScenarios
         Assert.Equal(8, items.GetValueOrDefault("game:log-placed-oak-ud"));
         // The kit lost one per stored log: 4.
         Assert.Equal(1f, Mod.Config.BladeWearPerStoredLog);
-        Assert.Same(kit, mill.BladeKit);
+        var kit = mill.BladeKit!;
+        Assert.Equal($"{Iw}:sawmillblade-copper", kit.Collectible.Code.ToString());
         Assert.Equal(6 - Cutting.BladeWear(4, Mod.Config.BladeWearPerStoredLog), kit.Collectible.GetRemainingDurability(kit));
         Assert.Equal(2, kit.Collectible.GetRemainingDurability(kit));
 
@@ -440,7 +449,7 @@ public partial class WoodworkingScenarios
         Assert.Equal(MillPhase.Stopped, mill.Phase);
         Assert.False(mill.Rising);
         Assert.Equal(depth, mill.Depth, 3);
-        Assert.Contains("Stopped", Info(mill, player));
+        Assert.Contains("No power", Info(mill, player));
         Assert.DoesNotContain("Saws at the top", Info(mill, player));
 
         // No trunk goes on mid-cycle: it stays in the hand.
@@ -567,7 +576,7 @@ public partial class WoodworkingScenarios
     /// <summary>Every box of the mill's cells, in world coordinates, as the game asks for them.</summary>
     private List<Cuboidd> MillBoxes(BEBuckingMill mill, bool selection)
     {
-        var cells = mill.GhostCells().Select(c => c.Pos).Prepend(mill.Pos);
+        var cells = Cells(mill).Select(c => c.Pos).Prepend(mill.Pos);
         return cells.SelectMany(c =>
         {
             var block = W.BlockAccessor.GetBlock(c);
@@ -591,7 +600,7 @@ public partial class WoodworkingScenarios
     /// <summary>The cell whose boxes hold <paramref name="p"/>, with the point relative to it.</summary>
     private (BlockPos Cell, Vec3d Hit) CellHolding(BEBuckingMill mill, Vec3d p)
     {
-        foreach (var c in mill.GhostCells().Select(c => c.Pos).Prepend(mill.Pos))
+        foreach (var c in Cells(mill).Select(c => c.Pos).Prepend(mill.Pos))
             foreach (var b in W.BlockAccessor.GetBlock(c).GetSelectionBoxes(W.BlockAccessor, c) ?? [])
                 if (p.X >= c.X + b.X1 - 1e-4 && p.X <= c.X + b.X2 + 1e-4 && p.Y >= c.Y + b.Y1 - 1e-4 && p.Y <= c.Y + b.Y2 + 1e-4
                     && p.Z >= c.Z + b.Z1 - 1e-4 && p.Z <= c.Z + b.Z2 + 1e-4)
@@ -694,7 +703,7 @@ public partial class WoodworkingScenarios
         var mill = await PlaceMill(pos, "west");
         Assemble(mill, player, "steel");
         Assert.Equal(2.05f, mill.BladeSpeed, 3);
-        Assert.Contains("Cuts 2.05× as fast as copper blades", Info(mill, player));
+        Assert.Contains("Cuts 2.05× as fast as copper blades", WrenchInfo(mill, player));
         var tree = new TreeAttribute();
         mill.ToTreeAttributes(tree);
         Assert.Equal(2.05f, tree.GetFloat("bladeSpeed"), 3);
@@ -721,7 +730,7 @@ public partial class WoodworkingScenarios
     public void Blade_kits_last_three_times_as_long()
     {
         Assert.True(SeraphHorizonsSystem.ConfigFor(World.Api).DurableSawmillBlades);
-        var kits = W.Items.Where(i => i?.Code is { Domain: Iw } c && c.Path.StartsWith(Parts.BladePrefix)).ToList();
+        var kits = W.Items.Where(i => i?.Code is { Domain: Iw } c && c.Path.StartsWith("sawmillblade-")).ToList();
         Assert.Equal(SawmillBladeDurability.Shipped.Keys.Order(), kits.Select(k => k.Variant["metal"]).Order());
         foreach (var kit in kits)
             Assert.Equal(SawmillBladeDurability.Factor * SawmillBladeDurability.Shipped[kit.Variant["metal"]],
@@ -731,17 +740,17 @@ public partial class WoodworkingScenarios
     // ---- Creative ----
 
     /// <summary>The woodworking stations' creative shortcut (<see cref="CreativeUpgrades"/>): in
-    /// creative, Ctrl + right click (not Shift) fits the next part, whatever is held, with nothing
-    /// taken; on the assembled mill it takes the kit back, as in survival, and the next click fits
-    /// a new one.</summary>
+    /// creative, Ctrl + right click (not Shift) fits every part still missing (the build's stage), then a
+    /// blade kit, whatever is held, with nothing taken; on the assembled mill it takes the kit back, as in
+    /// survival, and the next click fits a new one.</summary>
     [AtlasScenario]
     public async Task In_creative_a_Ctrl_click_fits_the_next_part()
     {
         var pos = Sky(60, 120);
         var player = await Player("creativemill");
         var mill = await PlaceMill(pos, "north");
-        var ghost = mill.GhostCells().First().Pos;
-        Assert.True(mill.CreativeShortcut);
+        var ghost = Cells(mill).First().Pos;
+        Assert.True(mill.WoodworkingShortcut);
 
         // Not in survival, and not with Shift.
         Click(player, pos, null, ctrl: true);
@@ -759,13 +768,10 @@ public partial class WoodworkingScenarios
         Assert.True(Help());
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
 
-        // Each click the next part, through a ghost as well, whatever is held; the hand keeps it.
+        // Each click the next stage, through a cell as well, whatever is held; the hand keeps it.
         var steps = new (Func<bool> Done, string What)[]
         {
-            (() => mill.SashCount == 1, "a sash"),
-            (() => mill.SashCount == 2, "the second sash"),
-            (() => mill.HasCrankshaft, "the crankshaft"),
-            (() => mill.HasLevers, "the levers"),
+            (() => mill.SashCount == 2 && mill.HasCrankshaft && mill.HasLevers && !mill.HasBladeKit, "the parts"),
             (() => mill.BladeMetal == AssembledMachines.DefaultMetal, "a steel blade kit"),
         };
         foreach (var (done, what) in steps)
@@ -1027,6 +1033,15 @@ public partial class WoodworkingScenarios
         Assert.True(mill.Progress >= 0.5f);
         await World.Until(() => mill.Trunk == null, 10000);
         Assert.Equal(8, ItemsNear(pos).GetValueOrDefault("game:log-placed-oak-ud"));
+        kit = mill.BladeKit!;
         Assert.Equal(durability - 4, kit.Collectible.GetRemainingDurability(kit));
+    }
+
+    /// <summary>Puts the fitted blade kit back with <paramref name="left"/> durability, as a worn one would go in.</summary>
+    private static void SetBladeLeft(BEBuckingMill mill, int left)
+    {
+        var (code, _) = mill.Assembly!.Take(BladeKits.Part)!.Value;
+        Assert.Equal(BladeVerdict.Fits, BladeKits.Fit(mill.Assembly, code, left));
+        Assert.Equal(left, mill.BladeKit!.Collectible.GetRemainingDurability(mill.BladeKit));
     }
 }

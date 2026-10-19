@@ -72,7 +72,7 @@ public partial class WoodworkingEidolonScenarios
             Assert.Equal(0, commander.Use(sp, slot, a));
             Assert.NotNull(ItemEidolonCommander.GetMarks(slot.Itemstack, HaulOrder.OrderCode).Area);
             Assert.Null(ItemEidolonCommander.GetMarks(slot.Itemstack, HaulOrder.OrderCode).Third);
-            Assert.Equal(1, commander.Use(sp, slot, rosser.GhostCells().First().Pos));
+            Assert.Equal(1, commander.Use(sp, slot, rosser.CellBlocks().First().Pos));
         }
         finally
         {
@@ -84,7 +84,7 @@ public partial class WoodworkingEidolonScenarios
         var carry = e.GetBehavior<EntityBehaviorEidolonTrunk>()!;
         double Oil() => e.Oil?.Tank?.Points ?? 0;
         double oil = Oil();
-        string State() => $"{EidolonCommands.Describe(e)}; at {e.Pos.XYZ}; carrying {carry.Trunk?.Block?.Code}; rosser {rosser.State}";
+        string State() => $"{EidolonCommands.Describe(e)}; at {e.Pos.XYZ}; carrying {carry.Trunk?.Block?.Code}; rosser {rosser.TripState}";
 
         // It takes the nearer trunk (the thin one) up, and its stack goes with it through a save.
         await World.Until(() => carry.Carrying, 4000);
@@ -115,7 +115,7 @@ public partial class WoodworkingEidolonScenarios
         await World.Until(() => carry.Carrying, 4000);
         var second = carry.Trunk!;
         Assert.NotEqual(EntityBehaviorEidolonTrunk.IsThick(first), EntityBehaviorEidolonTrunk.IsThick(second));
-        await World.Until(() => rosser.State == RosserState.Delivered, 90_000);
+        await World.Until(() => rosser.TripState == RosserState.Delivered, 90_000);
         // The second is laid as soon as the infeed is clear, and waits there for the bed.
         await World.Until(() => !carry.Carrying, 6000);
         Assert.NotNull(TrunkStations.FindInCells(W, cells, _ => true));

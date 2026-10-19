@@ -3,11 +3,14 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
+using Vintagestory.API.Util;
 
 namespace SeraphHorizons.Mod.BuckingSawmill;
 
 /// <summary>
-/// The bucking sawmill: registers its classes and holds what its blocks share: its settings
+/// The bucking sawmill: registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame, cells and power cell are the shared blocks, its build
+/// <c>config/builds/buckingmill.json</c>, its oil MachineOil's) and holds what its blocks share: its settings
 /// (BuckingSawmillSettings in ModConfig/seraphhorizons.json), the rig
 /// (assets/seraphhorizons/config/buckingmill-rig.json: the footprint and anchor points), the
 /// bridge to Logging Expanded and the blade kits' tool tiers. The mill is built from Immersive
@@ -19,13 +22,14 @@ public class BuckingSawmillSystem : ModSystem
     public const string Domain = "seraphhorizons";
     public const string IwModId = "immersivewoodworking";
     public const string LeModId = "loggingmod";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "buckingmill";
     public static readonly AssetLocation RigAsset = new(Domain, "config/buckingmill-rig.json");
     public static readonly AssetLocation RecipeAsset = new(Domain, "recipes/grid/buckingmill.json");
     public static readonly AssetLocation[] BlockAssets =
     [
         new(Domain, "blocktypes/buckingmill/frame.json"),
-        new(Domain, "blocktypes/buckingmill/ghost.json"),
-        new(Domain, "blocktypes/buckingmill/ghostpower.json"),
     ];
 
     private ICoreAPI? _api;
@@ -106,7 +110,7 @@ public class BuckingSawmillSystem : ModSystem
     {
         if (kit.ToolTier > 0)
             return kit.ToolTier;
-        if (Parts.KindOf(kit.Code.Path, out var metal) != PartKind.BladeKit || metal == null)
+        if (BladeKits.MetalOf(kit.Code.ToString()) is not { } metal)
             return null;
         if (_api!.World.GetItem(new AssetLocation("game", "saw-" + metal)) is { ToolTier: > 0 } saw)
             return saw.ToolTier;
@@ -153,13 +157,19 @@ public class BuckingSawmillSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.BuckingMill", typeof(BlockBuckingMill));
-        api.RegisterBlockClass("seraphhorizons.BuckingMillGhost", typeof(BlockMillGhost));
-        api.RegisterBlockClass("seraphhorizons.BuckingMillGhostPower", typeof(BlockMillGhostPower));
         api.RegisterBlockEntityClass("seraphhorizons.BuckingMill", typeof(BEBuckingMill));
-        api.RegisterBlockEntityClass("seraphhorizons.BuckingMillGhost", typeof(BEMillGhost));
-        api.RegisterBlockEntityBehaviorClass("seraphhorizons.BuckingMillMP", typeof(BEBehaviorMillMP));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
+
+    /// <summary>One debranched size per wood, for the help line: enough to show what goes in. Only woods the
+    /// game has logs of: Logging Expanded has trunks of other mods' woods too, which draw without a texture when
+    /// that mod is not installed.</summary>
+    public ItemStack[] TrunkStacks() => _api == null ? [] : ObjectCacheUtil.GetOrCreate(_api, "buckingsawmill-trunks", () => _api.World.Blocks
+        .Where(b => b?.Code is { Domain: LoggingBridge.ModId } c && c.Path.StartsWith("treetrunk-", StringComparison.Ordinal)
+                    && b.Variant["size"] == "md" && b.Variant["branches"] == "no" && b.Variant["side"] == "north"
+                    && _api.World.GetBlock(new AssetLocation("game", $"log-placed-{b.Variant["wood"]}-ud")) != null)
+        .Select(b => new ItemStack(b))
+        .ToArray());
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
     // it ready. Blocktypes and recipes are read from the assets later in this phase (the game's

@@ -33,7 +33,7 @@ public class RigTests
         Assert.Equal(Side.North, rig.InfeedSide);
         Assert.Equal(Side.South, rig.OutputSide);
         Assert.Equal(new Float3(1, 0.5f, 2.25f), rig.OutputPos);
-        Assert.Equal(3, rig.GhostCells.Count());
+        Assert.Equal(3, rig.OtherCells().Count());
         Assert.Empty(rig.CellAt(Int3.Zero)!.Boxes);
         Assert.Empty(rig.CellAt(new Int3(0, 0, 1))!.Boxes);
         Assert.Equal(new Box(0.25f, 0.5f, 0.25f, 0.75f, 1, 0.75f), rig.CellAt(new Int3(1, 0, 0))!.Boxes[1]);

@@ -62,6 +62,17 @@ do not:
   places with every stage and wearing part fitted (`BEMachine.OnBlockPlaced`), named by
   `seraphhorizons:{machine}-assembled` ("{0} (assembled)") and `-assembled-info` where the machine has them
   (the creative inventory's eidolon gantry).
+- **Parts in any order** (the bucking mill's, the rosser's): one stage, each part a material of it with `"draws"`
+  its rig `requires`, so each is drawn as it goes in; two of one item that went in a click each (the mill's
+  sashes) are two materials of one code. A part a click may take fewer than it still needs with `"partial": true`
+  (the rosser's ring sections); four rods that one click fills both roll sets with stay one material, the machine
+  drawing the first two itself (`ShowsPart`, `RosserBuild.Shows`). A drawn `pick` is drawn only in the metal put
+  in (the rosser's pipes).
+- **A wearing part with a rule of its own** (the mill's blade kit, after both sashes but before or after the rest;
+  the rosser's heads, on the ring): no `stage` (a stage's first set is fitted only once the whole stage is in),
+  and the machine fits it from `InteractContent` with `Wearing.Renew(code, held, built: true, uses)`, its rule in
+  `Core/` beside its build (`BladeKits.Fit`, `RosserBuild.FitHeads`). Uses that follow the item fitted (each
+  metal's own durability or capacity): `WithUses(id, code => ...)` (`WearingPart.UsesOf`).
 - **No `block`** for a workshop machine whose construction record the recipe export writes by hand (the press
   brake, the draw bench): with a `block` the exporter's generic ore-machine pass would add a second construction
   record and a power consumer (`RecipeSection.OreMachines.cs`, `Power/OreMachineConsumers.cs`). Reworking the
@@ -123,6 +134,10 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | Stand on the ground | `attributes.machine.needsSolidGround: true` on the block type: placed only on a solid top, broken when it goes (the rocker). |
 | Draw | `CreateRenderer` for a renderer of its own where the shared one does not cover it (the crucible furnace's: a pot's metal per part, the fire's glow); `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
 | Save | `ToTreeAttributes`/`FromTreeAttributes` for the work only, calling the base: the build, wearing parts, state, oil, water and holds are the base's. |
+| Be placed lengthwise | `attributes.machine.lengthwise: true` on the frame: it extends away from the player, its native west end farthest (`Footprint.PlacedFacing`, the mill's and rosser's rule), not its native north facing them. |
+| Give its own boxes | Override `CellBoxes`/`CollisionBoxes` (a trunk lying in it: the mill's, by trunk class; the rosser's, along its path, with hollow cells). Build tables whole and only read them there: collision lookups run off the main thread. |
+| Draw more than its parts | `CreateRenderer` returns any `IRenderer`: the mill's and the rosser's own (a trunk, parts in a fitted metal, sounds and particles of their own clocks). |
+| Fit from a slot of its own | `TryFit(slot, player)` does a click's fitting from any slot (a scenario's, a creative shortcut's): true, false with the error sent, or null when it is no part. |
 | Help | `WorkHelp` for the built machine's lines; the build's, the renewal's and the creative shortcut's are the base's. |
 
 Ticks: `TickMs` (server, 100 by default; the workshop machines' 50) and `ClientTickMs`. The server's tick calls
@@ -259,6 +274,19 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
   (`Error(player, "notbuilt", stageName)`): name it otherwise (the crucible furnace's `Refuse`).
 - **Returns merge by code.** `MachineAssembly.Returns()` gives one drop a code: the crucible furnace's lining and
   lid refractory bricks come back as one stack of 13, not 9 and 4.
+- **Names the base already has.** `State` (a `MachineState`), `Running`, `Wet`, `Water`, `Complete`, `Power`,
+  `Side`, `Rig`, `Oiling` and `OnInteract` are the base's: a machine's own trip state, running rule or wet flag
+  takes another name (`TripState`, `ShaftRuns`, `SawsRun`, `DripWet`), or `new`, as `Rig`.
+- **`Work` only runs when the shaft advanced.** The base calls it while `Working` and the shaft turned this tick;
+  what must run while stopped (the mill's hand winding, a hold lapsing) goes in `Tick`, which runs every tick
+  before the state.
+- **A machine that never stops for water.** The rosser debarks dry: `Wet => true` keeps the running rules from
+  stopping it, while its reservoir is still the base's (`SpendWater`, `Water.Holds`).
+- **A wearing part is a code and its uses left, not an item stack.** Read `Wearing.Fitted(id)` afresh: a stack built
+  from it (`StackOf`) is a copy, so changing it changes nothing in the machine.
+- **A JSON patch on a block type that opens with a comment** fails ("Cannot set child value on JValue": the patch
+  loader takes the comment for the root). Put the file's comment inside its object (the machine cells', which
+  `patches/trunkentities-stations.json` patches).
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 

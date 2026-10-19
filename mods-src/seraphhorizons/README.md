@@ -1467,7 +1467,7 @@ author's permission and not covered by the repository's license (`CREDITS.md`).
 **A rosser in line.** The mill takes trunks from a second kind of feeder as well as a rack: a
 machine at its far end whose block entity implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`),
 which is the rosser. In each of its three infeed cells `CheckRack` first looks for a feeder (the
-block entity there, or a ghost's controller through `IMachineGhost`) facing the mill's own way whose
+block entity there, or a cell's controller through `IMachineGhost`) facing the mill's own way whose
 outfeed cell that is, and only then for a rack. It takes the rosser's finished trunk under the same
 gates as a rack's (assembled, bed empty, saws at the top, `MinSpeed`, `AutoPullFromRack`), peeking
 first and taking only once it will load it, so a trunk it does not take stays on the rosser. The

@@ -1,7 +1,8 @@
-// A cell of a machine on the shared base around its controller, one block for every machine (#711;
-// Machines/Game/MachineBlocks.cs, BlockMachineCell). Its boxes are its cell's from the machine's rig;
-// a chute into an ore machine's infeed face fills its one slot.
 {
+	// A cell of a machine on the shared base around its controller, one block for every machine (#711;
+	// Machines/Game/MachineBlocks.cs, BlockMachineCell). Its boxes are its cell's from the machine's rig;
+	// a chute into an ore machine's infeed face fills its one slot.
+	// (inside the object: a JSON patch on a file that opens with a comment fails, patches/trunkentities-stations.json)
 	code: "machine-cell",
 	class: "seraphhorizons.MachineCell",
 	entityClass: "seraphhorizons.MachineCell",

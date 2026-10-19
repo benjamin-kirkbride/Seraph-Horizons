@@ -141,12 +141,26 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
         return trunk ? TrunkCarry.Carried(player) : slot.Itemstack;
     }
 
-    protected static string Info(BEBuckingMill mill, IPlayer player)
+    protected static string Info(BEMachine machine, IPlayer player)
     {
         var sb = new System.Text.StringBuilder();
-        mill.GetBlockInfo(player, sb);
+        machine.GetBlockInfo(player, sb);
         return sb.ToString();
     }
+
+    /// <summary>The block info as a player holding a wrench sees it: the detail too.</summary>
+    protected string WrenchInfo(BEMachine machine, IPlayer player)
+    {
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        var held = slot.Itemstack;
+        slot.Itemstack = ItemOf("game:wrench-iron");
+        try { return Info(machine, player); }
+        finally { slot.Itemstack = held; }
+    }
+
+    /// <summary>The machine's cells but the controller's (the shared machine cells), and whether each is the power cell.</summary>
+    protected static List<(BlockPos Pos, bool Power)> Cells(BEMachine machine) =>
+        machine.CellBlocks().Select(c => (c.Pos, c.Block is BlockMachineCellPower)).ToList();
 
     protected void Assemble(BEBuckingMill mill, IPlayer player, string metal = "copper")
     {
@@ -165,6 +179,13 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
         oil.Tank = oil.Tank.Fill(oil.Tank.Capacity);
     }
 
+    /// <summary>Fills a machine on the shared base's tank (<see cref="BEMachine.Oiling"/>).</summary>
+    protected static void Oil(MachineOiling? oil)
+    {
+        Assert.NotNull(oil);
+        oil.Tank = oil.Tank.Fill(oil.Tank.Capacity);
+    }
+
     /// <summary>A creative rotor against the power face; waits until the mill's shaft turns. With
     /// <paramref name="full"/>, the rotor is set to its top speed and torque (10 and 10, as a player
     /// gets by right-clicking it), and this waits until the shaft is up to speed. With
@@ -174,7 +195,7 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
     protected async Task Power(BEBuckingMill mill, bool full = false, bool fast = false)
     {
         var rotorPos = RotorPos(mill);
-        var face = Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(mill.CellPos(Rig.PowerCell))).PowerFace;
+        var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(mill.CellPos(Rig.PowerCell))).PowerFace;
         World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
         if (full || fast)
         {
@@ -204,7 +225,7 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
     protected BlockPos RotorPos(BEBuckingMill mill)
     {
         var ghost = mill.CellPos(Rig.PowerCell);
-        return ghost.AddCopy(Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace);
+        return ghost.AddCopy(Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace);
     }
 
     /// <summary>Takes the rotor away; waits until the shaft has run down below the mill's speed.</summary>
@@ -359,13 +380,13 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
                ?? throw new Xunit.Sdk.XunitException($"no rosser block entity at {pos}");
     }
 
-    /// <summary>Every stage by right-clicks with real stacks, through the frame and a ghost; the
-    /// drip's pipes in <paramref name="pipes"/>.</summary>
+    /// <summary>Every part by right-clicks with real stacks, through the frame and a cell (the rods a roll set a
+    /// click); the drip's pipes in <paramref name="pipes"/>.</summary>
     protected void AssembleRosser(BERosser rosser, IPlayer player, string heads = "steel", string pipes = "copper")
     {
-        var ghost = rosser.GhostCells().First().Pos;
-        foreach (var (code, count) in new[] { (RosserParts.ShaftCode, 1), (RosserParts.RingCode, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4),
-                                              ("game:metalplate-iron", 2), (RosserParts.LeversCode, 1), ($"{Iw}:barkspudhead-{heads}", 4) })
+        var ghost = rosser.CellBlocks().First().Pos;
+        foreach (var (code, count) in new[] { (RosserBuild.ShaftCode, 1), (RosserBuild.RingCode, 4), ("game:hoop-iron", 2), ("game:rod-iron", 2),
+                                              ("game:rod-iron", 2), ("game:metalplate-iron", 2), (RosserBuild.LeversCode, 1), ($"{Iw}:barkspudhead-{heads}", 4) })
             Assert.True(Click(player, code.Contains("rod") ? ghost : rosser.Pos, ItemOf(code, count)) == null, $"{code} ×{count} not all fitted");
         Assert.True(Click(player, ghost, PipeOf(pipes, 4)) == null, $"{pipes} pipes not fitted");
         Assert.True(rosser.Complete);
@@ -373,13 +394,13 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
     }
 
     /// <summary>Pipes and Power Expanded's straight pipe in <paramref name="metal"/>, as it is held (the ns block).</summary>
-    protected ItemStack PipeOf(string metal, int size = 1) => new(BlockOf(RosserParts.PipeCode(metal)), size);
+    protected ItemStack PipeOf(string metal, int size = 1) => new(BlockOf(RosserBuild.PipeCode(metal)), size);
 
     /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
     protected async Task PowerRosser(BERosser rosser)
     {
         var ghost = rosser.CellPos(RosserRig.PowerCell);
-        var face = Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
+        var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
         var rotorPos = ghost.AddCopy(face);
         World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
         await World.Ticks(2);
@@ -425,8 +446,23 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
         keeper.Entity.TeleportTo(pos.ToVec3d().Add(0.5, 5, 0.5));
     }
 
+    /// <summary>What a rosser's cell is, by the rig's anchors.</summary>
+    protected enum RosserCell { Plain, Power, Water }
+
+    /// <summary>The rosser's cells but the controller's (the shared machine cells, in the rig's order), each with
+    /// what it is.</summary>
+    protected List<(BlockPos Pos, RosserCell Kind)> RosserCells(BERosser rosser) =>
+        RosserRig.OtherCells().Select(c => (rosser.CellPos(c.Pos),
+            c.Pos == RosserRig.PowerCell ? RosserCell.Power : c.Pos == RosserRig.WaterCell ? RosserCell.Water : RosserCell.Plain)).ToList();
+
+    /// <summary>The world face of the rosser's water cell a pipe meets.</summary>
+    protected BlockFacing RosserWaterFace(BERosser rosser) => BlockFacing.FromCode(Footprint.ToWorld(RosserRig.WaterFace, rosser.Side).Code());
+
+    /// <summary>Whether the rosser's part named <paramref name="requires"/> (its rig's: <c>ring</c>, <c>rollsin</c>, ...) is in.</summary>
+    protected static bool RosserHas(BERosser rosser, string requires) => RosserBuild.Shows(rosser.Assembly!, requires);
+
     protected BlockFacing RosserPowerFace(BERosser rosser) =>
-        Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(rosser.CellPos(RosserRig.PowerCell))).PowerFace;
+        Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(rosser.CellPos(RosserRig.PowerCell))).PowerFace;
 
     protected BlockPos RosserRotorPos(BERosser rosser) => rosser.CellPos(RosserRig.PowerCell).AddCopy(RosserPowerFace(rosser));
 

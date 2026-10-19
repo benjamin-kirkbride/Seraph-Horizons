@@ -298,19 +298,26 @@ public class RigAnimationTests
     }
 
     [Fact]
-    public void Requires_is_fitted_by_the_parts_count()
+    public void Requires_is_drawn_by_the_parts_fitted()
     {
-        Assert.True(MillRequires.Fitted(null, 0, false, false));
-        Assert.False(MillRequires.Fitted("crankshaft", 2, false, true));
-        Assert.True(MillRequires.Fitted("crankshaft", 0, true, false));
-        Assert.True(MillRequires.Fitted("sash1", 1, false, false));
-        Assert.False(MillRequires.Fitted("sash2", 1, false, false));
-        Assert.True(MillRequires.Fitted("blade", 2, false, true));
-        Assert.False(MillRequires.Fitted("blade", 2, true, false));
-        Assert.False(MillRequires.Fitted("blade1", 2, true, true));
-        Assert.False(MillRequires.Fitted("levers", 2, true, true));
-        Assert.True(MillRequires.Fitted("levers", 0, false, false, levers: true));
-        Assert.False(MillRequires.Fitted("crankshaft", 2, false, true, levers: true));
+        var a = new MachineAssembly(MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "buckingmill.json"))));
+        Assert.True(a.Shows(null));
+        Assert.False(a.Shows("crankshaft"));
+        Assert.False(a.Shows("blade"));
+        a.Fit("immersivewoodworking:sawmillcrankshaft", 1);
+        Assert.True(a.Shows("crankshaft"));
+        Assert.False(a.Shows("levers"));
+        a.Fit("immersivewoodworking:sawmillsash", 1);
+        Assert.True(a.Shows("sash1"));
+        Assert.False(a.Shows("sash2"));
+        a.Fit("immersivewoodworking:sawmillsash", 1);
+        Assert.True(a.Shows("sash2"));
+        Assert.False(a.Shows("blade"));
+        Assert.Equal(BladeVerdict.Fits, BladeKits.Fit(a, "immersivewoodworking:sawmillblade-copper", null));
+        Assert.True(a.Shows("blade"));
+        Assert.False(a.Shows("levers"));
+        a.Fit("immersivewoodworking:sawmilllevers", 1);
+        Assert.True(a.Shows("levers"));
     }
 
     // One blade kit puts a blade in both saws: both blade parts need it, and nothing else does.

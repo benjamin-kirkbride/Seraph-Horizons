@@ -135,7 +135,7 @@ public readonly record struct WorkTurns(double Turns)
 /// </summary>
 public static class MachineLoad
 {
-    /// <summary>The load of a machine whose build is not complete (<c>BEBehaviorMillMP.IncompleteResistance</c>).</summary>
+    /// <summary>The load of a machine whose build is not complete (every pack machine's, the bucking mill's first).</summary>
     public const float Unassembled = 0.005f;
 
     /// <summary>The resistance to put on the shaft: <see cref="Unassembled"/> unbuilt, else

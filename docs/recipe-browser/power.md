@@ -81,7 +81,7 @@ defaults).
 | Immersive Woodworking's sawmill and chopper | `SawmillResistance`, `ChopperResistance` 0.085 (`ImmersiveWoodworkingModSystem.Config`); 0.005 until assembled. A sawmill with a flywheel takes × 0.6, a separate entry. |
 | smex's Bessemer transmission; mechanical blower | `BessemerTransmissionResistance` 0.25. The blower takes `MpBlowerBaseLoad` 0.05 + `MpBlowerLoadPerAtm` 0.05 per atm of back-pressure, up to `MpBlowerMaxPressure` 2: load 0.05, loadMax 0.15 (`SteelmakingExpanded.SmexValues`). Its port behavior is added to the blower's structure in code, so the entry is found by the block `smex:mpblower`. |
 | ppex's mechanical fluid pump | `MpPumpBaseLoad` 0.05 + `MpPumpLoadPerAtm` 0.05 × `MpPumpDeliveryPressure` 1.5 = 0.125. |
-| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`BEBehaviorMillMP.IncompleteResistance`; on the shared machine base `MachineLoad.Unassembled`). |
+| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`MachineLoad.Unassembled`, the shared machine base's). |
 
 **Oil.** The pack's MachineOil (`mods-src/seraphhorizons/README.md`, "Machines need oil") gives
 some machines an oil tank: the helve hammer, the pulverizer, Immersive Woodworking's sawmill and
