@@ -3686,7 +3686,9 @@ seconds where it found its place clear, #1244; the stop is dropped when one stay
 before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
 for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
 ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
-eidolon, the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
+eidolon (one with nothing left to dig under it, or, with none near, as in a heading where every column has a
+band left under it, any clear of the stair and of the columns others hold: two in a hillside's heading that
+neither could step away from stood touching for 400 seconds), the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
 out keeps its box over its foot until near the top: stopped and begun again every 0.6 seconds, two walking
 home out of a spiral pit stood so for good, #971), and two still touching after 10 seconds change over, the
 one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
@@ -3696,7 +3698,8 @@ for 15 seconds since its last strike, or since routes for its station plan came 
 each member for another, a stair's slots run off the plan), or with a member's stops dropped 4 times and no
 strike of its own between (the live guard refusing what each solve hands straight back, two each waiting over
 the other's next work, while the other's odd strike keeps the crew's clock going, #1244), has the rest of that
-station plan dispatched as today's (only while its routes hold stations and no member is on its way home); its members still part, stop
+station plan dispatched as today's (only while its routes hold stations and no member is on its way home; asked
+while a member parts too, which holds it from its route); its members still part, stop
 short of one standing and make room on a stand still to work, to the job's end. Small events are repaired in
 place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve follows a failed
 repair, a member joining, a new station plan, or every 15 seconds (no two within 2 seconds, or half a second

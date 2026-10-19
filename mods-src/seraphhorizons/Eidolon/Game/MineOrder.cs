@@ -429,7 +429,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 Cells.StairHolder = 0;
         }
         if (Untangle(eidolon, now))
+        {
+            // parting (stepping away, or waiting for the other to) holds it from its route, so the crew's stall is
+            // asked here too: two that cannot part have their station plan left to today's dispatch all the same
+            if (RoutedJob && _job != null)
+                RouteStalled(eidolon, now);
             return true;
+        }
         switch (_phase)
         {
             case Phase.Seek:
@@ -735,24 +741,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         long id = eidolon.EntityId;
         var board = Board;
         _routeWait = null;
-        // no strike begun by anyone for a while: the routes have stalled, and the plan is today's from here
-        // (only while there is work its routes hold: none on its way home, and stations left in some route); and
-        // so too when its own stops keep being dropped with no strike of its own between them: the live guard
-        // refusing, again and again, what each solve hands straight back (two each waiting over the other's next
-        // work, #1244), while another's odd strike keeps the crew's clock going
-        bool idle = now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince) > RouteStallSeconds;
-        if ((idle || _routeDrops >= RouteDropsStall)
-            && routes.Routes.Values.Any(r => r.Stops.Any(x => x.Kind == MineStopKind.Station))
-            && _job!.Present.All(m => _jobs?.Member(m)?.Orders?.Current is not MineOrder o || o._phase is not (Phase.Strike or Phase.Return)))
-        {
-            Cells.RoutesStalledPlan = Cells.PlanVersion;
-            eidolon.Api.Logger.Debug($"[eidolon-mine] routes for plan {Cells.PlanVersion} of {EidolonMinePlans.Describe(area)} stalled "
-                + (idle ? $"({now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince):0} s with no strike)" : $"({eidolon.EntityId}'s stops dropped {_routeDrops} times with no strike of its own)")
-                + ": today's dispatch for the rest of it");
-            _routeDrops = 0;
-            DropQueue(eidolon);
+        if (RouteStalled(eidolon, now))
             return;
-        }
         for (int guard = 0; guard < 16; guard++)
         {
             var head = routes.Head(id);
@@ -817,6 +807,32 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             _routeWait = head;
             return;
         }
+    }
+
+    /// <summary>Whether its job's routes have stalled (no strike begun by anyone for <see cref="RouteStallSeconds"/>,
+    /// or its own stops dropped <see cref="RouteDropsStall"/> times with no strike of its own): the rest of the
+    /// station plan is then left to today's dispatch, its queue let go.</summary>
+    private bool RouteStalled(EntityLaborEidolon eidolon, double now)
+    {
+        if (Cells.Routes is not { } routes)
+            return false;
+        // no strike begun by anyone for a while: the routes have stalled, and the plan is today's from here
+        // (only while there is work its routes hold: none on its way home, and stations left in some route); and
+        // so too when its own stops keep being dropped with no strike of its own between them: the live guard
+        // refusing, again and again, what each solve hands straight back (two each waiting over the other's next
+        // work, #1244), while another's odd strike keeps the crew's clock going
+        bool idle = now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince) > RouteStallSeconds;
+        if (!(idle || _routeDrops >= RouteDropsStall)
+            || !routes.Routes.Values.Any(r => r.Stops.Any(x => x.Kind == MineStopKind.Station))
+            || !_job!.Present.All(m => _jobs?.Member(m)?.Orders?.Current is not MineOrder o || o._phase is not (Phase.Strike or Phase.Return)))
+            return false;
+        Cells.RoutesStalledPlan = Cells.PlanVersion;
+        eidolon.Api.Logger.Debug($"[eidolon-mine] routes for plan {Cells.PlanVersion} of {EidolonMinePlans.Describe(area)} stalled "
+            + (idle ? $"({now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince):0} s with no strike)" : $"({eidolon.EntityId}'s stops dropped {_routeDrops} times with no strike of its own)")
+            + ": today's dispatch for the rest of it");
+        _routeDrops = 0;
+        DropQueue(eidolon);
+        return true;
     }
 
     /// <summary>Whether its route's station <paramref name="stop"/> may be set off for now, ahead of its
@@ -1099,9 +1115,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// eidolon (<see cref="RimWait.Aside"/>), on no column another holds, rather than stand by it; false
     /// when it finds no way to one (it stays where it is).</summary>
     private bool StepAway(EntityLaborEidolon eidolon, double now) =>
-        // only where nothing is left to dig under it and no one holds a column: another's strike may come
-        // anywhere else
-        _rim.Aside(eidolon, _nav!, _jobs, AsideClear(eidolon.EntityId, now));
+        // where nothing is left to dig under it and no one holds a column (another's strike may come anywhere
+        // else); with none near (in a heading every column has a band left under it), anywhere clear of the stair
+        // and the columns others hold, as down a pit: the work under it waits for it to move, and two touching
+        // with neither able to step away stood so for good (the hillside, 400 s)
+        _rim.Aside(eidolon, _nav!, _jobs, AsideClear(eidolon.EntityId, now))
+        || _rim.Aside(eidolon, _nav!, _jobs, PitClear(eidolon.EntityId, now));
 
     private bool Seek(EntityLaborEidolon eidolon, double now)
     {
