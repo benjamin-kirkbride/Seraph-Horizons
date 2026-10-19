@@ -112,6 +112,7 @@ public partial class SharedWorldScenarios
             Assert.True(KettleClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(material.Codes[0], missing)) == null, $"{material.Codes[0]} x{missing} was not fitted");
         }
         Assert.True(kettle.Built);
+        OilUp(kettle);
         Assert.True(kettle.ShowsPart("kettle") && kettle.ShowsPart("stirrer") && kettle.ShowsPart("damperopen") && !kettle.ShowsPart("lead1"));
         // empty, the stirrer's load is its empty figure
         Assert.Equal(recovery.LoadAt(OreMachine.ParkesKettle, 0), kettle.Resistance, 3);

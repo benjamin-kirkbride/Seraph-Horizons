@@ -24,6 +24,24 @@ public enum OilMachine
     DrawBench,
     /// <summary>This mod's cylinder borer: its oil wears the cutter head, never its shaft load, as the gear cutter's.</summary>
     CylinderBorer,
+    /// <summary>This mod's jaw breaker.</summary>
+    JawBreaker,
+    /// <summary>This mod's stamp battery.</summary>
+    StampBattery,
+    /// <summary>This mod's arrastra.</summary>
+    Arrastra,
+    /// <summary>This mod's ball mill.</summary>
+    BallMill,
+    /// <summary>This mod's jig.</summary>
+    Jig,
+    /// <summary>This mod's shaking table.</summary>
+    ShakingTable,
+    /// <summary>This mod's vanner.</summary>
+    Vanner,
+    /// <summary>This mod's reverberatory roaster: its rabble's shaft.</summary>
+    ReverberatoryRoaster,
+    /// <summary>This mod's Parkes kettle: its stirrer's shaft.</summary>
+    ParkesKettle,
 }
 
 /// <summary>What a dry tank does to a machine (<c>BEMachine.DryEffect</c>): most turn harder, their load on
@@ -207,6 +225,37 @@ public class MachineOilConfig
     /// <summary>Per cylinder bored, either metal. As the gear cutter's, the borer's load on its shaft never
     /// changes with its oil: the oil wears its cutter head instead (CylinderBorerSettings).</summary>
     public OilMachineConfig CylinderBorer { get; set; } = new(1000, 10f);
+
+    // The ore machines' tanks and drains are scaled by load (each machine's README, "Oil"): a tank of 5000
+    // points a unit of working load, and 2 points a job for each unit of load times the shaft turns the job
+    // takes at it, so every one runs about 44 hours at the reference speed on a full tank.
+
+    /// <summary>Per rock broken.</summary>
+    public OilMachineConfig JawBreaker { get; set; } = new(4000, 3.8f);
+
+    /// <summary>Per rock stamped.</summary>
+    public OilMachineConfig StampBattery { get; set; } = new(3750, 14.3f);
+
+    /// <summary>Per rock of a charge ground, drained when the charge is.</summary>
+    public OilMachineConfig Arrastra { get; set; } = new(500, 43f);
+
+    /// <summary>Per rock ground.</summary>
+    public OilMachineConfig BallMill { get; set; } = new(5500, 21f);
+
+    /// <summary>Per rock jigged.</summary>
+    public OilMachineConfig Jig { get; set; } = new(500, 1.4f);
+
+    /// <summary>Per rock washed.</summary>
+    public OilMachineConfig ShakingTable { get; set; } = new(500, 1.6f);
+
+    /// <summary>Per rock vanned.</summary>
+    public OilMachineConfig Vanner { get; set; } = new(400, 3.1f);
+
+    /// <summary>Per item roasted, times its weight (a concentrate's 1).</summary>
+    public OilMachineConfig ReverberatoryRoaster { get; set; } = new(2500, 0.75f);
+
+    /// <summary>Per charge stirred, times its share of a full charge.</summary>
+    public OilMachineConfig ParkesKettle { get; set; } = new(1000, 115f);
 
     public static readonly MachineOilConfig Defaults = new();
 

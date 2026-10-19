@@ -48,6 +48,7 @@ public partial class SharedWorldScenarios
                 Assert.True(vanner.ShowsPart("belt") && !vanner.ShowsPart("feedbox"));
         }
         Assert.True(vanner.Assembly.Ready);
+        OilUp(vanner);
     }
 
     private async Task VannerUntil(BEVanner vanner, Func<bool> done, int ticks = 200000)

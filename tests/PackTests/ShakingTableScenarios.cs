@@ -111,6 +111,7 @@ public partial class SharedWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(table.Built);
+        OilUp(table);
         Assert.True(table.ShowsPart("pipelead"));
         Assert.False(table.ShowsPart("pipecopper"));
         Assert.Equal(0.1f, table.Resistance, 3);

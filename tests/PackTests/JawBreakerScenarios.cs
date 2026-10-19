@@ -46,6 +46,7 @@ public partial class SharedWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(breaker.Assembly.Ready);
+        OilUp(breaker);
     }
 
     [AtlasScenario]

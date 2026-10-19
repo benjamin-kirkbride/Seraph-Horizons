@@ -85,7 +85,9 @@ defaults).
 
 **Oil.** The pack's MachineOil (`mods-src/seraphhorizons/README.md`, "Machines need oil") gives
 some machines an oil tank: the helve hammer, the pulverizer, Immersive Woodworking's sawmill and
-chopper, the bucking sawmill, the rosser, the gear cutter, the draw bench and the cylinder borer. A dry machine
+chopper, the bucking sawmill, the rosser, the gear cutter, the draw bench, the cylinder borer, and every
+ore machine on a shaft (the jaw breaker, stamp battery, arrastra, ball mill, jig, shaking table, vanner,
+reverberatory roaster and Parkes kettle, whose tanks are sized to their loads). A dry machine
 loads its shaft `DryResistanceMultiplier` (3) times. Such an entry has `oil: { dryMultiplier,
 tank }`, with the tank in litres (`MachineOilSettings.<machine>.Tank` points / 100). The gear
 cutter and the cylinder borer are the exceptions. A dry tank wears the cutter kit or the cutter head faster
@@ -153,7 +155,9 @@ that is not loaded leaves its entries out.
   (`Power/OreMachineConsumers.cs`), its load the machine's `machines` entry in
   `config/ore-processing.json` (constant, or from `emptyLoad` to `load` for the machines whose load
   follows their job), 0.005 until built. Their power cells all carry `seraphhorizons.MachineMP`, so a
-  `Spec` could not tell them apart.
+  `Spec` could not tell them apart. A machine that takes oil is named in `OreMachineConsumers.Oiled`
+  (its build id to its `MachineOilSettings` entry), which gives it its `oil` as `Spec.Oil` does
+  (`Consumers.AddOil`).
 - **A seraphhorizons workshop machine on the shared machine base** (the draw bench; docs/modeling/machine-base.md)
   has the same shared power cell, so its `Spec` names `BEBehaviorMachineMP` with `ByFrame`: it is found
   by its frame (`ItemPrefix`), not by the behavior. Its build file has no `block`, so the ore

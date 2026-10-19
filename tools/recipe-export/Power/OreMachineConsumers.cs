@@ -11,7 +11,8 @@ namespace SeraphHorizons.RecipeExport.Power;
 /// <c>config/ore-processing.json</c> (ore-core's <c>OreRecovery.Machine</c>). A constant-load machine
 /// draws its working load once built, working or idle, and the shared machine code's 0.005 until then;
 /// one whose load follows its job (the jaw breaker, the reverberatory roaster, the Parkes kettle) ranges
-/// from its empty load to its working one.
+/// from its empty load to its working one. The machines that turn on a shaft take oil (<see cref="Oiled"/>),
+/// their dry load the MachineOil multiplier's, as every oiled machine's.
 /// </summary>
 public static class OreMachineConsumers
 {
@@ -24,6 +25,14 @@ public static class OreMachineConsumers
 
     /// <summary>A build file's machine id where ore-processing.json names it otherwise.</summary>
     private static readonly Dictionary<string, string> RecoveryKey = new(StringComparer.Ordinal) { ["shakingtable"] = "table" };
+
+    /// <summary>The MachineOilSettings entry of each machine that takes oil (its block entity's <c>OilKind</c>).</summary>
+    private static readonly Dictionary<string, string> Oiled = new(StringComparer.Ordinal)
+    {
+        ["jawbreaker"] = "JawBreaker", ["stampbattery"] = "StampBattery", ["arrastra"] = "Arrastra", ["ballmill"] = "BallMill",
+        ["jig"] = "Jig", ["shakingtable"] = "ShakingTable", ["vanner"] = "Vanner", ["reverberatory"] = "ReverberatoryRoaster",
+        ["parkeskettle"] = "ParkesKettle",
+    };
 
     /// <summary>The shared machine code's load until built (<c>MachineLoad.Unassembled</c>).</summary>
     public const double Unassembled = 0.005;
@@ -79,6 +88,8 @@ public static class OreMachineConsumers
             }
             o["idleLoad"] = PowerSection.Num(Unassembled);
             figures.Add(Live.Constant("load until built", Unassembled, "MachineLoad.Unassembled"));
+            if (Oiled.TryGetValue(machine, out var oil))
+                Consumers.AddOil(live, oil, false, o, figures);
             o["sources"] = PowerSection.Sources(figures);
             list.Add(o);
         }

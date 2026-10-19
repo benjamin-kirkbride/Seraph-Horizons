@@ -56,6 +56,7 @@ public partial class SharedWorldScenarios
                 Assert.True(mill.ShowsPart("girth") && !mill.ShowsPart("pinion"));
         }
         Assert.True(mill.Assembly.Ready);
+        OilUp(mill);
     }
 
     private static int MillChestCount(BlockEntityContainer chest, string code) =>

@@ -47,6 +47,9 @@ public class BEReverberatory : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.Reverberatory;
 
+    /// <summary>Oiled (its rabbles' shaft), its job an item roasted, by the item's weight.</summary>
+    protected override OilMachine? OilKind => OilMachine.ReverberatoryRoaster;
+
     private ReverberatorySystem Furnace => ReverberatorySystem.Of(Api);
     private ReverberatoryConfig FurnaceConfig => Api == null ? ReverberatoryConfig.Defaults : Furnace.Config;
     public ReverberatoryRig? FurnaceRig => Api == null ? null : Furnace.Rig;
@@ -158,6 +161,7 @@ public class BEReverberatory : BEOreMachine
             }
             _coalLeft = left;
             SpendWater(WaterPerItem * weight);
+            DrainOil(weight);
             _progress -= spec.TurnsPerItem * weight;
             var fed = InfeedSlot.TakeOut(1);
             InfeedSlot.MarkDirty();

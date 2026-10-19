@@ -22,6 +22,9 @@ public class BEBallMill : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.BallMill;
 
+    /// <summary>Oiled, its job a rock ground (<see cref="BEOreMachine.WorkItem"/>).</summary>
+    protected override OilMachine? OilKind => OilMachine.BallMill;
+
     /// <summary>Crushed or ground ore whose ground ore item is in the game.</summary>
     public override bool Takes(ItemStack stack)
     {
