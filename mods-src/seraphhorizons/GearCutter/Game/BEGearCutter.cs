@@ -18,7 +18,7 @@ namespace SeraphHorizons.Mod.GearCutter;
 /// from <c>config/builds/gearcutter.json</c> with the cutter kit its durable wearing part and the master its last
 /// stage, its cells and power cell, its oil (<see cref="OilMachine.GearCutter"/>, whose dry tank wears the kit,
 /// never the load: <see cref="OilDryEffect.Wear"/>), its block info, its renderer). It keeps the blank on the
-/// arbor as its item stack and the cut (<see cref="CutJob"/>: W, the teeth cut). The server cuts from the power
+/// arbor as its item stack and the cut (<see cref="MachineJob"/>: W, the teeth cut). The server cuts from the power
 /// cell's shaft angle, wears the kit by the tank's fill when a gear is done, drains a gear's oil and drops the
 /// gear at the output face; the client poses the rig from the shaft and its own W (<see cref="GearCutterClock"/>).
 /// The rules are GearCutter/Core's.
@@ -34,7 +34,7 @@ public class BEGearCutter : BEMachine
     private const float SprayInterval = 0.2f;
 
     private ItemStack? _blank;
-    private CutJob _job = CutJob.None;
+    private MachineJob _job = MachineJob.None;
     private float? _serverTurnsPerTooth;
     private int? _serverWearPerGear;
     private readonly GearCutterClock _clock = new();
@@ -44,7 +44,7 @@ public class BEGearCutter : BEMachine
 
     public bool BlankOn => _job.On && _blank != null;
     public ItemStack? Blank => _blank;
-    public CutJob Job => _job;
+    public MachineJob Job => _job;
 
     /// <summary>The master's class: 1 small, 2 large, 0 none.</summary>
     public int Master => Assembly is { } a ? GearCutterBuild.Master(a) : 0;
@@ -177,7 +177,7 @@ public class BEGearCutter : BEMachine
     private void Load(ItemStack blank)
     {
         _blank = blank;
-        _job = new CutJob(GearCut.ClassOfBlank(blank.Collectible.Code.ToString()), 0);
+        _job = GearCut.Start(GearCut.ClassOfBlank(blank.Collectible.Code.ToString()));
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
     }
@@ -185,7 +185,7 @@ public class BEGearCutter : BEMachine
     private void ClearBlank()
     {
         _blank = null;
-        _job = CutJob.None;
+        _job = MachineJob.None;
     }
 
     private void Give(IPlayer byPlayer, ItemStack stack)
@@ -241,7 +241,7 @@ public class BEGearCutter : BEMachine
         if (!BlankOn || !Ready)
             return false;
         var before = _job;
-        (_job, bool finished) = _job.Advance(radians, Config.TurnsPerTooth);
+        (_job, bool finished) = GearCut.Advance(_job, radians, Config.TurnsPerTooth);
         if (finished)
         {
             Finish();
@@ -300,7 +300,7 @@ public class BEGearCutter : BEMachine
         double turned = Math.Max(0, psi - _lastPsi);
         _lastPsi = psi;
         bool running = Running;
-        _clock.Advance(dt, turned, Master, BlankOn, _job.Work, _job.End, running, TurnsPerTooth);
+        _clock.Advance(dt, turned, Master, BlankOn, _job.Work, (int)_job.End, running, TurnsPerTooth);
         if (!far && running && Rig is { } rig)
         {
             if ((_chipTimer += dt) >= ChipInterval)
@@ -374,7 +374,7 @@ public class BEGearCutter : BEMachine
         _blank = tree.GetItemstack("blank");
         if (_blank != null && !_blank.ResolveBlockOrItem(worldForResolving))
             _blank = null;
-        _job = _blank == null ? CutJob.None : CutJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
+        _job = _blank == null ? MachineJob.None : GearCut.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
             _blank = null;
         if (worldForResolving.Side == EnumAppSide.Client)

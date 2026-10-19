@@ -44,10 +44,7 @@ public sealed class OilState(OilMachine machine, OilTank tank, float dryMultipli
 /// The low-level oil helpers <see cref="MachineOiling"/> is built on, the piece every oiled machine
 /// composes: the tank in the block entity's tree (saved, and synced to clients for the block info and the
 /// smoke), pouring oil in from a held liquid container or by the lump, and the smoke a dry machine gives off
-/// while it turns. The "own machine" helpers below (<see cref="NewOwn"/>, <see cref="LoadOwn"/>,
-/// <see cref="Interact"/>, <see cref="Info"/>, <see cref="Drain"/>) serve the workshop machines not yet on the
-/// shared machine base (the bucking mill, the rosser, the gear cutter, the cylinder borer) and go with them
-/// when they move onto it (docs/modeling/machine-base.md).
+/// while it turns. A machine never calls these itself: it composes a <see cref="MachineOiling"/>.
 /// </summary>
 public static class Oil
 {
@@ -181,27 +178,6 @@ public static class Oil
     /// it never reads 0 (and an empty one reads 0, never -0).</summary>
     public static string Shown(double points) => OilText.Points(points);
 
-    /// <summary>The block info's oil lines: the tank, and once the shaft has asked for it the load
-    /// on the shaft in kN; while dry how much harder it turns, the load now against the load oiled.
-    /// A machine whose load the oil leaves alone (<paramref name="dryLoad"/> false) only has the
-    /// load.</summary>
-    public static void Info(OilState? state, StringBuilder dsc, bool dryLoad = true)
-    {
-        if (state == null)
-            return;
-        dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-tank", Shown(state.Tank.Points), Shown(state.Tank.Capacity)));
-        if (!state.Dry || !dryLoad)
-        {
-            if (state.Load is { } asked)
-                dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-load", OilText.Load(asked)));
-            return;
-        }
-        string times = state.DryMultiplier.ToString("0.##");
-        dsc.AppendLine(state.Load is { } load && state.OiledLoad is { } oiled
-            ? Lang.Get(Domain + ":machineoil-info-dry-load", times, OilText.Load(load), OilText.Load(oiled))
-            : Lang.Get(Domain + ":machineoil-info-dry", times));
-    }
-
     /// <summary>The shaft asking a machine its load: <paramref name="resistance"/> as the oil leaves
     /// it (left alone with <paramref name="dryLoad"/> false), remembered on <paramref name="state"/>;
     /// the server marks <paramref name="owner"/> dirty when the figure changes, so the client's block
@@ -214,47 +190,6 @@ public static class Oil
             owner.MarkDirty();
         return load;
     }
-
-    // ---- The bucking mill's and the rosser's own tanks ----
-
-    /// <summary>The tank a machine of this mod's starts with on the server: empty, or none with the
-    /// switch off.</summary>
-    public static OilState? NewOwn(ICoreAPI api, OilMachine machine) =>
-        MachineOilSystem.Of(api) is { On: true } system ? New(machine, system.Config) : null;
-
-    /// <summary>The tank a machine of this mod's reads from its tree: on the server what it saved
-    /// (none with the switch off), on a client what the server sent.</summary>
-    public static OilState? LoadOwn(ITreeAttribute tree, IWorldAccessor world, OilMachine machine)
-    {
-        if (world.Side != EnumAppSide.Server)
-            return Read(tree, machine);
-        return MachineOilSystem.Of(world.Api) is { On: true } system ? Load(tree, machine, system.Config) : null;
-    }
-
-    /// <summary>A right-click on a machine of this mod's: whether it is oil's (the player holds oil
-    /// and the machine has a tank), pouring it on the server. Null when it is not, so the machine's
-    /// own handling goes on.</summary>
-    public static bool? Interact(BlockEntity be, OilState? state, IPlayer byPlayer)
-    {
-        if (state == null || MachineOilSystem.Of(be.Api) is not { } system)
-            return null;
-        if (KindOf(byPlayer.InventoryManager.ActiveHotbarSlot?.Itemstack, system.Config, system.Liquids) == OilKind.None)
-            return null;
-        if (be.Api.Side == EnumAppSide.Server && Pour(be.Api.World, byPlayer, state, system.Config, system.Liquids, be.Pos) > 0)
-            be.MarkDirty(true);
-        return true;
-    }
-
-    /// <summary>A finished job of a machine of this mod's: drains <paramref name="points"/>
-    /// (server side). The caller marks the block entity dirty.</summary>
-    public static void Drain(OilState? state, double points)
-    {
-        if (state != null && points > 0)
-            state.Tank = state.Tank.Drain(points);
-    }
-
-    /// <summary>What one job costs <paramref name="machine"/> by this side's settings.</summary>
-    public static double DrainPerJob(ICoreAPI api, OilMachine machine) => MachineOilSystem.Of(api).Config.For(machine).DrainPerJob;
 
     private static SimpleParticleProperties? _smoke;
 

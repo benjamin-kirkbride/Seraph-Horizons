@@ -301,37 +301,37 @@ public class CylinderBorerGameplayTests
     [InlineData(2, 96.0)]
     public void One_traverse_bores_a_cylinder_at_its_metals_pace(int k, double turnsPerBlock)
     {
-        var job = new BoreJob(k, 0);
+        var job = Boring.Start(k);
         Assert.True(job.On);
         Assert.Equal(18.0 / 16, job.End, 9);
         Assert.Equal(18.0 / 16 * turnsPerBlock, Boring.TurnsPerCylinder(turnsPerBlock), 9);
         // a block of travel is turnsPerBlock axle turns
-        (job, bool finished) = job.Advance(2 * Math.PI * turnsPerBlock, turnsPerBlock);
+        (job, bool finished) = Boring.Advance(job, 2 * Math.PI * turnsPerBlock, turnsPerBlock);
         Assert.Equal(1.0, job.Work, 9);
         Assert.False(finished);
         // backwards turns count as turns; the rest finishes it, and W stops at the end
-        (job, finished) = job.Advance(2 * Math.PI * turnsPerBlock, turnsPerBlock);
+        (job, finished) = Boring.Advance(job, 2 * Math.PI * turnsPerBlock, turnsPerBlock);
         Assert.True(finished);
         Assert.True(job.Done);
         Assert.Equal(Boring.Travel, job.Work, 9);
-        (var after, bool again) = job.Advance(1000, turnsPerBlock);
+        (var after, bool again) = Boring.Advance(job, 1000, turnsPerBlock);
         Assert.False(again);
         Assert.Equal(job, after);
         // nothing for no turn, a negative one or no pace
         Assert.Equal(0, Boring.BlocksFor(-3, turnsPerBlock));
         Assert.Equal(0, Boring.BlocksFor(3, 0));
-        Assert.False(BoreJob.None.Advance(100, turnsPerBlock).Finished);
+        Assert.False(Boring.Advance(MachineJob.None, 100, turnsPerBlock).Finished);
     }
 
     [Fact]
     public void A_saved_bore_is_clamped_and_none_without_a_casting()
     {
-        Assert.Equal(new BoreJob(1, 0.5), BoreJob.Restore(1, 0.5));
-        Assert.Equal(Boring.Travel, BoreJob.Restore(2, 99).Work, 9);
-        Assert.Equal(0, BoreJob.Restore(2, double.NaN).Work);
-        Assert.Equal(0, BoreJob.Restore(1, -1).Work);
-        Assert.Equal(BoreJob.None, BoreJob.Restore(3, 0.5));
-        Assert.Equal(BoreJob.None, BoreJob.Restore(0, 0.5));
+        Assert.Equal(new MachineJob(1, 0.5, Boring.Travel), Boring.Restore(1, 0.5));
+        Assert.Equal(Boring.Travel, Boring.Restore(2, 99).Work, 9);
+        Assert.Equal(0, Boring.Restore(2, double.NaN).Work);
+        Assert.Equal(0, Boring.Restore(1, -1).Work);
+        Assert.Equal(MachineJob.None, Boring.Restore(3, 0.5));
+        Assert.Equal(MachineJob.None, Boring.Restore(0, 0.5));
     }
 
     [Fact]

@@ -18,7 +18,7 @@ namespace SeraphHorizons.Mod.CylinderBorer;
 /// <c>config/builds/cylinderborer.json</c> with the cutter head its durable wearing part, its cells and power
 /// cell, its oil (<see cref="OilMachine.CylinderBorer"/>, whose dry tank wears the head, never the load:
 /// <see cref="OilDryEffect.Wear"/>), its block info, its renderer). It keeps the casting in the cradle as its item
-/// stack and the bore (<see cref="BoreJob"/>: W, the head's travel through it). The server bores from the power
+/// stack and the bore (<see cref="MachineJob"/>: W, the head's travel through it). The server bores from the power
 /// cell's shaft angle, wears the head by the tank's fill when a cylinder is done, drains a cylinder's oil, drops
 /// the bored cylinder at the output face or puts it in a container there, and takes the next casting from a chest
 /// or hopper at the infeed face; the client poses the rig from the shaft and its own W
@@ -39,7 +39,7 @@ public class BECylinderBorer : BEMachine
     private const float DripInterval = 0.45f;
 
     private ItemStack? _blank;
-    private BoreJob _job = BoreJob.None;
+    private MachineJob _job = MachineJob.None;
     private long _finishedAt = long.MinValue / 2;
     private float _soundSeconds;
     private float? _serverTurnsIron;
@@ -54,7 +54,7 @@ public class BECylinderBorer : BEMachine
 
     public bool BlankOn => _job.On && _blank != null;
     public ItemStack? Blank => _blank;
-    public BoreJob Job => _job;
+    public MachineJob Job => _job;
 
     /// <summary>The fitted cutter head: its code and durability left; null without one (taken out, or spent).</summary>
     public (string Code, double Left)? Head => Assembly?.Wearing.Fitted(CylinderBorerBuild.HeadPart);
@@ -219,7 +219,7 @@ public class BECylinderBorer : BEMachine
     private void Load(ItemStack blank)
     {
         _blank = blank;
-        _job = new BoreJob(Boring.ClassOfBlank(blank.Collectible.Code.ToString()), 0);
+        _job = Boring.Start(Boring.ClassOfBlank(blank.Collectible.Code.ToString()));
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
     }
@@ -227,7 +227,7 @@ public class BECylinderBorer : BEMachine
     private void ClearJob()
     {
         _blank = null;
-        _job = BoreJob.None;
+        _job = MachineJob.None;
     }
 
     private void Give(IPlayer byPlayer, ItemStack stack)
@@ -283,7 +283,7 @@ public class BECylinderBorer : BEMachine
         if (!BlankOn || !Ready)
             return false;
         var before = _job;
-        (_job, bool finished) = _job.Advance(radians, Config.TurnsPerBlock(_job.Class));
+        (_job, bool finished) = Boring.Advance(_job, radians, Config.TurnsPerBlock(_job.Class));
         if (finished)
         {
             Finish();
@@ -471,7 +471,7 @@ public class BECylinderBorer : BEMachine
         _blank = tree.GetItemstack("blank");
         if (_blank != null && !_blank.ResolveBlockOrItem(worldForResolving))
             _blank = null;
-        _job = _blank == null ? BoreJob.None : BoreJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
+        _job = _blank == null ? MachineJob.None : Boring.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
             _blank = null;
         if (worldForResolving.Side == EnumAppSide.Client)

@@ -117,8 +117,9 @@ public class GearCutterGameplayTests
         Assert.Equal(AssemblyVerdict.NotAPart, Click(parts, "seraphhorizons:gearcutterspindle").Verdict);
         FeedBill(parts);
         Assert.Equal(Stage("feedscrew"), parts.Build.Next);
-        // the index takes the same materials, but not before its turn: they read as the spindle's, fitted
-        Assert.Equal(AssemblyVerdict.AlreadyFitted, Click(parts, GearCutterBuild.RodCode, 2).Verdict);
+        // the index takes the same materials, but not before its turn: a stage still to come takes them, so not yet
+        // (StagedBuild.CanFit asks the later stages first)
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Click(parts, GearCutterBuild.RodCode, 2).Verdict);
         Fits(parts, GearCutterBuild.FeedScrewCode);
         Assert.Equal(AssemblyVerdict.AlreadyFitted, Click(parts, GearCutterBuild.FeedScrewCode).Verdict);
         // once both are in, the materials are fitted
@@ -355,12 +356,12 @@ public class GearCutterGameplayTests
     [InlineData(2, 240)]
     public void The_cut_advances_by_the_shafts_angle_and_finishes_once(int k, int turns)
     {
-        var job = new CutJob(k, 0);
+        var job = GearCut.Start(k);
         int finished = 0, steps = 0;
         // a turn at a time, then one more to show it holds at the end
         for (int i = 0; i < turns + 1; i++)
         {
-            (job, bool done) = job.Advance(2 * Math.PI, 12);
+            (job, bool done) = GearCut.Advance(job, 2 * Math.PI, 12);
             steps++;
             if (done)
             {
@@ -376,14 +377,14 @@ public class GearCutterGameplayTests
     [Fact]
     public void The_work_is_teeth_cut()
     {
-        var (job, done) = new CutJob(1, 0).Advance(2 * Math.PI * 12 * 3.4, 12);
+        var (job, done) = GearCut.Advance(GearCut.Start(1), 2 * Math.PI * 12 * 3.4, 12);
         Assert.False(done);
         Assert.Equal(3.4, job.Work, 9);
         Assert.Equal(12, job.End);
-        Assert.False(CutJob.None.On);
-        Assert.Equal(CutJob.None, CutJob.None.Advance(100, 12).Job);
-        Assert.Equal(new CutJob(2, 20), CutJob.Restore(2, 99));
-        Assert.Equal(CutJob.None, CutJob.Restore(3, 1));
+        Assert.False(MachineJob.None.On);
+        Assert.Equal(MachineJob.None, GearCut.Advance(MachineJob.None, 100, 12).Job);
+        Assert.Equal(new MachineJob(2, 20, 20), GearCut.Restore(2, 99));
+        Assert.Equal(MachineJob.None, GearCut.Restore(3, 1));
     }
 
     [Fact]
