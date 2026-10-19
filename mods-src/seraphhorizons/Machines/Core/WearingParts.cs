@@ -9,10 +9,18 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// part drawn while one is fitted, or null. A <see cref="Durable"/> part is one item whose durability is
 /// its uses (the draw bench's die): it goes in with the durability it has left, can be taken back out
 /// with what is left of it (<see cref="WearingParts.Take"/>), and breaking the machine gives it back so.
+/// <see cref="UsesOf"/>, where the machine gives it, is the uses of a set by the item fitted, in place of
+/// <see cref="Uses"/> (a figure per metal: the bucking mill's blade kits, each its own durability).
 /// </summary>
-public sealed record WearingPart(string Id, IReadOnlyList<string> Codes, int Count, double Uses, string? Requires = null, bool Durable = false)
+public sealed record WearingPart(string Id, IReadOnlyList<string> Codes, int Count, double Uses, string? Requires = null, bool Durable = false,
+    Func<string, double>? UsesOf = null)
 {
     public bool Matches(string code) => Codes.Any(p => CodePattern.Matches(p, code));
+
+    /// <summary>The uses a new set of <paramref name="code"/> lasts: <see cref="UsesOf"/>'s figure where it gives a
+    /// positive one, else <see cref="Uses"/>.</summary>
+    public double UsesFor(string? code) =>
+        UsesOf != null && code != null && UsesOf(code) is var u && u > 0 && double.IsFinite(u) ? u : Uses;
 }
 
 /// <summary>Why a held stack does or does not renew a wearing part.</summary>
@@ -63,7 +71,7 @@ public sealed class WearingParts
     public double ShareLeft(string id)
     {
         var part = Parts.FirstOrDefault(p => p.Id == id);
-        return part == null || !_fitted.TryGetValue(id, out var f) ? 0 : Math.Clamp(f.Left / part.Uses, 0, 1);
+        return part == null || !_fitted.TryGetValue(id, out var f) ? 0 : Math.Clamp(f.Left / part.UsesFor(f.Code), 0, 1);
     }
 
     /// <summary>What a click with <paramref name="held"/> of <paramref name="code"/> does, on a machine
@@ -86,12 +94,16 @@ public sealed class WearingParts
 
     /// <summary>Fits a new set if <see cref="CanRenew"/> allows; the caller takes the part's
     /// <see cref="WearingPart.Count"/> from the slot. A durable part goes in with <paramref name="uses"/>
-    /// left (never past its <see cref="WearingPart.Uses"/>), a new one's when not given.</summary>
+    /// left (never past its <see cref="WearingPart.UsesFor"/>), a new one's when not given.</summary>
     public RenewVerdict Renew(string? code, int held, bool built, double? uses = null)
     {
         var verdict = CanRenew(code, held, built, out var part, uses);
         if (verdict == RenewVerdict.Renews)
-            _fitted[part!.Id] = (CodePattern.Normalise(code)!, part.Durable && uses is { } u ? Math.Min(u, part.Uses) : part.Uses);
+        {
+            string fitted = CodePattern.Normalise(code)!;
+            double max = part!.UsesFor(fitted);
+            _fitted[part.Id] = (fitted, part.Durable && uses is { } u ? Math.Min(u, max) : max);
+        }
         return verdict;
     }
 
@@ -108,7 +120,10 @@ public sealed class WearingParts
     public void FillAll(string wildcard = "steel")
     {
         foreach (var p in Parts)
-            _fitted[p.Id] = (CodePattern.Normalise(p.Codes[0])!.Replace("*", wildcard), p.Uses);
+        {
+            string code = CodePattern.Normalise(p.Codes[0])!.Replace("*", wildcard);
+            _fitted[p.Id] = (code, p.UsesFor(code));
+        }
     }
 
     /// <summary>Wears <paramref name="id"/>'s set by <paramref name="uses"/>. Returns whether this
@@ -146,7 +161,7 @@ public sealed class WearingParts
         var wearing = new WearingParts(parts);
         foreach (var p in parts)
             if (snapshot.TryGetValue(p.Id, out var f) && p.Matches(f.Code) && double.IsFinite(f.Left) && f.Left > 0)
-                wearing._fitted[p.Id] = (f.Code, Math.Min(f.Left, p.Uses));
+                wearing._fitted[p.Id] = (f.Code, Math.Min(f.Left, p.UsesFor(f.Code)));
         return wearing;
     }
 }

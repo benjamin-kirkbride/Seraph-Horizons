@@ -54,7 +54,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     private float _smokeSeconds;
     private Dictionary<Int3, Cuboidf[]>? _cells;
     private Dictionary<Int3, Cuboidf[]>? _collision;
-    private MachineRenderer? _renderer;
+    private IRenderer? _renderer;
 
     // A client's own player holding right-click counts as working for this long after its last step.
     private const long LocalHoldMs = 250;
@@ -362,8 +362,9 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         return (_theta, _psi);
     }
 
-    /// <summary>The client's renderer for this machine: the shared one, by default.</summary>
-    protected virtual MachineRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) => new(capi, this, rig);
+    /// <summary>The client's renderer for this machine: the shared one, by default. A machine that draws more
+    /// than its rig's parts (a trunk lying in it, parts in a fitted metal) gives its own.</summary>
+    protected virtual IRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) => new MachineRenderer(capi, this, rig);
 
     // ---- Life ----
 
@@ -428,10 +429,13 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// through <paramref name="face"/> into its buffer (<see cref="BEMachineCell"/>): never, by default.</summary>
     public virtual bool CellTakes(BlockPos cell, BlockFacing face, ItemStack stack) => false;
 
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
+    /// <summary>A cell's selection boxes, the rig's turned to the facing. A machine whose boxes follow its work
+    /// (a trunk lying in it: the bucking mill, the rosser) gives its own; collision lookups can run off the
+    /// main thread, so it reads tables built whole.</summary>
+    public virtual Cuboidf[]? CellBoxes(BlockPos cellPos) => _cells?.GetValueOrDefault(LocalOf(cellPos));
 
     /// <summary>A cell's selection boxes and the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
+    public virtual Cuboidf[]? CollisionBoxes(BlockPos cellPos) => _collision?.GetValueOrDefault(LocalOf(cellPos));
 
     // The boxes never change: built once, then only read (collision lookups can run off the main thread).
     private void BuildBoxes()
@@ -586,33 +590,46 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
             }
             return true;
         }
-        var stack = slot?.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack != null && code != null)
+        if (slot?.Itemstack is { } stack && stack.Collectible?.Code?.ToString() is { } code
+            && assembly.Check(code, creative ? int.MaxValue / 2 : stack.StackSize, stack.Collectible.MaxStackSize, DurabilityOf(stack)).Verdict
+               != AssemblyVerdict.NotAPart)
         {
-            int held = creative ? int.MaxValue / 2 : stack.StackSize;
-            double? uses = DurabilityOf(stack);
-            var check = assembly.Check(code, held, stack.Collectible.MaxStackSize, uses);
-            if (check.Verdict != AssemblyVerdict.NotAPart)
-            {
-                if (Api.Side != EnumAppSide.Server)
-                    return true;
-                var click = assembly.Fit(code, held, stack.Collectible.MaxStackSize, uses);
-                if (!click.Took)
-                    return Error(byPlayer, MachineText.Error(click, Api.World, Machine, assembly), click.ErrorLangCode);
-                if (!creative)
-                {
-                    slot!.TakeOut(click.Take);
-                    slot.MarkDirty();
-                }
-                Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-                Api.World.Logger.Audit("{0} fitted {1}x{2} to the {3} at {4}.", byPlayer.PlayerName, click.Take, code, Machine, Pos);
-                OnAssemblyChanged();
-                MarkDirty(true);
-                return true;
-            }
+            if (Api.Side == EnumAppSide.Server)
+                TryFit(slot, byPlayer);
+            return true;
         }
         return slot != null && InteractWork(byPlayer, slot, blockSel);
+    }
+
+    /// <summary>Fits what <paramref name="slot"/> holds into the next stage, or renews a worn-out wearing part
+    /// with it (server side), as a right-click holding it does: true when it went in (taken from the slot unless
+    /// <paramref name="byPlayer"/> is in creative mode), false with the error sent to the player when it is a
+    /// part that does not go in now, null when it is no part of the machine.</summary>
+    public bool? TryFit(ItemSlot slot, IPlayer byPlayer)
+    {
+        if (_assembly is not { } assembly || slot.Itemstack is not { } stack || stack.Collectible?.Code?.ToString() is not { } code)
+            return null;
+        bool creative = byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative;
+        int held = creative ? int.MaxValue / 2 : stack.StackSize;
+        double? uses = DurabilityOf(stack);
+        var click = assembly.Fit(code, held, stack.Collectible.MaxStackSize, uses);
+        if (click.Verdict == AssemblyVerdict.NotAPart)
+            return null;
+        if (!click.Took)
+        {
+            Error(byPlayer, MachineText.Error(click, Api.World, Machine, assembly), click.ErrorLangCode);
+            return false;
+        }
+        if (!creative)
+        {
+            slot.TakeOut(click.Take);
+            slot.MarkDirty();
+        }
+        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
+        Api.World.Logger.Audit("{0} fitted {1}x{2} to the {3} at {4}.", byPlayer.PlayerName, click.Take, code, Machine, Pos);
+        OnAssemblyChanged();
+        MarkDirty(true);
+        return true;
     }
 
     /// <summary>After a stage was fitted or a set renewed (server side): nothing by default.</summary>

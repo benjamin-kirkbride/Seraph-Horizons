@@ -31,6 +31,11 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
     /// <summary>The machine's id (<c>attributes.machine.machine</c>), or the code's first part.</summary>
     public string Machine => Attributes?["machine"]?["machine"]?.AsString(null) ?? Code.FirstCodePart();
 
+    /// <summary>Whether the machine is placed lengthwise, extending away from the player with its native west end
+    /// farthest (<c>attributes.machine.lengthwise</c>: the bucking mill's and the rosser's rule,
+    /// <see cref="Footprint.PlacedFacing"/>); else its native north faces the player (<see cref="OreMachineRig.PlacedSide"/>).</summary>
+    public bool Lengthwise => Attributes?["machine"]?["lengthwise"]?.AsBool(false) ?? false;
+
     /// <summary>An ore machine's own part requires (<c>attributes.machine.extraRequires</c>).</summary>
     public string[] ExtraRequires => Attributes?["machine"]?["extraRequires"]?.AsArray<string>([])?.OfType<string>().ToArray() ?? [];
 
@@ -74,12 +79,14 @@ public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
     }
 
     /// <summary>Places the variant whose native north faces the player, so the facing is the way they look
-    /// (<see cref="OreMachineRig.PlacedSide"/>, every machine's rule): the block they clicked becomes the
+    /// (<see cref="OreMachineRig.PlacedSide"/>), or, for a machine placed <see cref="Lengthwise"/>, the variant
+    /// that extends away from them (<see cref="Footprint.PlacedFacing"/>): the block they clicked becomes the
     /// controller.</summary>
     public override bool TryPlaceBlock(IWorldAccessor world, IPlayer byPlayer, ItemStack itemstack, BlockSelection blockSel, ref string failureCode)
     {
         var away = SuggestedHVOrientation(byPlayer, blockSel)[0];
-        var side = OreMachineRig.PlacedSide(Sides.FromNormal(away.Normali.X, away.Normali.Z));
+        var look = Sides.FromNormal(away.Normali.X, away.Normali.Z);
+        var side = Lengthwise ? Footprint.PlacedFacing(look) : OreMachineRig.PlacedSide(look);
         if (world.GetBlock(CodeWithVariant("side", side.Code())) is not { Id: > 0 } block)
             return false;
         if (!block.CanPlaceBlock(world, byPlayer, blockSel, ref failureCode))

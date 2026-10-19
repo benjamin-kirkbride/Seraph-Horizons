@@ -13,7 +13,8 @@ namespace SeraphHorizons.Mod.Machines.Core;
 ///   "stages": [ { "id": "timber", "adds": ["timber"],
 ///                 "materials": [ { "codes": ["game:supportbeam-*"], "quantity": 41 } ] }, ... ],
 ///   // a material with "oneType": true takes any of its codes, but all of one (one brick type); one with
-///   // "ifExists": true is left out of a game that has none of its items (the draw bench's spring)
+///   // "ifExists": true is left out of a game that has none of its items (the draw bench's spring); one with
+///   // "partial": true takes as many as are held, fewer than it still needs too (the rosser's ring sections)
 ///   "wearing": [ { "id": "shoes", "codes": ["game:poundercap-steel"], "count": 5, "uses": 400, "stage": "stamps" } ]
 ///   // a wearing part with "durable": true is one item whose durability is its uses (the draw bench's die)
 /// }
@@ -56,6 +57,14 @@ public sealed record MachineBuild(string Machine, string? Block, FeedMode Feed, 
     public MachineBuild WithUses(string id, double uses) =>
         Wearing.Any(w => w.Id == id) && uses > 0
             ? this with { Wearing = Wearing.Select(w => w.Id == id ? w with { Uses = uses } : w).ToList() }
+            : this;
+
+    /// <summary>The build with wearing part <paramref name="id"/>'s uses given by the item fitted
+    /// (<see cref="WearingPart.UsesOf"/>: a figure per metal, the bucking mill's blade kits' durability, the rosser's
+    /// heads' capacity); as it is for no such part.</summary>
+    public MachineBuild WithUses(string id, Func<string, double> usesOf) =>
+        Wearing.Any(w => w.Id == id)
+            ? this with { Wearing = Wearing.Select(w => w.Id == id ? w with { UsesOf = usesOf } : w).ToList() }
             : this;
 }
 
@@ -117,8 +126,9 @@ public static class MachineBuildJson
                     throw new FormatException($"stage {id}'s material {codes[0]} draws {stray}, which is not one of its adds");
                 bool oneType = m.TryGetProperty("oneType", out var one) && one.ValueKind == JsonValueKind.True;
                 bool ifExists = m.TryGetProperty("ifExists", out var ie) && ie.ValueKind == JsonValueKind.True;
+                bool partial = m.TryGetProperty("partial", out var pa) && pa.ValueKind == JsonValueKind.True;
                 materials.Add(new BuildMaterial(codes.Select(c => CodePattern.Normalise(c)!).ToList(), quantity, picks, draws,
-                    OneType: oneType, IfExists: ifExists));
+                    OneType: oneType, IfExists: ifExists, Partial: partial));
             }
             stages.Add(new MachineStage(id, adds, materials, Str(s, "name")));
         }

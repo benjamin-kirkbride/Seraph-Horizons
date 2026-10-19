@@ -95,7 +95,7 @@ public static class MachineText
             {
                 info.Add(Lang.Get(P + "info-wearing", name,
                     Math.Round(100 * assembly.Wearing.ShareLeft(part.Id)).ToString(CultureInfo.InvariantCulture)));
-                info.AddDetail(Lang.Get(P + "info-wearing-uses", name, Count(fitted.Left), Count(part.Uses)));
+                info.AddDetail(Lang.Get(P + "info-wearing-uses", name, Count(fitted.Left), Count(part.UsesFor(fitted.Code))));
             }
         }
     }
