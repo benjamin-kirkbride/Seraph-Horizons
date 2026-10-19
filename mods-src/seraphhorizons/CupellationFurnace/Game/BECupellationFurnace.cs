@@ -92,7 +92,7 @@ public class BECupellationFurnace : BEFiredOreMachine
         double units = stack.StackSize * Bullion.UnitsPerItem;
         if (code == Bullion.RichLeadCode) return FurnaceCharge.Rich(units);
         if (code == Cupelling.LeadIngot) return FurnaceCharge.Lead(units);
-        if (Bullion.OreOf(code) is { } ore) return FurnaceCharge.Bar(ore, units);
+        if (Bullion.OreOf(code) is { } ore) return FurnaceCharge.Bar(ore, units, OreStreamAttributes.WholeShareOf(stack));
         return FurnaceCharge.Other;
     }
 
@@ -116,7 +116,8 @@ public class BECupellationFurnace : BEFiredOreMachine
         if (!TestIn) return CupellingRefusal.TestWorn;
         if (!SilverCake.Empty || !CopperBits.Empty) return CupellingRefusal.TakeOutFirst;
         int room = Pot.Sum(s => s.Empty ? OreProducts.LithargeStack : Math.Max(0, s.Itemstack!.Collectible.MaxStackSize - s.StackSize));
-        return Cupelling.LithargeFor(Cupelling.LeadUnits(Recovery, charge)) > room ? CupellingRefusal.PotFull : CupellingRefusal.None;
+        // the lead the charge gives (a bar off the whole route gives its lead made whole)
+        return Cupelling.LithargeFor(Cupelling.Yield(Recovery, charge).LeadUnits) > room ? CupellingRefusal.PotFull : CupellingRefusal.None;
     }
 
     public override bool HasWork => _lit && Charge.Any(s => !s.Empty);
@@ -437,7 +438,7 @@ public class BECupellationFurnace : BEFiredOreMachine
         {
             if (moved >= count || from.Empty)
                 break;
-            if (!target.Empty && !target.Itemstack.Equals(Api.World, from.Itemstack, GlobalConstants.IgnoredStackAttributes))
+            if (!target.Empty && !OreStreamAttributes.SameBar(Api.World, target.Itemstack, from.Itemstack!))
                 continue;
             int before = from.StackSize;
             MoveInto(from, target, count - moved);
