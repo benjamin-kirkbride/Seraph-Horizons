@@ -338,15 +338,18 @@ public sealed class OreRecovery
     /// <summary>
     /// The final step of an ore's ideal route (#765), which recovers whatever is left: the vanner for oxides,
     /// placer and free silver; the reverberatory roaster for a sulfide with no by-product; for a by-product
-    /// ore its parting machine (the Parkes kettle, with the cupellation furnace, for lead with silver; the
-    /// cupellation furnace for the rest it parts; the liquation furnace; the acid parting vessel).
+    /// ore its parting machine: the Parkes kettle (with the cupellation furnace after it) for silver-lead it
+    /// takes, leaner than its rich lead (plain galena; <see cref="Bullion.TakenBy"/>), the cupellation furnace
+    /// for the rest it parts (argentiferous galena, richer than the kettle's crust, is cupelled directly), the
+    /// liquation furnace, the acid parting vessel.
     /// </summary>
     public OreMachine FinalStep(OreSpec ore)
     {
         if (ore.ByProducts.Count > 0)
             return ore.ByProducts[0].PartedBy switch
             {
-                PartingMethod.Cupellation => ore.Metal == "lead" ? OreMachine.ParkesKettle : OreMachine.CupellationFurnace,
+                PartingMethod.Cupellation => Bullion.TakenBy(this, ore, PartingStation.ParkesKettle)
+                    ? OreMachine.ParkesKettle : OreMachine.CupellationFurnace,
                 PartingMethod.Liquation => OreMachine.LiquationFurnace,
                 _ => OreMachine.AcidParting,
             };
