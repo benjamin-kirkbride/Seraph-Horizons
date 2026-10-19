@@ -236,6 +236,25 @@ public sealed class StagedBuild
         return fit;
     }
 
+    /// <summary>Takes stage <paramref name="stage"/> back out (the gear cutter's master, changed by Ctrl +
+    /// right-click): every item it holds, by code; empty, with nothing taken, unless it is complete and no
+    /// later stage holds anything, so the build stays a run from the first stage.</summary>
+    public IReadOnlyList<StageDrop> TakeStage(int stage)
+    {
+        if (stage < 0 || stage >= Stages.Count || !StageComplete(stage))
+            return [];
+        for (int s = stage + 1; s < Stages.Count; s++)
+            if (_fitted[s].Any(m => m.Values.Any(n => n > 0)))
+                return [];
+        var drops = new List<StageDrop>();
+        foreach (var material in _fitted[stage])
+        {
+            drops.AddRange(material.Where(kv => kv.Value > 0).Select(kv => new StageDrop(kv.Key, kv.Value)));
+            material.Clear();
+        }
+        return drops;
+    }
+
     /// <summary>What the next stage still takes: each material missing and how many; empty when built.</summary>
     public IReadOnlyList<(BuildMaterial Material, int Missing)> NextNeeds()
     {

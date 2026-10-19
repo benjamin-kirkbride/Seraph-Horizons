@@ -8,12 +8,15 @@ namespace SeraphHorizons.Mod.Machines;
 /// <summary>
 /// Draws a machine's parts that are not its frame block's shape (client only; created and disposed by
 /// <see cref="BEMachine"/>, <see cref="BEMachine.CreateRenderer"/>): one mesh per rig part of
-/// <c>shapes/block/{machine}.json</c> (<see cref="MachineMeshes.PartMeshes"/>) with the block's textures,
+/// <c>shapes/block/{machine}.json</c> (<see cref="MachineMeshes.PartMeshes"/>) with the block's textures, one
+/// tessellation shared by every machine of the kind and texture key (<see cref="MachinePartMeshes"/>: a second
+/// machine, or a chunk reload, builds nothing),
 /// each drawn with its rig matrix turned to the machine's facing, and only when
 /// <see cref="BEMachine.ShowsPart"/> says so (its stage fitted, by default). A static part with no
 /// <c>requires</c> is the frame, the block's own shape, and is not drawn here. The textures are
-/// <see cref="BEMachine.PartTextures"/> (the block's, by default), the meshes built again when
-/// <see cref="BEMachine.TextureKey"/> changes (the stall roaster's brick type, the press brake's edges).
+/// <see cref="BEMachine.PartTextures"/> (the block's, by default), the meshes taken again when
+/// <see cref="BEMachine.TextureKey"/> changes (the stall roaster's brick type, the press brake's edges), each
+/// key's set built once.
 /// <para>The rig is posed every frame from <see cref="BEMachine.FrameInput"/>, asked once a frame in the
 /// opaque pass: by default the shaft's θ and ψ and the machine's depth; a machine with a clock of its own
 /// (the work's W, a hand lever) gives its own. The parts are lit from the cell above the footprint's middle
@@ -24,7 +27,7 @@ public class MachineRenderer : IRenderer
     private readonly ICoreClientAPI _capi;
     private readonly BEMachine _be;
     private readonly RigParts _parts;
-    private readonly MultiTextureMeshRef?[] _meshes;
+    private MultiTextureMeshRef?[] _meshes = [];   // MachinePartMeshes'; never disposed here
     private readonly bool[] _drawn;
     private bool _built;
     private string _textureKey = "";
@@ -42,7 +45,6 @@ public class MachineRenderer : IRenderer
         _be = be;
         _parts = rig.Parts;
         int n = _parts.Parts.Count;
-        _meshes = new MultiTextureMeshRef?[n];
         _drawn = new bool[n];
         for (int i = 0; i < n; i++)
         {
@@ -60,23 +62,15 @@ public class MachineRenderer : IRenderer
     {
         _built = true;
         _textureKey = _be.TextureKey;
-        for (int i = 0; i < _meshes.Length; i++)
-        {
-            _meshes[i]?.Dispose();
-            _meshes[i] = null;
-        }
+        _meshes = [];
         var loc = new AssetLocation(MachinesSystem.Domain, $"shapes/block/{_be.Machine}.json");
-        var master = Shape.TryGet(_capi, loc);
-        if (master == null)
+        var set = MachinePartMeshes.Get(_capi, "machine|" + _textureKey, loc, _parts, i => _drawn[i], () => _be.PartTextures(_capi), _be.Machine);
+        if (set == null)
         {
             _capi.Logger.Error("[seraphhorizons] {0} is missing; the {1}'s moving parts are not drawn", loc, _be.Machine);
             return;
         }
-        var tex = _be.PartTextures(_capi);
-        var meshes = MachineMeshes.PartMeshes(_capi, master, _parts, i => _drawn[i], tex, _be.Machine);
-        for (int i = 0; i < meshes.Length; i++)
-            if (meshes[i] is { } mesh)
-                _meshes[i] = _capi.Render.UploadMultiTextureMesh(mesh);
+        _meshes = set.Meshes;
     }
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
@@ -107,7 +101,7 @@ public class MachineRenderer : IRenderer
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
         for (int i = 0; i < _meshes.Length; i++)
-            if (_meshes[i] is { } mesh && _be.ShowsPart(_parts.Parts[i].Requires))
+            if (_meshes[i] is { Disposed: false } mesh && _be.ShowsPart(_parts.Parts[i].Requires))
                 MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
         prog?.Stop();
         rapi.GlEnableCullFace();
@@ -118,7 +112,6 @@ public class MachineRenderer : IRenderer
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.Opaque);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowFar);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowNear);
-        foreach (var mesh in _meshes)
-            mesh?.Dispose();
+        // the part meshes are MachinePartMeshes', shared with every other machine of the kind
     }
 }
