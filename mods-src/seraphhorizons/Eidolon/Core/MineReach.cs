@@ -552,8 +552,7 @@ public sealed class MineReach : MineGraph
     // Whether an out stand still leads out with what this dig took (Take): its parents to a way out are all
     // still out, or a short search from it finds one whose are, by joins through what is dug or air, the way
     // found its parents from then on (a stand led out only by one that went is cut off, and counts for
-    // nothing). Remembered for the dig (all a
-    // search saw is joined to where it began); one past SearchCap stands is taken as leading out, and not
+    // nothing). Remembered for the dig; one past SearchCap stands is taken as leading out, and not
     // remembered (there the count stays an upper bound).
     private bool LeadsOut(int n)
     {
@@ -580,12 +579,14 @@ public sealed class MineReach : MineGraph
                     queue.Enqueue(m);
                     continue;
                 }
-                // led out along the way found from then on; all it saw is joined to it
+                // led out along the way found from then on (only those: the rest it saw still have
+                // their old parents)
                 for (int v = u, to = m; v >= 0; to = v, v = from[v])
+                {
                     if (Parent[v] != to)
                         Set(KindParent, Parent, v, to);
-                foreach (int v in from.Keys)
                     _leads[v] = true;
+                }
                 return true;
             }
         }

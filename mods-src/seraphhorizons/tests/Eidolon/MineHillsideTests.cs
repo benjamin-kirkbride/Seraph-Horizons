@@ -75,7 +75,9 @@ public class MineHillsideTests(ITestOutputHelper output)
     }
 
     [Theory]
+    [InlineData(23, 2)]
     [InlineData(23, 23)]
+    [InlineData(43, 43)]
     public void No_dig_the_guard_lets_through_strands_a_block_still_to_dig(int seed, int order)
     {
         // The plan's groups dug in a shuffled order (members working out of the plan's order, as far as it
