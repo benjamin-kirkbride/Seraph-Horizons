@@ -64,4 +64,32 @@ public partial class RecipeExportScenarios
         Assert.Equal("shape", (string)hopper["draw"]!);
         Assert.NotEmpty(hopper["shapes"]![0]!["elements"]!);
     }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Multiblock_checking_blocks_are_drawn_facing_the_way_their_layout_is_written()
+    {
+        // The cells are the layout as written; the checking block's own cell is drawn with the
+        // variant that checks it unturned. ppex's boilers and smex's cowper stove and Bessemer
+        // control turn it 180° more than their side, so that is their south variant: the boilers'
+        // shapes run north of the block, the way their layouts run south of it once turned. The
+        // game's kiln, the stone coffin and the smoke stack turn theirs by their side.
+        string Drawn(string id)
+        {
+            var s = Multiblock(id);
+            var cells = (JArray)s["sizes"]![0]!["cells"]!;
+            var origin = cells.Single(c => (int)c[0]! == 0 && (int)c[1]! == 0 && (int)c[2]! == 0);
+            var part = s["parts"]![(int)origin[3]!]!;
+            Assert.Equal((string)s["code"]!, (string)part["block"]!);
+            return (string)part["block"]!;
+        }
+        Assert.Equal("ppex:boilercornish-south", Drawn("ppex:boilercornish"));
+        Assert.Equal("ppex:boilerlancashire-south", Drawn("ppex:boilerlancashire"));
+        Assert.Equal("smex:cowperstove-intake-tier1-south", Drawn("smex:cowperstove"));
+        Assert.Equal("smex:convertercontrol-south", Drawn("smex:convertercontrol"));
+        Assert.Equal("smex:smokestack-intake-tier1-n", Drawn("smex:smokestack"));
+        Assert.Equal("game:stonecoffinsection-granite-north", Drawn("game:stonecoffinsection"));
+        // The boiler's filler cells run south of it (z 0 to 5); its shape, turned 180°, fills them.
+        var boiler = Doc["multiblocks"]!["shapes"]!["ppex:boilerlancashire-south"]!;
+        Assert.Equal(180, (int)boiler["shapes"]![0]!["rotateY"]!);
+    }
 }
