@@ -4208,18 +4208,19 @@ through a bed of coke, is what gets there. In `CrucibleFurnace/` (rules in `Cruc
 game side in `CrucibleFurnace/Game/`, the model and its generator in `CrucibleFurnace/README.md` and
 `CrucibleFurnace/tools/`).
 
-**One furnace, one hole, two pots** (#796, model #753). A furnace is a ghost-cell machine 3 blocks
+**One furnace, one hole, two pots** (#796, model #753). A furnace is a machine on the shared base 3 blocks
 wide, 3 deep and 2 high, as the late nineteenth century's were: one hole holding two pots side by side
 under a hinged firebrick lid, an ash pit under the grate with an iron damper over its mouth, a lined
 flue and stack to an outlet at the back. The controller is the front middle cell, the ash mouth's
 (`seraphhorizons:cruciblefurnace-frame-{side}`); placing it (from the iron frame, the item) needs room for
-every cell, puts the furnace running away from the player, ash mouth towards them, and stamps
-`cruciblefurnace-ghost` into the other 17 brickwork cells and the 6 hollow cells over the hole's two rows,
+every cell, puts the furnace running away from the player, ash mouth towards them, and stamps the
+shared `machine-cell` into the other 17 brickwork cells and the 6 hollow cells over the hole's two rows,
 where the lid opens. Breaking any cell drops the frame, every item fitted, the outlet's cap, the unburnt
 coke and each pot (with its charge; a melted charge as its products, molten metal as bits, the pot
-lost, with any additions not yet dissolved), and clears the ghosts.
+lost, with any additions not yet dissolved), and clears the cells.
 
-**Building it**, the rig's `build` (counts measured from the model, not written in code):
+**Building it**, the rig's `build` as `config/builds/cruciblefurnace.json` on the shared staged build (counts
+measured from the model, not written in code):
 
 | | Stage | Materials |
 |---|---|---|
@@ -4228,15 +4229,17 @@ lost, with any additions not yet dissolved), and clears the ghosts.
 | 2 | Lining | 9 tier-3 refractory bricks, 4 fire clay |
 | 3 | Lid and damper | 4 tier-3 refractory bricks, 2 iron plates |
 
-A right-click with a stage's material on any cell fits as many of the held stack as the stage still
-needs, in stage order (a later stage's material is refused with the stage it waits for). The first
-brick sets the furnace's brick type, saved with it; a brick of another type is refused with a message
-naming the furnace's, and one the rig has no texture for (another mod's) too. The walls are drawn in
+A right-click with a stage's material on any cell fits all the stage still needs of it from the held
+stack, or a whole full stack still short of it (fewer is refused), in stage order (a later stage's
+material is refused with the stage it waits for), with the shared machines' messages. The first brick
+sets the furnace's brick type; a brick of another type is refused, and one the rig has no texture for
+(another mod's) is no part of it. The walls are drawn in
 that type's brick (the rig's `bricks`: the six coloured courses are the cream brick with the colour
 drawn over it, composed into one texture). In creative mode Ctrl + right-click fits the next stage
 free (red brick if none is set). The lid and the damper go in open. Nothing is fired, charged or
 opened until the furnace is built; the cap goes on once the lining (the outlet's curb) is in.
-`Core/FurnaceBuild.cs`.
+`Game/BECrucibleFurnace.cs`; the block info is the shared machines' layout (the build or the state, then
+the furnace's own lines), a wrench showing the fire's exact heat and coke.
 
 **Collision.** Before the brickwork, only the ground row is solid (the grate and the binding's feet),
 though every brickwork cell is clicked whole; after it, the rig's boxes, with a deck over each top cell
@@ -4542,15 +4545,15 @@ meant anything. **The old melting holes**
 with no migration: holes in a world vanish, with whatever was in them. The recipe browser's multiblock
 viewer no longer has the furnace; the model viewer has it as `crucible-furnace`.
 
-With the switch off the server marks the furnace's frame and ghost, the pots, the two ferroalloys and
+With the switch off the server marks the furnace's frame, the pots, the two ferroalloys and
 both recipe files disabled before the game loads them, empties the handbook patch and hides the guide
 page, so none of it exists and furnaces and pots already in a world are lost, and smex's converter is
 not patched and its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
 export (the frame and the pot's own recipes are there), and the furnace seen in a game client.
 
 `tests/CrucibleFurnace/` (unit) covers the pot recipes and charging, the draught by height, the damper,
-the row (caps, leaks, at most five, a gap ending it), the build (the order, a stack a click, one brick
-type), two pots of different recipes, the melt (`FurnaceMeltTests`: smex's curve at its margins, a full
+the row (caps, leaks, at most five, a gap ending it), the build (the build file the rig's stages, the
+order, what a click takes, one brick type), two pots of different recipes, the melt (`FurnaceMeltTests`: smex's curve at its margins, a full
 and a half pot's hours, the pause below temperature, a long gap against many short ticks, the chill by
 the item's temperature, the freeze after the hold, ferrochrome dissolving into molten iron, iron and
 stainless into their own baths, an off-ratio bath, and what a molten pot refuses), and the rig (its
@@ -6720,6 +6723,14 @@ and its rig, and calls `MachinesSystem.Disable` with its switch off.
 - **Fire** (`MachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
   is, a firestarter or a torch held 1.5 s on any of its cells (the frame block and the cells are `IIgnitable`);
   it says why not (`CannotIgnite`) and lights (`Ignite`), and a torch is lit from it while it `Burning`.
+- **Firing** (`CrucibleFurnace/Game/FurnaceFiring.cs`): a fired machine's flue, one piece as the oil is: the
+  outlet's cap and the row on one chimney (the crucible furnace's row rule, `FurnaceRow`), the chimney on the
+  outlet, the neighbours along the row, capping, the cap's drop, saving, and the brickwork's textures in the
+  machine's brick type; each fired rig reads its flue once (`FurnaceFlue`: the outlet, the cap, the bricks, the
+  row's figures). The six fired ore machines (the stall and reverberatory roasters, the cupellation and
+  liquation furnaces, the Parkes kettle, the acid parting vessel) derive `BEFiredOreMachine`, which keeps the
+  row tick, the brick type, lighting (the machine's own `Light` once `CannotIgnite` allows it) and the cap; the
+  crucible furnace composes the piece on `BEMachine` itself.
 - A build material with `oneType` takes any of its codes, but all of one (the stall roaster's brickwork, one
   fired brick type; another is `OtherKind`). `AssemblyDrops` is virtual, for what a machine keeps beyond its
   stages (the stall's loose brick and cap).

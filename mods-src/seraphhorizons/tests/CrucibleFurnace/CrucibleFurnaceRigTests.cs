@@ -150,87 +150,112 @@ public class CrucibleFurnaceRigTests
     }
 }
 
-/// <summary>The furnace's build (#796): its stages in order, a stack a click, the brick type rule,
-/// what breaking gives back, and saving.</summary>
+/// <summary>The furnace's build (#796), config/builds/cruciblefurnace.json on the shared staged build: the rig's
+/// stages in order with their materials and counts, the brick type rule, what breaking gives back, and saving.</summary>
 public class FurnaceBuildTests
 {
     private static CrucibleFurnaceRig Rig() =>
         CrucibleFurnaceRig.Parse(System.IO.File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "cruciblefurnace-rig.json")));
 
-    private static FurnaceBuild New() => new(Rig().Stages, Rig().Bricks);
+    private static MachineBuild Build() =>
+        MachineBuildJson.Parse(System.IO.File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "cruciblefurnace.json")));
+
+    private static MachineAssembly New() => new(Build());
 
     [Fact]
-    public void Each_stage_takes_a_stack_a_click_up_to_what_it_needs()
+    public void The_build_file_is_the_rigs_stages()
+    {
+        var rig = Rig();
+        var build = Build();
+        Assert.Null(build.Block);                         // no generic construction record in the export
+        Assert.Equal(rig.Stages.Select(s => s.Requires), build.Stages.Select(s => s.Id));
+        Assert.Equal(rig.Stages.Select(s => new[] { s.Requires }), build.Stages.Select(s => s.Adds.ToArray()));
+        for (int s = 0; s < rig.Stages.Count; s++)
+        {
+            var stage = rig.Stages[s];
+            Assert.Equal(stage.Materials.Select(m => m.Quantity), build.Stages[s].Materials.Select(m => m.Quantity));
+            Assert.Equal(stage.OneType, build.Stages[s].Materials.Any(m => m.OneType));
+            for (int m = 0; m < stage.Materials.Count; m++)
+            {
+                var codes = build.Stages[s].Materials[m].Codes;
+                // a brick of every type the rig has a texture for, the default first (the creative shortcut's)
+                var expected = stage.OneType
+                    ? rig.Bricks.Types.Select(t => rig.Bricks.ItemOf(t.Id)).OrderBy(c => c != rig.Bricks.ItemOf(rig.Bricks.Default)).ToList()
+                    : [stage.Materials[m].Code];
+                Assert.Equal(expected.Order(), codes.Order());
+                Assert.Equal(expected[0], codes[0]);
+                Assert.All(codes, c => Assert.True(stage.Materials[m].Matches(c)));
+            }
+        }
+    }
+
+    [Fact]
+    public void Each_stage_takes_what_it_needs_in_order()
     {
         var b = New();
-        Assert.Equal(0, b.Next);
-        var fit = b.Fit("game:burnedbrick-red", 16);
-        Assert.Equal((BuildVerdict.Fits, 16), (fit.Verdict, fit.Count));
-        Assert.Equal("red", b.BrickType);
-        fit = b.Fit("game:burnedbrick-red", 64);
-        Assert.Equal(9, fit.Count);                     // what the brickwork still needs of 25
-        Assert.True(b.Has("brickwork"));
-        Assert.True(b.Fitted("brickwork"));
-        Assert.Equal(1, b.Next);
+        Assert.Equal(0, b.Build.Next);
+        Assert.Equal(AssemblyVerdict.TooFew, b.Fit("game:burnedbrick-red", 16, 64).Verdict);
+        var fit = b.Fit("game:burnedbrick-red", 64, 64);
+        Assert.Equal((AssemblyVerdict.Fitted, 25), (fit.Verdict, fit.Take));   // what the brickwork needs of a stack
+        Assert.True(b.Shows("brickwork"));
+        Assert.Equal(1, b.Build.Next);
         // the lining takes its two materials in any order
-        Assert.Equal(4, b.Fit("game:clay-fire", 10).Count);
-        Assert.Equal(BuildVerdict.Enough, b.CanFit("game:clay-fire", 1).Verdict);
-        Assert.Equal(9, b.Fit("game:refractorybrick-fired-tier3", 20).Count);
-        Assert.Equal(2, b.Next);
-        Assert.False(b.Fitted("damperopen"));
-        Assert.Equal(4, b.Fit("game:refractorybrick-fired-tier3", 20).Count);
-        Assert.Equal(2, b.Fit("game:metalplate-iron", 3).Count);
-        Assert.True(b.Complete);
-        Assert.True(b.Fitted("lid"));
-        Assert.True(b.Fitted("damperhalf"));
-        Assert.Equal(BuildVerdict.Built, b.CanFit("game:burnedbrick-red", 1).Verdict);
+        Assert.Equal(4, b.Fit("game:clay-fire", 10, 64).Take);
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, b.Fit("game:clay-fire", 1, 64).Verdict);
+        Assert.Equal(9, b.Fit("game:refractorybrick-fired-tier3", 20, 64).Take);
+        Assert.Equal(2, b.Build.Next);
+        Assert.False(b.Shows("lid"));
+        Assert.Equal(4, b.Fit("game:refractorybrick-fired-tier3", 20, 64).Take);
+        Assert.Equal(2, b.Fit("game:metalplate-iron", 3, 64).Take);
+        Assert.True(b.Built);
+        Assert.True(b.Shows("lid"));
+        Assert.True(b.Shows("damperhalf"));               // gameplay's, not the build's
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, b.Fit("game:burnedbrick-red", 1, 64).Verdict);
     }
 
     [Fact]
     public void Stages_go_in_order()
     {
         var b = New();
-        Assert.Equal(BuildVerdict.OutOfOrder, b.CanFit("game:refractorybrick-fired-tier3", 9).Verdict);
-        Assert.Equal(BuildVerdict.OutOfOrder, b.CanFit("game:metalplate-iron", 2).Verdict);
-        Assert.Equal(BuildVerdict.NotAMaterial, b.CanFit("game:ingot-iron", 2).Verdict);
-        Assert.Equal(BuildVerdict.NotAMaterial, b.CanFit(null, 2).Verdict);
-        Assert.Equal(0, b.Fit("game:clay-fire", 4).Count);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, b.Fit("game:refractorybrick-fired-tier3", 9, 64).Verdict);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, b.Fit("game:metalplate-iron", 2, 64).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, b.Fit("game:ingot-iron", 2, 64).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, b.Fit(null, 2, 64).Verdict);
+        Assert.Equal(AssemblyVerdict.OutOfOrder, b.Fit("game:clay-fire", 4, 64).Verdict);
         Assert.Empty(b.Returns());
-        Assert.False(b.Fitted("lining"));
-        Assert.True(b.Fitted(null));
-        Assert.True(b.Fitted("pot1"));                 // gameplay's, not the build's
+        Assert.False(b.Shows("lining"));
+        Assert.True(b.Shows(null));
+        Assert.True(b.Shows("pot1"));                     // gameplay's, not the build's
     }
 
     [Fact]
     public void The_first_brick_sets_the_type_and_others_are_refused()
     {
+        var rig = Rig();
         var b = New();
-        Assert.Null(b.BrickType);
-        b.Fit("game:burnedbrick-black", 3);
-        Assert.Equal("black", b.BrickType);
-        Assert.Equal(BuildVerdict.OtherBrick, b.CanFit("game:burnedbrick-red", 5).Verdict);
-        Assert.Equal(BuildVerdict.UnknownBrick, b.CanFit("game:burnedbrick-blue", 5).Verdict);   // no texture for it
-        Assert.Equal(BuildVerdict.Fits, b.CanFit("burnedbrick-black", 5).Verdict);              // the game's domain
+        Assert.Equal(AssemblyVerdict.Fitted, b.Fit("game:burnedbrick-black", 3, 3).Verdict);   // a whole stack short of it
+        Assert.Equal("black", rig.Bricks.TypeOf(b.Build.CodeIn(0, 0)));
+        Assert.Equal(AssemblyVerdict.OtherKind, b.Fit("game:burnedbrick-red", 64, 64).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, b.Fit("game:burnedbrick-blue", 64, 64).Verdict);   // no texture for it
+        Assert.Equal(AssemblyVerdict.Fitted, b.Fit("burnedbrick-black", 64, 64).Verdict);       // the game's domain
         // a fresh furnace takes any known type first
-        foreach (var type in Rig().Bricks.Types)
-            Assert.Equal(BuildVerdict.Fits, New().CanFit("game:burnedbrick-" + type.Id, 1).Verdict);
+        foreach (var type in rig.Bricks.Types)
+            Assert.Equal(AssemblyVerdict.Fitted, New().Fit("game:burnedbrick-" + type.Id, 25, 64).Verdict);
     }
 
     [Fact]
     public void Breaking_gives_back_every_fitted_item_and_saving_keeps_them()
     {
         var b = New();
-        b.Fit("game:burnedbrick-tan", 25);
-        b.Fit("game:refractorybrick-fired-tier3", 5);
-        Assert.Equal(new[] { new BuildDrop("game:burnedbrick-tan", 25), new BuildDrop("game:refractorybrick-fired-tier3", 5) }, b.Returns());
-        var back = FurnaceBuild.Restore(b.Stages, b.Bricks, b.Snapshot(), b.BrickType);
+        b.Fit("game:burnedbrick-tan", 25, 64);
+        b.Fit("game:refractorybrick-fired-tier3", 64, 64);
+        Assert.Equal(new[] { new StageDrop("game:burnedbrick-tan", 25), new StageDrop("game:refractorybrick-fired-tier3", 9) }, b.Returns());
+        var (build, wearing) = b.Snapshot();
+        var back = MachineAssembly.Restore(b.Spec, build, wearing, out var dropped);
+        Assert.Empty(dropped);
         Assert.Equal(b.Returns(), back.Returns());
-        Assert.Equal("tan", back.BrickType);
-        Assert.Equal(1, back.Next);
-        // a save past what could have been fitted is cut back to it; an unknown type drops the brickwork
-        var bad = FurnaceBuild.Restore(b.Stages, b.Bricks, new Dictionary<string, int> { ["0/0"] = 99, ["2/0"] = 4 }, "red");
-        Assert.Equal(new[] { new BuildDrop("game:burnedbrick-red", 25) }, bad.Returns());
-        Assert.Empty(FurnaceBuild.Restore(b.Stages, b.Bricks, new Dictionary<string, int> { ["0/0"] = 3 }, "blue").Returns());
+        Assert.Equal("game:burnedbrick-tan", back.Build.CodeIn(0, 0));
+        Assert.Equal(1, back.Build.Next);
     }
 
     [Fact]
@@ -238,12 +263,14 @@ public class FurnaceBuildTests
     {
         var b = New();
         Assert.True(b.FillNext());
-        Assert.Equal("red", b.BrickType);
+        Assert.Equal("game:burnedbrick-red", b.Build.CodeIn(0, 0));   // the rig's default type
         Assert.True(b.FillNext());
         Assert.True(b.FillNext());
-        Assert.True(b.Complete);
+        Assert.True(b.Built);
         Assert.False(b.FillNext());
-        Assert.Equal(new[] { 25, 9, 4, 4, 2 }, b.Returns().Select(d => d.Count));
+        // breaking gives back every item, by its code
+        Assert.Equal(new[] { new StageDrop("game:burnedbrick-red", 25), new StageDrop("game:refractorybrick-fired-tier3", 13),
+            new StageDrop("game:clay-fire", 4), new StageDrop("game:metalplate-iron", 2) }, b.Returns());
     }
 }
 
