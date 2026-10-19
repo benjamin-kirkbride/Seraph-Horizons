@@ -147,6 +147,7 @@ internal sealed class TeamRunner
         public readonly long Id = id;
         public readonly PathCell Rest = at;
         public PathCell At = at;
+        public PathCell Struck = at;
         public double FreeAt;
         public MineStation? Station;
         public int Mined;
@@ -286,7 +287,10 @@ internal sealed class TeamRunner
                     continue;
                 }
                 if (_crossing && Bodies.Contact(route!, bodies))
+                {
                     Contacts++;
+                    ContactSeconds = Math.Max(ContactSeconds, Bodies.Touching(route!, bodies) * MineDispatch.WalkSecondsPerBlock);
+                }
                 w.ThroughSince = null;
                 w.Station = next;
                 w.FreeAt = now + (route!.Count - 1) * MineDispatch.WalkSecondsPerBlock;
@@ -318,6 +322,8 @@ internal sealed class TeamRunner
                 _world.Dig(c);
             Log.Add($"{now:0}: {w.Id} at {w.At} station {station.Id} digs {string.Join(" ", group.Cells)}");
             w.Mined += group.Cells.Count;
+            w.Struck = w.At;
+        w.Struck = w.At;
             _replanned = false;
             _board.Struck(w.Id, now);
             foreach (var o in _workers)
@@ -333,6 +339,10 @@ internal sealed class TeamRunner
     /// <summary>Ways walked through another eidolon (after waiting <see cref="ThroughSeconds"/> for room, as the
     /// game does; crossing runs only).</summary>
     public int Contacts { get; private set; }
+
+    /// <summary>The longest of those touches, as <see cref="RouteRunner.ContactSeconds"/>: the most nodes of the
+    /// way in a row with its box in another's, a node each <see cref="MineDispatch.WalkSecondsPerBlock"/>.</summary>
+    public double ContactSeconds { get; private set; }
 
     /// <summary>The game's cap on waiting for a way across another's columns (MineOrder.ThroughSeconds).</summary>
     public const double ThroughSeconds = 20;
@@ -370,6 +380,12 @@ internal sealed class TeamRunner
         var start = PlanRunner.Start(_live.Site, home);
         return _workers.All(w => path.Find(w.At, start, PlanRunner.MaxNodes) != null);
     }
+
+    /// <summary>Every member walks home, all at once (<see cref="HomeWalk"/>), from the stand it struck from last,
+    /// still one to stand on: as the game's do once the job is reported, from their stations, rather than from
+    /// where it waited at the end, its start, which it goes back to here to wait (and so it ends there).</summary>
+    public HomeWalk WalkHome() => new(_live, _workers.Select(w =>
+        (w.Id, _live.Site.Standable(w.Struck) && _live.Walk.Out(w.Struck) ? w.Struck : w.At, w.Rest)));
 }
 
 /// <summary>Other eidolons' boxes on a way (README "Eidolon", working together): a way touches one where a node
@@ -395,6 +411,20 @@ internal static class Bodies
                     return true;
         }
         return false;
+    }
+
+    /// <summary>The most nodes of a way in a row that touch another (those beside its start or its goal left out,
+    /// as <see cref="Contact"/>): a touch's length, a node each <see cref="MineDispatch.WalkSecondsPerBlock"/>.</summary>
+    public static int Touching(IReadOnlyList<PathCell> path, IEnumerable<PathCell> others)
+    {
+        var touched = others.Where(o => !Touch(path[0], o) && !Touch(path[^1], o)).ToList();
+        int run = 0, longest = 0;
+        foreach (var n in path.Skip(1))
+        {
+            run = touched.Any(o => Touch(n, o)) ? run + 1 : 0;
+            longest = Math.Max(longest, run);
+        }
+        return longest;
     }
 
     /// <summary>The way from <paramref name="from"/> to <paramref name="to"/> keeping a margin off the others'
@@ -498,6 +528,7 @@ internal sealed class RouteRunner
         public readonly long Id = id;
         public readonly PathCell Rest = at;
         public PathCell At = at;
+        public PathCell Struck = at;
         public double FreeAt;
         public MineStation? Station;
         public bool Ahead, Started;
@@ -780,6 +811,7 @@ internal sealed class RouteRunner
             _world.Dig(c);
         Log.Add($"{now:0.0}: {w.Id} at {w.At} station {station.Id} digs {string.Join(" ", group.Cells)}");
         w.Mined += group.Cells.Count;
+        w.Struck = w.At;
         _replanned = false;
         _board.Struck(w.Id, now);
         foreach (var o in _workers)
@@ -1100,17 +1132,7 @@ internal sealed class RouteRunner
     private const double PassAfter = 2, CrossAfter = 4, PassEach = 120, PassLongest = 2;
 
     // the nodes of a way, in a row at most, that touch another
-    private int Touching(Worker w, IReadOnlyList<PathCell> leg)
-    {
-        var others = Others(w).Where(o => !Bodies.Touch(leg[0], o) && !Bodies.Touch(leg[^1], o)).ToList();
-        int run = 0, longest = 0;
-        foreach (var n in leg.Skip(1))
-        {
-            run = others.Any(o => Bodies.Touch(n, o)) ? run + 1 : 0;
-            longest = Math.Max(longest, run);
-        }
-        return longest;
-    }
+    private int Touching(Worker w, IReadOnlyList<PathCell> leg) => Bodies.Touching(leg, Others(w));
 
     // whether it may pass the others its way touches: briefly, within its share of passes, none on a narrow way
     private bool MayPass(Worker w, IReadOnlyList<PathCell> leg)
@@ -1304,6 +1326,7 @@ internal sealed class RouteRunner
             _world.Dig(c);
         Log.Add($"{now:0.0}: {w.Id} at {w.At} station {station.Id} digs {string.Join(" ", group.Cells)}");
         w.Mined += group.Cells.Count;
+        w.Struck = w.At;
         _replanned = false;
         _board.Struck(w.Id, now);
         foreach (var o in _workers)
@@ -1382,4 +1405,143 @@ internal sealed class RouteRunner
         var start = PlanRunner.Start(_live.Site, home);
         return _workers.All(w => path.Find(w.At, start, PlanRunner.MaxNodes) != null);
     }
+
+    /// <summary>Every member walks home, all at once (<see cref="HomeWalk"/>), from the stand it struck from last,
+    /// still one to stand on: as the game's do once the job is reported, from their stations, rather than from
+    /// where it waited at the end, its start, which it goes back to here to wait (and so it ends there).</summary>
+    public HomeWalk WalkHome() => new(_live, _workers.Select(w =>
+        (w.Id, _live.Site.Standable(w.Struck) && _live.Walk.Out(w.Struck) ? w.Struck : w.At, w.Rest)));
+}
+
+/// <summary>
+/// The walk home with the job done (MineOrder's <c>Phase.Return</c>, README "Eidolon", working together): every
+/// member sets off at once from where it ended for where it started, a node of its path each
+/// <see cref="MineDispatch.WalkSecondsPerBlock"/>, by the game's rule for returners whatever the dispatch. One
+/// whose next node would put its box in another's (or nearer into one it is in) stops short and goes on once
+/// that one has moved on: the one behind in single file falls in behind and the one ahead walks on (a step is
+/// taken in any order the free nodes allow, so a follower steps into a node its leader just left). One held so
+/// <see cref="Patience"/> seconds goes round the others where there is room (<see cref="Bodies.Round"/>) and,
+/// with none, walks through, as the navigator does after waiting for one in a narrow way. It counts what
+/// <see cref="RouteRunner.ContactSeconds"/> counts on a walk: the touches between two boxes, the longest in
+/// seconds, two that start touching (set down beside each other) or have both arrived left out.
+/// </summary>
+internal sealed class HomeWalk
+{
+    /// <summary>How long one waits for another in its way before it goes round or through (the navigator's 4 s).</summary>
+    public const double Patience = 4;
+
+    private const double MaxSeconds = 2000;
+
+    /// <summary>Whether every member got home.</summary>
+    public bool AllHome { get; }
+
+    /// <summary>When the last got there, from the walk's start.</summary>
+    public double Seconds { get; }
+
+    /// <summary>Touches between two boxes on the way, and the longest.</summary>
+    public int Contacts { get; }
+
+    public double ContactSeconds { get; }
+
+    /// <summary>The longest any member stood waiting for another, at a time.</summary>
+    public double LongestWait { get; }
+
+    public HomeWalk(MineState live, IEnumerable<(long Id, PathCell From, PathCell To)> members)
+    {
+        var path = new WidePath(live.Site, 2, 2);
+        // in order of id; one with no way home stays where it ended, in the others' way
+        var paths = new List<List<PathCell>>();
+        bool all = true;
+        foreach (var (_, from, to) in members.OrderBy(m => m.Id))
+        {
+            var found = from == to ? [from] : path.Find(from, to, PlanRunner.MaxNodes);
+            all &= found != null && found[^1] == to;
+            paths.Add(found != null && found[^1] == to ? found : [from]);
+        }
+        AllHome = all;
+        int n = paths.Count;
+        var at = new int[n];
+        var heldSince = new double?[n];
+        var through = new bool[n];
+        var run = new int[n, n];
+        double step = MineDispatch.WalkSecondsPerBlock, now = 0;
+        PathCell Pos(int i) => paths[i][at[i]];
+        bool Arrived(int i) => at[i] == paths[i].Count - 1;
+        double Gap(PathCell a, PathCell b) => Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Z - b.Z));
+        // its next node puts its box in another's, or nearer into one it is in
+        bool Blocked(int i, PathCell next) => Enumerable.Range(0, n).Any(j => j != i && Bodies.Touch(next, Pos(j))
+            && (!Bodies.Touch(Pos(i), Pos(j)) || Gap(next, Pos(j)) < Gap(Pos(i), Pos(j))));
+        // two that start touching, set down beside each other, and those touching each other only from the
+        // first are not counted until they part; and each pair's touches, as the ticks go
+        var apart = new bool[n, n];
+        for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            apart[i, j] = !Bodies.Touch(Pos(i), Pos(j));
+        int contacts = 0, longest = 0;
+        double longestWait = 0;
+        while (Enumerable.Range(0, n).Any(i => !Arrived(i)))
+        {
+            Assert.True(now < MaxSeconds, "the walk home ran out of time");
+            now += step;
+            var moved = new bool[n];
+            for (bool changed = true; changed;)
+            {
+                changed = false;
+                for (int i = 0; i < n; i++)
+                {
+                    if (moved[i] || Arrived(i) || !through[i] && Blocked(i, paths[i][at[i] + 1]))
+                        continue;
+                    at[i]++;
+                    moved[i] = changed = true;
+                    heldSince[i] = null;
+                }
+            }
+            for (int i = 0; i < n; i++)
+            {
+                if (moved[i] || Arrived(i))
+                    continue;
+                heldSince[i] ??= now - step;
+                longestWait = Math.Max(longestWait, now - heldSince[i]!.Value);
+                if (now - heldSince[i] < Patience)
+                    continue;
+                // held long enough: round the others where there is room, else through them
+                var others = Enumerable.Range(0, n).Where(j => j != i).Select(Pos).ToList();
+                if (Bodies.Round(live, Pos(i), paths[i][^1], others) is { Count: > 1 } round && !Blocked(i, round[1]))
+                {
+                    paths[i] = round;
+                    at[i] = 0;
+                }
+                else
+                    through[i] = true;
+                at[i]++;
+                heldSince[i] = null;
+            }
+            for (int i = 0; i < n; i++)
+            {
+                if (through[i] && Enumerable.Range(0, n).All(j => j == i || !Bodies.Touch(Pos(i), Pos(j))))
+                    through[i] = false;
+                for (int j = i + 1; j < n; j++)
+                {
+                    bool touch = Bodies.Touch(Pos(i), Pos(j));
+                    if (!touch)
+                        apart[i, j] = true;
+                    if (!touch || !apart[i, j] || Arrived(i) && Arrived(j))
+                    {
+                        run[i, j] = 0;
+                        continue;
+                    }
+                    if (run[i, j]++ == 0)
+                        contacts++;
+                    longest = Math.Max(longest, run[i, j]);
+                }
+            }
+        }
+        Seconds = now;
+        Contacts = contacts;
+        ContactSeconds = longest * step;
+        LongestWait = longestWait;
+    }
+
+    public override string ToString() =>
+        $"home in {Seconds:0.0} s{(AllHome ? "" : " (not all)")}, contacts {Contacts}, longest {ContactSeconds:0.0} s, longest wait {LongestWait:0.0} s";
 }
