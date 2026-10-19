@@ -46,7 +46,7 @@ public partial class MillWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(breaker.Assembly.Ready);
-        OilUp(breaker);
+        MachineTest.FillOil(breaker);
     }
 
     [AtlasScenario]

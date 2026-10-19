@@ -40,13 +40,6 @@ public partial class SharedWorldScenarios
         return be;
     }
 
-    private static string GantryInfo(BEEidolonGantry gantry, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        gantry.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
-
     /// <summary>The winch's build (its build file's) on a gantry of <paramref name="wood"/>.</summary>
     private MachineBuild GantryWinch(string wood) =>
         GantryBuild.ForWood(MachinesSystem.Of(World.Api).Build(GantryBuild.MachineId)
@@ -163,8 +156,8 @@ public partial class SharedWorldScenarios
         var pos = await GantrySite(-590, -560);
         var gantry = await PlaceGantry(pos, "pine");
         var ghost = gantry.CellPos(new Int3(1, 0, 0));
-        Assert.Contains("Build: stage 1 of 9, shafts", GantryInfo(gantry, player));
-        Assert.Contains("Still takes: 8 × ", GantryInfo(gantry, player));
+        Assert.Contains("Build: stage 1 of 9, shafts", MachineTest.Info(gantry, player));
+        Assert.Contains("Still takes: 8 × ", MachineTest.Info(gantry, player));
 
         // out of order: a spur gear before the axles
         Assert.Equal(4, CutterClick(player, pos, GantryStageStack("gears", "pine"))?.StackSize);
@@ -189,7 +182,7 @@ public partial class SharedWorldScenarios
             Assert.Equal(1, left?.StackSize);
         }
         Assert.True(gantry.WinchComplete);
-        Assert.Contains("Winch built, spine hung", GantryInfo(gantry, player));
+        Assert.Contains("Winch built, spine hung", MachineTest.Info(gantry, player));
         // a winch part now: refused, nothing taken
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-iron"))?.StackSize);
         Assert.True(_cutterHandled);

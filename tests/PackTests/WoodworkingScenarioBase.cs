@@ -141,26 +141,13 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
         return trunk ? TrunkCarry.Carried(player) : slot.Itemstack;
     }
 
-    protected static string Info(BEMachine machine, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        machine.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
+    protected static string Info(BEMachine machine, IPlayer player) => MachineTest.Info(machine, player);
 
     /// <summary>The block info as a player holding a wrench sees it: the detail too.</summary>
-    protected string WrenchInfo(BEMachine machine, IPlayer player)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        var held = slot.Itemstack;
-        slot.Itemstack = ItemOf("game:wrench-iron");
-        try { return Info(machine, player); }
-        finally { slot.Itemstack = held; }
-    }
+    protected static string WrenchInfo(BEMachine machine, IPlayer player) => MachineTest.WrenchInfo(machine, player);
 
     /// <summary>The machine's cells but the controller's (the shared machine cells), and whether each is the power cell.</summary>
-    protected static List<(BlockPos Pos, bool Power)> Cells(BEMachine machine) =>
-        machine.CellBlocks().Select(c => (c.Pos, c.Block is BlockMachineCellPower)).ToList();
+    protected static List<(BlockPos Pos, bool Power)> Cells(BEMachine machine) => MachineTest.Cells(machine);
 
     protected void Assemble(BEBuckingMill mill, IPlayer player, string metal = "copper")
     {

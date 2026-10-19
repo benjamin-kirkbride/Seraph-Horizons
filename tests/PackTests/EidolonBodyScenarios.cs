@@ -61,7 +61,7 @@ public partial class SharedWorldScenarios
         var body = BodyOf(gantry);
         var ghost = gantry.CellPos(new Int3(1, 0, 0));
         var crank = CrankOf(gantry);
-        Assert.Contains("Body, next stage: torso, still needs", GantryInfo(gantry, player));
+        Assert.Contains("Body, next stage: torso, still needs", MachineTest.Info(gantry, player));
         // the crank is selectable once fitted, though its cell is hollow
         Assert.NotEmpty(W.BlockAccessor.GetBlock(crank).GetSelectionBoxes(W.BlockAccessor, crank));
         Assert.Empty(W.BlockAccessor.GetBlock(crank).GetCollisionBoxes(W.BlockAccessor, crank));
@@ -131,7 +131,7 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem(BodyBill.TemporalGear)));
         Assert.True(body.Parts.Complete);
         Assert.True(body.Shows("mind"));
-        Assert.Contains("turn the winch's crank", GantryInfo(gantry, player));
+        Assert.Contains("turn the winch's crank", MachineTest.Info(gantry, player));
         Assert.Empty(EidolonsNear(gantry.Pos));
         // nothing more goes in, even the gear again
         Assert.Equal(1, CutterClick(player, gantry.Pos, CutterItem(BodyBill.TemporalGear))?.StackSize);
@@ -146,7 +146,7 @@ public partial class SharedWorldScenarios
         Assert.Equal("torso", body.Parts.Next);
         Assert.False(body.Shows("torso"));
         Assert.True(gantry.WinchComplete);
-        Assert.Contains("Body, next stage: torso", GantryInfo(gantry, player));
+        Assert.Contains("Body, next stage: torso", MachineTest.Info(gantry, player));
         // facing out of the open front (world west for a gantry facing south)
         Assert.Equal(Side.West, gantry.WorldSide(GantryRigOf.ExitSide));
         Assert.InRange(Math.Sin(woken.Pos.Yaw), -1.0, -0.99);
@@ -191,7 +191,7 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:jonasframes-spring01")));
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:metalnailsandstrips-stainlesssteel", 3)));
         Assert.Equal(17, body.Parts.Missing("joints", "game:metalnailsandstrips-stainlesssteel"));
-        Assert.Contains("stainless", GantryInfo(gantry, player), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("stainless", MachineTest.Info(gantry, player), StringComparison.OrdinalIgnoreCase);
 
         // saved and loaded: the progress and the joints' material kept
         var tree = new TreeAttribute();

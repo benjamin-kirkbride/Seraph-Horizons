@@ -56,7 +56,7 @@ public partial class MillWorldScenarios
                 Assert.True(mill.ShowsPart("girth") && !mill.ShowsPart("pinion"));
         }
         Assert.True(mill.Assembly.Ready);
-        OilUp(mill);
+        MachineTest.FillOil(mill);
     }
 
     private static int MillChestCount(BlockEntityContainer chest, string code) =>

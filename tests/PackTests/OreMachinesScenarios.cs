@@ -151,7 +151,7 @@ public partial class MillWorldScenarios
             Assert.True(tank.Dry, frame);
             Assert.Equal(oil.For(kind).Tank, tank.Tank.Capacity);
             float dry = m.Resistance;
-            OilUp(m);
+            MachineTest.FillOil(m);
             Assert.True(dry > 0, frame);
             Assert.Equal(oil.DryResistanceMultiplier * m.Resistance, dry, 4);
             if (frame == "jig")
@@ -201,14 +201,6 @@ public partial class MillWorldScenarios
         Assert.Equal(500 - oil.Jig.DrainPerJob, tankOf.Tank.Points, 3);
         W.BlockAccessor.SetBlock(0, rotorPos);
         W.BlockAccessor.BreakBlock(j.Pos, null);
-    }
-
-    /// <summary>Fills <paramref name="machine"/>'s oil tank: a machine is built dry, its load on the shaft
-    /// multiplied, and the machines' own scenarios run it oiled (the shared oil scenario runs it dry).</summary>
-    private static void OilUp(BEMachine machine)
-    {
-        var oiling = machine.Oiling ?? throw new Xunit.Sdk.XunitException($"the {machine.Machine} has no oil tank");
-        oiling.Tank = oiling.Tank with { Points = oiling.Tank.Capacity };
     }
 
     /// <summary>

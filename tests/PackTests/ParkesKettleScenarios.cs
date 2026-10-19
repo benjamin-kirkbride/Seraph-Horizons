@@ -48,11 +48,6 @@ public partial class MillWorldScenarios
         }
     }
 
-    private static int KettleHeld(IPlayer player, string code) =>
-        new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
-            .SelectMany(inv => player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            .Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
     [AtlasScenario]
     public void Parkes_kettle_loads_with_its_frame_build_recipe_and_figures()
     {
@@ -112,7 +107,7 @@ public partial class MillWorldScenarios
             Assert.True(KettleClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(material.Codes[0], missing)) == null, $"{material.Codes[0]} x{missing} was not fitted");
         }
         Assert.True(kettle.Built);
-        OilUp(kettle);
+        MachineTest.FillOil(kettle);
         Assert.True(kettle.ShowsPart("kettle") && kettle.ShowsPart("stirrer") && kettle.ShowsPart("damperopen") && !kettle.ShowsPart("lead1"));
         // empty, the stirrer's load is its empty figure
         Assert.Equal(recovery.LoadAt(OreMachine.ParkesKettle, 0), kettle.Resistance, 3);
@@ -193,8 +188,8 @@ public partial class MillWorldScenarios
 
         // an empty hand skims the crust, then ladles the lead out, 6 at a time
         KettleClick(player, pos, null);
-        Assert.Equal(7, KettleHeld(player, Bullion.RichLeadCode));
-        Assert.Equal(4, KettleHeld(player, ParkesKettling.ZincBit));
+        Assert.Equal(7, MachineTest.Held(player, Bullion.RichLeadCode));
+        Assert.Equal(4, MachineTest.Held(player, ParkesKettling.ZincBit));
         Assert.True(kettle.Skimmed);
         Assert.False(kettle.ShowsPart("crust"));
         // (each click empties the hand first, so a ladling is counted as it comes)
@@ -203,7 +198,7 @@ public partial class MillWorldScenarios
         {
             KettleClick(player, i++ % 2 == 0 ? pos : cell, null);
             Assert.Equal(left, kettle.LeadOut);
-            ladled += KettleHeld(player, ParkesKettling.Lead);
+            ladled += MachineTest.Held(player, ParkesKettling.Lead);
             foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
                 foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
                     if (slot.Itemstack?.Collectible.Code.ToString() == ParkesKettling.Lead)

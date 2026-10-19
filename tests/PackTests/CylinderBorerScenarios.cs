@@ -62,46 +62,17 @@ public partial class SharedWorldScenarios
     /// cutter head last; then a full oil tank.</summary>
     private void AssembleBorer(BECylinderBorer borer, IPlayer player, ItemStack? head = null)
     {
-        var ghost = MachineCells(borer).First().Pos;
+        var ghost = MachineTest.Cells(borer).First().Pos;
         int i = 0;
         foreach (var part in BorerMaterials.Select(m => CutterItem(m.Code, m.Count)).Append(head ?? BorerHead()))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? borer.Pos : ghost, part) == null, $"{part.StackSize} {part.Collectible.Code} did not go in");
         Assert.True(borer.Complete);
-        FillBorerOil(borer, 1);
-    }
-
-    private static void FillBorerOil(BECylinderBorer borer, double fill)
-    {
-        Assert.NotNull(borer.Oiling);
-        var tank = borer.Oiling.Tank;
-        borer.Oiling.Tank = tank with { Points = tank.Capacity * fill };
-    }
-
-    /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
-    private async Task<BlockPos> PowerBorer(BECylinderBorer borer)
-    {
-        var ghost = borer.CellPos(BorerRig.PowerCell);
-        var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
-        var rotorPos = ghost.AddCopy(face);
-        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
-        await World.Ticks(2);
-        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
-        rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => Math.Abs(borer.ShaftSpeed) >= 0.3f, 15000);
-        return rotorPos;
+        MachineTest.FillOil(borer, 1);
     }
 
     /// <summary>Radians that finish the cylinder in the cradle from where it is.</summary>
     private static double RestOfBore(BECylinderBorer borer) =>
         (borer.Job.End - borer.Job.Work) * 2 * Math.PI * borer.TurnsPerBlock(borer.Job.Class) + 1e-6;
-
-    private static string BorerInfo(BECylinderBorer borer, IPlayer player) => CutterInfo(borer, player);
-
-    private static ItemStack? BorerHeld(IPlayer player, string code) => player.InventoryManager.Inventories.Values
-        .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
-        .SelectMany(inv => inv).FirstOrDefault(s => s.Itemstack?.Collectible.Code.ToString() == code)?.Itemstack;
 
     // ---- Loading ----
 
@@ -203,7 +174,7 @@ public partial class SharedWorldScenarios
             Assert.True(mold.IsHardened);
             // the cast cylinder to an empty hand; the mold stays, empty, for the next
             CutterClick(player, pos, null);
-            Assert.NotNull(BorerHeld(player, "seraphhorizons:cylinderblank-" + metal));
+            Assert.NotNull(MachineTest.HeldStack(player, "seraphhorizons:cylinderblank-" + metal));
             Assert.Equal(0, mold.FillLevel);
             Assert.Same(mold, W.BlockAccessor.GetBlockEntity(pos));
         }
@@ -229,7 +200,7 @@ public partial class SharedWorldScenarios
             var pos = await CutterSite(-680 - 12 * i++, -680);
             var borer = await PlaceBorer(pos, side.Code());
             Assert.Equal(side, borer.Side);
-            var cells = MachineCells(borer);
+            var cells = MachineTest.Cells(borer);
             Assert.Equal(7, cells.Count);
             var n = side.Normal();
             foreach (var cell in cells.Select(c => c.Pos).Append(pos))
@@ -264,10 +235,10 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-680, -700);
         var player = await CutterPlayer();
         var borer = await PlaceBorer(pos, "east");
-        var ghost = MachineCells(borer).Last().Pos;
+        var ghost = MachineTest.Cells(borer).Last().Pos;
         var assembly = borer.Assembly!;
-        Assert.Contains("Build: stage 1 of 4, bushings", BorerInfo(borer, player));
-        Assert.Contains("Still takes: 1 × ", BorerInfo(borer, player));
+        Assert.Contains("Build: stage 1 of 4, bushings", MachineTest.Info(borer, player));
+        Assert.Contains("Still takes: 1 × ", MachineTest.Info(borer, player));
 
         // a later stage's material is refused and stays in hand, from the frame or a ghost
         Assert.Equal(2, CutterClick(player, pos, CutterItem("game:rope", 2))?.StackSize);
@@ -286,7 +257,7 @@ public partial class SharedWorldScenarios
         // the bushings: one lot of metal parts from a stack of two, the second already fitted
         Assert.Equal(1, CutterClick(player, pos, CutterItem(CylinderBorerBuild.BushingsCode, 2))?.StackSize);
         Assert.True(assembly.Build.StageComplete(0));
-        string info = BorerInfo(borer, player);
+        string info = MachineTest.Info(borer, player);
         Assert.Contains("Build: stage 2 of 4, boring bar", info);
         Assert.Contains("Still takes: 3 × Iron rod, 1 × ", info);
 
@@ -298,7 +269,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:rod-iron"))?.StackSize);   // all the rods it takes are in
         Assert.False(assembly.Build.StageComplete(1));
         Assert.False(borer.ShowsPart("bar"));   // drawn only once complete
-        Assert.DoesNotContain("Iron rod", BorerInfo(borer, player));
+        Assert.DoesNotContain("Iron rod", MachineTest.Info(borer, player));
         // a stage partly in keeps what it holds through a save
         var partly = new Vintagestory.API.Datastructures.TreeAttribute();
         borer.ToTreeAttributes(partly);
@@ -312,31 +283,31 @@ public partial class SharedWorldScenarios
         Assert.True(borer.ShowsPart("bar"));
 
         // the feed: its planks from a stack of four, a steel rod, the ropes, a meteoric iron plate
-        Assert.Contains("Build: stage 3 of 4, feed", BorerInfo(borer, player));
+        Assert.Contains("Build: stage 3 of 4, feed", MachineTest.Info(borer, player));
         Assert.Equal(2, CutterClick(player, ghost, CutterItem("game:plank-oak", 4))?.StackSize);
         foreach (var (code, count) in BorerMaterials.Skip(5))
             Assert.Null(CutterClick(player, pos, CutterItem(code, count)));
         Assert.True(assembly.Build.StageComplete(2));
         Assert.False(borer.Complete);
-        Assert.Contains("Build: stage 4 of 4, cutter head", BorerInfo(borer, player));
+        Assert.Contains("Build: stage 4 of 4, cutter head", MachineTest.Info(borer, player));
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Boring.BlankSteel))?.StackSize);
         // a spent head is refused
         Assert.Equal(1, CutterClick(player, ghost, BorerHead(0))?.StackSize ?? 0);
         Assert.Null(CutterClick(player, ghost, BorerHead()));
         Assert.True(borer.Complete);
         Assert.Equal("Cylinder borer", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.DoesNotContain("Build:", BorerInfo(borer, player));
+        Assert.DoesNotContain("Build:", MachineTest.Info(borer, player));
         // built dry, the next cylinder would break the head; a full tank gives it all eight
-        Assert.Contains("Cutter head: 100% left", BorerInfo(borer, player));
-        Assert.Contains("No oil: the next cylinder breaks the cutter head", BorerInfo(borer, player));
-        Assert.Contains("Dry: it wears its cutter fast", BorerInfo(borer, player));
-        FillBorerOil(borer, 1);
-        Assert.Contains("About 8 more cylinders from the cutter head", BorerInfo(borer, player));
-        var detail = CutterWrenchInfo(borer, player);
+        Assert.Contains("Cutter head: 100% left", MachineTest.Info(borer, player));
+        Assert.Contains("No oil: the next cylinder breaks the cutter head", MachineTest.Info(borer, player));
+        Assert.Contains("Dry: it wears its cutter fast", MachineTest.Info(borer, player));
+        MachineTest.FillOil(borer, 1);
+        Assert.Contains("About 8 more cylinders from the cutter head", MachineTest.Info(borer, player));
+        var detail = MachineTest.WrenchInfo(borer, player);
         Assert.Contains("Cutter head: 8 of 8 uses left", detail);
         Assert.Contains("Cutter head wear: 1× per cylinder", detail);
         Assert.Contains("Oil a job: 10", detail);
-        Assert.Contains("No power", BorerInfo(borer, player));
+        Assert.Contains("No power", MachineTest.Info(borer, player));
 
         // a save keeps every fitted code
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
@@ -400,13 +371,13 @@ public partial class SharedWorldScenarios
 
         await World.Ticks(10);
         Assert.Equal(0, borer.Job.Work);
-        Assert.Contains("No power", BorerInfo(borer, player));
-        Assert.Contains("In the cradle: a rough cast iron cylinder", BorerInfo(borer, player));
-        var rotor = await PowerBorer(borer);
+        Assert.Contains("No power", MachineTest.Info(borer, player));
+        Assert.Contains("In the cradle: a rough cast iron cylinder", MachineTest.Info(borer, player));
+        var rotor = await PowerMachine(borer);
         await World.Until(() => borer.Job.Work > 0.002, 60000);
         Assert.True(borer.Running);
         await World.Until(() => borer.State == MachineState.Working, 5000);
-        Assert.Contains("Boring (", BorerInfo(borer, player));
+        Assert.Contains("Boring (", MachineTest.Info(borer, player));
 
         Assert.True(borer.Bore(RestOfBore(borer)));
         Assert.False(borer.BlankOn);
@@ -421,7 +392,7 @@ public partial class SharedWorldScenarios
         Assert.True(local.X < 0.01f, $"the cylinder is at native {local}");
         Assert.Equal(7, borer.HeadLeft);
         Assert.Equal(990, borer.Oiling!.Tank.Points, 6);
-        Assert.Contains("Cutter head: 7 of 8 uses left", CutterWrenchInfo(borer, player));
+        Assert.Contains("Cutter head: 7 of 8 uses left", MachineTest.WrenchInfo(borer, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -442,16 +413,16 @@ public partial class SharedWorldScenarios
         Assert.Equal(borer.TurnsPerBlock(1) * 1.5, borer.TurnsPerBlock(2), 0.01);
         Assert.False(borer.Bore(2 * Math.PI * borer.TurnsPerBlock(2) * 0.5));
         Assert.Equal(0.5, borer.Job.Work, 3);
-        FillBorerOil(borer, 0.5);
+        MachineTest.FillOil(borer, 0.5);
         Assert.True(borer.Bore(RestOfBore(borer)));
         Assert.Equal(1, borer.HeadLeft);
         await World.Ticks(5);
         Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(Boring.CylinderSteel));
 
         // dry: the same load, and the cylinder breaks the head after it is bored
-        FillBorerOil(borer, 0);
+        MachineTest.FillOil(borer, 0);
         Assert.Equal(BorerMod.Config.Resistance, mp.GetResistance(), 4);
-        Assert.Contains("No oil: the next cylinder breaks the cutter head", BorerInfo(borer, player));
+        Assert.Contains("No oil: the next cylinder breaks the cutter head", MachineTest.Info(borer, player));
         Assert.Null(CutterClick(player, pos, CutterItem(Boring.BlankIron)));
         Assert.True(borer.Bore(RestOfBore(borer)));
         Assert.Null(borer.Head);
@@ -474,17 +445,17 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var borer = await PlaceBorer(pos, "west");
         AssembleBorer(borer, player, BorerHead(5));
-        var ghost = MachineCells(borer).First().Pos;
+        var ghost = MachineTest.Cells(borer).First().Pos;
         Assert.Null(CutterClick(player, pos, CutterItem(Boring.BlankSteel)));
         Assert.False(borer.Bore(2 * Math.PI * borer.TurnsPerBlock(2) * 0.3));
         // Ctrl: the head first, with its durability, unworn by it; then the casting, its bore lost
         CutterClick(player, ghost, null, ctrl: true);
-        var head = BorerHeld(player, CylinderBorerBuild.HeadCode)!;
+        var head = MachineTest.HeldStack(player, CylinderBorerBuild.HeadCode)!;
         Assert.Equal(5, head.Collectible.GetRemainingDurability(head));
         Assert.True(borer.BlankOn);
         CutterClick(player, ghost, null, ctrl: true);
         Assert.False(borer.BlankOn);
-        Assert.NotNull(BorerHeld(player, Boring.BlankSteel));
+        Assert.NotNull(MachineTest.HeldStack(player, Boring.BlankSteel));
         Assert.True(borer.Assembly!.Build.StageComplete(2));
 
         // refit and load; broken mid-bore, every part, the head with its wear, and the casting come back
@@ -535,7 +506,7 @@ public partial class SharedWorldScenarios
         // not taken while the shaft stands
         await World.Ticks(30);
         Assert.False(borer.BlankOn);
-        await PowerBorer(borer);
+        await PowerMachine(borer);
         await World.Until(() => borer.BlankOn, 5000);
         Assert.Equal(1, borer.Job.Class);
         Assert.True(source.Inventory[2].Empty);

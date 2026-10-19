@@ -51,20 +51,6 @@ public partial class SharedWorldScenarios
     /// <summary>How many of a kept part its stage takes from one stack: two chains, two rods.</summary>
     private static int BenchCount(string code) => code is "game:metalchain-iron" or "game:rod-meteoriciron" ? 2 : 1;
 
-    /// <summary>The bench's cells but the controller's (the shared machine cells), and whether each is the power cell.</summary>
-    private static List<(BlockPos Pos, bool Power)> BenchCells(BEDrawBench bench) =>
-        bench.CellBlocks().Select(c => (c.Pos, c.Block is BlockMachineCellPower)).ToList();
-
-    /// <summary>The block info as a player holding a wrench sees it.</summary>
-    private string BenchWrenchInfo(BEDrawBench bench, IPlayer player)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        var held = slot.Itemstack;
-        slot.Itemstack = CutterItem("game:wrench-iron");
-        try { return BenchInfo(bench, player); }
-        finally { slot.Itemstack = held; }
-    }
-
     /// <summary>A die of <paramref name="code"/> with <paramref name="durability"/> left (full when null).</summary>
     private ItemStack BenchDie(string code, int? durability = null)
     {
@@ -78,46 +64,12 @@ public partial class SharedWorldScenarios
     /// the die last; then a full oil tank.</summary>
     private void AssembleBench(BEDrawBench bench, IPlayer player, ItemStack? die = null)
     {
-        var ghost = BenchCells(bench).First().Pos;
+        var ghost = MachineTest.Cells(bench).First().Pos;
         int i = 0;
         foreach (var part in BenchOrder.Select(c => CutterItem(c, BenchCount(c))).Append(die ?? BenchDie(Drawing.DieIronCode)))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? bench.Pos : ghost, part) == null, $"{part.Collectible.Code} was not fitted");
         Assert.True(bench.Complete);
-        FillBenchOil(bench, 1);
-    }
-
-    private static void FillBenchOil(BEDrawBench bench, double fill)
-    {
-        Assert.NotNull(bench.Oiling);
-        var tank = bench.Oiling.Tank;
-        bench.Oiling.Tank = tank with { Points = tank.Capacity * fill };
-    }
-
-    /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
-    private async Task<BlockPos> PowerBench(BEDrawBench bench)
-    {
-        var ghost = bench.CellPos(BenchRig.PowerCell);
-        var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
-        var rotorPos = ghost.AddCopy(face);
-        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
-        await World.Ticks(2);
-        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
-        rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => bench.ShaftSpeed >= 0.3f, 15000);
-        return rotorPos;
-    }
-
-    /// <summary>Radians that bring the hollow on the bench to W = <paramref name="work"/> from where it is.</summary>
-    private static double BenchRadiansTo(BEDrawBench bench, double work) =>
-        (work - bench.Job.Work) * 2 * Math.PI * bench.TurnsPerSection(bench.Job.Class) + 1e-6;
-
-    private static string BenchInfo(BEDrawBench bench, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        bench.GetBlockInfo(player, sb);
-        return sb.ToString();
+        MachineTest.FillOil(bench, 1);
     }
 
     // ---- Loading ----
@@ -196,7 +148,7 @@ public partial class SharedWorldScenarios
             var pos = await CutterSite(-240 - 12 * i++, -240);
             var bench = await PlaceBench(pos, side.Code());
             Assert.Equal(side, bench.Side);
-            var cells = BenchCells(bench);
+            var cells = MachineTest.Cells(bench);
             Assert.Equal(3, cells.Count);
             var n = side.Normal();
             Assert.Contains(cells, c => c.Pos.Equals(pos.AddCopy(n.X * 3, 0, n.Z * 3)));
@@ -235,8 +187,8 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-240, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "east");
-        var ghost = BenchCells(bench).Last().Pos;
-        Assert.Contains("Build: stage 1 of 5, gearbox", BenchInfo(bench, player));
+        var ghost = MachineTest.Cells(bench).Last().Pos;
+        Assert.Contains("Build: stage 1 of 5, gearbox", MachineTest.Info(bench, player));
 
         // a later stage's part is refused and stays in hand, from the frame or a ghost
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalchain-steel"))?.StackSize);
@@ -276,18 +228,18 @@ public partial class SharedWorldScenarios
         // a second chain has nowhere to go
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalchain-steel"))?.StackSize);
         Assert.False(bench.Complete);
-        Assert.Contains("Build: stage 5 of 5, die", BenchInfo(bench, player));
+        Assert.Contains("Build: stage 5 of 5, die", MachineTest.Info(bench, player));
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         Assert.Null(CutterClick(player, ghost, BenchDie(Drawing.DieIronCode)));
         Assert.True(bench.Complete);
         Assert.Equal("Draw bench", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Die: iron die, draws lead", BenchInfo(bench, player));
-        Assert.Contains("Die: 100% left", BenchInfo(bench, player));
+        Assert.Contains("Die: iron die, draws lead", MachineTest.Info(bench, player));
+        Assert.Contains("Die: 100% left", MachineTest.Info(bench, player));
         // unpowered, the shared state's order says so first (an empty bench under power says it is empty)
-        Assert.Contains("No power: its shaft must turn at 0.05 or faster", BenchInfo(bench, player));
+        Assert.Contains("No power: its shaft must turn at 0.05 or faster", MachineTest.Info(bench, player));
         // more for a wrench: the die's uses, the oil's drain, the facing and the axle's face
-        Assert.Contains("Hold a wrench to see more", BenchInfo(bench, player));
-        var detail = BenchWrenchInfo(bench, player);
+        Assert.Contains("Hold a wrench to see more", MachineTest.Info(bench, player));
+        var detail = MachineTest.WrenchInfo(bench, player);
         Assert.Contains("Die: 100 of 100 uses left", detail);
         Assert.Contains("Oil a job: 2", detail);
         Assert.Contains("Faces east; its axle meets its south face", detail);
@@ -365,13 +317,13 @@ public partial class SharedWorldScenarios
         // unpowered, nothing moves; powered, the shaft draws the first section off by itself
         await World.Ticks(10);
         Assert.Equal(0, bench.Job.Work);
-        Assert.Contains("No power", BenchInfo(bench, player));
-        Assert.Contains("On the bench: a lead tube blank, 0 of 4 sections drawn", BenchInfo(bench, player));
-        var rotor = await PowerBench(bench);
+        Assert.Contains("No power", MachineTest.Info(bench, player));
+        Assert.Contains("On the bench: a lead tube blank, 0 of 4 sections drawn", MachineTest.Info(bench, player));
+        var rotor = await PowerMachine(bench);
         await World.Until(() => bench.Job.Work > 0.02, 30000);
         Assert.True(bench.Running);
         await World.Until(() => bench.State == MachineState.Working, 5000);
-        Assert.Contains("Drawing (", BenchInfo(bench, player));
+        Assert.Contains("Drawing (", MachineTest.Info(bench, player));
         // the first comes off as its draw finishes, the jaws open, before the dog goes back
         await World.Until(() => bench.Job.Work >= Drawing.HandOut, 120000);
         await World.Ticks(3);
@@ -383,21 +335,21 @@ public partial class SharedWorldScenarios
         Assert.True(local.X > 1 - 0.01f, $"the section is at native {local}");
 
         // the other three: just short of the second's hand-out, then each in turn
-        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 1 + Drawing.HandOut) - 2 * Math.PI * 0.2));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1 + Drawing.HandOut)));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 2 + Drawing.HandOut)));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 3 + Drawing.HandOut)));
+        Assert.Equal(0, bench.Draw(MachineTest.RadiansTo(bench.Job, 1 + Drawing.HandOut, bench.TurnsPerSection(bench.Job.Class)) - 2 * Math.PI * 0.2));
+        Assert.Equal(1, bench.Draw(MachineTest.RadiansTo(bench.Job, 1 + Drawing.HandOut, bench.TurnsPerSection(bench.Job.Class))));
+        Assert.Equal(1, bench.Draw(MachineTest.RadiansTo(bench.Job, 2 + Drawing.HandOut, bench.TurnsPerSection(bench.Job.Class))));
+        Assert.Equal(1, bench.Draw(MachineTest.RadiansTo(bench.Job, 3 + Drawing.HandOut, bench.TurnsPerSection(bench.Job.Class))));
         // all four are out, but the hollow is done, and the die worn, only once the dog is back at the die
         Assert.True(bench.JobOn);
         Assert.Equal(100, bench.DieLeft);
-        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(0, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         Assert.False(bench.JobOn);
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
         Assert.Equal(0, CutterItemsNear(pos).GetValueOrDefault(Drawing.LeadHollow));   // the hollow is used up
         Assert.Equal(99, bench.DieLeft);
         Assert.Equal(992, bench.Oiling!.Tank.Points, 6);   // 2 points a pipe section, 8 a hollow
-        Assert.Contains("Die: 99 of 100 uses left", BenchWrenchInfo(bench, player));
+        Assert.Contains("Die: 99 of 100 uses left", MachineTest.WrenchInfo(bench, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -414,12 +366,12 @@ public partial class SharedWorldScenarios
         Assert.False(bench.JobOn);
 
         // the iron die back out, with its durability, and the steel one in
-        CutterClick(player, BenchCells(bench).First().Pos, null, ctrl: true);
+        CutterClick(player, MachineTest.Cells(bench).First().Pos, null, ctrl: true);
         Assert.False(bench.Complete);
-        var iron = BenchHeldStack(player, Drawing.DieIronCode)!;
+        var iron = MachineTest.HeldStack(player, Drawing.DieIronCode)!;
         Assert.Equal(40, iron.Collectible.GetRemainingDurability(iron));
         Assert.Null(CutterClick(player, pos, BenchDie(Drawing.DieSteelCode)));
-        Assert.Contains("Die: steel die, draws lead, copper", BenchInfo(bench, player));
+        Assert.Contains("Die: steel die, draws lead, copper", MachineTest.Info(bench, player));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
         Assert.Equal(2, bench.Job.Class);
 
@@ -427,13 +379,13 @@ public partial class SharedWorldScenarios
         Assert.Equal(bench.TurnsPerSection(1) * 2, bench.TurnsPerSection(2), 0.02);
         Assert.Equal(1, bench.Draw(2 * Math.PI * bench.TurnsPerSection(1)));
         Assert.Equal(0.5, bench.Job.Work, 0.01);
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(3, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(CopperSection));
         Assert.Equal(99, bench.DieLeft);
         // and lead too
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(4, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
         Assert.Equal(98, bench.DieLeft);
@@ -453,15 +405,15 @@ public partial class SharedWorldScenarios
         Assert.Equal(BenchMod.Config.ResistanceLead, mp.GetResistance(), 4);
 
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1)));
+        Assert.Equal(1, bench.Draw(MachineTest.RadiansTo(bench.Job, 1, bench.TurnsPerSection(bench.Job.Class))));
         Assert.Equal(2, bench.DieLeft);   // nothing until the whole hollow is drawn
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(3, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         Assert.Equal(1, bench.DieLeft);
         // dry: the same die wear, three times the load
-        FillBenchOil(bench, 0);
+        MachineTest.FillOil(bench, 0);
         Assert.Equal(BenchMod.Config.ResistanceLead * 3, mp.GetResistance(), 4);
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(4, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         Assert.Null(bench.Die);
         Assert.False(bench.Complete);
         await World.Ticks(5);
@@ -470,12 +422,12 @@ public partial class SharedWorldScenarios
         // no hollow goes on without a die, and nothing comes back by Ctrl
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         CutterClick(player, pos, null, ctrl: true);
-        Assert.Equal(0, BenchHeld(player, Drawing.DieIronCode));
+        Assert.Equal(0, MachineTest.Held(player, Drawing.DieIronCode));
         // a worn-out die is refused, a new one goes in and it draws again
         Assert.Equal(1, CutterClick(player, pos, BenchDie(Drawing.DieIronCode, 0))?.StackSize ?? 0);
         Assert.Null(CutterClick(player, pos, BenchDie(Drawing.DieIronCode)));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(4, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         Assert.Equal(99, bench.DieLeft);
         CutterKillItems(pos);
     }
@@ -489,10 +441,10 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "west");
         AssembleBench(bench, player, BenchDie(Drawing.DieSteelCode, 77));
-        var ghost = BenchCells(bench).First().Pos;
+        var ghost = MachineTest.Cells(bench).First().Pos;
         // the die back by Ctrl from a ghost, with its durability; the rest stays
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.Equal(1, BenchHeld(player, Drawing.DieSteelCode));
+        Assert.Equal(1, MachineTest.Held(player, Drawing.DieSteelCode));
         CutterClick(player, ghost, null, ctrl: true);
         Assert.True(bench.Assembly!.Build.StageComplete(3));
         Assert.Equal(5, bench.Assembly.Returns().Count);
@@ -500,7 +452,7 @@ public partial class SharedWorldScenarios
         // refit and load; broken before a pipe section comes off, the hollow comes back too
         Assert.Null(CutterClick(player, pos, BenchDie(Drawing.DieSteelCode, 77)));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
-        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, Drawing.HandOut) - 2 * Math.PI * 0.05));
+        Assert.Equal(0, bench.Draw(MachineTest.RadiansTo(bench.Job, Drawing.HandOut, bench.TurnsPerSection(bench.Job.Class)) - 2 * Math.PI * 0.05));
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
         await World.Ticks(3);
@@ -523,7 +475,7 @@ public partial class SharedWorldScenarios
         bench = await PlaceBench(pos, "west");
         AssembleBench(bench, player);
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 0.5)));
+        Assert.Equal(1, bench.Draw(MachineTest.RadiansTo(bench.Job, 0.5, bench.TurnsPerSection(bench.Job.Class))));
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(3);
@@ -556,13 +508,13 @@ public partial class SharedWorldScenarios
         source.MarkDirty(true);
 
         using var clock = VirtualClock.Start(World);
-        await PowerBench(bench);
+        await PowerMachine(bench);
         await World.Ticks(60);
         Assert.False(bench.JobOn);
-        Assert.Contains("Bench empty: put a lead or copper tube blank on", BenchInfo(bench, player));
+        Assert.Contains("Bench empty: put a lead or copper tube blank on", MachineTest.Info(bench, player));
         Assert.Equal(2, source.Inventory[0].StackSize);
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(4, bench.Draw(MachineTest.RadiansTo(bench.Job, 4, bench.TurnsPerSection(bench.Job.Class))));
         await World.Ticks(5);
         Assert.All(sink.Inventory, s => Assert.True(s.Empty));
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));

@@ -40,35 +40,6 @@ public partial class MillWorldScenarios
     private static int BucketPortions(ItemStack? bucket) =>
         bucket?.Collectible is BlockLiquidContainerBase c ? c.GetContent(bucket)?.StackSize ?? 0 : -1;
 
-    private static string PanInfo(BEAmalgamPan pan, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        pan.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
-
-    private async Task<(bool Started, int Steps)> PanHold(IPlayer player, BlockPos at, int ticks)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = null;
-        slot.MarkDirty();
-        var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
-        if (!W.BlockAccessor.GetBlock(at).OnBlockInteractStart(W, player, sel))
-            return (false, 0);
-        int steps = 0;
-        float seconds = 0;
-        for (int i = 0; i < ticks; i++)
-        {
-            await World.Ticks(1);
-            seconds += 0.05f;
-            if (!W.BlockAccessor.GetBlock(at).OnBlockInteractStep(seconds, W, player, sel))
-                break;
-            steps++;
-        }
-        W.BlockAccessor.GetBlock(at).OnBlockInteractStop(seconds, W, player, sel);
-        return (true, steps);
-    }
-
     private void BuildPan(BEAmalgamPan pan, IPlayer player, string rod = "game:rod-iron", string plate = "game:metalplate-iron")
     {
         Assert.Null(CutterClick(player, pan.Pos, CutterItem(rod)));
@@ -107,7 +78,7 @@ public partial class MillWorldScenarios
         var player = await CutterPlayer();
         var pan = await PlacePan(pos, "east");
         Assert.Equal(SeraphHorizons.Mod.Machines.Core.Side.East, pan.Side);
-        Assert.Contains("Build: stage 1 of 2, muller", PanInfo(pan, player));
+        Assert.Contains("Build: stage 1 of 2, muller", MachineTest.Info(pan, player));
         // the shoes before the muller, a copper rod, mercury and quartz on a bare frame are all refused
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalplate-iron"))?.StackSize);
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-copper"))?.StackSize);
@@ -116,7 +87,7 @@ public partial class MillWorldScenarios
         Assert.Equal(0, pan.Batch.Mercury);
         // the muller from a stack of two, then the shoes in steel
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-steel", 2))?.StackSize);
-        Assert.Contains("Build: stage 2 of 2, shoes", PanInfo(pan, player));
+        Assert.Contains("Build: stage 2 of 2, shoes", MachineTest.Info(pan, player));
         Assert.False(pan.Complete);
         Assert.Null(CutterClick(player, pos, CutterItem("game:metalplate-steel")));
         Assert.True(pan.Complete);
@@ -159,9 +130,9 @@ public partial class MillWorldScenarios
         Assert.Equal(8, CutterClick(player, pos, CutterItem(GoldQuartz, 24))?.StackSize);
         Assert.Equal(16, pan.Batch.Items);
         // with no water it does not work
-        var (started, _) = await PanHold(player, pos, 4);
+        var (started, _) = await Hold(player, pos, 4);
         Assert.False(started);
-        Assert.Contains("Water: 0 of 4 litres", PanInfo(pan, player));
+        Assert.Contains("Water: 0 of 4 litres", MachineTest.Info(pan, player));
         // its water from a bucket of 10 litres: 4 go in
         left = CutterClick(player, pos, PanBucket("game:waterportion", 1000));
         Assert.Equal(600, BucketPortions(left));
@@ -169,7 +140,7 @@ public partial class MillWorldScenarios
         Assert.True(pan.Batch.Shows(AmalgamPanRequires.Water));
 
         // held, the muller turns the charge
-        (started, int steps) = await PanHold(player, pos, 20);
+        (started, int steps) = await Hold(player, pos, 20);
         Assert.True(started);
         Assert.True(steps >= 15, $"held for only {steps} steps");
         Assert.True(pan.Batch.Turns > 0.3, $"turned {pan.Batch.Turns}");

@@ -39,25 +39,8 @@ public partial class MillWorldScenarios
         while (!battery.Built)
             Assert.True(battery.Assembly!.FillNext());
         Assert.True(battery.Assembly!.Ready);
-        OilUp(battery);
+        MachineTest.FillOil(battery);
         battery.MarkDirty(true);
-    }
-
-    /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns.</summary>
-    private async Task<BlockPos> PowerBattery(BEStampBattery battery)
-    {
-        var anchor = battery.Rig!.Anchor(OreMachineRig.Power)!.Value;
-        var cell = battery.CellPos(anchor.Cell);
-        var face = battery.PowerFace;
-        var rotorPos = cell.AddCopy(face);
-        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
-        await World.Ticks(2);
-        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
-        rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => battery.ShaftSpeed >= 0.3f, 15000);
-        return rotorPos;
     }
 
     /// <summary>A straight chute against the output face, laid to take from the battery.</summary>
@@ -150,7 +133,7 @@ public partial class MillWorldScenarios
             }
         Assert.True(battery.Built);
         Assert.True(battery.Assembly.Ready);
-        OilUp(battery);
+        MachineTest.FillOil(battery);
         Assert.True(battery.ShowsPart("pipecopper") ^ battery.ShowsPart("pipelead"));
 
         // breaking it gives every part back, the shoes and the frame with them
@@ -175,7 +158,7 @@ public partial class MillWorldScenarios
         Assert.Equal(80, battery.ReservoirCapacity, 6);
         var outChute = BatteryOutputChute(battery);
         var chest = await BatteryOutputChest(battery, outChute);
-        var rotor = await PowerBattery(battery);
+        var rotor = await PowerMachine(battery);
 
         // by hand: right-click with raw ore puts it in the feed box's mouth
         Assert.Null(CutterClick(player, origin, CutterItem(BatteryOre, 1)));
@@ -253,7 +236,7 @@ public partial class MillWorldScenarios
         await World.Until(() => held.Empty, 2_000);
         await World.Until(() => InFrontOfOutput(battery).GetValueOrDefault(BatteryCrushed) == 1, 200);
 
-        var rotor = await PowerBattery(battery);
+        var rotor = await PowerMachine(battery);
         battery.InfeedSlot.Itemstack = CutterItem(BatteryOre, 2);
         battery.InfeedSlot.MarkDirty();
         bool blocked = false;
@@ -322,7 +305,7 @@ public partial class MillWorldScenarios
         var battery = await PlaceBattery(origin);
         FillBattery(battery);
         BatteryOutputChute(battery);
-        var rotor = await PowerBattery(battery);
+        var rotor = await PowerMachine(battery);
         battery.InfeedSlot.Itemstack = CutterItem(BatteryOre, 2);
         battery.InfeedSlot.MarkDirty();
         // no water: dry, and nothing worked

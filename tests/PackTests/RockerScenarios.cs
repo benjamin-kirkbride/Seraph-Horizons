@@ -39,38 +39,6 @@ public partial class MillWorldScenarios
         return stack;
     }
 
-    private static string RockerInfo(BERocker rocker, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        rocker.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
-
-    /// <summary>Right-click held on the rocker with <paramref name="held"/> for <paramref name="ticks"/> ticks,
-    /// as the game plays it. Returns whether the start was the rocker's and how many steps it went on for.</summary>
-    private async Task<(bool Started, int Steps)> RockerHold(IPlayer player, BlockPos at, int ticks, ItemStack? held)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = held;
-        slot.MarkDirty();
-        var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
-        var block = W.BlockAccessor.GetBlock(at);
-        if (!block.OnBlockInteractStart(W, player, sel))
-            return (false, 0);
-        int steps = 0;
-        float seconds = 0;
-        for (int i = 0; i < ticks; i++)
-        {
-            await World.Ticks(1);
-            seconds += 0.05f;
-            if (!W.BlockAccessor.GetBlock(at).OnBlockInteractStep(seconds, W, player, sel))
-                break;
-            steps++;
-        }
-        W.BlockAccessor.GetBlock(at).OnBlockInteractStop(seconds, W, player, sel);
-        return (true, steps);
-    }
-
     [AtlasScenario]
     public void Rocker_loads_with_its_block_and_recipe()
     {
@@ -105,7 +73,7 @@ public partial class MillWorldScenarios
         // the shared machine's inventory, with no slot for a hopper or chute to reach
         Assert.Empty(rocker.Inventory);
         Assert.True(rocker.Built);
-        Assert.Contains("Hopper empty", RockerInfo(rocker, player));
+        Assert.Contains("Hopper empty", MachineTest.Info(rocker, player));
 
         Assert.Equal(2, CutterClick(player, pos, CutterItem("seraphhorizons:crushedore-magnetite-medium", 6))?.StackSize);
         Assert.Equal(4, rocker.Washing.ChargeCount);
@@ -132,16 +100,16 @@ public partial class MillWorldScenarios
         Assert.Equal(1, CutterClick(player, pos, CutterItem("seraphhorizons:crushedore-hematite-medium"))?.StackSize);
 
         // an empty bucket does not rock it
-        var (startedDry, _) = await RockerHold(player, pos, 5, WaterBucket(0));
+        var (startedDry, _) = await Hold(player, pos, 5, WaterBucket(0));
         Assert.False(startedDry);
         // a second of rocking: about a quarter of the first item, half a litre poured
-        var (started, steps) = await RockerHold(player, pos, 20, WaterBucket());
+        var (started, steps) = await Hold(player, pos, 20, WaterBucket());
         Assert.True(started);
         Assert.True(steps >= 15, $"only {steps} steps");
         Assert.InRange(rocker.Washing.ItemWork, 0.15, 0.35);
         var bucket = player.InventoryManager.ActiveHotbarSlot.Itemstack!;
         Assert.InRange(RockerWater.Litres(bucket), 9.3, 9.8);
-        Assert.Contains("magnetite", RockerInfo(rocker, player), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("magnetite", MachineTest.Info(rocker, player), StringComparison.OrdinalIgnoreCase);
         double work = rocker.Washing.ItemWork;
         await World.Ticks(10);
         Assert.Equal(work, rocker.Washing.ItemWork, 9);

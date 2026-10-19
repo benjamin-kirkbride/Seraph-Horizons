@@ -53,21 +53,6 @@ public partial class SharedWorldScenarios
         Assert.True(shear.Complete);
     }
 
-    /// <summary>Radians of the treadle that bring the plate on the table to W = <paramref name="work"/>.</summary>
-    private static double ShearRadiansTo(BESquaringShear shear, double work) =>
-        (work - shear.Job.Work) * 2 * Math.PI * shear.StrokesPerPlate(shear.Job.Class) + 1e-6;
-
-    private static string ShearInfo(BESquaringShear shear, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        shear.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
-
-    private static int ShearHeld(IPlayer player, string code) => player.InventoryManager.Inventories.Values
-        .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
-        .SelectMany(inv => inv).Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
     // ---- Loading ----
 
     [AtlasScenario]
@@ -164,8 +149,8 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var shear = await PlaceShear(pos, "east");
         var ghost = ShearGhost(shear);
-        Assert.Contains("Build: stage 1 of 2, blades (an iron or steel plate)", ShearInfo(shear, player));
-        Assert.Contains("Still takes: 1 × Iron plate", ShearInfo(shear, player));
+        Assert.Contains("Build: stage 1 of 2, blades (an iron or steel plate)", MachineTest.Info(shear, player));
+        Assert.Contains("Still takes: 1 × Iron plate", MachineTest.Info(shear, player));
 
         // the gauge before the blades is refused and stays in hand, from the frame or the ghost
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-iron"))?.StackSize);
@@ -185,7 +170,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalplate-steel", 2))?.StackSize);
         Assert.Equal("game:metalplate-steel", shear.Assembly!.Build.CodeIn(0, 0));
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:metalplate-iron"))?.StackSize);
-        Assert.Contains("Build: stage 2 of 2, gauge (an iron, meteoric iron or steel rod)", ShearInfo(shear, player));
+        Assert.Contains("Build: stage 2 of 2, gauge (an iron, meteoric iron or steel rod)", MachineTest.Info(shear, player));
         Assert.False(shear.Complete);
         Assert.Equal("Squaring shear frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         // the gauge, from the ghost
@@ -193,10 +178,10 @@ public partial class SharedWorldScenarios
         Assert.True(shear.Complete);
         Assert.Equal(("steel", "meteoriciron"), (shear.BladeMetal, shear.GaugeMetal));
         Assert.Equal("Squaring shear", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Table empty", ShearInfo(shear, player));
+        Assert.Contains("Table empty", MachineTest.Info(shear, player));
         // more for a wrench: the facing; without one, a line says so
-        Assert.Contains("Hold a wrench to see more", ShearInfo(shear, player));
-        Assert.DoesNotContain("Faces east", ShearInfo(shear, player));
+        Assert.Contains("Hold a wrench to see more", MachineTest.Info(shear, player));
+        Assert.DoesNotContain("Faces east", MachineTest.Info(shear, player));
 
         // a save keeps every fitted code
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
@@ -209,8 +194,8 @@ public partial class SharedWorldScenarios
         CutterClick(player, pos, null, ctrl: true);
         CutterClick(player, ghost, null, ctrl: true);
         Assert.True(shear.Complete);
-        Assert.Equal(0, ShearHeld(player, "game:rod-meteoriciron"));
-        Assert.Equal(0, ShearHeld(player, "game:metalplate-steel"));
+        Assert.Equal(0, MachineTest.Held(player, "game:rod-meteoriciron"));
+        Assert.Equal(0, MachineTest.Held(player, "game:metalplate-steel"));
         Assert.Equal(["game:metalplate-steel", "game:rod-meteoriciron"], ShearFitted(shear));
 
         // only breaking gives them back
@@ -251,20 +236,20 @@ public partial class SharedWorldScenarios
             Assert.False(shear.PlateOn, $"{code} went on");
         }
         // with nothing on the table, the treadle is not worked
-        Assert.False((await ShearHold(player, pos, 3)).Started);
+        Assert.False((await Hold(player, pos, 3)).Started);
 
         // a lead plate goes on, one from the stack; another in hand works the treadle instead
         Assert.Equal(2, CutterClick(player, pos, CutterItem(Cutting.LeadPlate, 3))?.StackSize);
         Assert.True(shear.PlateOn);
         Assert.Equal(1, shear.Job.Class);
         Assert.Equal(Cutting.LeadPlate, shear.Plate?.Collectible.Code.ToString());
-        Assert.Contains("On the table: a lead plate, 0% cut", ShearInfo(shear, player));
-        Assert.Contains("Ready: hold right mouse on it to work it", ShearInfo(shear, player));
+        Assert.Contains("On the table: a lead plate, 0% cut", MachineTest.Info(shear, player));
+        Assert.Contains("Ready: hold right mouse on it to work it", MachineTest.Info(shear, player));
 
         // nothing moves until the treadle is worked; held from the ghost, it cuts; let go, it stops
         await World.Ticks(10);
         Assert.Equal(0, shear.Job.Work);
-        var (started, steps) = await ShearHold(player, ShearGhost(shear), 6);
+        var (started, steps) = await Hold(player, ShearGhost(shear), 6);
         Assert.True(started);
         Assert.Equal(6, steps);
         double held = shear.Job.Work;
@@ -273,15 +258,15 @@ public partial class SharedWorldScenarios
         await World.Ticks(20);
         Assert.Equal(held, shear.Job.Work);
         // held again with a plate in hand: it works the treadle, the plate stays in hand
-        (started, _) = await ShearHold(player, pos, 2, CutterItem(Cutting.LeadPlate));
+        (started, _) = await Hold(player, pos, 2, CutterItem(Cutting.LeadPlate));
         Assert.True(started);
         Assert.True(shear.Job.Work > held);
         Assert.Equal(1, player.InventoryManager.ActiveHotbarSlot.StackSize);
 
         // the rest of the cut: just short of the end, then over it
-        Assert.Equal(0, shear.Cut(ShearRadiansTo(shear, 0.99)));
+        Assert.Equal(0, shear.Cut(MachineTest.RadiansTo(shear.Job, 0.99, shear.StrokesPerPlate(shear.Job.Class))));
         Assert.True(shear.PlateOn);
-        Assert.Equal(2, shear.Cut(ShearRadiansTo(shear, 1)));
+        Assert.Equal(2, shear.Cut(MachineTest.RadiansTo(shear.Job, 1, shear.StrokesPerPlate(shear.Job.Class))));
         Assert.False(shear.PlateOn);
         await World.Ticks(5);
         var near = CutterItemsNear(pos);
@@ -294,7 +279,7 @@ public partial class SharedWorldScenarios
             var local = Footprint.ToLocal(new Float3((float)(e.Pos.X - pos.X), (float)(e.Pos.Y - pos.Y), (float)(e.Pos.Z - pos.Z)), shear.Side);
             Assert.True(local.Z < 0.01f, $"the half plates are at native {local}");
         }
-        Assert.Contains("Table empty", ShearInfo(shear, player));
+        Assert.Contains("Table empty", MachineTest.Info(shear, player));
         CutterKillItems(pos);
     }
 
@@ -312,7 +297,7 @@ public partial class SharedWorldScenarios
         // one stroke cuts a lead plate, two thirds of a copper one
         Assert.Equal(0, shear.Cut(2 * Math.PI * shear.StrokesPerPlate(1)));
         Assert.Equal(2 / 3.0, shear.Job.Work, 3);
-        Assert.Equal(2, shear.Cut(ShearRadiansTo(shear, 1)));
+        Assert.Equal(2, shear.Cut(MachineTest.RadiansTo(shear.Job, 1, shear.StrokesPerPlate(shear.Job.Class))));
         await World.Ticks(5);
         Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(HalfCopper));
         CutterKillItems(pos);
@@ -332,15 +317,15 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, pos, CutterItem(Cutting.CopperPlate)));
         CutterClick(player, pos, null, ctrl: true);
         Assert.False(shear.PlateOn);
-        Assert.Equal(1, ShearHeld(player, Cutting.CopperPlate));
+        Assert.Equal(1, MachineTest.Held(player, Cutting.CopperPlate));
         Assert.True(shear.Complete);
         // once cutting has begun it stays, and so do the parts
         Assert.Null(CutterClick(player, pos, CutterItem(Cutting.LeadPlate)));
-        shear.Cut(ShearRadiansTo(shear, 0.3));
+        shear.Cut(MachineTest.RadiansTo(shear.Job, 0.3, shear.StrokesPerPlate(shear.Job.Class)));
         CutterClick(player, ShearGhost(shear), null, ctrl: true);
         Assert.True(shear.PlateOn);
         Assert.True(shear.Complete);
-        Assert.Equal(0, ShearHeld(player, Cutting.LeadPlate));
+        Assert.Equal(0, MachineTest.Held(player, Cutting.LeadPlate));
 
         // broken with a plate half cut: the frame and both parts, and the plate is lost
         CutterKillItems(pos);
@@ -390,11 +375,11 @@ public partial class SharedWorldScenarios
         source.MarkDirty(true);
 
         await World.Ticks(20);
-        Assert.False((await ShearHold(player, pos, 4)).Started);
+        Assert.False((await Hold(player, pos, 4)).Started);
         Assert.False(shear.PlateOn);
         Assert.Equal(2, source.Inventory[0].StackSize);
         Assert.Null(CutterClick(player, pos, CutterItem(Cutting.CopperPlate)));
-        Assert.Equal(2, shear.Cut(ShearRadiansTo(shear, 1)));
+        Assert.Equal(2, shear.Cut(MachineTest.RadiansTo(shear.Job, 1, shear.StrokesPerPlate(shear.Job.Class))));
         await World.Ticks(5);
         Assert.All(sink.Inventory, s => Assert.True(s.Empty));
         Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(HalfCopper));

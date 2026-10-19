@@ -48,7 +48,7 @@ public partial class MillWorldScenarios
                 Assert.True(vanner.ShowsPart("belt") && !vanner.ShowsPart("feedbox"));
         }
         Assert.True(vanner.Assembly.Ready);
-        OilUp(vanner);
+        MachineTest.FillOil(vanner);
     }
 
     private async Task VannerUntil(BEVanner vanner, Func<bool> done, int ticks = 200000)

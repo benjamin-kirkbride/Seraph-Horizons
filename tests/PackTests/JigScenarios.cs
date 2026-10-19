@@ -46,7 +46,7 @@ public partial class MillWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(jig.Assembly.Ready);
-        OilUp(jig);
+        MachineTest.FillOil(jig);
     }
 
     private static int JigChestCount(BlockEntityContainer chest, string code) =>

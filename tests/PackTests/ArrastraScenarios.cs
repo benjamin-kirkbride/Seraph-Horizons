@@ -55,14 +55,7 @@ public partial class MillWorldScenarios
             Assert.True(CutterClick(player, at, CutterItem(code, count)) == null, $"{code} x{count} was not fitted");
         }
         Assert.True(arrastra.Built);
-        OilUp(arrastra);
-    }
-
-    private static string ArrastraInfo(BEArrastra arrastra, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        arrastra.GetBlockInfo(player, sb);
-        return sb.ToString();
+        MachineTest.FillOil(arrastra);
     }
 
     [AtlasScenario]
@@ -124,7 +117,7 @@ public partial class MillWorldScenarios
         await World.Until(() => arrastra.ShaftSpeed >= 0.3f, 15000);
         await World.Until(() => arrastra.State == MachineState.Dry, 5000);
         Assert.Equal(0, arrastra.Charge.Turns);
-        Assert.Contains(Lang.Get("seraphhorizons:arrastra-state-dry"), ArrastraInfo(arrastra, player));
+        Assert.Contains(Lang.Get("seraphhorizons:arrastra-state-dry"), MachineTest.Info(arrastra, player));
         // its load is the arrastra's, constant once built
         Assert.Equal(0.1f, arrastra.Resistance, 3);
 
@@ -158,7 +151,7 @@ public partial class MillWorldScenarios
         var cells = arrastra.Rig.OtherCells.Select(c => arrastra.CellPos(c.Pos)).ToList();
         CutterClick(player, cells[0], null);
         Assert.True(arrastra.InfeedSlot.Empty);
-        Assert.True(BenchHeld(player, "seraphhorizons:groundore-hematite-poor") >= 1);
+        Assert.True(MachineTest.Held(player, "seraphhorizons:groundore-hematite-poor") >= 1);
         Assert.False(arrastra.ShowsPart("paste"));
 
         // breaking gives back the frame, every stage and what is in the pit

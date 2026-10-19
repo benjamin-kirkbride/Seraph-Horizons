@@ -11,7 +11,7 @@ namespace SeraphHorizons.PackTests;
 
 // seraphhorizons, Riddle (mods-src/seraphhorizons/Riddle/, #714): the riddle in the plain world, worked by hand.
 // The player's right-click held on it is played through the block's own interaction calls (start, a step each
-// tick, stop), as the game makes them (the squaring shear's ShearHold), so W moves only while held; a charge
+// tick, stop), as the game makes them (the shared Hold), so W moves only while held; a charge
 // takes 9 seconds of holding, so the scenario holds for less and finishes it through BERiddle.Shake. Every
 // scenario builds on a granite floor of its own 40 above spawn at x 840 to 876, z -840 (clear of the other
 // machines' sites), and shares the gear cutter's player, gearcutterhand.
@@ -28,13 +28,6 @@ public partial class MillWorldScenarios
         World.SetBlock($"seraphhorizons:riddle-frame-{side}", pos);
         await World.Ticks(5);
         return W.BlockAccessor.GetBlockEntity(pos) as BERiddle ?? throw new Xunit.Sdk.XunitException($"no riddle at {pos}");
-    }
-
-    private static string RiddleInfo(BERiddle riddle, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        riddle.GetBlockInfo(player, sb);
-        return sb.ToString();
     }
 
     /// <summary>The stacks of <paramref name="code"/> the player holds, as (count, classified).</summary>
@@ -89,7 +82,7 @@ public partial class MillWorldScenarios
         RiddleClearInventory(player);
         var riddle = await PlaceRiddle(pos, "east");
         Assert.Equal(Side.East, riddle.Side);
-        Assert.Contains("Build: stage 1 of 1, the riddle's wire mesh", RiddleInfo(riddle, player));
+        Assert.Contains("Build: stage 1 of 1, the riddle's wire mesh", MachineTest.Info(riddle, player));
 
         // no charge on a bare frame, and one nails and strips is too few for the mesh
         Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);
@@ -108,7 +101,7 @@ public partial class MillWorldScenarios
         Assert.True(riddle.BoxHoldsFines);
 
         // held, W moves; let go, it stops
-        var (started, steps) = await ShearHold(player, pos, 20);
+        var (started, steps) = await Hold(player, pos, 20);
         Assert.True(started);
         Assert.True(steps >= 15, $"held for only {steps} steps");
         await World.Ticks(2);
@@ -116,7 +109,7 @@ public partial class MillWorldScenarios
         Assert.InRange(work, 0.03, 0.3);
         await World.Ticks(20);
         Assert.Equal(work, riddle.Job.Work);
-        Assert.Contains("riddled", RiddleInfo(riddle, player));
+        Assert.Contains("riddled", MachineTest.Info(riddle, player));
 
         // finish it: two fines in the box, classified, and the oversize on the mesh as raw ore of the floor's rock
         Assert.True(riddle.Shake(2 * Math.PI * RiddleMod.Config.ShakesPerCharge));
