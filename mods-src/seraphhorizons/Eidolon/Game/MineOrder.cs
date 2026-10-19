@@ -890,8 +890,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return Cells.Routes!.Drop(member, station, MineRefusal.None, now);
     }
 
-    /// <summary>Whether the station it holds is its route's stop worked ahead of its band.</summary>
-    private bool Ahead(EntityLaborEidolon eidolon) => _headAhead && _queue.Count > 0 && Routed(eidolon);
+    /// <summary>Whether the station it holds is worked ahead of its band: its route's stop, or one dispatch handed it
+    /// with nothing of the face or the open part to take (<see cref="MineDispatch.IsAhead"/>).</summary>
+    private bool Ahead(EntityLaborEidolon eidolon) => _headAhead && _queue.Count > 0;
 
     /// <summary>Whether it may pass another eidolon in its way (README "Eidolon", working together, *Routes*):
     /// within its share (one each <see cref="PassEach"/> seconds of strikes, and one more), and none of those
@@ -1197,9 +1198,16 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var next = MineDispatch.Next(plan, live, me, workers,
                 s => !Taken(s.Stand, workers) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
                 parked.Count > 0 ? Clear : null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
-            if (next == null || board != null && !board.TryClaim(id, next.Id, MineDispatch.Claim(next, plan.Tunnel), now))
+            // a station worked ahead of its band only as the one it works, nothing held behind it
+            bool ahead = next != null && MineDispatch.IsAhead(live, next);
+            if (next == null || ahead && _queue.Count > 0 || board != null && !board.TryClaim(id, next.Id, MineDispatch.Claim(next, plan.Tunnel), now))
                 break;
             _queue.Add(next);
+            if (ahead)
+            {
+                _headAhead = true;
+                break;
+            }
         }
     }
 

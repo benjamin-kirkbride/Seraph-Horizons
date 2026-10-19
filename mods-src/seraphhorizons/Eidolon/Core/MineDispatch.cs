@@ -142,14 +142,34 @@ public static class MineDispatch
         return stands;
     }
 
+    /// <summary>Stations worked ahead of their band the guard is asked of, a look with nothing else to take.</summary>
+    public const int AheadTries = 8;
+
     /// <summary>How near a station's cells, in columns, an earlier one's stand is kept for it (<see cref="Before"/>).</summary>
     public const int Near = 8;
+
+    /// <summary>What a member takes first while a covered band is driven (README "Eidolon", working together,
+    /// *Spare work*): the face while no other member holds a station of it (0); else the open part (1); else work
+    /// ahead of the band (2, <see cref="MineAhead"/>); a second face, another lane beside the one held, only when
+    /// there is none of those (3). With no covered band, the stair or the open part alone, all are 1.</summary>
+    public static int Rank(MineStation station, bool ahead, bool faceHeld) =>
+        ahead ? 2 : station.Kind != MineStationKind.Face ? 1 : faceHeld ? 3 : 0;
+
+    /// <summary>Whether a member of <paramref name="others"/> holds a station of the face (not one worked ahead).</summary>
+    public static bool FaceHeld(MineState live, IEnumerable<MineWorker> others) =>
+        others.Any(o => o.Queue.Any(s => s.Kind == MineStationKind.Face && Cells(live, s).Count > 0));
+
+    /// <summary>Whether a station is one worked ahead of its band: it has cells ahead and none it may dig now.</summary>
+    public static bool IsAhead(MineState live, MineStation station) =>
+        live.Bands != null && Cells(live, station).Count == 0 && Cells(live, station, true).Count > 0;
 
     /// <summary>The station <paramref name="worker"/> takes next, or null for none: of the first
     /// <see cref="Front"/> in plan order not in anyone's queue, <paramref name="free"/> (its claim free on
     /// the board) and with cells it may dig now, those <see cref="Executable"/> (the guard asked of these
-    /// only, the earlier stations' stands found once), the one no other would reach sooner, then the one it reaches
-    /// soonest, then the first. With <paramref name="usable"/>, a station's cells are first cut to those
+    /// only, the earlier stations' stands found once), by <see cref="Rank"/> (the face, held by none; the open
+    /// part; a second face), then the one no other would reach sooner, then the one it reaches soonest, then the
+    /// first. While a covered band is driven, with none of the face nor of the open part, a station worked ahead of
+    /// its band (its cells cut to those, <see cref="IsAhead"/>) comes before a second face. With <paramref name="usable"/>, a station's cells are first cut to those
     /// it allows (the game: none in the columns of an eidolon standing there, which may be no worker, so the
     /// rest of a station round one parked in the area is dug and what is under it waits), and the station
     /// is given back so cut. With <paramref name="fit"/>, a station is first made to fit round what the
@@ -184,14 +204,47 @@ public static class MineDispatch
             if (front.Count == Front)
                 break;
         }
+        bool held = FaceHeld(live, others);
         var found = front.Where(s => Executable(live, s, at, out _, alive)).ToList();
+        if (!found.Any(s => Rank(s, false, held) < 2) && live.Bands?.Covered != null
+            && Ahead(plan, live, taken, alive, fit, free, usable, at) is { } ahead)
+            return ahead;
         return found
             .Select(s => (Station: s, Mine: Arrival(worker, s)))
-            .OrderBy(s => others.Any(o => Arrival(o, s.Station) < s.Mine))
+            .OrderBy(s => Rank(s.Station, false, held))
+            .ThenBy(s => others.Any(o => Arrival(o, s.Station) < s.Mine))
             .ThenBy(s => s.Mine)
             .ThenBy(s => s.Station.Id)
             .Select(s => s.Station)
             .FirstOrDefault();
+    }
+
+    // The first station in plan order worked ahead of its band that fits, is free and passes the guard (asked
+    // as for one ahead), cut to its cells ahead; the guard asked of AheadTries at most.
+    private static MineStation? Ahead(MinePlan plan, MineState live, HashSet<int> taken, List<MineStation> alive,
+        Func<MineStation, MineStation?>? fit, Func<MineStation, bool> free, Func<MarkPos, bool>? usable, List<MineWorkerAt> at)
+    {
+        int looked = 0;
+        foreach (var listed in alive)
+        {
+            if (taken.Contains(listed.Id) || Cells(live, listed).Count > 0)
+                continue;
+            var cells = Cells(live, listed, true);
+            if (usable != null)
+                cells = cells.Where(usable).ToList();
+            if (cells.Count == 0)
+                continue;
+            if ((fit == null ? listed : fit(listed)) is not { } planned || !free(planned))
+                continue;
+            var station = planned with { Cells = cells.Where(planned.Cells.Contains).ToList() };
+            if (station.Cells.Count == 0)
+                continue;
+            if (Executable(live, station, at, out _, alive, ahead: true))
+                return station;
+            if (++looked == AheadTries)
+                break;
+        }
+        return null;
     }
 
     /// <summary>

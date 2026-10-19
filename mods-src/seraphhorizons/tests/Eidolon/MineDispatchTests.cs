@@ -96,6 +96,30 @@ public class MineDispatchTests
     }
 
     [Fact]
+    public void TheFaceComesFirstWhileNoneHoldsItThenTheOpenPartThenASecondFace()
+    {
+        Assert.True(MineDispatch.Rank(Face(0), false, false) < MineDispatch.Rank(Bench(0), false, false));
+        Assert.True(MineDispatch.Rank(Bench(0), false, true) < MineDispatch.Rank(Bench(0), true, true));
+        Assert.True(MineDispatch.Rank(Bench(0), true, true) < MineDispatch.Rank(Face(0), false, true));
+        // station A a face station at the strip's east end, B a bench at its west end: one by B takes A while
+        // no other holds a face station, and B once another does
+        var (plan, live) = Strip();
+        plan = WithFace(plan);
+        var me = At(1, 3, 8);
+        Assert.Equal(0, MineDispatch.Next(plan, live, me, [At(2, 16, 20)], _ => true)!.Id);
+        var other = new MineStation(9, new PathCell(16, L, 6), [new MarkPos(16, L - 1, 3)], 0, MineStationKind.Face);
+        Assert.Equal(1, MineDispatch.Next(plan, live, me, [At(2, 16, 6, other)], _ => true)!.Id);
+
+        static MineStation Face(int id) => new(id, new PathCell(0, L, 0), [new MarkPos(0, L, 1)], 0, MineStationKind.Face);
+        static MineStation Bench(int id) => new(id, new PathCell(0, L, 0), [new MarkPos(0, L, 1)], 0, MineStationKind.Bench);
+        static MinePlan WithFace(MinePlan p) => new()
+        {
+            Stations = [p.Stations[0] with { Kind = MineStationKind.Face }, p.Stations[1]], OutOfReach = p.OutOfReach, Held = p.Held,
+            WayOut = p.WayOut, Left = p.Left, Stair = p.Stair, Area = p.Area, Targets = p.Targets,
+        };
+    }
+
+    [Fact]
     public void AClaimIsRingedInTheOpenAndKeptToItsLaneInATunnel()
     {
         var bench = new MineStation(0, new PathCell(3, L, 3), [new MarkPos(5, L - 1, 3)], 0, MineStationKind.Bench);
@@ -134,6 +158,36 @@ public class MineDispatchTests
             bands.Remove(c);
         Assert.True(bands.Eligible(new MarkPos(0, L - 3, 0)));
         Assert.Equal(MineBands.Stair, bands.Band(new MarkPos(0, L - 3, 0)));
+    }
+
+    [Fact]
+    public void AwayFromTheFaceTheOpenPartIsQuarriedToAClimbUnderTheFloorOfTheBandBeingDriven()
+    {
+        // eight high: covered x 0..7, its band 0 y 4..7 and band 1 y 0..3; the open part x -8..-1 from y 0, its
+        // approach x -3..-1 (within ApproachColumns of the covered part), the rest x -8..-4
+        var area = Area(-8, 7, L, L + 7, 0, 1);
+        var covered = Cells(0, 7, 0, 0, 0, 1).Select(c => (c.X, c.Z)).ToHashSet();
+        var tunnel = EidolonTunnels.Make(area, covered, 1, 0);
+        var cells = Cells(-8, 7, L, L + 3, 0, 1).Concat(Cells(0, 7, L + 4, L + 7, 0, 1)).ToList();
+        var bands = new MineBands(area, tunnel, new HashSet<MarkPos>(), cells);
+        Assert.True(bands.Approach(-1, 0) && bands.Approach(-3, 1));
+        Assert.False(bands.Approach(-4, 0) || bands.Approach(0, 0));
+        Assert.Equal(0, bands.Covered);
+        // band 0 left: the approach waits under its floor; the rest goes to a climb under it, its floors within a climb
+        Assert.False(bands.Eligible(new MarkPos(-2, L + 3, 0)));
+        Assert.True(bands.Eligible(new MarkPos(-5, L + 3, 0)));
+        Assert.True(bands.Eligible(new MarkPos(-5, L + 2, 0)));
+        Assert.False(bands.Eligible(new MarkPos(-5, L + 1, 0)));
+        foreach (var c in cells.Where(c => c.X <= -4 && c.Y >= L + 2))
+            bands.Remove(c);
+        Assert.False(bands.Eligible(new MarkPos(-5, L + 1, 0)));
+        // band 0 done: band 1 driven, its floor the area's bottom
+        foreach (var c in cells.Where(c => c.Y >= L + 4))
+            bands.Remove(c);
+        Assert.Equal(1, bands.Covered);
+        Assert.True(bands.Eligible(new MarkPos(-5, L + 1, 0)));
+        Assert.True(bands.Eligible(new MarkPos(-2, L + 3, 0)));
+        Assert.Contains(new MarkPos(-5, L + 1, 0), bands.RemainingCells);
     }
 
     [Fact]

@@ -6,8 +6,8 @@ namespace SeraphHorizons.Mod.Eidolon.Core;
 /// is a remaining target that may not be dug yet (<see cref="MineBands.Eligible"/>), no stair cell (the way
 /// out is dug last), with nothing left above it in its column but cells ahead with it (of its band, struck
 /// first, top down: it never undercuts what is still to dig), and
-/// in the open part at most <see cref="AheadLayers"/> under the open floor (one band deeper; never under the
-/// floor of the covered band being driven, its approach), or in the covered part the band under the one
+/// in the open part at most <see cref="AheadLayers"/> under its open floor (<see cref="MineBands.OpenFloorAt"/>: one
+/// band deeper; in the covered part's approach never under the floor of the covered band being driven), or in the covered part the band under the one
 /// being driven (the bench behind the face). What keeps it safe is what keeps several members working out of
 /// the plan's order safe today: the stands of the earlier stations near it keep their footing and their way
 /// out (<see cref="MineDispatch.Before"/>, <see cref="MineDispatch.Footing"/>, <see cref="MineRefusal.CutsOffStation"/>;
@@ -33,7 +33,8 @@ public static class MineAhead
             return false;
         if (band == b.OpenBand)
         {
-            if (b.Layer is null || cell.Y < b.OpenFloor - AheadLayers || b.Covered is { } k && cell.Y < b.Bottom(k))
+            if (b.Layer is null || cell.Y < b.OpenFloorAt(cell.X, cell.Z) - AheadLayers
+                || b.Covered is { } k && b.Approach(cell.X, cell.Z) && cell.Y < b.Bottom(k))
                 return false;
         }
         else if (!(band < b.CoveredBands && b.Covered is { } driven && band == driven + 1))

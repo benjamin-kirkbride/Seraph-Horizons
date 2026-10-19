@@ -3478,8 +3478,9 @@ holds. The plan then digs the area in its head, station by station, each accepte
 reach, and once they are dug its place is still out (it can walk away) and no block still to dig has
 lost its last place it could be reached from. Precedence is by band (`MineBands`): a tunnel's bands
 first, top down (*Tunnels*, below); in the open the highest layer with blocks left and the one under it
-(floors within a climb, `EidolonTeamwork.Lowest`), never under the floor of the tunnel band being driven;
-the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
+(floors within a climb, `EidolonTeamwork.Lowest`), while a tunnel band is driven its approach (the open
+columns within 3 of a covered one, `MineBands.Approach`) never under that band's floor and the rest at most
+a climb under it, each with floors within a climb of its own; the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
 open, rows a station wide along the area's longer side, from the far side back toward where it was
 ordered, each row the other way to the last (a sweep). When no station is left to place, every place it
 could stand is asked again (a few times at most: one the guard refused waits for a dig near it, and what
@@ -3554,7 +3555,10 @@ The way in is the side whose first slice it reaches most of from in front of the
 is there now (the ground, a ledge, a step against the face: the reach bound, `EidolonTunnels.Shape`),
 the one nearest where it was ordered on a tie. A band with no face of its own at its level is driven from
 the floor over it, or from the steps it digs as it goes, whichever the plan finds; the open part of the
-area is quarried with it, never under the floor of the band being driven (that ground is its approach).
+area is quarried with it: its approach, the open columns within 3 of a covered one (a stand's box and its
+reach in front of the face, `MineBands.ApproachColumns`), never under the floor of the band being driven,
+and the rest of it down to a climb under that floor (so a member the face has no room for quarries it, and
+the heading's floor and the open ground stay a walk apart), each part with its floors within a climb.
 What no order could reach (a tunnel 6 or more high into a flat face, its top over its head from the
 ground) is told and kept with its floor (*Stations*, above), and the rest dug: a step 2 high in front of
 the face brings 6 high in reach, the hint says how high. An area covered all over is refused as it is
@@ -3629,7 +3633,8 @@ the game goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) ta
 (the slots set only when each sets off: in the game no one holds a narrow way, the stair keeping its own turn
 as under *Dispatch*); a member that would otherwise wait 10 seconds takes a station of the next band where
 nothing still to dig is above it (spare work, at most one open band deeper, so the floors may be two climbs
-apart). Each member's stations are then put in their best order exactly (Held-Karp, with when each became
+apart), and a second face (another lane of a covered band while another member holds one) counts 20 seconds
+later (`MineRoutePlanner.SecondFacePenaltySeconds`): the open part and work ahead come first. Each member's stations are then put in their best order exactly (Held-Karp, with when each became
 workable and what must come first) and moved off the member that finishes last, each change simulated again
 and kept only if it holds. For a job of up to 300 stations it chooses how to choose: eight ways (the soonest
 finish, or leaving a station to whoever would finish it sooner; a bonus for the work under a station; a
@@ -3671,9 +3676,13 @@ measuring), or routes not made yet: the job is dispatched as below. *Dispatch*
 (mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
 holds a short queue of stations (`MineDispatch.QueueLength`, 2: the one it works and the next) and takes
 the next from the first 24 in the plan's order that nobody holds, whose columns are free and that pass
-the guard against the live state with the others where they stand (`MineDispatch.Executable`): the one
-no other would reach sooner, then the one it reaches soonest, then the first (an estimate: the octile
-distance, 3 a block climbed). So one whose part is mined out takes the next near station in another's,
+the guard against the live state with the others where they stand (`MineDispatch.Executable`): while a
+tunnel band is driven, the face while no other member holds a station of it, then the open part, a second
+face (another lane) last (`MineDispatch.Rank`); then the one no other would reach sooner, then the one it
+reaches soonest, then the first (an estimate: the octile distance, 3 a block climbed). With nothing of the
+face nor of the open part to take, while a tunnel band is driven, it takes a station worked ahead of its band
+(the bench behind the face, the open part a band deeper, as on routes, `MineAhead`; the guard asked of 8 at
+most, `MineDispatch.AheadTries`) before a second face, alone in its queue. So one whose part is mined out takes the next near station in another's,
 and none idles while a station is free. It holds a second station only while no other member holds
 none, and just done with one it leaves the next for 3 seconds to a member waiting with under half as much
 mined, making for the rim meanwhile (in an area too small for two stations at once, the one at work is
