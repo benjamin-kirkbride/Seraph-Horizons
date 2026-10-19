@@ -111,8 +111,8 @@ Then decide, and check against each other:
 - **Footprint:** which cells, and which cell is the controller. Make the controller the block the
   player clicks: the sawmill's is the middle of the near end.
 - **Orientation at placement:** which way the machine extends from the player
-  (`Footprint.PlacedFacing`; the shared `BlockMachine.TryPlaceBlock` sets the variant itself for a frame placed
-  lengthwise, `attributes.machine.lengthwise`). Note that
+  (`Footprint.PlacedFacing`; the shared `BlockMachine.TryPlaceBlock` sets the variant itself by the rig's
+  `IMachineRig.PlacedSide`, the mill's `Footprint.PlacedFacing`). Note that
   `Block.SuggestedHVOrientation` returns the direction the player is looking, not the direction
   back toward them.
 - **Material in and out:** the sawmill takes trunks in at one end and drops logs at the other.
@@ -360,10 +360,10 @@ to `Machines/tools/machinegen/` (Python), both with `git mv` and namespace fixes
 held the shipped mill while that happened: its unit tests with its reference poses, its Atlas
 scenarios, and a byte-identical regeneration of its model. The game classes (renderer, ghosts, block
 entity) were copied and adapted instead, as they were client-heavy and untested by Atlas, and every
-machine after the rosser copied them again. They are now being unified: the shared machine base
-(`BEMachine`, `BlockMachine`, the shared cells, one power behaviour with oil, `MachineRenderer`;
-[The shared machine base](machine-base.md)) carries the ore machines, the press brake and the draw bench,
-and the rest move onto it. A new machine starts there, not from a copy. A second taker or feeder is an
+machine after the rosser copied them again. They are now one: the shared machine base (`BEMachine`,
+`BlockMachine`, the shared cells, one power behaviour with oil, `MachineRenderer`; [The shared machine
+base](machine-base.md)) carries every machine, the mill and the rosser included. A new machine starts there,
+not from a copy. A second taker or feeder is an
 interface in the shared code (`ITrunkFeeder`, `IMachineGhost`, which the shared cell implements), not a
 reference from one machine to the other's block entity.
 

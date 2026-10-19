@@ -1,12 +1,11 @@
 # The shared machine base
 
-Every machine in the Seraph Horizons mod is to sit on one game-side base in
-[`mods-src/seraphhorizons/Machines/`](../../mods-src/seraphhorizons/Machines/), as it already sits on one maths
-and generator layer (`Machines/Core`, `Machines/tools/machinegen`). The ore machines were the first on it (their
+Every machine in the Seraph Horizons mod sits on one game-side base in
+[`mods-src/seraphhorizons/Machines/`](../../mods-src/seraphhorizons/Machines/), as it sits on one maths and
+generator layer (`Machines/Core`, `Machines/tools/machinegen`). The ore machines were the first on it (their
 `BEOreMachine` was lifted into it), the press brake (a hand machine) and the draw bench (a powered, oiled one) the
-pilots that proved it covers both kinds; the gear cutter and the cylinder borer (powered, oiled, their dry tank
-wearing their cutter) followed in wave 2. This page says what the base gives, how a machine moves onto it, and what
-went wrong on the way. [Animated machine models](animated-machine-models.md) is the model side; this is the
+pilots that proved it covers both kinds; every other machine followed (the table at the end). This page says what
+the base gives, how a machine is built on it, and what went wrong on the way. [Animated machine models](animated-machine-models.md) is the model side; this is the
 game side.
 
 ## What the base gives
@@ -105,10 +104,10 @@ A machine not registered is read as an ore machine's rig (`OreMachinesSystem.Rig
 ### The frame block type
 
 `class: "seraphhorizons.Machine"`, `entityClass` the machine's block entity class. The machine's id is the code's
-first part (`drawbench-frame-north` is `drawbench`) or `attributes.machine.machine`. It is placed with its native
-north facing the player (`side` the way they look); a machine placed as the mills are, its native west end farthest
-(`Footprint.PlacedFacing`: the gear cutter), says `attributes.machine.placement: "mill"`. Delete the ghost block types
-and drop them from the system's `TypeAssets`, and their `block-{x}-ghost*` lang lines.
+first part (`drawbench-frame-north` is `drawbench`) or `attributes.machine.machine`. How it is placed is its rig's
+(`IMachineRig.PlacedSide`, `PlaceCell`, below): native north facing the player by default. A machine that stands on
+the ground says `attributes.machine.needsSolidGround: true` (the rocker). Delete the ghost block types and drop them
+from the system's `TypeAssets`, and their `block-{x}-ghost*` lang lines.
 
 ### The block entity
 
@@ -121,22 +120,16 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | Be worked by hand | `HandWorked => true`, `HoldTimeoutMs` if not 600 (the rocker's 400), `StartHold(byPlayer)` from `InteractWork` on a work click, `HasWork`, and `WorkUnpowered(dt)` while held. The base forwards the steps and the stop, keeps the holds, syncs `Held`, and gives the state `Unworked` ("hold right mouse") while work is on and no one holds. A hand machine with a `power` anchor too (the amalgam pan) is worked by its shaft while that turns (`Work`) and by hand while it does not (`WorkUnpowered`): it is never `NoPower`. Override `OnInteractStep` to end a step the machine's own way (the mandrel station's with no rod on, so a hammer's held click stays clicks; the rocker's without water), calling the base to hold. |
 | Hold water | `WaterPerItem`, `ReservoirCapacity`, `WaterIntakePerSecond`, a `water` anchor on the rig; `SpendWater` per item. |
 | Hold items | `NewInventory()` (the base's is empty), `CellTakes` for a chute into a cell. |
-| Box its work | `CellBoxes`, `CollisionBoxes` (the base's from the rig): the borer adds its casting's while one is in the cradle, its tables built once in `Initialize` after the base's. |
-| Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`. |
-| Change its boxes | `CellBoxes`, `CollisionBoxes` (the rig's by default, built once): the crucible furnace's frame-only cells before its brickwork and its lid's in the hollow cells. Build the tables once and only read them: collision lookups run off the main thread. |
+| Give its own boxes | `CellBoxes`, `CollisionBoxes` (the rig's by default, built once): the borer adds its casting's while one is in the cradle; the crucible furnace's frame-only cells before its brickwork and its lid's in the hollow cells; a trunk lying in the mill (by trunk class) or along the rosser's path. Build the tables whole and only read them: collision lookups run off the main thread. |
 | Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`; a fired ore machine derives `BEFiredOreMachine` and gives `Lit`, `CannotIgnite` and `Light`. |
 | Take its work | `InteractContent` (before the build: take the work back, a bucket), `InteractWork` (after it: load the work, start a hold). Return whether the click was the machine's; act on the server. `CreativeShortcut(player)` tells a creative Ctrl from the machine's own Ctrl. |
-| Be placed otherwise | The rig's `IMachineRig.PlaceCell` (the cell put on the clicked block, the controller by default) and `PlacedSide(look)` (native north towards the player by default): the eidolon gantry's open front, native west, faces them with its middle on the click. |
+| Be placed otherwise | The rig's `IMachineRig.PlaceCell` (the cell put on the clicked block, the controller by default) and `PlacedSide(look)` (native north towards the player by default): the eidolon gantry's open front, native west, faces them with its middle on the click; the bucking mill, the rosser and the gear cutter are placed as the mills are, `Footprint.PlacedFacing`, their native west end farthest. |
 | Have open cells or another selection | `HollowCellsOpen` (a hollow cell has no boxes), `SelectionBoxes(cell)` (the gantry's crank in a hollow cell). |
 | Say when it is whole | `Complete` (the name), `CreativeFills` (the creative shortcut), `LoadsShaft`: each `Built` by default; `Ready` (built and every wearing part in) for a machine that stops without its wearing part. |
-| Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`; `PartGlow` for a part drawn hot (the mandrel station's rod, by its temperature). Particles go in `FrameInput`, sounds in `OnClientTick`. |
+| Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal, the brick type, a body layer's material: the meshes are cached by shape, the frame's variant and `TextureKey`, so everything `PartTextures` reads must be in it); `RenderRange`; `Animates`; `PartGlow` for a part drawn hot (the mandrel station's rod, by its temperature). Particles go in `FrameInput`, sounds in `OnClientTick`. `CreateRenderer` returns any `IRenderer` where the shared one does not cover the machine: the crucible furnace's (a pot's metal per part, the fire's glow), the mill's and the rosser's (a trunk lying in them). |
 | Be placed whole | Override `BuildSpec` with a build of no stages (`new MachineBuild(id, null, FeedMode.Continuous, [], [])`: the rocker); a build file may not be empty. |
 | Stand on the ground | `attributes.machine.needsSolidGround: true` on the block type: placed only on a solid top, broken when it goes (the rocker). |
-| Draw | `CreateRenderer` for a renderer of its own where the shared one does not cover it (the crucible furnace's: a pot's metal per part, the fire's glow); `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
 | Save | `ToTreeAttributes`/`FromTreeAttributes` for the work only, calling the base: the build, wearing parts, state, oil, water and holds are the base's. |
-| Be placed lengthwise | `attributes.machine.lengthwise: true` on the frame: it extends away from the player, its native west end farthest (`Footprint.PlacedFacing`, the mill's and rosser's rule), not its native north facing them. |
-| Give its own boxes | Override `CellBoxes`/`CollisionBoxes` (a trunk lying in it: the mill's, by trunk class; the rosser's, along its path, with hollow cells). Build tables whole and only read them there: collision lookups run off the main thread. |
-| Draw more than its parts | `CreateRenderer` returns any `IRenderer`: the mill's and the rosser's own (a trunk, parts in a fitted metal, sounds and particles of their own clocks). |
 | Fit from a slot of its own | `TryFit(slot, player)` does a click's fitting from any slot (a scenario's, a creative shortcut's): true, false with the error sent, or null when it is no part. |
 | Help | `WorkHelp` for the built machine's lines; the build's, the renewal's and the creative shortcut's are the base's. |
 
@@ -164,8 +157,7 @@ The settings block is the same for every machine: `MachineOilSettings.{Machine}`
 `{ "Tank": points, "DrainPerJob": points }` (100 points to the litre), with `DryResistanceMultiplier` (3) and the
 oils (`OilLiquids`, `OilLumps`) shared. A new entry changes the config defaults, so regenerate the snapshot
 (docs/config-defaults.md), and give the machine's power entry its `oil` in the recipe export (`Spec.Oil`, or the
-ore machines' pass). The bucking mill and the rosser still use `Oil`'s older "own machine" helpers (`NewOwn`,
-`LoadOwn`, `Interact`, `Info`, `Drain`); they move to the piece with the base, and those helpers go.
+ore machines' pass, `OreMachineConsumers.Oiled`).
 
 ### The block info
 
@@ -290,16 +282,27 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 
-## Still to move
+## Every machine on the base
 
-Wave 2 moves the rest onto the base: the bucking sawmill and the rosser (their own `BEBehavior{X}MP` and oil; the
-gear cutter and the cylinder borer, with `DryEffect.Wear`, are on it), the squaring shear and the mandrel
-station (hand machines: their `TreadleHolds` and `WindHolds` become `HandHolds`), the eidolon gantry, the crucible
-furnace (its own build model, `FurnaceBuild`), the hand stations (riddle, rocker, amalgam pan), and oil for every
-Wave 2 moves the rest onto the base: the bucking sawmill, the rosser, the gear cutter, the cylinder borer (their
-own `BEBehavior{X}MP` and oil; the gear cutter and borer with `DryEffect.Wear`), the squaring shear and the mandrel
-station (hand machines: their `TreadleHolds` and `WindHolds` become `HandHolds`), the eidolon gantry, the hand stations (riddle, rocker, amalgam pan), and oil for every
-shaft-powered ore machine (the jaw breaker, stamp battery, arrastra, ball mill, jig, shaking table, vanner, and the
-reverberatory roaster and Parkes kettle, which also turn on a shaft): an `OilMachine` value and a
-`MachineOilConfig` entry each, their defaults scaled by load with the reasoning in each README, the config-defaults
-snapshot regenerated, and their power entries' `oil` in the export.
+| Machine | Block entity | Oil | Its own renderer |
+|---|---|---|---|
+| Bucking sawmill | `BEBuckingMill : BEMachine` | yes | yes (the trunk) |
+| Rosser | `BERosser : BEMachine` | yes | yes (the trunk) |
+| Gear cutter | `BEGearCutter : BEMachine` | yes, dry wears the kit | no |
+| Draw bench | `BEDrawBench : BEMachine` | yes | no |
+| Cylinder borer | `BECylinderBorer : BEMachine` | yes, dry wears the head | no |
+| Press brake | `BEPressBrake : BEMachine` (hand) | no | no |
+| Squaring shear | `BESquaringShear : BEMachine` (hand) | no | no |
+| Mandrel station | `BEMandrelStation : BEMachine` (hand) | no | no |
+| Eidolon gantry | `BEEidolonGantry : BEMachine` | no | no |
+| Crucible furnace | `BECrucibleFurnace : BEMachine` | no | yes (pots, fire) |
+| Riddle, rocker | `BERiddle`, `BERocker : BEMachine` (hand) | no | no |
+| Amalgam pan | `BEAmalgamPan : BEMachine` (hand or shaft) | no | no |
+| Jaw breaker, stamp battery, arrastra, ball mill, jig, shaking table, vanner | `BE{X} : BEOreMachine` | yes | no |
+| Sluice, amalgamation plates | `BESluice`, `BEAmalgamationPlates : BEOreMachine` | no (no shaft) | no |
+| Reverberatory roaster, Parkes kettle | `BEReverberatory`, `BEParkesKettle : BEFiredOreMachine` | yes (they turn on a shaft) | no |
+| Stall roaster, cupellation and liquation furnaces, acid parting vessel | `BE{X} : BEFiredOreMachine` | no (no shaft) | no |
+
+The game's helve hammer and pulverizer and Immersive Woodworking's sawmill and chopper are not on the base, but
+compose the same `MachineOiling` (`MachineOil/ForeignMachines.cs`). A new machine starts on the base: its rig, its
+build file, its frame block type and a block entity of what is its own.
