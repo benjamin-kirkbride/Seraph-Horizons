@@ -1,0 +1,34 @@
+{
+	"_comment": "The crucible furnace's build (#796, #711): each stage after the iron frame and its materials, from CrucibleFurnace/README.md and the rig's build.stages (cruciblefurnace-rig.json), in order; read by Machines/Core/MachineBuildJson.cs (its schema); docs/modeling/machine-base.md. The brickwork is any one fired brick (oneType: the first sets the furnace's brick type; the codes are the rig's bricks.types, red first for the creative shortcut), its hinge's iron coming with it; the lid stage brings the damper (its places are the furnace's state). The outlet's cap is not a stage (CrucibleFurnace/Game/BECrucibleFurnace.cs). No block: the recipe export writes no construction record for it. No part wears.",
+	"machine": "cruciblefurnace",
+	"feed": "batch",
+	"stages": [
+		{
+			"id": "brickwork", "adds": ["brickwork"],
+			"materials": [
+				{
+					"codes": [
+						"game:burnedbrick-red", "game:burnedbrick-fire", "game:burnedbrick-black", "game:burnedbrick-brown",
+						"game:burnedbrick-cream", "game:burnedbrick-gray", "game:burnedbrick-orange", "game:burnedbrick-tan",
+						"game:burnedbrick-clinker"
+					],
+					"quantity": 25, "oneType": true
+				}
+			]
+		},
+		{
+			"id": "lining", "adds": ["lining"],
+			"materials": [
+				{ "codes": ["game:refractorybrick-fired-tier3"], "quantity": 9 },
+				{ "codes": ["game:clay-fire"], "quantity": 4 }
+			]
+		},
+		{
+			"id": "lid", "adds": ["lid"],
+			"materials": [
+				{ "codes": ["game:refractorybrick-fired-tier3"], "quantity": 4 },
+				{ "codes": ["game:metalplate-iron"], "quantity": 2 }
+			]
+		}
+	]
+}

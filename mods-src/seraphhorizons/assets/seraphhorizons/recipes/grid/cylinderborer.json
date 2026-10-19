@@ -8,7 +8,7 @@
 		// the entry shaft's pinion and its drive (#473); the great wheel the pinion turns comes with the
 		// boring bar. Every other working part goes in afterwards, fitted by hand at the frame: the bushings
 		// are the game's metal parts, the boring bar and the feed take their materials directly, stage by
-		// stage (CylinderBorer/Core/CylinderBorerParts.cs), and the cutter head is smithed.
+		// stage (config/builds/cylinderborer.json), and the cutter head is smithed.
 		ingredientPattern: "MHG,LNL,PRP",
 		width: 3,
 		height: 3,

@@ -4,9 +4,9 @@
 // (config/builds/stampbattery.json). The server disables it with StampBattery or OreProcessing off.
 {
 	code: "stampbattery",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.StampBattery",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the machine's front
 	// (its screen and output chute) faces the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -33,7 +33,7 @@
 		"leather":    { base: "game:block/leather/plain" }
 	},
 	attributes: {
-		oreMachine: { machine: "stampbattery" },
+		machine: { machine: "stampbattery" },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:stampbattery-handbook-build-title", text: "seraphhorizons:stampbattery-handbook-build-text" },

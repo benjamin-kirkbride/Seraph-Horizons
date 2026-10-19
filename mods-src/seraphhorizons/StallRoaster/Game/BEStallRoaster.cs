@@ -20,7 +20,7 @@ namespace SeraphHorizons.Mod.StallRoaster;
 
 /// <summary>
 /// The stall roaster (#925; README "Ore processing: the stall roaster"): a roasting stall on the shared ore machine
-/// code (<see cref="BEOreMachine"/>), batch, loaded and emptied by hand, with no power, no water and no chute
+/// code, fired (<see cref="BEFiredOreMachine"/>), batch, loaded and emptied by hand, with no power, no water and no chute
 /// (<see cref="StallRoasting"/> has its rules). Built as its build file says (the iron frame, then the brickwork in
 /// one fired brick type, then the lining); then, through its open front, a bed of firewood is laid and a sulfide's
 /// raw or crushed rock heaped on it; lit with a firestarter or a torch, the heap burns on its own sulfur for
@@ -33,7 +33,7 @@ namespace SeraphHorizons.Mod.StallRoaster;
 /// charge, <see cref="SulfurSlot"/> the crust's sulfur; all drop when it is broken, with the front's loose brick
 /// and the cap.</para>
 /// </summary>
-public class BEStallRoaster : BEOreMachine
+public class BEStallRoaster : BEFiredOreMachine
 {
     /// <summary>The crust's sulfur: the last slot.</summary>
     public const int SulfurSlot = MaxOutputs * SlotsPerOutput;
@@ -42,11 +42,10 @@ public class BEStallRoaster : BEOreMachine
 
     private StallFront _front;
     private int _frontBricks;
-    private bool _capped, _lit, _roasted;
+    private bool _lit, _roasted;
     private double _burned;
     private double _lastHours = double.NaN;
     private double _sulfurCarry;
-    private FurnaceRow _row = new(0, 1, null, 0, null, RowProblem.NoChimney);
     private double _syncedBurned;
 
     public override OreMachine? Kind => OreMachine.StallRoaster;
@@ -61,15 +60,14 @@ public class BEStallRoaster : BEOreMachine
     private StallRoasterSystem Stall => StallRoasterSystem.Of(Api);
     private StallRoasterConfig StallConfig => Stall.Config;
     public StallRoasterRig? StallRig => Api == null ? null : Stall.Rig;
+    protected override FiredRig? FiredRig => StallRig;
 
     public StallFront Front => _front;
     public int FrontBricks => _frontBricks;
-    public bool Capped => _capped;
-    public bool Lit => _lit;
+    public override bool Lit => _lit;
     public bool Roasted => _roasted;
     /// <summary>Hours of the burn done, at full draught.</summary>
     public double BurnedHours => _burned;
-    public FurnaceRow Row => _row;
 
     /// <summary>The burn's length at full draught (ore-processing.json <c>machines.stallroaster.chargeHours</c>).</summary>
     public double BurnHours => Spec?.ChargeHours ?? 0;
@@ -93,66 +91,11 @@ public class BEStallRoaster : BEOreMachine
         Phase != StallPhase.Burning ? null : BurnHours > 0 ? _burned / BurnHours : 1;
 
     /// <summary>The share of its full draught it burns at now.</summary>
-    public double Draught => StallRoasting.Draught(_front, _row.Works, StallConfig);
-
-    /// <summary>The fired brick type of its brickwork (<c>red</c>), once the first is in.</summary>
-    public string? BrickType =>
-        Assembly?.Build.CodeIn(0, 0) is { } code && StallRig is { } rig ? rig.Bricks.TypeOf(code) : null;
+    public double Draught => StallRoasting.Draught(_front, Row.Works, StallConfig);
 
     public override bool HasWork => _lit && !_roasted;
 
     public override double JobFill => _lit ? 1 : 0;
-
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        if (api.Side == EnumAppSide.Server)
-            RegisterGameTickListener(OnRowTick, 1000);
-    }
-
-    // ---- The row and its chimney ----
-
-    private void OnRowTick(float dt)
-    {
-        if (!Built)
-            return;
-        var row = FindRow();
-        if (row != _row)
-        {
-            _row = row;
-            MarkDirty(true);
-        }
-    }
-
-    /// <summary>The chimney standing on the outlet, counted as the crucible furnace counts its own.</summary>
-    public ChimneyColumn ChimneyOnOutlet()
-    {
-        if (StallRig is not { } rig)
-            return default;
-        var ba = Api.World.BlockAccessor;
-        var pos = CellPos(rig.ChimneyBase);
-        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), CrucibleFurnaceSystem.Of(Api).Config);
-    }
-
-    /// <summary>The stall at offset <paramref name="k"/> along its row (built, facing the same way), or null.</summary>
-    private BEStallRoaster? Neighbour(int k)
-    {
-        if (StallRig is not { } rig)
-            return null;
-        var w = Footprint.ToWorld(new Int3(k * rig.Width, 0, 0), Side);
-        return Api.World.BlockAccessor.GetBlockEntity(Pos.AddCopy(w.X, w.Y, w.Z)) is BEStallRoaster { Built: true } s && s.Side == Side ? s : null;
-    }
-
-    /// <summary>Its row: stalls side by side along their width, one chimney on any outlet, the others capped.</summary>
-    public FurnaceRow FindRow()
-    {
-        if (StallRig is not { } rig || !Built)
-            return new FurnaceRow(0, 1, null, 0, null, RowProblem.NoChimney);
-        RowMember? At(int k) => k == 0
-            ? new RowMember(_capped, ChimneyOnOutlet())
-            : Neighbour(k) is { } other ? new RowMember(other.Capped, other.ChimneyOnOutlet()) : null;
-        return FurnaceRow.Find(At, rig.RowMax, rig.MinChimney);
-    }
 
     // ---- The burn ----
 
@@ -213,25 +156,13 @@ public class BEStallRoaster : BEOreMachine
 
     // ---- Fire ----
 
-    public override bool Ignitable => Built;
-
-    public override bool Burning => _lit;
-
     public override string? CannotIgnite() =>
         !Built ? Lang.Get("seraphhorizons:stallroaster-error-notbuilt")
         : StallRoasting.CannotLight(Phase, _front) is var r and not StallRefusal.None ? RefusalText(r)
         : null;
 
-    public override void Ignite(IPlayer? byPlayer)
+    protected override void Light(IPlayer? byPlayer)
     {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        if (CannotIgnite() is { } why)
-        {
-            if (byPlayer is IServerPlayer sp)
-                sp.SendIngameError("stallroaster", why);
-            return;
-        }
         // the bed kindles the heap and burns away
         InfeedSlot.Itemstack = null;
         InfeedSlot.MarkDirty();
@@ -239,11 +170,9 @@ public class BEStallRoaster : BEOreMachine
         _burned = 0;
         _syncedBurned = 0;
         _lastHours = Api.World.Calendar.TotalHours;
-        _row = FindRow();
         Api.World.PlaySoundAt(new AssetLocation("game", "sounds/torch-ignite"), Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, byPlayer, true, 16, 0.6f);
         if (byPlayer != null)
             Api.World.Logger.Audit("{0} lit the stall roaster at {1} ({2} rock).", byPlayer.PlayerName, Pos, Rock);
-        MarkDirty(true);
     }
 
     // ---- Interaction ----
@@ -257,9 +186,6 @@ public class BEStallRoaster : BEOreMachine
             sp.SendIngameError("stallroaster-" + r.ToString().ToLowerInvariant(), RefusalText(r, args));
         return true;
     }
-
-    private bool IsOutletTop(BlockSelection sel) =>
-        StallRig is { } rig && sel.Face == BlockFacing.UP && sel.Position.Equals(CellPos(rig.OutletCell));
 
     /// <summary>A sulfide's raw or crushed rock: the stall's charge.</summary>
     public bool IsCharge(ItemStack stack) =>
@@ -293,14 +219,9 @@ public class BEStallRoaster : BEOreMachine
                 }
                 return true;
             }
-            if (_capped && IsOutletTop(blockSel))
+            if (Capped && IsOutletTop(blockSel))
             {
-                if (server && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-                {
-                    _capped = false;
-                    Give(byPlayer, new ItemStack(plate, rig.CapCount));
-                    MarkDirty(true);
-                }
+                Uncap(byPlayer);
                 return true;
             }
             if (Phase != StallPhase.Roasted)
@@ -336,20 +257,8 @@ public class BEStallRoaster : BEOreMachine
             }
             return true;
         }
-        if (!_capped && code == rig.CapCode)
-        {
-            if (stack.StackSize < rig.CapCount)
-                return false;
-            if (server)
-            {
-                slot!.TakeOut(rig.CapCount);
-                slot.MarkDirty();
-                _capped = true;
-                Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/anvil1"), Pos, -0.25, byPlayer);
-                MarkDirty(true);
-            }
-            return true;
-        }
+        if (!Capped && code == rig.CapCode)
+            return Cap(byPlayer, slot!);
         if (rig.Bricks.TypeOf(code) is { } type)
         {
             if (type != BrickType)
@@ -441,14 +350,6 @@ public class BEStallRoaster : BEOreMachine
         MarkDirty(true);
     }
 
-    private void Give(IPlayer byPlayer, ItemStack? stack)
-    {
-        if (stack == null || stack.StackSize <= 0)
-            return;
-        if (!byPlayer.InventoryManager.TryGiveItemstack(stack, true))
-            Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
-    }
-
     public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
     {
         if (!Built || StallRig is not { } rig)
@@ -475,7 +376,7 @@ public class BEStallRoaster : BEOreMachine
                 help.Add(new WorldInteraction
                 {
                     ActionLangCode = Key("light"), MouseButton = EnumMouseButton.Right,
-                    Itemstacks = ObjectCacheUtil.GetOrCreate(world.Api, "stallroaster-ignitestacks", () => BlockBehaviorCanIgnite.CanIgniteStacks(world.Api, true).ToArray()),
+                    Itemstacks = FurnaceFiring.IgniteStacks(world.Api),
                 });
                 break;
             case StallPhase.Roasted:
@@ -486,7 +387,7 @@ public class BEStallRoaster : BEOreMachine
             help.Add(new WorldInteraction { ActionLangCode = Key("wall"), MouseButton = EnumMouseButton.Right, Itemstacks = Of(rig.Bricks.ItemOf(type)) });
         if (_front != StallFront.Open)
             help.Add(new WorldInteraction { ActionLangCode = Key("unwall"), MouseButton = EnumMouseButton.Right, HotKeyCode = "shift" });
-        help.Add(_capped
+        help.Add(Capped
             ? new WorldInteraction { ActionLangCode = Key("uncap"), MouseButton = EnumMouseButton.Right }
             : new WorldInteraction { ActionLangCode = Key("cap"), MouseButton = EnumMouseButton.Right, Itemstacks = Of(rig.CapCode) });
         return help.ToArray();
@@ -513,7 +414,7 @@ public class BEStallRoaster : BEOreMachine
             case StallRequires.Sulfur: return _roasted && SulfurPowders > 0;
             case StallRequires.FrontHalf: return _front == StallFront.Half;
             case StallRequires.FrontWalled: return _front == StallFront.Walled;
-            case StallRequires.OutletCap: return _capped;
+            case StallRequires.OutletCap: return Capped;
         }
         int courses = StallRoasting.Courses(Rock, rig.PerCourse, rig.Courses);
         if (requires.StartsWith("roasted", StringComparison.Ordinal))
@@ -528,33 +429,9 @@ public class BEStallRoaster : BEOreMachine
     private static int Course(string requires, string prefix) =>
         int.TryParse(requires.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : int.MaxValue;
 
-    public override string TextureKey => BrickType ?? "";
-
-    /// <summary>The block's textures, the brickwork's <c>brick</c> code in the stall's brick type: its base with its
-    /// overlays, composed into the block atlas as the crucible furnace's are.</summary>
-    public override ITexPositionSource PartTextures(ICoreClientAPI capi)
-    {
-        var inner = capi.Tesselator.GetTextureSource(Block);
-        if (StallRig is not { } rig || (rig.Bricks.Get(BrickType) ?? rig.Bricks.Get(rig.Bricks.Default)) is not { } brick)
-            return inner;
-        var composite = new CompositeTexture(new AssetLocation(brick.Base))
-        {
-            BlendedOverlays = brick.Overlays.Select(o => new BlendedOverlayTexture { Base = new AssetLocation(o) }).ToArray(),
-        };
-        return capi.BlockTextureAtlas.GetOrInsertTexture(composite, out _, out var pos) && pos != null
-            ? new CodeTextureSource(inner, rig.Bricks.TextureCode, pos)
-            : inner;
-    }
-
-    private sealed class CodeTextureSource(ITexPositionSource inner, string code, TextureAtlasPosition pos) : ITexPositionSource
-    {
-        public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] => textureCode == code ? pos : inner[textureCode]!;
-    }
-
     // ---- Breaking ----
 
-    /// <summary>The frame and every stage's items, and the front's loose brick and the cap. The bed, the charge and
+    /// <summary>The frame and every stage's items, the cap, and the front's loose brick. The bed, the charge and
     /// the sulfur drop with the inventory.</summary>
     public override IEnumerable<ItemStack> AssemblyDrops()
     {
@@ -564,8 +441,6 @@ public class BEStallRoaster : BEOreMachine
             yield break;
         if (_frontBricks > 0 && BrickType is { } type && Api.World.GetItem(new AssetLocation(rig.Bricks.ItemOf(type))) is { Id: > 0 } brick)
             yield return new ItemStack(brick, _frontBricks);
-        if (_capped && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-            yield return new ItemStack(plate, rig.CapCount);
     }
 
     // ---- Saving and syncing ----
@@ -575,18 +450,11 @@ public class BEStallRoaster : BEOreMachine
         base.ToTreeAttributes(tree);
         tree.SetInt("front", (int)_front);
         tree.SetInt("frontBricks", _frontBricks);
-        tree.SetBool("capped", _capped);
         tree.SetBool("lit", _lit);
         tree.SetBool("roasted", _roasted);
         tree.SetDouble("burned", _burned);
         tree.SetDouble("lastHours", _lastHours);
         tree.SetDouble("sulfurCarry", _sulfurCarry);
-        tree.SetInt("rowFirst", _row.First);
-        tree.SetInt("rowCount", _row.Count);
-        tree.SetInt("rowChimneyAt", _row.ChimneyAt ?? int.MinValue);
-        tree.SetInt("rowChimneyHeight", _row.ChimneyHeight);
-        tree.SetInt("rowOpenOutlet", _row.OpenOutlet ?? int.MinValue);
-        tree.SetInt("rowProblem", (int)_row.Problem);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
@@ -594,15 +462,11 @@ public class BEStallRoaster : BEOreMachine
         base.FromTreeAttributes(tree, worldForResolving);
         _front = (StallFront)Math.Clamp(tree.GetInt("front"), 0, 2);
         _frontBricks = Math.Max(0, tree.GetInt("frontBricks"));
-        _capped = tree.GetBool("capped");
         _lit = tree.GetBool("lit");
         _roasted = tree.GetBool("roasted");
         _burned = Math.Max(0, tree.GetDouble("burned"));
         _lastHours = tree.GetDouble("lastHours", double.NaN);
         _sulfurCarry = Math.Max(0, tree.GetDouble("sulfurCarry"));
-        int? Opt(string key) => tree.GetInt(key, int.MinValue) is var v && v != int.MinValue ? v : null;
-        _row = new FurnaceRow(tree.GetInt("rowFirst"), Math.Max(1, tree.GetInt("rowCount", 1)), Opt("rowChimneyAt"),
-            tree.GetInt("rowChimneyHeight"), Opt("rowOpenOutlet"), (RowProblem)tree.GetInt("rowProblem", (int)RowProblem.NoChimney));
     }
 
     // ---- Info ----
@@ -628,7 +492,7 @@ public class BEStallRoaster : BEOreMachine
                 dsc.AppendLine(L("burning", Rock, (int)Math.Floor(100 * (BurnHours > 0 ? _burned / BurnHours : 1)),
                     Math.Max(0, (BurnHours - _burned) / Math.Max(1e-6, Draught)).ToString("0", CultureInfo.InvariantCulture)));
                 if (Draught <= 0)
-                    dsc.AppendLine(L(_row.Works ? "nodraught-front" : "nodraught-chimney"));
+                    dsc.AppendLine(L(Row.Works ? "nodraught-front" : "nodraught-chimney"));
                 else if (Draught < 1)
                     dsc.AppendLine(L("halfdraught", (int)Math.Round(100 * Draught)));
                 break;
@@ -636,15 +500,6 @@ public class BEStallRoaster : BEOreMachine
                 dsc.AppendLine(L("roasted", Rock, SulfurPowders));
                 break;
         }
-        dsc.AppendLine(_row.Problem switch
-        {
-            RowProblem.None => L("row", _row.Count, _row.ChimneyHeight),
-            RowProblem.TooManyFurnaces => L("row-toomany", rig.RowMax),
-            RowProblem.OutletOpen => L("row-open"),
-            RowProblem.ChimneyTooShort => L("row-short", _row.ChimneyHeight, rig.MinChimney),
-            RowProblem.NoChimneyTop => L("row-notop"),
-            RowProblem.ChimneyTopBuried => L("row-buried"),
-            _ => L(_capped && _row.Count == 1 ? "row-capped" : "row-none", rig.MinChimney),
-        });
+        dsc.AppendLine(RowLine());
     }
 }

@@ -4,86 +4,105 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.DrawBench;
 
-/// <summary>DrawBench/Core: the build order, what each stage takes, the die's metal and take-back;
-/// the draw's arithmetic (W with the axle, a section at each hand-out, the die's wear); the
-/// renderer's clock; the settings; and the rig's reader on a hand-trimmed test rig.</summary>
+/// <summary>DrawBench: its build (config/builds/drawbench.json on the shared staged build, the die its durable
+/// wearing part): the order, what each stage takes, the die's metal, take-back and wear; the draw's arithmetic
+/// (W with the axle, a section at each hand-out); the renderer's clock; the settings; and the rig's reader on
+/// a hand-trimmed test rig.</summary>
 public class DrawBenchGameplayTests
 {
+    private const string Gearbox = "game:jonasframes-gearbox01";
+    private const string Spring = "seraphhorizons:spring-steel";
+
     private static readonly string[] Order =
     [
-        DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron",
+        Gearbox, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron",
     ];
 
+    /// <summary>The build as a game with springs (or without) has it, the die's uses the settings' durability.</summary>
+    private static MachineBuild Build(bool springs = true) =>
+        MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "drawbench.json")))
+            .Resolve(code => springs || code != Spring).WithUses(Drawing.DiePart, Config.DieDurability);
+
+    /// <summary>Fits <paramref name="code"/> from a stack of <paramref name="held"/> (two for the chain and the rods).</summary>
+    private static AssemblyVerdict Fit(MachineAssembly parts, string? code, int held = 2, double? uses = null) =>
+        parts.Fit(code, held, 64, uses).Verdict;
+
     /// <summary>Every stage up to the mandrel fitted, the mandrel's spring with its rods.</summary>
-    private static DrawBenchParts UpToMandrel()
+    private static MachineAssembly UpToMandrel()
     {
-        var parts = new DrawBenchParts();
+        var parts = new MachineAssembly(Build());
         foreach (var code in Order)
-            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
+            Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, code));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Spring, 1));
         return parts;
     }
 
-    private static DrawBenchParts Complete(string die = DrawBenchParts.DieSteelCode, int left = 100)
+    private static MachineAssembly Complete(string die = Drawing.DieSteelCode, int left = 100)
     {
         var parts = UpToMandrel();
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(die, left, 100));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, die, 1, left));
         return parts;
     }
+
+    private static string? DieMetal(MachineAssembly parts) => Drawing.DieMetalOf(parts.Wearing.Fitted(Drawing.DiePart)?.Code);
 
     private static readonly DrawBenchConfig Config = new();
 
-    // ---- Parts ----
+    // ---- The build ----
 
     [Fact]
     public void The_stages_go_in_in_the_contracts_order()
     {
-        Assert.Equal(["gearbox", "chain", "dog", "mandrel", "die"], DrawBenchRequires.Stages.Select(DrawBenchRequires.Name));
-        var parts = new DrawBenchParts();
-        foreach (var (code, stage) in Order.Zip(DrawBenchRequires.Stages))
+        var build = Build();
+        Assert.Equal(DrawBenchRequires.Stages, build.Stages.Select(s => s.Id));
+        Assert.Equal(DrawBenchRequires.Stages, build.Stages.Select(s => Assert.Single(s.Adds)));
+        Assert.Null(build.Block);   // its construction record is its own in the export
+        var parts = new MachineAssembly(build);
+        foreach (var (code, stage) in Order.Zip(Enumerable.Range(0, 4)))
         {
-            Assert.Equal(stage, parts.Next);
-            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
+            Assert.Equal(stage, parts.Build.Next);
+            Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, code));
         }
         // the mandrel stage is in once its spring is too
-        Assert.Equal(DrawBenchStage.Mandrel, parts.Next);
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
-        Assert.Equal(DrawBenchStage.Die, parts.Next);
-        Assert.False(parts.Complete);
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.DieIronCode, 100, 100));
-        Assert.True(parts.Complete);
+        Assert.Equal(3, parts.Build.Next);
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Spring, 1));
+        Assert.Equal(4, parts.Build.Next);
+        Assert.False(parts.Ready);
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Drawing.DieIronCode, 1, 100));
+        Assert.True(parts.Ready);
     }
 
     [Fact]
     public void Only_the_next_stage_is_accepted()
     {
-        var parts = new DrawBenchParts();
-        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, parts.Fit("game:metalchain-steel"));
-        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, parts.Fit("game:rod-iron"));
-        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, parts.Fit(DrawBenchParts.DieSteelCode, 100, 100));
-        Assert.Equal(DrawBenchFitVerdict.NotAPart, parts.Fit("game:jonasframes-gearbox02"));
-        Assert.Equal(DrawBenchFitVerdict.NotAPart, parts.Fit("game:metalchain-copper"));
-        Assert.Equal(DrawBenchFitVerdict.NotAPart, parts.Fit("game:rod-copper"));
-        Assert.Equal(DrawBenchFitVerdict.NotAPart, parts.Fit(null));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("jonasframes-gearbox01"));   // a code with no domain is the game's
-        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, parts.Fit(DrawBenchParts.GearboxCode));
-        Assert.Equal(DrawBenchStage.Chain, parts.Next);
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Fit(parts, "game:metalchain-steel"));
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Fit(parts, "game:rod-iron"));
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Fit(parts, Drawing.DieSteelCode, 1, 100));
+        Assert.Equal(AssemblyVerdict.NotAPart, Fit(parts, "game:jonasframes-gearbox02"));
+        Assert.Equal(AssemblyVerdict.NotAPart, Fit(parts, "game:metalchain-copper"));
+        Assert.Equal(AssemblyVerdict.NotAPart, Fit(parts, "game:rod-copper"));
+        Assert.Equal(AssemblyVerdict.NotAPart, Fit(parts, null));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "jonasframes-gearbox01", 1));   // a code with no domain is the game's
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, Fit(parts, Gearbox, 1));
+        Assert.Equal(1, parts.Build.Next);
     }
 
     [Fact]
     public void The_chain_and_the_mandrel_take_two_from_one_stack()
     {
-        Assert.Equal([1, 2, 1, 2, 1], DrawBenchRequires.Stages.Select(DrawBenchParts.Needed));
-        var parts = new DrawBenchParts();
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.GearboxCode, held: 1));
-        Assert.Equal(DrawBenchFitVerdict.TooFew, parts.Fit("game:metalchain-iron", held: 1));
-        Assert.False(parts.Has(DrawBenchStage.Chain));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:metalchain-iron", held: 2));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:bracket-heavy-iron", held: 1));
-        Assert.Equal(DrawBenchFitVerdict.TooFew, parts.Fit("game:rod-iron", held: 1));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:rod-iron", held: 5));
+        Assert.Equal([1, 2, 1, 2], Build().Stages.Take(4).Select(s => s.Materials[0].Quantity));
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Gearbox, 1));
+        Assert.Equal(AssemblyVerdict.TooFew, Fit(parts, "game:metalchain-iron", 1));
+        Assert.Equal(1, parts.Build.Next);
+        var chain = parts.Fit("game:metalchain-iron", 5, 64);
+        Assert.Equal((AssemblyVerdict.Fitted, 2), (chain.Verdict, chain.Take));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "game:bracket-heavy-iron", 1));
+        Assert.Equal(AssemblyVerdict.TooFew, Fit(parts, "game:rod-iron", 1));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "game:rod-iron", 5));
         // a part already in, or out of order, says so before counting
-        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, parts.Fit("game:metalchain-iron", held: 1));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, Fit(parts, "game:metalchain-iron", 1));
         Assert.Equal([1, 2, 1, 2], parts.Returns().Select(d => d.Count));
     }
 
@@ -93,68 +112,74 @@ public class DrawBenchGameplayTests
     [InlineData("steel")]
     public void Each_ferrous_chain_bracket_and_rod_fits(string metal)
     {
-        var parts = new DrawBenchParts();
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.GearboxCode));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:metalchain-" + metal));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:bracket-heavy-" + metal));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:rod-" + metal));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
-        Assert.Equal(DrawBenchStage.Die, parts.Next);
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Gearbox, 1));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "game:metalchain-" + metal));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "game:bracket-heavy-" + metal, 1));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "game:rod-" + metal));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Spring, 1));
+        Assert.Equal(4, parts.Build.Next);
     }
 
     [Fact]
     public void The_die_carries_its_metal_and_durability()
     {
-        var iron = Complete(DrawBenchParts.DieIronCode, 37);
-        Assert.Equal("iron", iron.DieMetal);
-        Assert.Equal((37, 100), (iron.DieLeft, iron.DieCapacity));
-        Assert.Equal("steel", Complete().DieMetal);
-        Assert.Null(UpToMandrel().DieMetal);
-        Assert.Equal(DrawBenchFitVerdict.DieSpent, UpToMandrel().Fit(DrawBenchParts.DieSteelCode, 0, 100));
+        var iron = Complete(Drawing.DieIronCode, 37);
+        Assert.Equal("iron", DieMetal(iron));
+        Assert.Equal((Drawing.DieIronCode, 37.0), iron.Wearing.Fitted(Drawing.DiePart));
+        Assert.Equal(0.37, iron.Wearing.ShareLeft(Drawing.DiePart), 9);
+        Assert.Equal("steel", DieMetal(Complete()));
+        Assert.Null(DieMetal(UpToMandrel()));
+        Assert.Equal(AssemblyVerdict.Spent, Fit(UpToMandrel(), Drawing.DieSteelCode, 1, 0));
+        Assert.Equal(("iron", "steel"), (Drawing.DieMetalOf(Drawing.DieIronCode), Drawing.DieMetalOf(Drawing.DieSteelCode)));
+        Assert.Equal(Drawing.DieSteelCode, Drawing.DieCodeFor("steel"));
+        Assert.Null(Drawing.DieMetalOf("game:rod-steel"));
     }
 
     [Fact]
-    public void Fitted_draws_each_stage_once_it_is_in_and_never_the_billets()
+    public void Each_stage_is_drawn_once_it_is_in_the_die_while_one_is_fitted_and_never_the_billets()
     {
         var parts = UpToMandrel();
-        Assert.True(parts.Fitted(null));
-        Assert.True(parts.Fitted("mandrel"));
-        Assert.False(parts.Fitted("die"));
-        Assert.False(parts.Fitted("billetlead"));
-        Assert.False(new DrawBenchParts().Fitted("gearbox"));
-        Assert.True(Complete().Fitted("die"));
-        Assert.False(Complete().Fitted("billetcopper"));
+        Assert.True(parts.Shows(null));
+        Assert.True(parts.Shows("mandrel"));
+        Assert.False(parts.Shows("die"));
+        Assert.False(new MachineAssembly(Build()).Shows("gearbox"));
+        var complete = Complete();
+        Assert.True(complete.Shows("die"));
+        complete.Take(Drawing.DiePart);
+        Assert.False(complete.Shows("die"));
+        // the billets are the work's: no stage adds them (BEDrawBench.ShowsPart draws them by its clock)
+        Assert.DoesNotContain(Build().Stages, s => s.Adds.Contains("billetlead") || s.Adds.Contains("billetcopper"));
         Assert.True(DrawBenchRequires.KnownRequires.SetEquals(["gearbox", "chain", "dog", "mandrel", "die", "billetlead", "billetcopper"]));
     }
 
     [Fact]
-    public void The_die_comes_back_only_with_no_hollow_on_the_bench_with_its_durability()
+    public void The_die_comes_back_out_with_its_durability_and_a_die_goes_back_in()
     {
-        var parts = Complete(DrawBenchParts.DieIronCode, 64);
-        Assert.False(parts.CanTakeDie(jobOn: true));
-        Assert.True(parts.CanTakeDie(jobOn: false));
-        Assert.Equal((DrawBenchParts.DieIronCode, 64, 100), parts.RemoveDie());
-        Assert.False(parts.Complete);
-        Assert.Equal(DrawBenchStage.Die, parts.Next);
-        Assert.False(parts.CanTakeDie(false));
-        Assert.Null(parts.RemoveDie());
+        var parts = Complete(Drawing.DieIronCode, 64);
+        Assert.Equal((Drawing.DieIronCode, 64.0), parts.Take(Drawing.DiePart));
+        Assert.False(parts.Ready);
+        Assert.True(parts.Built);
+        Assert.Null(parts.Take(Drawing.DiePart));
         // the other stages stay, and a die goes back in
-        Assert.True(parts.Has(DrawBenchStage.Mandrel));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.DieIronCode, 64, 100));
+        Assert.Equal(AssemblyVerdict.Renewed, Fit(parts, Drawing.DieIronCode, 1, 64));
+        Assert.True(parts.Ready);
+        Assert.Equal(AssemblyVerdict.NotWorn, Fit(parts, Drawing.DieSteelCode, 1, 100));
     }
 
     [Fact]
     public void A_spent_die_is_gone_and_the_bench_needs_another()
     {
         var parts = Complete(left: 2);
-        Assert.False(parts.WearDie(1));
-        Assert.Equal(1, parts.DieLeft);
-        Assert.True(parts.WearDie(1));
-        Assert.False(parts.Complete);
-        Assert.Null(parts.DieMetal);
-        Assert.Equal(0, parts.DieLeft);
-        Assert.Equal(DrawBenchParts.DieSteelCode, parts.NextPart);
+        Assert.False(parts.Wearing.Wear(Drawing.DiePart, 1));
+        Assert.Equal(1, parts.Wearing.Fitted(Drawing.DiePart)!.Value.Left);
+        Assert.True(parts.Wearing.Wear(Drawing.DiePart, 1));
+        Assert.False(parts.Ready);
+        Assert.Null(DieMetal(parts));
         Assert.DoesNotContain(parts.Returns(), d => d.Durability != null);
+        // the creative shortcut fits a new steel die
+        Assert.True(parts.FillNext());
+        Assert.Equal((Drawing.DieSteelCode, 100.0), parts.Wearing.Fitted(Drawing.DiePart));
     }
 
     [Fact]
@@ -163,116 +188,84 @@ public class DrawBenchGameplayTests
         var parts = Complete(left: 58);
         var drops = parts.Returns();
         Assert.Equal(6, drops.Count);
-        Assert.Equal([.. Order, DrawBenchParts.SpringCode, DrawBenchParts.DieSteelCode], drops.Select(d => d.Code));
-        Assert.Equal(new DrawBenchDrop(DrawBenchParts.DieSteelCode, 58), drops[^1]);
+        Assert.Equal([.. Order, Spring, Drawing.DieSteelCode], drops.Select(d => d.Code));
+        Assert.Equal(new StageDrop(Drawing.DieSteelCode, 1, 58), drops[^1]);
         Assert.All(drops.Take(5), d => Assert.Null(d.Durability));
         Assert.Equal([1, 2, 1, 2, 1, 1], drops.Select(d => d.Count));
-        Assert.Empty(new DrawBenchParts().Returns());
+        Assert.Empty(new MachineAssembly(Build()).Returns());
     }
 
     [Fact]
     public void The_creative_shortcut_fits_each_stage_in_turn_with_a_steel_die()
     {
-        var parts = new DrawBenchParts();
-        var codes = new List<string>();
-        while (parts.NextPart is { } code)
-        {
-            codes.Add(code);
-            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code, 100, 100));
-        }
-        Assert.Equal([DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron", DrawBenchParts.SpringCode, DrawBenchParts.DieSteelCode], codes);
+        var parts = new MachineAssembly(Build());
+        while (!parts.Ready)
+            Assert.True(parts.FillNext());
+        Assert.Equal([Gearbox, "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron", Spring, Drawing.DieSteelCode],
+            parts.Returns().Select(d => d.Code));
+        Assert.Equal(100, parts.Wearing.Fitted(Drawing.DiePart)!.Value.Left);
     }
 
     [Fact]
     public void The_mandrel_stage_takes_its_rods_and_a_spring_either_first()
     {
-        var parts = new DrawBenchParts();
+        var parts = new MachineAssembly(Build());
         foreach (var code in Order.Take(3))
-            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
-        Assert.Equal(["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel", DrawBenchParts.SpringCode], parts.NextCodes());
+            Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, code));
         // the spring first: one is enough, and a second is refused
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode, held: 1));
-        Assert.True(parts.HasSpring);
-        Assert.False(parts.Has(DrawBenchStage.Mandrel));
-        Assert.False(parts.Fitted("mandrel"));
-        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, parts.Fit(DrawBenchParts.SpringCode));
-        Assert.Equal(["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], parts.NextCodes());
-        Assert.Equal(DrawBenchFitVerdict.TooFew, parts.Fit("game:rod-steel", held: 1));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:rod-steel", held: 2));
-        Assert.True(parts.Has(DrawBenchStage.Mandrel));
-        Assert.True(parts.Fitted("mandrel"));
-        Assert.Equal(DrawBenchStage.Die, parts.Next);
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Spring, 1));
+        Assert.False(parts.Build.StageComplete(3));
+        Assert.False(parts.Shows("mandrel"));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, Fit(parts, Spring, 1));
+        Assert.Equal(["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], Assert.Single(parts.Build.NextNeeds()).Material.Codes);
+        Assert.Equal(AssemblyVerdict.TooFew, Fit(parts, "game:rod-steel", 1));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, "game:rod-steel", 2));
+        Assert.True(parts.Shows("mandrel"));
+        Assert.Equal(4, parts.Build.Next);
 
         // the rods first: the stage then waits for the spring, and more rods are refused
-        var rods = new DrawBenchParts();
+        var rods = new MachineAssembly(Build());
         foreach (var code in Order)
-            Assert.Equal(DrawBenchFitVerdict.Fits, rods.Fit(code));
-        Assert.Equal(DrawBenchStage.Mandrel, rods.Next);
-        Assert.Equal([DrawBenchParts.SpringCode], rods.NextCodes());
-        Assert.Equal(DrawBenchParts.SpringCode, rods.NextPart);
-        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, rods.Fit("game:rod-iron"));
-        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, rods.Fit(DrawBenchParts.DieSteelCode, 100, 100));
-        Assert.Equal(1, DrawBenchParts.NeededOf(DrawBenchParts.SpringCode, DrawBenchStage.Mandrel));
-        Assert.Equal(2, DrawBenchParts.NeededOf("game:rod-iron", DrawBenchStage.Mandrel));
+            Assert.Equal(AssemblyVerdict.Fitted, Fit(rods, code));
+        Assert.Equal(3, rods.Build.Next);
+        Assert.Equal([Spring], Assert.Single(rods.Build.NextNeeds()).Material.Codes);
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, Fit(rods, "game:rod-iron"));
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Fit(rods, Drawing.DieSteelCode, 1, 100));
         // a spring before its stage is out of order
-        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, new DrawBenchParts().Fit(DrawBenchParts.SpringCode));
+        Assert.Equal(AssemblyVerdict.OutOfOrder, Fit(new MachineAssembly(Build()), Spring, 1));
     }
 
     [Fact]
     public void Without_springs_the_rods_alone_fit_the_mandrel_stage()
     {
-        var parts = new DrawBenchParts { Springs = false };
+        var parts = new MachineAssembly(Build(springs: false));
         foreach (var code in Order)
-            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
-        Assert.Equal(DrawBenchStage.Die, parts.Next);
-        Assert.Equal(DrawBenchFitVerdict.NotAPart, parts.Fit(DrawBenchParts.SpringCode));
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.DieSteelCode, 100, 100));
-        Assert.True(parts.Complete);
-        Assert.DoesNotContain(parts.Returns(), d => d.Code == DrawBenchParts.SpringCode);
+            Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, code));
+        Assert.Equal(4, parts.Build.Next);
+        Assert.Equal(AssemblyVerdict.NotAPart, Fit(parts, Spring, 1));
+        Assert.Equal(AssemblyVerdict.Fitted, Fit(parts, Drawing.DieSteelCode, 1, 100));
+        Assert.True(parts.Ready);
+        Assert.DoesNotContain(parts.Returns(), d => d.Code == Spring);
     }
 
     [Fact]
-    public void A_bench_saved_before_springs_keeps_its_stages_and_asks_for_one()
+    public void A_save_keeps_every_fitted_code_and_the_die_and_drops_what_could_not_have_been_fitted()
     {
-        var old = new Dictionary<string, string>
-        {
-            ["gearbox"] = DrawBenchParts.GearboxCode, ["chain"] = "game:metalchain-iron", ["dog"] = "game:bracket-heavy-iron",
-            ["mandrel"] = "game:rod-iron", ["die"] = DrawBenchParts.DieIronCode,
-        };
-        var parts = DrawBenchParts.Restore(old, 40, 100);
-        Assert.Equal(DrawBenchStage.Mandrel, parts.Next);
-        Assert.False(parts.Complete);
-        Assert.True(parts.Has(DrawBenchStage.Die));
-        Assert.Equal(40, parts.DieLeft);
-        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
-        Assert.True(parts.Complete);
-        // a saved spring comes back, before its rods too, but not ahead of the stages before them
-        Assert.True(DrawBenchParts.Restore(parts.Snapshot(), 40, 100).Complete);
-        var springFirst = new Dictionary<string, string>(old) { [DrawBenchParts.SpringKey] = DrawBenchParts.SpringCode };
-        springFirst.Remove("mandrel");
-        var restored = DrawBenchParts.Restore(springFirst, 40, 100);
-        Assert.True(restored.HasSpring);
-        Assert.False(restored.Has(DrawBenchStage.Die));   // what follows the gap is dropped, as before
-        springFirst.Remove("dog");
-        Assert.False(DrawBenchParts.Restore(springFirst, 40, 100).HasSpring);
-        // with springs off the old bench is complete as it was
-        Assert.True(DrawBenchParts.Restore(old, 40, 100, springs: false).Complete);
-    }
-
-    [Fact]
-    public void A_save_keeps_every_fitted_code_and_drops_what_could_not_have_been_fitted()
-    {
-        var parts = Complete(DrawBenchParts.DieIronCode, 12);
-        var restored = DrawBenchParts.Restore(parts.Snapshot(), parts.DieLeft, parts.DieCapacity);
+        var parts = Complete(Drawing.DieIronCode, 12);
+        var (build, wearing) = parts.Snapshot();
+        var restored = MachineAssembly.Restore(Build(), build, wearing, out var dropped);
+        Assert.Empty(dropped);
         Assert.Equal(parts.Returns(), restored.Returns());
-        Assert.Equal("iron", restored.DieMetal);
+        Assert.Equal("iron", DieMetal(restored));
 
-        var gap = new Dictionary<string, string> { ["gearbox"] = DrawBenchParts.GearboxCode, ["dog"] = "game:bracket-heavy-iron" };
-        Assert.Equal([new DrawBenchDrop(DrawBenchParts.GearboxCode)], DrawBenchParts.Restore(gap, 0, 0).Returns());
-        var wrong = parts.Snapshot().ToDictionary(kv => kv.Key, kv => kv.Value);
-        wrong["chain"] = "game:metalchain-gold";
-        Assert.Equal(DrawBenchStage.Chain, DrawBenchParts.Restore(wrong, 12, 100).Next);
-        Assert.Equal(DrawBenchStage.Die, DrawBenchParts.Restore(parts.Snapshot(), 0, 100).Next);
+        var gap = MachineAssembly.Restore(Build(), new Dictionary<string, int> { [StagedBuild.Key(0, 0, Gearbox)] = 1, [StagedBuild.Key(2, 0, "game:bracket-heavy-iron")] = 1 },
+            new Dictionary<string, (string, double)>(), out dropped);
+        Assert.Equal([new StageDrop(Gearbox, 1)], gap.Returns());
+        Assert.Equal([new StageDrop("game:bracket-heavy-iron", 1)], dropped);
+        var wrong = build.ToDictionary(kv => kv.Key, kv => kv.Value);
+        wrong.Remove(StagedBuild.Key(1, 0, "game:metalchain-iron"));
+        wrong[StagedBuild.Key(1, 0, "game:metalchain-gold")] = 2;
+        Assert.Equal(1, MachineAssembly.Restore(Build(), wrong, wearing, out _).Build.Next);
     }
 
     // ---- The draw ----
@@ -327,14 +320,14 @@ public class DrawBenchGameplayTests
     public void W_advances_with_the_axle_and_a_section_comes_off_at_each_hand_out(int k, double turns)
     {
         Assert.Equal(turns, Config.TurnsPerSection(k), 5);
-        var job = new DrawJob(k, 0);
+        var job = Drawing.Start(k);
         var crossings = new List<double>();
         int finished = 0;
         // a tenth of a turn at a time, past the end to show it holds
         double turned = 0;
         for (int i = 0; i < (int)(turns * 4 * 10) + 20; i++)
         {
-            (job, int sections, bool done) = job.Advance(2 * Math.PI * 0.1, turns);
+            (job, int sections, bool done) = Drawing.Advance(job, 2 * Math.PI * 0.1, turns);
             turned += 0.1;
             for (int p = 0; p < sections; p++)
                 crossings.Add(turned);
@@ -348,29 +341,29 @@ public class DrawBenchGameplayTests
         Assert.Equal(1, finished);
         Assert.Equal(4, job.Work, 9);
         Assert.True(job.Done);
-        Assert.Equal(4, job.SectionsDone);
+        Assert.Equal(4, Drawing.SectionsDone(job));
     }
 
     [Fact]
     public void One_big_step_gives_every_section_it_crosses()
     {
-        var (job, sections, done) = new DrawJob(1, 0.5).Advance(2 * Math.PI * 10.3 * 3, 10.3);
+        var (job, sections, done) = Drawing.Advance(Drawing.Restore(1, 0.5), 2 * Math.PI * 10.3 * 3, 10.3);
         Assert.Equal(3, sections);
         Assert.False(done);
         Assert.Equal(3.5, job.Work, 9);
         // all four are out by 3.5, but the hollow is done only at 4, the dog back at the die
-        Assert.Equal(4, job.SectionsDone);
-        (job, sections, done) = job.Advance(2 * Math.PI * 10.3 * 100, 10.3);
+        Assert.Equal(4, Drawing.SectionsDone(job));
+        (job, sections, done) = Drawing.Advance(job, 2 * Math.PI * 10.3 * 100, 10.3);
         Assert.Equal(0, sections);
         Assert.True(done);
-        Assert.Equal(4, job.SectionsDone);
-        Assert.Equal((DrawJob.None, 0, false), DrawJob.None.Advance(100, 10.3));
+        Assert.Equal(4, Drawing.SectionsDone(job));
+        Assert.Equal((MachineJob.None, 0, false), Drawing.Advance(MachineJob.None, 100, 10.3));
         // what has come off, by W: none before the first hand-out, one from it to the second, all four from the fourth
         foreach (var (w, n) in new[] { (0.0, 0), (0.43, 0), (Drawing.HandOut, 1), (1.0, 1), (1.43125, 2), (3.4, 3), (3.43125, 4), (4.0, 4) })
-            Assert.Equal(n, new DrawJob(2, w).SectionsDone);
-        Assert.Equal(new DrawJob(2, 4), DrawJob.Restore(2, 99));
-        Assert.Equal(DrawJob.None, DrawJob.Restore(3, 1));
-        Assert.Equal(new DrawJob(1, 0), DrawJob.Restore(1, double.NaN));
+            Assert.Equal(n, Drawing.SectionsDone(Drawing.Restore(2, w)));
+        Assert.Equal(new MachineJob(2, 4, 4), Drawing.Restore(2, 99));
+        Assert.Equal(MachineJob.None, Drawing.Restore(3, 1));
+        Assert.Equal(new MachineJob(1, 0, 4), Drawing.Restore(1, double.NaN));
     }
 
     [Fact]
@@ -388,9 +381,9 @@ public class DrawBenchGameplayTests
     {
         var parts = Complete(left: Config.DieDurability);
         int hollows = 0;
-        while (parts.Complete)
+        while (parts.Ready)
         {
-            parts.WearDie(Config.DieWearPerHollow);
+            parts.Wearing.Wear(Drawing.DiePart, Config.DieWearPerHollow);
             hollows++;
         }
         Assert.Equal(100, hollows);

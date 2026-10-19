@@ -67,12 +67,12 @@ public partial class MillWorldScenarios
     {
         Assert.True(AmalgamationPlatesSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(PlatesFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(PlatesFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(PlatesFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(PlatesFrame + "north"));
         Assert.Equal("amalgamationplates", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.Null(block.Rig!.Anchor(OreMachineRig.Power));
-        var build = OreMachinesSystem.Of(World.Api).Build("amalgamationplates")!;
+        var build = MachinesSystem.Of(World.Api).Build("amalgamationplates")!;
         Assert.Equal(["plates", "trap", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Equal("Amalgamation plates", new ItemStack(block).GetName());
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == PlatesFrame + "north" && r.Enabled);

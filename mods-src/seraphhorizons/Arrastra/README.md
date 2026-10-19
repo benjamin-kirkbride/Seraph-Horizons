@@ -362,6 +362,27 @@ gaps, containment, cells, z-fighting, the stage-floating rule). Changed to #733 
 - **The contents are new**: the charge and the paste in the pit (the grinder drew none).
 - The grinder's per-`requires` `fitted` collision (`9fa58a5`, never on main, not read by the game) is not used.
 
+## Oil
+
+The arrastra takes oil (`MachineOil`; `OilKind` `OilMachine.Arrastra` on the shared machine base's `MachineOiling`), as every
+machine on a shaft does: built dry, its load on its shaft is three times its own (`DryResistanceMultiplier`) until it
+is oiled, and a dry one smokes while it turns. Oil goes in by right-click on any cell with a container of oil or a
+lump of rendered fat (the mod's README, "Machines need oil"). Its job is a rock ground, drained a charge at a time, by its rocks, when the charge is ground (`BEArrastra.Work`); idle turning costs nothing.
+
+| Setting (`MachineOilSettings.Arrastra`) | Default | |
+|---|---|---|
+| `Tank` | 500 (5 L) | 5000 points a unit of working load: 0.1 × 5000 |
+| `DrainPerJob` | 43 | 2 points a unit of load and a shaft turn: 2 × 0.1 × its turns a job |
+
+**Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
+copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
+mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
+arrastra's load is 0.1; it works a charge of 2 rocks in 7.5 hours at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 × 7.5 / 2 = 215 turns a rock, and 2 × load × turns rounds to 43. A full tank is 11.6 rocks, almost six charges, about 44 hours of work at the
+reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
+battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
+the defaults to the shipped figures.
+
 ## Open for the owner
 
 1. **8 cells, not #733's 10.** #733 keeps the grinder's 10 cells, but with the ball mill gone nothing of the

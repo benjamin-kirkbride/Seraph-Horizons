@@ -6,8 +6,10 @@ namespace SeraphHorizons.Mod.Machines.Core;
 public readonly record struct Box(float X1, float Y1, float Z1, float X2, float Y2, float Z2);
 
 /// <summary>One occupied cell of a machine, in the native frame. <see cref="Boxes"/> is empty for a
-/// full cube, unless the cell is <see cref="Hollow"/>: a ghost with no boxes of its own (nothing can
-/// be built there), solid only where a loaded trunk's box is. <see cref="Lid"/>, on the top cell of
+/// full cube, unless the cell is <see cref="Hollow"/>: a cell with no element of the model (nothing can be
+/// built there), which the game still makes a full cube unless its machine opens it
+/// (<c>BEMachine.HollowCellsOpen</c>: the eidolon gantry) or boxes it itself (a loaded trunk's box, the
+/// bucking mill's and the rosser's; the Parkes kettle's three over its mouth stay cubes). <see cref="Lid"/>, on the top cell of
 /// each of the machine's columns, is the cell-local height of the top of a collision-only box over
 /// the whole cell (<see cref="LidBox"/>), so a player walking on the machine cannot drop between
 /// its boxes; the selection ray does not find it.</summary>

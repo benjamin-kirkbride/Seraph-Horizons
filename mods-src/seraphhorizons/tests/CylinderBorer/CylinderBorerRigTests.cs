@@ -52,7 +52,7 @@ public class CylinderBorerRigTests
         Assert.Equal(Side.South, rig.PowerFace);
         Assert.Equal(Side.East, rig.InfeedSide);
         Assert.Equal(Side.West, rig.OutputSide);
-        Assert.Equal(7, rig.GhostCells.Count());
+        Assert.Equal(7, rig.OtherCells().Count());
         // a container beside the cradle, beyond the output face, takes the cylinder
         Assert.Equal(new Int3(-1, 0, 2), rig.OutputNeighbour());
         Assert.True(rig.OutputDrop().X < 0);

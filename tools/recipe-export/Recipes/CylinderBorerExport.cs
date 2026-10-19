@@ -41,7 +41,7 @@ public static class CylinderBorerExport
     public const string FrameCode = "seraphhorizons:cylinderborer-frame-north";
     public const string HeadCode = "seraphhorizons:cylinderborerhead-steel";
 
-    // CylinderBorer/Core/CylinderBorerParts.cs (MaterialsFor): the kept stages' materials, summed by item in the
+    // config/builds/cylinderborer.json: the kept stages' materials, summed by item in the
     // order they first go in: the bushings' metal parts (a block) and the bar's (three rods, metal parts, the large
     // stainless gear), then the feed's (two oak planks, a rod, two ropes, a plate); rods and plates of iron, meteoric
     // iron or steel.

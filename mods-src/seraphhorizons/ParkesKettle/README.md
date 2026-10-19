@@ -77,8 +77,9 @@ crucible furnace's.
 **Footprint and cells.** The setting's **18 cells**, and over it **four cells** for the gallows and the drive (the
 middle row's three, where the standards, the beams and the gears stand, and the back middle one, the power cell, with
 the pedestal), and **three hollow cells** over the kettle's mouth (the front row's: the machine's, with no boxes of
-their own, so nothing is built over the kettle where the lead and zinc go in and the crust and lead come out, and the
-flange's proud top is in its own cells): **25 cells**. The cell over the outlet, the back east one, is the
+their own in the rig, so nothing is built over the kettle where the lead and zinc go in and the crust and lead come out,
+and the flange's proud top is in its own cells; in the game each is a full cube, which a click on the mouth goes to and
+a player stands on, as every hollow cell is unless its machine opens them, `BEMachine.HollowCellsOpen`): **25 cells**. The cell over the outlet, the back east one, is the
 chimney's, and the back west one is free: neither is the machine's. The **controller is the front middle cell at
 ground level**, `[0,0,0]`, the fire's front, by the crucible furnace's convention; the setting extends a block to each
 side (x) and two back (z) from it, away from the player.
@@ -348,6 +349,27 @@ generator and adapted, never rebased:
   the bricks, the build, the shipped cells and most of its checks).
 - **Dropped:** v2's chutes (the infeed, the siphon, the outfeed): batch, rule 2; its skimmer lying on the flange; its
   shared floor, stack and engine shaft.
+
+## Oil
+
+The Parkes kettle takes oil (`MachineOil`; `OilKind` `OilMachine.ParkesKettle` on the shared machine base's `MachineOiling`), as every
+machine on a shaft does: built dry, its load on its shaft is three times its own (`DryResistanceMultiplier`) until it
+is oiled, and a dry one smokes while it turns. Oil goes in by right-click on any cell with a container of oil or a
+lump of rendered fat (the mod's README, "Machines need oil"). Its job is a charge stirred, by its share of a full charge (its lead over 2400 units), drained when the charge is done (`BEParkesKettle.Finish`); idle turning costs nothing.
+
+| Setting (`MachineOilSettings.ParkesKettle`) | Default | |
+|---|---|---|
+| `Tank` | 1000 (10 L) | 5000 points a unit of working load: 0.2 × 5000 |
+| `DrainPerJob` | 115 | 2 points a unit of load and a shaft turn: 2 × 0.2 × its turns a job |
+
+**Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
+copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
+mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
+Parkes kettle's load is 0.2 (its working load: it runs from 0.04 empty as the bath fills); it works a full charge (2400 units) in 5 hours at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 × 5 = 287 turns a full charge (at the fire's full heat), and 2 × load × turns rounds to 115. A full tank is almost nine full charges, about 44 hours of work at the
+reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
+battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
+the defaults to the shipped figures.
 
 ## Known weak spots, and what is not checked
 

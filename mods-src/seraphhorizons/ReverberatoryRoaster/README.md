@@ -419,6 +419,27 @@ the side) and the reservoir it fills, and the furnace's row (`furnace`).
   above it; it slides in a recess in the footing's face under the footing band, the band's face leg its lip.
 - **Nine voussoirs** (the branch's weak spot: seven): the crown strip still takes the glands and the pedestals' bases.
 
+## Oil
+
+The reverberatory roaster takes oil (`MachineOil`; `OilKind` `OilMachine.ReverberatoryRoaster` on the shared machine base's `MachineOiling`), as every
+machine on a shaft does: built dry, its load on its shaft is three times its own (`DryResistanceMultiplier`) until it
+is oiled, and a dry one smokes while it turns. Oil goes in by right-click on any cell with a container of oil or a
+lump of rendered fat (the mod's README, "Machines need oil"). Its job is an item roasted, by its weight (a concentrate 1, native sulfur its own), drained as each item leaves the hearth (`BEReverberatory.Work`); idle turning costs nothing.
+
+| Setting (`MachineOilSettings.ReverberatoryRoaster`) | Default | |
+|---|---|---|
+| `Tank` | 2500 (25 L) | 5000 points a unit of working load: 0.5 × 5000 |
+| `DrainPerJob` | 0.75 | 2 points a unit of load and a shaft turn: 2 × 0.5 × its turns a job |
+
+**Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
+copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
+mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
+reverberatory roaster's load is 0.5 (its working load: it runs from 0.1 empty as its bed fills); it works 76 items of concentrate an hour at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 / 76 = 0.754 turns an item of weight 1 (at the fire's full pace), and 2 × load × turns rounds to 0.75. A full tank is 3333 items of concentrate, about 44 hours of work at the
+reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
+battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
+the defaults to the shipped figures.
+
 ## Open for the owner
 
 Settled by the owner (2026-10-14), not to be changed: the water face on the drive row's east side (the player's pipe

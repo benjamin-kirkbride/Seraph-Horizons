@@ -4,7 +4,7 @@
 // ore machines' shared cells (Machines/Game). The server disables it with Arrastra off.
 {
 	code: "arrastra",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.Arrastra",
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -35,7 +35,7 @@
 	attributes: {
 		// The shared ore machine's (Machines/Game): the machine's id, and the rig parts drawn by the
 		// batch, not the build: the charge as tipped in, and the same ground to a paste.
-		oreMachine: { machine: "arrastra", extraRequires: [ "charge", "paste" ] },
+		machine: { machine: "arrastra", extraRequires: [ "charge", "paste" ] },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:arrastra-handbook-build-title", text: "seraphhorizons:arrastra-handbook-build-text" },

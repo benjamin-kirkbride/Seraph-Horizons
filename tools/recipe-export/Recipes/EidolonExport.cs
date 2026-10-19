@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using System.Text.Json;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 
@@ -20,7 +21,7 @@ public sealed record EidolonStage(string Name, List<EidolonStageItem> Items, Eid
 public sealed class EidolonData
 {
     public required string Mod;
-    /// <summary>The gantry's woods, as the mod lists them (GantryParts.Woods).</summary>
+    /// <summary>The gantry's woods, as the mod lists them (GantryBuild.Woods).</summary>
     public List<string> Woods = new();
     /// <summary>The nine winch stages, in order, on a gantry of each wood (the drum's planks and the
     /// spine's beams are the gantry's wood: a code holds <c>{wood}</c>).</summary>
@@ -35,11 +36,12 @@ public sealed class EidolonData
 /// grid recipe) and then fitted with nine winch stages by right-click, one stage's whole count a
 /// click, in order; then the eidolon's body is built on the gantry's spine in seven stages: the crafted
 /// torso, five layers each in a material of the builder's choice, and the mind (a temporal gear), after
-/// which the winch's crank wakes it. Neither is a registry: what each stage takes is the mod's own rules,
-/// read here by reflection from its game-independent classes (<c>EidolonGantry/Core/GantryParts.cs</c>'s
-/// <c>GantryParts.CodesFor</c> and <c>Needed</c>, <c>BodyParts.cs</c>'s <c>BodyBill</c>,
-/// <c>Eidolon/Core/EidolonFittings.cs</c>'s materials, codes, counts and Jonas parts), so the export
-/// cannot drift from them. Null when the
+/// which the winch's crank wakes it. Neither is a registry: what each stage takes is the mod's own: the
+/// winch's its build file (<c>config/builds/eidolongantry.json</c>, the shared machine base's, its codes
+/// with <c>{wood}</c> for the gantry's wood), the woods and the body's read by reflection from its
+/// game-independent classes (<c>EidolonGantry/Core/GantryBuild.cs</c>'s <c>GantryBuild.Woods</c>,
+/// <c>BodyParts.cs</c>'s <c>BodyBill</c>, <c>Eidolon/Core/EidolonFittings.cs</c>'s materials, codes, counts
+/// and Jonas parts), so the export cannot drift from them. Null when the
 /// mod is not loaded, the <c>Eidolon</c> switch is off or the classes are not as expected.
 /// </summary>
 public static class EidolonExport
@@ -51,6 +53,9 @@ public static class EidolonExport
 
     public static string GantryCode(string wood) => $"{GantryPrefix}{wood}-north";
 
+    /// <summary>The winch's build file, the shared machine base's.</summary>
+    public static readonly AssetLocation WinchBuild = new("seraphhorizons", "config/builds/eidolongantry.json");
+
     public static EidolonData? Read(ICoreServerAPI api)
     {
         var main = GearChain.System(api, GearChain.MainSystem);
@@ -59,7 +64,9 @@ public static class EidolonExport
         if (GearChain.Prop(config, "Eidolon") is false) return null;
         try
         {
-            return ReadFrom(main.GetType().Assembly);
+            if (api.Assets.TryGet(WinchBuild) is not { } build)
+                throw new FileNotFoundException($"{WinchBuild} is missing");
+            return ReadFrom(main.GetType().Assembly, build.ToText());
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -68,27 +75,22 @@ public static class EidolonExport
         }
     }
 
-    private static EidolonData ReadFrom(Assembly mod)
+    private static EidolonData ReadFrom(Assembly mod, string winchBuild)
     {
-        var parts = mod.GetType(Core + "GantryParts", throwOnError: true)!;
-        var requires = mod.GetType(Core + "GantryRequires", throwOnError: true)!;
-        var stageType = mod.GetType(Core + "GantryStage", throwOnError: true)!;
+        var gantry = mod.GetType(Core + "GantryBuild", throwOnError: true)!;
         var bill = mod.GetType(Core + "BodyBill", throwOnError: true)!;
         const BindingFlags S = BindingFlags.Public | BindingFlags.Static;
 
         var data = new EidolonData { Mod = GearChain.Mod };
-        data.Woods = ((IEnumerable)parts.GetField("Woods", S)!.GetValue(null)!).Cast<string>().ToList();
+        data.Woods = ((IEnumerable)gantry.GetField("Woods", S)!.GetValue(null)!).Cast<string>().ToList();
 
-        var codesFor = parts.GetMethod("CodesFor", S, [stageType, typeof(string)])!;
-        var needed = parts.GetMethod("Needed", S, [stageType])!;
-        var name = requires.GetMethod("Name", S, [stageType])!;
-        foreach (var stage in Enum.GetValues(stageType))
-        {
-            // The wood stands in as a placeholder: a code that holds it is of the gantry's own wood.
-            var codes = ((IEnumerable)codesFor.Invoke(null, [stage, "{wood}"])!).Cast<string>().ToList();
-            data.Winch.Add(new EidolonStage((string)name.Invoke(null, [stage])!,
-                [new EidolonStageItem(codes, (int)needed.Invoke(null, [stage])!)]));
-        }
+        // Each stage's one material: its codes (a code with {wood} is of the gantry's own wood) and count.
+        using (var doc = JsonDocument.Parse(winchBuild, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }))
+            foreach (var stage in doc.RootElement.GetProperty("stages").EnumerateArray())
+                data.Winch.Add(new EidolonStage(stage.GetProperty("id").GetString()!,
+                    stage.GetProperty("materials").EnumerateArray().Select(m => new EidolonStageItem(
+                        m.GetProperty("codes").EnumerateArray().Select(c => c.GetString()!).ToList(),
+                        m.GetProperty("quantity").GetInt32())).ToList()));
 
         var fittings = mod.GetType(EidolonCore + "EidolonFittings", throwOnError: true)!;
         var counts = mod.GetType(EidolonCore + "FittingCounts", throwOnError: true)!;

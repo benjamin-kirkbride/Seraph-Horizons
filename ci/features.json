@@ -6,7 +6,7 @@
   "features": {
     "Eidolon": {
       "code": ["Eidolon/", "EidolonGantry/"],
-      "codes": ["eidolon", "eidolongantry", "eidolongantryghost", "eidoloncommander", "eidolontorso",
+      "codes": ["eidolon", "eidolongantry", "eidoloncommander", "eidolontorso",
                 "creature-eidolon"],
       "export": ["Recipes/EidolonExport.cs", "EidolonSection.cs", "RecipeSection.Eidolon.cs"],
       "switches": ["Eidolon", "EidolonSettings"],

@@ -1,3 +1,6 @@
+using Vintagestory.GameContent.Mechanics;
+using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.Machines;
 using Atlas.Api;
 using Atlas.XUnit;
 using Vintagestory.API.Common;
@@ -12,7 +15,7 @@ namespace SeraphHorizons.PackTests;
 /// <see cref="MillWorldScenarios"/>, both build their machines with: a site 40 above spawn on a granite
 /// floor, its columns loaded (<see cref="CutterSite"/>), a survival player with empty hands
 /// (<see cref="CutterHand"/>), real items (<see cref="CutterItem"/>), a right-click
-/// (<see cref="CutterClick"/>) or one held (<see cref="ShearHold"/>), and the items lying around a site
+/// (<see cref="CutterClick"/>) or one held (<see cref="Hold"/>), and the items lying around a site
 /// or in the player's inventory. They began as the gear cutter's, then the draw bench's and the
 /// squaring shear's, and every machine after took them up; the names stayed. A file of no test class
 /// (ci/atlas-shards.md): a change here runs both.
@@ -151,13 +154,33 @@ public abstract class PlainWorldScenarioBase : AtlasScenarioBase
             e.Die(EnumDespawnReason.Removed);
     }
 
+    /// <summary>A creative rotor at full speed against <paramref name="machine"/>'s power face, on its power cell;
+    /// waits until the shaft turns fast. Returns where the rotor stands.</summary>
+    protected async Task<BlockPos> PowerMachine(BEMachine machine)
+    {
+        var cell = machine.CellPos(machine.Rig!.PowerAnchor()!.Value.Cell);
+        if (!cell.Equals(machine.Pos))
+            Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(cell));
+        var face = machine.PowerFace;
+        var rotorPos = cell.AddCopy(face);
+        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
+        await World.Ticks(2);
+        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
+        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
+        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
+        rotor.Blockentity.MarkDirty(true);
+        await World.Until(() => Math.Abs(machine.ShaftSpeed) >= 0.3f, 15000);
+        return rotorPos;
+    }
+
     /// <summary>
     /// Right-click held on <paramref name="at"/> with <paramref name="held"/> in hand for
     /// <paramref name="ticks"/> server ticks, as the game plays it: the interaction's start, a step
-    /// each tick while the block says go on, then the stop. Returns whether the start was the
-    /// shear's and how many steps it went on for.
+    /// each tick while the block says go on, then the stop: any hand machine (the press brake, the
+    /// squaring shear, the amalgam pan, the rocker). Returns whether the start was the machine's and how
+    /// many steps it went on for.
     /// </summary>
-    protected async Task<(bool Started, int Steps)> ShearHold(IPlayer player, BlockPos at, int ticks, ItemStack? held = null)
+    protected async Task<(bool Started, int Steps)> Hold(IPlayer player, BlockPos at, int ticks, ItemStack? held = null)
     {
         var slot = player.InventoryManager.ActiveHotbarSlot;
         slot.Itemstack = held;
@@ -180,11 +203,4 @@ public abstract class PlainWorldScenarioBase : AtlasScenarioBase
         return (true, steps);
     }
 
-    protected static int BenchHeld(IPlayer player, string code) => player.InventoryManager.Inventories.Values
-        .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
-        .SelectMany(inv => inv).Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
-    protected static ItemStack? BenchHeldStack(IPlayer player, string code) => player.InventoryManager.Inventories.Values
-        .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
-        .SelectMany(inv => inv).FirstOrDefault(s => s.Itemstack?.Collectible.Code.ToString() == code)?.Itemstack;
 }

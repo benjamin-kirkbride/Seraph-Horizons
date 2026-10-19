@@ -7,7 +7,7 @@ namespace SeraphHorizons.Mod.JawBreaker;
 /// <summary>
 /// The jaw breaker (#912; README "Jaw breaker"): registers its block entity and holds its settings
 /// (JawBreakerSettings in ModConfig/seraphhorizons.json). Its frame is the shared ore machine block
-/// (<see cref="BlockOreMachine"/>), its cells the shared ones. With the <c>JawBreaker</c> switch off, or
+/// (<see cref="BlockMachine"/>), its cells the shared ones. With the <c>JawBreaker</c> switch off, or
 /// ore processing off (it breaks raw ore into crushed ore, which then does not exist), the server leaves
 /// its frame and recipe out of the game.
 /// </summary>
@@ -44,7 +44,7 @@ public class JawBreakerSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 
     // The settings object is the one in the mod's loaded config, so the fixes hold for every reader.

@@ -6,11 +6,21 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// <c>game:poundercap-steel</c>). <see cref="Codes"/> are the items it may be (patterns as
 /// <see cref="CodePattern"/>), <see cref="Count"/> how many make a set, <see cref="Uses"/> the work a
 /// set lasts (in the machine's own unit: rocks crushed, hours run), and <see cref="Requires"/> the rig
-/// part drawn while one is fitted, or null.
+/// part drawn while one is fitted, or null. A <see cref="Durable"/> part is one item whose durability is
+/// its uses (the draw bench's die): it goes in with the durability it has left, can be taken back out
+/// with what is left of it (<see cref="WearingParts.Take"/>), and breaking the machine gives it back so.
+/// <see cref="UsesOf"/>, where the machine gives it, is the uses of a set by the item fitted, in place of
+/// <see cref="Uses"/> (a figure per metal: the bucking mill's blade kits, each its own durability).
 /// </summary>
-public sealed record WearingPart(string Id, IReadOnlyList<string> Codes, int Count, double Uses, string? Requires = null)
+public sealed record WearingPart(string Id, IReadOnlyList<string> Codes, int Count, double Uses, string? Requires = null, bool Durable = false,
+    Func<string, double>? UsesOf = null)
 {
     public bool Matches(string code) => Codes.Any(p => CodePattern.Matches(p, code));
+
+    /// <summary>The uses a new set of <paramref name="code"/> lasts: <see cref="UsesOf"/>'s figure where it gives a
+    /// positive one, else <see cref="Uses"/>.</summary>
+    public double UsesFor(string? code) =>
+        UsesOf != null && code != null && UsesOf(code) is var u && u > 0 && double.IsFinite(u) ? u : Uses;
 }
 
 /// <summary>Why a held stack does or does not renew a wearing part.</summary>
@@ -25,6 +35,8 @@ public enum RenewVerdict
     NotWorn,
     /// <summary>Fewer are held than a set.</summary>
     TooFew,
+    /// <summary>A durable part's item with no durability left.</summary>
+    Spent,
 }
 
 /// <summary>
@@ -59,12 +71,13 @@ public sealed class WearingParts
     public double ShareLeft(string id)
     {
         var part = Parts.FirstOrDefault(p => p.Id == id);
-        return part == null || !_fitted.TryGetValue(id, out var f) ? 0 : Math.Clamp(f.Left / part.Uses, 0, 1);
+        return part == null || !_fitted.TryGetValue(id, out var f) ? 0 : Math.Clamp(f.Left / part.UsesFor(f.Code), 0, 1);
     }
 
     /// <summary>What a click with <paramref name="held"/> of <paramref name="code"/> does, on a machine
-    /// whose build is <paramref name="built"/>; <paramref name="part"/> the part it renews.</summary>
-    public RenewVerdict CanRenew(string? code, int held, bool built, out WearingPart? part)
+    /// whose build is <paramref name="built"/>; <paramref name="part"/> the part it renews.
+    /// <paramref name="uses"/> is a durable part's item's durability left (null: a new set).</summary>
+    public RenewVerdict CanRenew(string? code, int held, bool built, out WearingPart? part, double? uses = null)
     {
         code = CodePattern.Normalise(code);
         part = code == null ? null : Parts.FirstOrDefault(p => p.Matches(code));
@@ -74,24 +87,43 @@ public sealed class WearingParts
             return RenewVerdict.NotBuilt;
         if (_fitted.TryGetValue(part.Id, out var f) && f.Left > 0)
             return RenewVerdict.NotWorn;
-        return held < part.Count ? RenewVerdict.TooFew : RenewVerdict.Renews;
+        if (held < part.Count)
+            return RenewVerdict.TooFew;
+        return part.Durable && uses is <= 0 ? RenewVerdict.Spent : RenewVerdict.Renews;
     }
 
     /// <summary>Fits a new set if <see cref="CanRenew"/> allows; the caller takes the part's
-    /// <see cref="WearingPart.Count"/> from the slot.</summary>
-    public RenewVerdict Renew(string? code, int held, bool built)
+    /// <see cref="WearingPart.Count"/> from the slot. A durable part goes in with <paramref name="uses"/>
+    /// left (never past its <see cref="WearingPart.UsesFor"/>), a new one's when not given.</summary>
+    public RenewVerdict Renew(string? code, int held, bool built, double? uses = null)
     {
-        var verdict = CanRenew(code, held, built, out var part);
+        var verdict = CanRenew(code, held, built, out var part, uses);
         if (verdict == RenewVerdict.Renews)
-            _fitted[part!.Id] = (CodePattern.Normalise(code)!, part.Uses);
+        {
+            string fitted = CodePattern.Normalise(code)!;
+            double max = part!.UsesFor(fitted);
+            _fitted[part.Id] = (fitted, part.Durable && uses is { } u ? Math.Min(u, max) : max);
+        }
         return verdict;
+    }
+
+    /// <summary>Takes <paramref name="id"/>'s set back out (the draw bench's die, by Ctrl + right-click): its
+    /// code and the uses it had left, or null when none is fitted. The part is then missing.</summary>
+    public (string Code, double Left)? Take(string id)
+    {
+        if (!_fitted.Remove(id, out var f))
+            return null;
+        return f;
     }
 
     /// <summary>The creative shortcut: a new set of every part, of its first code.</summary>
     public void FillAll(string wildcard = "steel")
     {
         foreach (var p in Parts)
-            _fitted[p.Id] = (CodePattern.Normalise(p.Codes[0])!.Replace("*", wildcard), p.Uses);
+        {
+            string code = CodePattern.Normalise(p.Codes[0])!.Replace("*", wildcard);
+            _fitted[p.Id] = (code, p.UsesFor(code));
+        }
     }
 
     /// <summary>Wears <paramref name="id"/>'s set by <paramref name="uses"/>. Returns whether this
@@ -113,9 +145,11 @@ public sealed class WearingParts
     /// <summary>Wears every part by <paramref name="uses"/>; the ids worn out by it.</summary>
     public IReadOnlyList<string> WearAll(double uses) => Parts.Where(p => Wear(p.Id, uses)).Select(p => p.Id).ToList();
 
-    /// <summary>Every set with use left, as breaking the machine gives it back: its code and count.</summary>
+    /// <summary>Every set with use left, as breaking the machine gives it back: its code and count, and a
+    /// durable part's uses left.</summary>
     public IReadOnlyList<StageDrop> Returns() =>
-        Parts.Where(p => _fitted.ContainsKey(p.Id)).Select(p => new StageDrop(_fitted[p.Id].Code, p.Count)).ToList();
+        Parts.Where(p => _fitted.ContainsKey(p.Id))
+            .Select(p => new StageDrop(_fitted[p.Id].Code, p.Count, p.Durable ? _fitted[p.Id].Left : null)).ToList();
 
     /// <summary>Each fitted set as <c>id</c> → (code, uses left), for saving.</summary>
     public IReadOnlyDictionary<string, (string Code, double Left)> Snapshot() => new Dictionary<string, (string, double)>(_fitted);
@@ -127,7 +161,7 @@ public sealed class WearingParts
         var wearing = new WearingParts(parts);
         foreach (var p in parts)
             if (snapshot.TryGetValue(p.Id, out var f) && p.Matches(f.Code) && double.IsFinite(f.Left) && f.Left > 0)
-                wearing._fitted[p.Id] = (f.Code, Math.Min(f.Left, p.Uses));
+                wearing._fitted[p.Id] = (f.Code, Math.Min(f.Left, p.UsesFor(f.Code)));
         return wearing;
     }
 }

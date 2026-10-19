@@ -3,9 +3,9 @@
 // DrawBench off.
 {
 	code: "drawbench",
-	class: "seraphhorizons.DrawBench",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.DrawBench",
-	// No HorizontalOrientable: BlockDrawBench.TryPlaceBlock picks the side so the bench extends
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the bench extends
 	// away from the player (Machines/Core/Footprint.cs, PlacedFacing), as the other machines do.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },

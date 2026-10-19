@@ -34,6 +34,9 @@ public class BEShakingTable : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.Table;
 
+    /// <summary>Oiled, its job a rock washed (<see cref="BEOreMachine.WorkItem"/>).</summary>
+    protected override OilMachine? OilKind => OilMachine.ShakingTable;
+
     protected override IReadOnlyList<string> OutputAnchors =>
         [ShakingTabling.Concentrate, ShakingTabling.Middlings, ShakingTabling.Tailings];
 

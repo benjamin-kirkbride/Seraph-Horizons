@@ -177,8 +177,8 @@ public partial class WoodworkingScenarios
         await World.Ticks(2);
         // Carry On lets a click through to each station while carrying (patches/trunkentities-stations.json)
         foreach (var code in new[] { "loggingmod:sawhorse-north", "loggingmod:sawhorseadvanced-oak-north", "loggingmod:trunkstorage-oak-empty-north",
-                                     "loggingmod:resinrack-tan-north", "seraphhorizons:rosser-frame-north", "seraphhorizons:rosser-ghost",
-                                     "seraphhorizons:buckingmill-frame-north" })
+                                     "loggingmod:resinrack-tan-north", "seraphhorizons:rosser-frame-north", "seraphhorizons:machine-cell",
+                                     "seraphhorizons:machine-cellpower-north", "seraphhorizons:buckingmill-frame-north" })
             Assert.Contains(BlockOf(code).BlockBehaviors, b => b.GetType().Name == "BlockBehaviorCarryableInteract");
 
         // a branched trunk is refused while Logging Expanded requires debranching

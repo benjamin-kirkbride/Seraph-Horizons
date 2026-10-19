@@ -9,13 +9,15 @@ namespace SeraphHorizons.Mod.Rosser;
 
 /// <summary>
 /// Draws the rosser's moving parts and the travelling trunk (client only; created and disposed by
-/// <see cref="BERosser"/>, and only while its block is the rosser). One mesh per rig part from
+/// <see cref="BERosser"/>, and only while its block is the rosser; its own rather than the shared
+/// <see cref="MachineRenderer"/>: it draws the trunk, the tips in the heads' metal, and the scraping's sound,
+/// chips and drips). One mesh per rig part from
 /// <c>shapes/block/rosser.json</c> (<see cref="MachineMeshes.PartMeshes"/>, one tessellation split
 /// by part, shared by every rosser through <see cref="MachinePartMeshes"/>), each drawn with its rig
 /// matrix turned to the rosser's facing, and only when its <c>requires</c> is fitted; the scraper
 /// tips (<c>heads</c>) take the ingot texture of the heads' metal (a cached set per metal). The
 /// drip's pipes are a part per metal (<c>pipecopper</c>, <c>pipelead</c>, in the block's pipe
-/// textures), and only the fitted metal's is drawn (<see cref="RosserParts.Fitted"/>). The static frame part is not
+/// textures), and only the fitted metal's is drawn (<see cref="BERosser.ShowsPart"/>). The static frame part is not
 /// drawn here: the block's own shape (rosser_frame.json, the same elements) draws it in the chunk
 /// mesh. Everything is read from the rig at load; no element name or coordinate is known here.
 /// <para>The rig is posed every frame from: θ, the shaft angle about the input shaft's native z
@@ -221,7 +223,7 @@ public sealed class RosserRenderer : IRenderer
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
         for (int i = 0; i < _meshes.Length; i++)
-            if (_meshes[i] is { Disposed: false } mesh && _be.Fitted(_parts.Parts[i].Requires))
+            if (_meshes[i] is { Disposed: false } mesh && _be.ShowsPart(_parts.Parts[i].Requires))
                 MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, pos);
         DrawTrunk(facing, prog, camPos, pos);
         prog?.Stop();
@@ -235,7 +237,7 @@ public sealed class RosserRenderer : IRenderer
         double travel = _be.ClientTravel;
         var place = MillMotion.TrunkOnAxis(_trunkBounds.Min, _trunkBounds.Max, _path, (int)_be.TrunkClass, travel);
         var m = Mat4.Multiply(facing, place);
-        bool delivered = _be.State == RosserState.Delivered;
+        bool delivered = _be.TripState == RosserState.Delivered;
         float tips = _rig.TipAt((int)_be.TrunkClass);
         for (int s = 0; s < _barkSegments.Length; s++)
         {
@@ -285,7 +287,7 @@ public sealed class RosserRenderer : IRenderer
         if (loaded)
             _shownTravel = travel;
 
-        if (far || !loaded || !_be.Running || _be.State != RosserState.Feeding)
+        if (far || !loaded || !_be.ShaftRuns || _be.TripState != RosserState.Feeding)
             return;
         double nose = _path.Nose(travel), tail = _path.Tail(travel, (int)_be.TrunkClass);
         float tips = _rig.TipAt((int)_be.TrunkClass);
@@ -307,7 +309,7 @@ public sealed class RosserRenderer : IRenderer
         }
         else
             _scrapeTimer = 0;
-        if (_be.Wet && _path.Stations.TryGetValue(RosserRig.DripStation, out float drip) && tail <= drip && drip <= nose)
+        if (_be.DripWet && _path.Stations.TryGetValue(RosserRig.DripStation, out float drip) && tail <= drip && drip <= nose)
         {
             _dripTimer += dt;
             if (_dripTimer >= DripInterval)

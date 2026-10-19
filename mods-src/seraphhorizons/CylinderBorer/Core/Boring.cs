@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.CylinderBorer.Core;
 
 /// <summary>Why a casting can or cannot go in the cradle.</summary>
@@ -66,34 +68,18 @@ public static class Boring
     /// shaft at <paramref name="minSpeed"/> or faster.</summary>
     public static bool Running(bool complete, bool jobOn, float speed, float minSpeed) =>
         complete && jobOn && Math.Abs(speed) >= minSpeed;
-}
 
-/// <summary>A casting in the cradle: its class and the head's travel through it so far, W (blocks).</summary>
-public readonly record struct BoreJob(int Class, double Work)
-{
-    public static readonly BoreJob None = new(0, 0);
+    /// <summary>The bore of a casting of class <paramref name="k"/> just put in the cradle: a <see cref="MachineJob"/>
+    /// ending at the head's whole travel; none for a class the borer does not bore.</summary>
+    public static MachineJob Start(int k) => MachineJob.Start(k is 1 or 2 ? k : 0, Travel);
 
-    public bool On => Class is 1 or 2;
+    /// <summary>A saved bore: W clamped to 0..the travel; none when the class is not a blank's.</summary>
+    public static MachineJob Restore(int k, double work) => MachineJob.Restore(k is 1 or 2 ? k : 0, work, Travel);
 
-    /// <summary>The work's end: the head's whole travel.</summary>
-    public double End => On ? Boring.Travel : 0;
-
-    public bool Done => On && Work >= End - 1e-9;
-
-    /// <summary>The bore after <paramref name="radians"/> more of the axle, W held at the end; and
-    /// whether this step finished the cylinder.</summary>
-    public (BoreJob Job, bool Finished) Advance(double radians, double turnsPerBlock)
-    {
-        if (!On || Done)
-            return (this, false);
-        double w = Math.Min(End, Work + Boring.BlocksFor(radians, turnsPerBlock));
-        var next = this with { Work = w };
-        return (next, next.Done);
-    }
-
-    /// <summary>A saved bore: W clamped to 0..end; none when the class is not a blank's.</summary>
-    public static BoreJob Restore(int k, double work) =>
-        k is 1 or 2 ? new BoreJob(k, double.IsFinite(work) ? Math.Clamp(work, 0, Boring.Travel) : 0) : None;
+    /// <summary>The bore after <paramref name="radians"/> more of the axle, W held at the end, and whether this step
+    /// finished the cylinder.</summary>
+    public static (MachineJob Job, bool Finished) Advance(MachineJob job, double radians, double turnsPerBlock) =>
+        job.Advance(BlocksFor(radians, turnsPerBlock));
 }
 
 /// <summary>

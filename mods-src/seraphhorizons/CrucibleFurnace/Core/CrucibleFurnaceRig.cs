@@ -111,9 +111,11 @@ public static class FurnaceRequires
 /// Native frame (the front, with the ash mouth, faces north), controller cell at (0,0,0) (the front
 /// middle cell, the ash mouth's), blocks. The keys are the model's contract with gameplay
 /// (CrucibleFurnace/README.md, "Rig schema"); unknown keys are ignored. Throws
-/// <see cref="FormatException"/> naming what is wrong.
+/// <see cref="FormatException"/> naming what is wrong. The shared machine base reads it as an
+/// <see cref="IMachineRig"/> (no anchors: it takes no power, water or chute); its build there is
+/// <c>config/builds/cruciblefurnace.json</c>, these <see cref="Stages"/> as the model's README has them.
 /// </summary>
-public sealed class CrucibleFurnaceRig
+public sealed class CrucibleFurnaceRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     /// <summary>The cell over the hole's middle, worked from its top: both pots stand under it.</summary>
@@ -134,6 +136,13 @@ public sealed class CrucibleFurnaceRig
     public BrickTypes Bricks { get; }
     public FurnaceFigures Figures { get; }
     public RigParts MovingParts { get; }
+    /// <summary>The outlet, the cap, the brick types and the rig's row figures, as every fired machine's
+    /// (the furnace's row takes its figures from the settings).</summary>
+    public FurnaceFlue Flue { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+    public MachineAnchor? Anchor(string name) => null;
 
     public CrucibleFurnaceRig(IReadOnlyList<RigCell> cells, Int3 holeCell, IReadOnlyList<Float3> potPoints, Int3 outletCell,
                               Float3 ash, Side ashSide, Float3 mouth, IReadOnlyList<BuildStage> stages, StageMaterial outletCap,
@@ -180,19 +189,17 @@ public sealed class CrucibleFurnaceRig
         Bricks = bricks;
         Figures = figures;
         MovingParts = movingParts ?? new RigParts([]);
+        Flue = new FurnaceFlue(outletCell, outletCap.Code, outletCap.Quantity, bricks, figures.MinChimney, figures.RowMax, Width);
     }
 
     /// <summary>The furnace's width along x, the row's axis: a neighbour's controller stands this far along.</summary>
     public int Width => Cells.Max(c => c.Pos.X) - Cells.Min(c => c.Pos.X) + 1;
 
-    /// <summary>The cells other than the controller's, in file order.</summary>
-    public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
-
     /// <summary>The hollow cells: over the hole's rows, where the lid swings.</summary>
     public IEnumerable<RigCell> HollowCells => Cells.Where(c => c.Hollow);
 
     /// <summary>The first cell of the chimney, over the outlet.</summary>
-    public Int3 ChimneyBase => OutletCell + new Int3(0, 1, 0);
+    public Int3 ChimneyBase => Flue.ChimneyBase;
 
     /// <summary>The <c>side</c> variant placed for a player looking along <paramref name="look"/>: the
     /// furnace extends away from them, its front (the ash mouth, native north) towards them, as the

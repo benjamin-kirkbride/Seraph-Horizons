@@ -3,10 +3,12 @@
 Part of the Seraph Horizons mod (`../README.md`): the frame the player-built eidolon (`../Eidolon/README.md`)
 is assembled in, stage by stage, and its dock afterwards, for repair and recharge.
 
-**Status: the gantry and its winch are built** (#671): the block, its ghost cells, the frame's recipe,
-the nine winch stages and the renderer are in `Core/` and `Game/` ("Gameplay", below, and the mod's
-README, "Eidolon"). The body's stages on the spine and the waking are built too (#672:
-`Game/BEBehaviorEidolonBody.cs`, `Core/BodyParts.cs`; the mod's README, "The body and waking it"). This
+**Status: the gantry and its winch are built** (#671), on the shared machine base
+(`docs/modeling/machine-base.md`): the frame's recipe, the nine winch stages
+(`assets/seraphhorizons/config/builds/eidolongantry.json`) and the block entity are in `Core/` and `Game/`
+("Gameplay", below, and the mod's README, "Eidolon"); the frame, its cells and the renderer are the base's.
+The body's stages on the spine and the waking are built too (#672: `Game/GantryBody.cs`,
+`Core/BodyParts.cs`; the mod's README, "The body and waking it"). This
 folder also holds the model's generator (`tools/`).
 
 Paths here are from this folder unless they start with `assets/`, which are the mod's
@@ -242,33 +244,38 @@ What the gameplay holds to here, beyond the mod's README ("Eidolon"):
 
 - **Placing.** `GantryRig.PlacedSide`: the open front (native west) faces the player, and the front's
   middle cell (`exit`'s, `[0, 0, 2]`, `GantryRig.PlaceCell`) is the block they click; the controller,
-  `[0, 0, 0]`, is two cells to its side. Every cell must be free. Hollow cells get a ghost with no boxes.
-- **Stages.** `GantryParts`: the table above, in order, by full code, a stage's whole count from one
-  stack; breaking returns every fitted code and count (`Returns`). `GantryRequires.KnownRequires` is the
-  rig's vocabulary: the nine stages and the body's six (`BodyStages`), which `GantryParts` never claims.
-  A test holds `GantryParts` to this README's stage table, as `tools/tests/test_eidolongantry_model.py`
-  holds the generator to it.
-- **Drawing.** `EidolonGantryRenderer` draws every part with a `requires`, a ride or a driver (the frame
-  is the block's own shape) when its stage is fitted, posed by `BEEidolonGantry.WinchDepth` (eased at
-  1/8 a second). The rig's `crank` part's `rotate` driver runs at ratio 0, so θ is fed 0.
-- **The body's seam.** `IEidolonGantryExtension` (`Game/IEidolonGantryExtension.cs`): a block entity
-  behavior of the controller, asked after the winch for clicks, a turn of the crank (`OnCrank`), the
-  creative shortcut, which body stages are drawn, drops and help. `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the
-  rig's anchors (`body`, `hang`, `fit`, `exit`) to the world; ghosts implement `IMachineGhost`.
-- **The body.** `BEBehaviorEidolonBody`, the one extension: seven stages after the spine (`BodyParts`,
+  `[0, 0, 0]`, is two cells to its side (the rig's `IMachineRig.PlacedSide` and `PlaceCell`, which the
+  shared frame places by). Every cell must be free. Hollow cells get the shared cell with no boxes
+  (`BEEidolonGantry.HollowCellsOpen`).
+- **Stages.** The build file, `config/builds/eidolongantry.json`, on the shared staged build: the table
+  above, in order, by full code, a stage's whole count from one stack, `{wood}` the gantry's wood
+  (`GantryBuild.ForWood`); breaking returns every fitted code and count. `GantryRequires.KnownRequires` is
+  the rig's vocabulary: the nine stages (`WinchStages`) and the body's seven (`BodyStages`), which the build
+  never claims. A test holds the build file to this README's stage table, as
+  `tools/tests/test_eidolongantry_model.py` holds the generator to it.
+- **Drawing.** The shared `MachineRenderer` draws every part with a `requires`, a ride or a driver (the
+  frame is the block's own shape) when its stage is fitted (`BEEidolonGantry.ShowsPart`), posed by
+  `BEEidolonGantry.WinchDepth` (eased at 1/8 a second, `FrameInput`). The rig's `crank` part's `rotate`
+  driver runs at ratio 0, so θ is fed 0.
+- **The body's seam.** `BEEidolonGantry` hands its body (`Body`, a `GantryBody`) every click the winch does
+  not take: a turn of the crank first, then, once the winch is built, the creative shortcut and every click
+  before the build's (the body's layers take rods, plates, nails and chain, which the winch did too).
+  `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the rig's anchors (`body`,
+  `hang`, `fit`, `exit`) to the world; the shared cells implement `IMachineGhost`.
+- **The body.** `GantryBody`: seven stages after the spine (`BodyParts`,
   `BodyBill`: the crafted torso, used on the gantry; the five layers, each fitted item by item in a
   material its first piece fixes; the mind), drawn when each is complete, the layers in their materials
-  (the renderer's body meshes take `EidolonBuild.Textures()` over the layer codes). Old limb-by-limb
+  (the parts' textures take `EidolonBuild.Textures()` over the layer codes, `PartTextures`). Old limb-by-limb
   saves are migrated (`BodyParts.Migrate`; the mod's README, "Old builds").
 - **The crank.** Its cell stays hollow (no collision), but once the `crank` stage is fitted it has a
   selection box (`BEEidolonGantry.CrankBox`, cell-local: the web, handle and ratchet from the post's outer
-  face out), and a right-click there turns the crank: the extensions' `OnCrank`, which wakes a complete
+  face out), and a right-click there turns the crank: the body's `OnCrank`, which wakes a complete
   body. The eidolon is spawned at `body`, facing `exitSide`, wearing the body's build, sent 3 blocks past
   `exit`, and the body is cleared. `BEEidolonGantry.DockAt`/`Docks`: whether a point is in the dock (1.25
   blocks round `body`).
 - **The dock** (`../Eidolon/README.md`, "Docking"). A woken eidolon on a dock order backs onto a free
-  spine (`BEBehaviorEidolonBody.SpineFreeFor`: the winch complete, no body started, no other eidolon
-  held) and on its `dock` clamp frame the body behaviour takes hold (`TakeHold`): it keeps the entity's id
+  spine (`GantryBody.SpineFreeFor`: the winch complete, no body started, no other eidolon
+  held) and on its `dock` clamp frame the body takes hold (`TakeHold`): it keeps the entity's id
   (`eidolonDocked` in its tree, synced) and its `BodyParts` become the eidolon's build
   (`BodyParts.Docked`: the torso, the worn layers whole, the mind). So the gantry's own fitting code refits
   a stripped layer (clicks on the gantry, or on the eidolon, forwarded), and a layer completed is written

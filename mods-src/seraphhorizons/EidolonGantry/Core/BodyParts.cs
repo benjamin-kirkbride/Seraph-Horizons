@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.Eidolon.Core;
+using SeraphHorizons.Mod.Machines.Core;
 
 namespace SeraphHorizons.Mod.EidolonGantry.Core;
 
@@ -128,7 +129,7 @@ public sealed class BodyParts
     private readonly Dictionary<string, int> _spare = [];
 
     /// <summary>A code with no domain is the game's, as the game reads one.</summary>
-    public static string? Normalise(string? code) => GantryParts.Normalise(code);
+    public static string? Normalise(string? code) => CodePattern.Normalise(code);
 
     public int Fitted(string stage, string code) => _fitted[stage].GetValueOrDefault(code);
 

@@ -141,6 +141,17 @@ public partial class RecipeExportScenarios
         Json("""{ "dryMultiplier": 1, "tank": 10 }""", Consumer("seraphhorizons:gearcutter")["oil"]!);
         // The cylinder borer's wears its cutter head.
         Json("""{ "dryMultiplier": 1, "tank": 10 }""", Consumer("seraphhorizons:cylinderborer")["oil"]!);
+        // The ore machines on a shaft, their tanks scaled by load (MachineOilSettings), in litres.
+        foreach (var (machine, litres) in new[]
+                 {
+                     ("jawbreaker", 40.0), ("stampbattery", 37.5), ("arrastra", 5.0), ("ballmill", 55.0), ("jig", 5.0),
+                     ("shakingtable", 5.0), ("vanner", 4.0), ("reverberatory", 25.0), ("parkeskettle", 10.0),
+                 })
+        {
+            var oil = Consumer("seraphhorizons:" + machine)["oil"] ?? throw new Xunit.Sdk.XunitException($"{machine} has no oil");
+            Near(3, oil["dryMultiplier"]);
+            Near(litres, oil["tank"]);
+        }
         Near(0.35, Consumer("seraphhorizons:drawbench")["loadMax"]);
         Near(0.15, Consumer("smex:mpblower")["loadMax"]);
         Near(0.05, Consumer("smex:mpblower")["load"]);

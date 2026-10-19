@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.MandrelStation.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -8,21 +9,24 @@ using Vintagestory.API.Config;
 namespace SeraphHorizons.Mod.MandrelStation;
 
 /// <summary>
-/// The mandrel forging station: registers its classes and holds what its blocks share: its settings
-/// (MandrelStationSettings in ModConfig/seraphhorizons.json) and the rig
-/// (assets/seraphhorizons/config/mandrelstation-rig.json). With the <c>MandrelStation</c> switch off
-/// the server leaves its blocks and its recipe out of the game (<see cref="Disable"/>). A hand
-/// station: no mechanical power and no oil.
+/// The mandrel forging station: registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame and cell are the shared blocks, its build
+/// <c>config/builds/mandrelstation.json</c>) and holds its settings (MandrelStationSettings in
+/// ModConfig/seraphhorizons.json) and the rig (assets/seraphhorizons/config/mandrelstation-rig.json). With
+/// the <c>MandrelStation</c> switch off the server leaves its block and its recipe out of the game
+/// (<see cref="Disable"/>). A hand station: no mechanical power and no oil.
 /// </summary>
 public class MandrelStationSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "mandrelstation";
     public static readonly AssetLocation RigAsset = new(Domain, "config/mandrelstation-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/mandrelstation/frame.json"),
-        new(Domain, "blocktypes/mandrelstation/ghost.json"),
     ];
 
     public static readonly AssetLocation[] RecipeAssets =
@@ -78,10 +82,8 @@ public class MandrelStationSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.MandrelStation", typeof(BlockMandrelStation));
-        api.RegisterBlockClass("seraphhorizons.MandrelStationGhost", typeof(BlockMandrelStationGhost));
         api.RegisterBlockEntityClass("seraphhorizons.MandrelStation", typeof(BEMandrelStation));
-        api.RegisterBlockEntityClass("seraphhorizons.MandrelStationGhost", typeof(BEMandrelStationGhost));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
@@ -179,7 +181,7 @@ public class MandrelStationSystem : ModSystem
         }
     }
 
-    /// <summary>Leaves the mandrel station out of the game: marks its block types and its recipe
+    /// <summary>Leaves the mandrel station out of the game: marks its block type and its recipe
     /// disabled before the game loads them.</summary>
     public static void Disable(ICoreAPI api)
     {

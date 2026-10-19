@@ -2,13 +2,16 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.CylinderBorer.Core;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
 namespace SeraphHorizons.Mod.CylinderBorer;
 
 /// <summary>
-/// The cylinder borer (#639): registers its classes and holds what its blocks share: its settings
+/// The cylinder borer (#639): registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame, cells and power cell are the shared blocks, its build
+/// <c>config/builds/cylinderborer.json</c>, its oil MachineOil's) and holds its settings
 /// (CylinderBorerSettings in ModConfig/seraphhorizons.json) and the rig
 /// (assets/seraphhorizons/config/cylinderborer-rig.json). With the <c>CylinderBorer</c> switch off the
 /// server leaves its blocks, its parts, the cylinder mold, the castings and the bored cylinders and
@@ -19,13 +22,14 @@ namespace SeraphHorizons.Mod.CylinderBorer;
 public class CylinderBorerSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "cylinderborer";
     public static readonly AssetLocation RigAsset = new(Domain, "config/cylinderborer-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/cylinderborer/frame.json"),
-        new(Domain, "blocktypes/cylinderborer/ghost.json"),
-        new(Domain, "blocktypes/cylinderborer/ghostpower.json"),
         new(Domain, "itemtypes/cylinderborer/head.json"),
         new(Domain, "itemtypes/cylinderblank.json"),
         new(Domain, "itemtypes/cylinder.json"),
@@ -83,12 +87,8 @@ public class CylinderBorerSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.CylinderBorer", typeof(BlockCylinderBorer));
-        api.RegisterBlockClass("seraphhorizons.CylinderBorerGhost", typeof(BlockCylinderBorerGhost));
-        api.RegisterBlockClass("seraphhorizons.CylinderBorerGhostPower", typeof(BlockCylinderBorerGhostPower));
         api.RegisterBlockEntityClass("seraphhorizons.CylinderBorer", typeof(BECylinderBorer));
-        api.RegisterBlockEntityClass("seraphhorizons.CylinderBorerGhost", typeof(BECylinderBorerGhost));
-        api.RegisterBlockEntityBehaviorClass("seraphhorizons.CylinderBorerMP", typeof(BEBehaviorCylinderBorerMP));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
         if (api.Side == EnumAppSide.Server && !Applies(api))
             DisablePatches(api);
     }

@@ -9,9 +9,10 @@ namespace SeraphHorizons.Mod.CylinderBorer.Core;
 /// assets/seraphhorizons/config/cylinderborer-rig.json (written by CylinderBorer/tools/make_shape.py).
 /// Native, south-facing frame, controller cell at (0,0,0) (the bench end), blocks. The keys are the
 /// model's contract with gameplay (CylinderBorer/README.md, "Rig schema"); unknown keys are ignored.
+/// Its power cell and face are the shared machine base's <c>power</c> anchor (<see cref="IMachineRig"/>).
 /// Throws <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class CylinderBorerRig
+public sealed class CylinderBorerRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     public Int3 PowerCell { get; }
@@ -33,6 +34,17 @@ public sealed class CylinderBorerRig
     /// its collision box while it is in the cradle: the cells' boxes leave the work out.</summary>
     public Box Casting { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>Its one anchor for the shared machine base: <c>power</c>, the axle on <see cref="PowerFace"/> of
+    /// <see cref="PowerCell"/>.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors =>
+        _anchors ??= new Dictionary<string, MachineAnchor> { [MachineRigs.Power] = new(MachineRigs.Power, PowerCell, PowerFace.Face()) };
+
+    private IReadOnlyDictionary<string, MachineAnchor>? _anchors;
+
+    public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
 
     public CylinderBorerRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side infeedSide, Side outputSide,
                             Float3 output, Float3 chips, Float3 drip, WorkQuantity work, float turnsPerBlockIron, float turnsPerBlockSteel,
@@ -72,14 +84,6 @@ public sealed class CylinderBorerRig
         Casting = casting;
         MovingParts = movingParts ?? new RigParts([], work);
     }
-
-    /// <summary>The <c>side</c> variant placed for a player looking along <paramref name="look"/>,
-    /// so the borer extends away from them with the bench end (the controller) nearest: it runs along
-    /// native south, which a facing turns to itself, as the draw bench does.</summary>
-    public static Side PlacedSide(Side look) => look;
-
-    /// <summary>The cells other than the controller's, in file order.</summary>
-    public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
     /// <summary>The casting's box cut into the cells it crosses, each part cell-local (0..1), for
     /// the cells of the footprint only.</summary>

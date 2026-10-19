@@ -30,7 +30,7 @@ namespace SeraphHorizons.Mod.ReverberatoryRoaster;
 /// <para>Its inventory: slot 0 the bed (the infeed), slots 1 to 4 the output's held products, <see cref="CoalSlot"/>
 /// the coal bunker.</para>
 /// </summary>
-public class BEReverberatory : BEOreMachine
+public class BEReverberatory : BEFiredOreMachine
 {
     /// <summary>The coal bunker: the second output's first slot (the furnace has one output).</summary>
     public const int CoalSlot = 1 + SlotsPerOutput;
@@ -39,33 +39,30 @@ public class BEReverberatory : BEOreMachine
     private static readonly AssetLocation RakeSound = new("game", "sounds/block/gravel");
 
     private Damper _damper = Damper.Open;
-    private bool _capped, _lit;
+    private bool _lit;
     private double _coalLeft;
     private double _progress;
     private readonly UnitCarry _carry = new();
-    private FurnaceRow _row = new(0, 1, null, 0, null, RowProblem.NoChimney);
 
     public override OreMachine? Kind => OreMachine.Reverberatory;
+
+    /// <summary>Oiled (its rabbles' shaft), its job an item roasted, by the item's weight.</summary>
+    protected override OilMachine? OilKind => OilMachine.ReverberatoryRoaster;
 
     private ReverberatorySystem Furnace => ReverberatorySystem.Of(Api);
     private ReverberatoryConfig FurnaceConfig => Api == null ? ReverberatoryConfig.Defaults : Furnace.Config;
     public ReverberatoryRig? FurnaceRig => Api == null ? null : Furnace.Rig;
+    protected override FiredRig? FiredRig => FurnaceRig;
 
     public Damper Damper => _damper;
-    public bool Capped => _capped;
-    public bool Lit => _lit;
-    public FurnaceRow Row => _row;
+    public override bool Lit => _lit;
     public ItemSlot Bunker => Inventory[CoalSlot];
     public int Coal => Bunker.StackSize;
     /// <summary>Shaft turns put into the item on the hearth's discharge so far.</summary>
     public double Progress => _progress;
 
     /// <summary>The share of its pace it roasts at now.</summary>
-    public double Pace => ReverberatoryRoasting.Pace(_damper, _row.Works, _lit, FurnaceConfig.HalfDamperPace);
-
-    /// <summary>The fired brick type of its brickwork (<c>red</c>), once the first is in.</summary>
-    public string? BrickType =>
-        Assembly?.Build.CodeIn(0, 0) is { } code && FurnaceRig is { } rig ? rig.Bricks.TypeOf(code) : null;
+    public double Pace => ReverberatoryRoasting.Pace(_damper, Row.Works, _lit, FurnaceConfig.HalfDamperPace);
 
     private OreRecovery Recovery => OreProcessingSystem.RecoveryFor(Api);
 
@@ -158,6 +155,7 @@ public class BEReverberatory : BEOreMachine
             }
             _coalLeft = left;
             SpendWater(WaterPerItem * weight);
+            DrainOil(weight);
             _progress -= spec.TurnsPerItem * weight;
             var fed = InfeedSlot.TakeOut(1);
             InfeedSlot.MarkDirty();
@@ -222,35 +220,6 @@ public class BEReverberatory : BEOreMachine
 
     // ---- The row and its chimney ----
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        if (api.Side == EnumAppSide.Server)
-            RegisterGameTickListener(OnRowTick, 1000);
-    }
-
-    private void OnRowTick(float dt)
-    {
-        if (!Built)
-            return;
-        var row = FindRow();
-        if (row != _row)
-        {
-            _row = row;
-            MarkDirty(true);
-        }
-    }
-
-    /// <summary>The chimney standing on the outlet, counted as the crucible furnace counts its own.</summary>
-    public ChimneyColumn ChimneyOnOutlet()
-    {
-        if (FurnaceRig is not { } rig)
-            return default;
-        var ba = Api.World.BlockAccessor;
-        var pos = CellPos(rig.ChimneyBase);
-        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), CrucibleFurnaceSystem.Of(Api).Config);
-    }
-
     /// <summary>The furnace back to back with this one (sharing its west wall, built, facing the other way), or null.</summary>
     public BEReverberatory? Partner()
     {
@@ -263,25 +232,15 @@ public class BEReverberatory : BEOreMachine
     }
 
     /// <summary>Its row: itself and the furnace back to back with it, one chimney on either outlet, the other capped.</summary>
-    public FurnaceRow FindRow()
+    public override FurnaceRow FindRow()
     {
-        if (FurnaceRig is not { } rig || !Built)
-            return new FurnaceRow(0, 1, null, 0, null, RowProblem.NoChimney);
+        if (Flue is not { } flue || !Built)
+            return FurnaceRow.Alone;
         var partner = Partner();
-        RowMember? At(int k) => k switch
-        {
-            0 => new RowMember(_capped, ChimneyOnOutlet()),
-            -1 when partner != null => new RowMember(partner.Capped, partner.ChimneyOnOutlet()),
-            _ => null,
-        };
-        return FurnaceRow.Find(At, rig.RowMax, rig.MinChimney);
+        return Firing.Find(this, flue, k => k == -1 ? partner : null, flue.RowMax, flue.MinChimney);
     }
 
     // ---- Fire ----
-
-    public override bool Ignitable => Built;
-
-    public override bool Burning => _lit;
 
     public override string? CannotIgnite() =>
         !Built ? Lang.Get("seraphhorizons:reverberatory-error-notbuilt")
@@ -289,23 +248,13 @@ public class BEReverberatory : BEOreMachine
         : Bunker.Empty ? Lang.Get("seraphhorizons:reverberatory-error-nocoal")
         : null;
 
-    public override void Ignite(IPlayer? byPlayer)
+    protected override void Light(IPlayer? byPlayer)
     {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        if (CannotIgnite() is { } why)
-        {
-            if (byPlayer is IServerPlayer sp)
-                sp.SendIngameError("reverberatory", why);
-            return;
-        }
         _lit = true;
-        _row = FindRow();
         var at = WorldPoint(new Float3(0.5f, 1.0625f, 0f));
         Api.World.PlaySoundAt(new AssetLocation("game", "sounds/torch-ignite"), at.X, at.Y, at.Z, byPlayer, true, 16, 0.6f);
         if (byPlayer != null)
             Api.World.Logger.Audit("{0} lit the reverberatory roaster at {1}.", byPlayer.PlayerName, Pos);
-        MarkDirty(true);
     }
 
     /// <summary>The fire goes out: its coal ran short.</summary>
@@ -316,9 +265,6 @@ public class BEReverberatory : BEOreMachine
     }
 
     // ---- Interaction ----
-
-    private bool IsOutletTop(BlockSelection sel) =>
-        FurnaceRig is { } rig && sel.Face == BlockFacing.UP && sel.Position.Equals(CellPos(rig.OutletCell));
 
     private bool IsAshMouth(BlockSelection sel) =>
         FurnaceRig is { } rig && sel.Position.Equals(Pos) && sel.Face.Code == Footprint.ToWorld(rig.AshSide, Side).Code();
@@ -337,14 +283,9 @@ public class BEReverberatory : BEOreMachine
         bool server = Api.Side == EnumAppSide.Server;
         if (stack == null)
         {
-            if (_capped && IsOutletTop(blockSel))
+            if (Capped && IsOutletTop(blockSel))
             {
-                if (server && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-                {
-                    _capped = false;
-                    Give(byPlayer, new ItemStack(plate, rig.CapCount));
-                    MarkDirty(true);
-                }
+                Uncap(byPlayer);
                 return true;
             }
             if (IsAshMouth(blockSel))
@@ -361,20 +302,8 @@ public class BEReverberatory : BEOreMachine
             return null;
         }
         string code = stack.Collectible.Code.ToString();
-        if (!_capped && code == rig.CapCode && IsOutletTop(blockSel))
-        {
-            if (stack.StackSize < rig.CapCount)
-                return false;
-            if (server)
-            {
-                slot!.TakeOut(rig.CapCount);
-                slot.MarkDirty();
-                _capped = true;
-                Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/anvil1"), Pos, -0.25, byPlayer);
-                MarkDirty(true);
-            }
-            return true;
-        }
+        if (!Capped && code == rig.CapCode && IsOutletTop(blockSel))
+            return Cap(byPlayer, slot!);
         if (ReverberatoryRoasting.IsFuel(code))
         {
             int room = Bunker.Empty ? stack.Collectible.MaxStackSize
@@ -398,14 +327,6 @@ public class BEReverberatory : BEOreMachine
         return null;
     }
 
-    private void Give(IPlayer byPlayer, ItemStack? stack)
-    {
-        if (stack == null || stack.StackSize <= 0)
-            return;
-        if (!byPlayer.InventoryManager.TryGiveItemstack(stack, true))
-            Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
-    }
-
     public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
     {
         var help = base.InteractionHelp(forPlayer).ToList();
@@ -421,10 +342,10 @@ public class BEReverberatory : BEOreMachine
             help.Add(new WorldInteraction
             {
                 ActionLangCode = Key("light"), MouseButton = EnumMouseButton.Right,
-                Itemstacks = ObjectCacheUtil.GetOrCreate(world.Api, "reverberatory-ignitestacks", () => BlockBehaviorCanIgnite.CanIgniteStacks(world.Api, true).ToArray()),
+                Itemstacks = FurnaceFiring.IgniteStacks(world.Api),
             });
         help.Add(new WorldInteraction { ActionLangCode = Key("damper"), MouseButton = EnumMouseButton.Right });
-        help.Add(_capped
+        help.Add(Capped
             ? new WorldInteraction { ActionLangCode = Key("uncap"), MouseButton = EnumMouseButton.Right }
             : new WorldInteraction { ActionLangCode = Key("cap"), MouseButton = EnumMouseButton.Right, Itemstacks = Of([rig.CapCode]) });
         return help.ToArray();
@@ -440,47 +361,11 @@ public class BEReverberatory : BEOreMachine
         {
             case ReverberatoryRequires.Charge: return Built && !InfeedSlot.Empty;
             case ReverberatoryRequires.Fire: return Built && _lit;
-            case ReverberatoryRequires.OutletCap: return Built && _capped;
+            case ReverberatoryRequires.OutletCap: return Built && Capped;
         }
         if (requires != null && requires.StartsWith("damper", StringComparison.Ordinal))
             return base.ShowsPart(ReverberatoryRequires.Doors) && requires == ReverberatoryRequires.DamperPart(_damper);
         return base.ShowsPart(requires);
-    }
-
-    public override string TextureKey => BrickType ?? "";
-
-    /// <summary>The block's textures, the brickwork's <c>brick</c> code in the furnace's brick type, as the stall
-    /// roaster's.</summary>
-    public override ITexPositionSource PartTextures(ICoreClientAPI capi)
-    {
-        var inner = capi.Tesselator.GetTextureSource(Block);
-        if (FurnaceRig is not { } rig || (rig.Bricks.Get(BrickType) ?? rig.Bricks.Get(rig.Bricks.Default)) is not { } brick)
-            return inner;
-        var composite = new CompositeTexture(new AssetLocation(brick.Base))
-        {
-            BlendedOverlays = brick.Overlays.Select(o => new BlendedOverlayTexture { Base = new AssetLocation(o) }).ToArray(),
-        };
-        return capi.BlockTextureAtlas.GetOrInsertTexture(composite, out _, out var pos) && pos != null
-            ? new CodeTextureSource(inner, rig.Bricks.TextureCode, pos)
-            : inner;
-    }
-
-    private sealed class CodeTextureSource(ITexPositionSource inner, string code, TextureAtlasPosition pos) : ITexPositionSource
-    {
-        public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] => textureCode == code ? pos : inner[textureCode]!;
-    }
-
-    // ---- Breaking ----
-
-    /// <summary>The frame, every stage's items and the cap. The bed, the held products and the coal drop with the
-    /// inventory.</summary>
-    public override IEnumerable<ItemStack> AssemblyDrops()
-    {
-        foreach (var drop in base.AssemblyDrops())
-            yield return drop;
-        if (_capped && FurnaceRig is { } rig && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-            yield return new ItemStack(plate, rig.CapCount);
     }
 
     // ---- Saving and syncing ----
@@ -489,7 +374,6 @@ public class BEReverberatory : BEOreMachine
     {
         base.ToTreeAttributes(tree);
         tree.SetInt("damper", (int)_damper);
-        tree.SetBool("capped", _capped);
         tree.SetBool("lit", _lit);
         tree.SetDouble("coalLeft", _coalLeft);
         tree.SetDouble("progress", _progress);
@@ -497,27 +381,17 @@ public class BEReverberatory : BEOreMachine
         foreach (var (key, units) in _carry.Held)
             carry.SetDouble(key, units);
         tree["carry"] = carry;
-        tree.SetInt("rowFirst", _row.First);
-        tree.SetInt("rowCount", _row.Count);
-        tree.SetInt("rowChimneyAt", _row.ChimneyAt ?? int.MinValue);
-        tree.SetInt("rowChimneyHeight", _row.ChimneyHeight);
-        tree.SetInt("rowOpenOutlet", _row.OpenOutlet ?? int.MinValue);
-        tree.SetInt("rowProblem", (int)_row.Problem);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
         _damper = (Damper)Math.Clamp(tree.GetInt("damper"), 0, 2);
-        _capped = tree.GetBool("capped");
         _lit = tree.GetBool("lit");
         _coalLeft = Math.Max(0, tree.GetDouble("coalLeft"));
         _progress = Math.Max(0, tree.GetDouble("progress"));
         if (tree["carry"] is ITreeAttribute carry)
             _carry.Restore(carry.Where(kv => kv.Value is DoubleAttribute).Select(kv => new KeyValuePair<string, double>(kv.Key, ((DoubleAttribute)kv.Value).value)));
-        int? Opt(string key) => tree.GetInt(key, int.MinValue) is var v && v != int.MinValue ? v : null;
-        _row = new FurnaceRow(tree.GetInt("rowFirst"), Math.Max(1, tree.GetInt("rowCount", 1)), Opt("rowChimneyAt"),
-            tree.GetInt("rowChimneyHeight"), Opt("rowOpenOutlet"), (RowProblem)tree.GetInt("rowProblem", (int)RowProblem.NoChimney));
     }
 
     // ---- Info ----
@@ -537,17 +411,8 @@ public class BEReverberatory : BEOreMachine
         dsc.AppendLine(L("damper-" + _damper.ToString().ToLowerInvariant()));
         foreach (var held in OutputSlots("output").Where(s => !s.Empty))
             dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-held", held.StackSize, held.Itemstack!.GetName()));
-        dsc.AppendLine(_row.Problem switch
-        {
-            RowProblem.None => L("row", _row.Count, _row.ChimneyHeight),
-            RowProblem.TooManyFurnaces => L("row-toomany", rig.RowMax),
-            RowProblem.OutletOpen => L("row-open"),
-            RowProblem.ChimneyTooShort => L("row-short", _row.ChimneyHeight, rig.MinChimney),
-            RowProblem.NoChimneyTop => L("row-notop"),
-            RowProblem.ChimneyTopBuried => L("row-buried"),
-            _ => L(_capped && _row.Count == 1 ? "row-capped" : "row-none", rig.MinChimney),
-        });
-        if (_lit && _row.Works && _damper == Damper.Half)
+        dsc.AppendLine(RowLine());
+        if (_lit && Row.Works && _damper == Damper.Half)
             dsc.AppendLine(L("halfpace", (int)Math.Round(100 * Pace)));
     }
 }

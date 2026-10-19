@@ -1,6 +1,7 @@
 using Atlas.XUnit;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.MachineOil;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
@@ -27,13 +28,14 @@ public partial class WoodworkingScenarios
         // Assemble oils the mill for the other scenarios; this one starts from a new, dry mill.
         mill.Oiling!.Tank = OilTank.Empty(mill.Oiling.Tank.Capacity);
         var oil = MachineOilSystem.Of(World.Api).Config;
-        var power = W.BlockAccessor.GetBlockEntity(mill.CellPos(Rig.PowerCell))!.GetBehavior<BEBehaviorMillMP>()!;
+        var power = W.BlockAccessor.GetBlockEntity(mill.CellPos(Rig.PowerCell))!.GetBehavior<BEBehaviorMachineMP>()!;
 
         Assert.NotNull(mill.Oiling);
         Assert.True(mill.Oiling!.Dry);
         Assert.Equal(oil.BuckingMill.Tank, mill.Oiling.Tank.Capacity);
         Assert.Equal(Mod.Config.Resistance * oil.DryResistanceMultiplier, power.GetResistance(), 4);
-        Assert.Contains($"Dry: a load of {OilText.Load(Mod.Config.Resistance * oil.DryResistanceMultiplier)} kN on its shaft, 3× the {OilText.Load(Mod.Config.Resistance)} kN it takes oiled", Info(mill, player));
+        Assert.Contains($"Dry: a load of {OilText.Load(Mod.Config.Resistance * oil.DryResistanceMultiplier)} kN on its shaft, 3× the {OilText.Load(Mod.Config.Resistance)} kN it takes oiled", WrenchInfo(mill, player));
+        Assert.Contains("Dry: it takes 3× the power to turn", Info(mill, player));
 
         // A bucket of olive oil on the power cell: the click is the oil's, whatever the cell does.
         var bucket = new ItemStack(BlockOf("game:woodbucket"));

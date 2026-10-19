@@ -15,9 +15,11 @@ namespace SeraphHorizons.Mod.MachineOil;
 /// <summary>
 /// Oil for the machines this mod does not own: the game's helve hammer and pulverizer, and
 /// Immersive Woodworking's (<c>immersivewoodworking</c>) plank sawmill and powered chopper. Their
-/// block entities cannot carry a field of this mod's, so the tank is kept beside each one (a weak
-/// table) and saved into, and read from, its tree under <see cref="Oil.TreeKey"/> by postfixes on
-/// its <c>ToTreeAttributes</c> and <c>FromTreeAttributes</c>, which is also how it reaches clients.
+/// block entities cannot carry a field of this mod's, so each one's oil, the same
+/// <see cref="MachineOiling"/> the shared machine base composes, is kept beside it (a weak table) and
+/// saved into, and read from, its tree under <see cref="Oil.TreeKey"/> by postfixes on its
+/// <c>ToTreeAttributes</c> and <c>FromTreeAttributes</c>, which is also how it reaches clients. These
+/// patches only hook the machines' own methods to it; what oil does is the piece's.
 /// Per machine, Harmony patches:
 /// <list type="bullet">
 /// <item>the load: a postfix on its mechanical power behavior's <c>GetResistance</c> multiplies it
@@ -28,7 +30,8 @@ namespace SeraphHorizons.Mod.MachineOil;
 /// <item>pouring: a prefix on the <c>OnBlockInteractStart</c> of each of its blocks, the multiblock
 /// cells' too, which takes the click when the player holds oil;</item>
 /// <item>the block info: a postfix on its <c>GetBlockInfo</c> (the cells pass theirs to the
-/// machine's; the helve hammer has none of its own, so the base one's, for it alone).</item>
+/// machine's; the helve hammer has none of its own, so the base one's, for it alone): the shared oil
+/// lines, the load and the drain for a player holding a wrench.</item>
 /// </list>
 /// Immersive Woodworking is not referenced at build time: its types and members are found by name
 /// (<see cref="Bind"/>), and if one is missing its two machines are left alone with a warning. Every
@@ -41,7 +44,7 @@ public static class ForeignMachines
     public const string IwModId = "immersivewoodworking";
     private const string Iw = "ImmersiveWoodworking.";
 
-    private static readonly ConditionalWeakTable<BlockEntity, OilState> States = new();
+    private static readonly ConditionalWeakTable<BlockEntity, MachineOiling> States = new();
     private static readonly List<WeakReference<BlockEntity>> ClientMachines = [];
     private static readonly Dictionary<Type, OilMachine> Machines = [];
 
@@ -205,9 +208,9 @@ public static class ForeignMachines
     public static OilMachine? MachineOf(BlockEntity? be) =>
         be != null && Machines.TryGetValue(be.GetType(), out var machine) ? machine : null;
 
-    /// <summary>The tank of <paramref name="be"/>: on the server one is made (empty) for every
+    /// <summary>The oil of <paramref name="be"/>: on the server one is made (empty) for every
     /// machine; on a client only the one the server sent is there.</summary>
-    public static OilState? StateOf(BlockEntity? be)
+    public static MachineOiling? StateOf(BlockEntity? be)
     {
         if (MachineOf(be) is not { } machine)
             return null;
@@ -215,7 +218,7 @@ public static class ForeignMachines
             return state;
         if (be!.Api?.Side != EnumAppSide.Server)
             return null;
-        state = Oil.New(machine, _config);
+        state = MachineOiling.New(machine, _config);
         States.AddOrUpdate(be, state);
         return state;
     }
@@ -240,8 +243,7 @@ public static class ForeignMachines
     // Arguments by position here and below, so a renamed parameter does not break a patch.
     public static void ToTreePostfix(BlockEntity __instance, ITreeAttribute __0)
     {
-        if (StateOf(__instance) is { } state)
-            Oil.Write(__0, state);
+        StateOf(__instance)?.Write(__0);
     }
 
     public static void FromTreePostfix(BlockEntity __instance, ITreeAttribute __0, IWorldAccessor __1)
@@ -252,10 +254,10 @@ public static class ForeignMachines
             return;
         if (worldAccessForResolve.Side == EnumAppSide.Server)
         {
-            States.AddOrUpdate(__instance, Oil.Load(tree, machine, _config));
+            States.AddOrUpdate(__instance, MachineOiling.Load(tree, machine, _config));
             return;
         }
-        if (Oil.Read(tree, machine) is { } synced)
+        if (MachineOiling.Read(tree, machine) is { } synced)
         {
             bool known = States.TryGetValue(__instance, out _);
             States.AddOrUpdate(__instance, synced);
@@ -267,27 +269,19 @@ public static class ForeignMachines
             States.Remove(__instance);
     }
 
-    public static void InfoPostfix(BlockEntity __instance, StringBuilder __1) => Oil.Info(StateOf(__instance), __1);
+    public static void InfoPostfix(BlockEntity __instance, IPlayer __0, StringBuilder __1) =>
+        StateOf(__instance)?.AppendInfo(__1, __0, __instance.Api);
 
     // The helve hammer has no GetBlockInfo of its own; the base one is patched for it alone.
-    public static void HelveInfoPostfix(BlockEntity __instance, StringBuilder __1)
+    public static void HelveInfoPostfix(BlockEntity __instance, IPlayer __0, StringBuilder __1)
     {
         if (__instance is BEHelveHammer)
-            Oil.Info(StateOf(__instance), __1);
+            StateOf(__instance)?.AppendInfo(__1, __0, __instance.Api);
     }
 
-    private static void Drain(BlockEntity be, double points)
-    {
-        if (be.Api?.Side != EnumAppSide.Server || points <= 0 || StateOf(be) is not { } state)
-            return;
-        bool wasDry = state.Dry;
-        state.Tank = state.Tank.Drain(points);
-        // the client hears of every job anyway; mark it so a tank that just ran dry is shown at once
-        if (state.Dry != wasDry)
-            be.MarkDirty(true);
-        else
-            be.MarkDirty();
-    }
+    // a finished job (the client hears of every job anyway; the piece marks a tank that just ran dry so
+    // it is shown at once)
+    private static void Drain(BlockEntity be) => StateOf(be)?.Drain(be);
 
     // ---- Jobs ----
 
@@ -300,20 +294,20 @@ public static class ForeignMachines
     public static void StrikePostfix(BEHelveHammer __instance, (float Hits, bool Work) __state)
     {
         if (__state.Work && AccumHits(__instance) < __state.Hits - 0.5f)
-            Drain(__instance, _config.HelveHammer.DrainPerJob);
+            Drain(__instance);
     }
 
     /// <summary><c>Crush</c> takes one item from the slot each call.</summary>
-    public static void CrushPostfix(BEPulverizer __instance) => Drain(__instance, _config.Pulverizer.DrainPerJob);
+    public static void CrushPostfix(BEPulverizer __instance) => Drain(__instance);
 
     public static void PassPrefix(BlockEntity __instance, out bool __state) => __state = InputSlot(__instance)?.Empty == false;
 
     /// <summary>A finished pass empties the input slot; one that found nothing to cut leaves it.</summary>
     public static void PassPostfix(BlockEntity __instance, bool __state)
     {
-        if (!__state || InputSlot(__instance)?.Empty != true || MachineOf(__instance) is not { } machine)
+        if (!__state || InputSlot(__instance)?.Empty != true)
             return;
-        Drain(__instance, _config.For(machine).DrainPerJob);
+        Drain(__instance);
     }
 
     private static ItemSlot? InputSlot(BlockEntity be) =>
@@ -330,7 +324,7 @@ public static class ForeignMachines
             if (__instance.Api.World.BlockAccessor.GetBlockEntity(side) is BEHelveHammer { HammerStack: not null } hammer)
             {
                 if (StateOf(hammer) is { } state)
-                    __result = Oil.Asked(state, __result, hammer);
+                    __result = state.Asked(__result, hammer);
                 return;
             }
     }
@@ -345,7 +339,7 @@ public static class ForeignMachines
             _ => null,
         };
         if (StateOf(machine) is { } state)
-            __result = Oil.Asked(state, __result, machine);
+            __result = state.Asked(__result, machine);
     }
 
     // ---- Pouring ----
@@ -366,17 +360,16 @@ public static class ForeignMachines
         if (StateOf(be) is not { } state)
             return true;
         __result = true;
-        if (world.Side == EnumAppSide.Server && Oil.Pour(world, byPlayer, state, _config, _liquids, be!.Pos) > 0)
-            be.MarkDirty(true);
+        state.Interact(be!, byPlayer);
         return false;
     }
 
     // ---- Smoke ----
 
     /// <summary>The client's machines with a tank (alive ones), for the smoke.</summary>
-    public static List<(BlockEntity Machine, OilState State)> ClientStates(IWorldAccessor world)
+    public static List<(BlockEntity Machine, MachineOiling State)> ClientStates(IWorldAccessor world)
     {
-        var alive = new List<(BlockEntity, OilState)>();
+        var alive = new List<(BlockEntity, MachineOiling)>();
         lock (ClientMachines)
         {
             ClientMachines.RemoveAll(w => !w.TryGetTarget(out var be) || world.BlockAccessor.GetBlockEntity(be.Pos) != be);

@@ -12,10 +12,11 @@ public readonly record struct RockerPoint(Float3 Pos, string? Part);
 /// (written by Rocker/tools/make_shape.py). Native, south-facing frame, one cell (0,0,0), blocks. The
 /// keys are the model's contract with gameplay (Rocker/README.md, "Rig schema"); unknown keys are
 /// ignored. A hand station watered by bucket, with no automated input or output: a rig naming a power
-/// cell or face, a water cell or face, or an infeed or output side is refused. Throws
-/// <see cref="FormatException"/> naming what is wrong.
+/// cell or face, a water cell or face, or an infeed or output side is refused, and it has no anchors for
+/// the shared machine base (<see cref="IMachineRig"/>). Throws <see cref="FormatException"/> naming what is
+/// wrong.
 /// </summary>
-public sealed class RockerRig
+public sealed class RockerRig : IMachineRig
 {
     public const string CradlePart = "cradle";
 
@@ -37,6 +38,16 @@ public sealed class RockerRig
     /// <summary>The rock's amplitude, degrees each way.</summary>
     public float RockDegrees { get; }
     public RigParts MovingParts { get; }
+
+    /// <summary>Its one cell, the controller's.</summary>
+    public IReadOnlyList<RigCell> Cells => [Cell];
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>None: a hand station takes no axle, chute or pipe.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+
+    public MachineAnchor? Anchor(string name) => null;
 
     public RockerRig(RigCell cell, Side operatorSide, RockerPoint pour, RockerPoint outflow, RockerPoint concentrate,
                      Float3 tailings, float rockDegrees, RigParts movingParts)

@@ -7,15 +7,16 @@ Woodworking's (`immersivewoodworking`) sawmill parts, and is modelled on how Imm
 Woodworking's own sawmill works, without referencing either mod at build time.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
-(`mods-src/seraphhorizons/`). `Core/` is the game-independent part, `Game/` the blocks, block
-entities, renderer and mod system (`BuckingSawmillSystem`), and `tools/` the model's generator.
-What the mill shares with the rosser (`../Rosser/README.md`) is in `../Machines/`: the footprint,
-rig maths, trunk box and shaft clock in `../Machines/Core/`, the trunk helpers and the Logging
-Expanded bridge in `../Machines/Game/`, and the generic half of the generator in
-`../Machines/tools/machinegen/`.
+(`mods-src/seraphhorizons/`). `Core/` is the game-independent part, `Game/` the block entity,
+renderer and mod system (`BuckingSawmillSystem`), and `tools/` the model's generator.
+What the mill shares with the rosser (`../Rosser/README.md`) and every other machine is in `../Machines/`:
+the footprint, rig maths, trunk box, shaft clock and staged build in `../Machines/Core/`, the trunk helpers,
+the Logging Expanded bridge and the shared machine base (`BEMachine`, the frame and cell blocks, the power
+behaviour, the oil; `../../../docs/modeling/machine-base.md`) in `../Machines/Game/`, and the generic half of
+the generator in `../Machines/tools/machinegen/`.
 
 The mill needs both mods. With the switch off, or either mod not installed, the server marks the
-mill's three blocktypes and its recipe disabled before the game loads them
+mill's frame blocktype and its recipe disabled before the game loads them
 (`BuckingSawmillSystem.Disable`), so the blocks do not exist at all; mills already placed in a
 world are then lost. The classes are registered on both sides whatever the setting, and a client
 follows the server.
@@ -26,16 +27,17 @@ follows the server.
 **Placing** it, the mill extends away from the player along their line of sight: the block they
 clicked becomes the controller, the middle of the machine's near end, which is the output end where
 the logs come out; the far end carries the axle and is where a Trunk Storage Rack stands.
-`BlockBuckingMill.TryPlaceBlock` picks the `side` with `Footprint.PlacedFacing`: looking north
+The frame is the shared machine base's (`BlockMachine`, `class: "seraphhorizons.Machine"`, placed
+lengthwise: its rig's `IMachineRig.PlacedSide`), which picks the `side` with `Footprint.PlacedFacing`: looking north
 places `west`, east `north`, south `east`, west `south` (the native west end then points the way
-the player looks). Placing needs room for every cell of the rig and stamps an invisible ghost
-into each other cell: `buckingmill-ghost`, and `buckingmill-ghostpower-{side}` in the cell that
-takes the axle. Ghosts store the controller's position and pass interaction, breaking, the
+the player looks). Placing needs room for every cell of the rig and stamps the shared machine cells
+into each other cell: `seraphhorizons:machine-cell`, and `machine-cellpower-{face}` in the cell that
+takes the axle (`face` the world face the axle meets). Cells store the controller's position and pass interaction, breaking, the
 pick-block stack, particles, name, info and help to it, as Immersive Woodworking's sawmill ghosts
-do. Every cell's collision and selection boxes come from the controller (`CellBoxes`): its own from
-the rig, plus its part of a loaded trunk (see **Trunks**). Its collision boxes
-(`CollisionBoxes`) add the cell's lid, if the rig gives it one (see **Rig**). The controller re-stamps missing ghosts
-shortly after it loads. Breaking the frame or any ghost breaks the whole mill.
+do. Every cell's collision and selection boxes come from the controller (`BEBuckingMill.CellBoxes`, the
+base's overridden): its own from the rig, plus its part of a loaded trunk (see **Trunks**). Its collision boxes
+(`CollisionBoxes`) add the cell's lid, if the rig gives it one (see **Rig**). The controller re-stamps missing cells
+shortly after it loads and once a second. Breaking the frame or any cell breaks the whole mill.
 
 **Rig.** The footprint and anchor points are data, in `assets/seraphhorizons/config/buckingmill-rig.json`
 (written by the model's tooling in `tools/`): every occupied cell with its collision and selection
@@ -53,10 +55,14 @@ Woodworking: with n the normal of the `side` variant, local (x, y, z) goes to
 (x·nz + z·nx, y, −x·nx + z·nz), and the shape turns by rotateY north 180, east 90, south 0,
 west 270. `Core/Rig.cs` parses the file and `../Machines/Core/Footprint.cs` does the turning.
 
-**Assembly.** Right-click the frame or any ghost holding a part, recognised by code path as
-Immersive Woodworking does: two `sawmillsash`, one `sawmillcrankshaft`, one `sawmilllevers` and one
-`sawmillblade-{metal}` kit, of any metal, which puts a blade in each saw. Any order, but the blade
-kit needs both sashes, one for each of its blades (so a blade never shows without its saw head).
+**Assembly.** Right-click the frame or any cell holding a part: two `sawmillsash`, one `sawmillcrankshaft`,
+one `sawmilllevers` and one `sawmillblade-{metal}` kit, of any metal, which puts a blade in each saw. Any order,
+one a click, but the blade kit needs both sashes, one for each of its blades (so a blade never shows without its
+saw head). The build is data on the shared staged build, `assets/seraphhorizons/config/builds/buckingmill.json`:
+one stage of the four parts, each its own material drawing its rig part as it goes in (`draws`), so they go in
+any order; the blade kit is its durable wearing part (`blade`), fitted by the mill's own rule once both sashes
+are in (`Core/MillRequires.cs`, `BladeKits.Fit`), so before or after the crankshaft and levers, with the
+durability it has left. Its uses are each kit's own durability (`WearingPart.UsesOf`: the metals differ).
 The levers are the linkage that throws the windlass in when the saws reach the bed and out again
 when they are back at the top (see **Saws** below). No carriage: in Immersive Woodworking it carries the log, which this
 mill does not do, and holding one does nothing special here. Parts are used up outside creative
@@ -65,34 +71,43 @@ there is one, otherwise the blade kit. With trunk entities (`../TrunkEntities/RE
 trunk goes into the player's Carry On hands, and stays on the bed with an error while those are
 full (`TrunkStations.GiveToHands`); without Carry On it is laid on the ground two cells beyond the
 infeed end, across the line (`TrunkStations.DropBeyond`). The other parts come back only by breaking the frame,
-which drops the frame, every fitted part, the blade kit and a recoverable trunk (with trunk
-entities, as a trunk entity). The rules are in
-`Core/Parts.cs`.
+which drops the frame, every fitted part, the blade kit with the durability it has left and a recoverable
+trunk (with trunk entities, as a trunk entity). A refused part says why in the shared messages
+(`machine-error-*`: already fitted), the blade kit in the mill's own (`buckingmill-error-need-sashes`,
+`-blade-fitted`).
 
 **Creative shortcut.** The woodworking stations' (the mod README's unified woodworking section,
 `Core/CreativeUpgrades.cs`): a player in creative mode who right-clicks an unassembled mill with
 Ctrl (the game's `ctrl`, sprint by default) held and not Shift gets its next part fitted at once,
-whatever they hold, with nothing taken: the sashes, the crankshaft, the levers, then a steel blade
-kit (`AssembledMachines.DefaultMetal`, as the assembled creative sawmill's), one per click, in the
-order `Parts.Missing` lists them (`Parts.NextPart`). On an assembled mill Ctrl does what it does in
+whatever they hold, with nothing taken: every part still missing at once (the build's stage), then a steel
+blade kit (`AssembledMachines.DefaultMetal`, as the assembled creative sawmill's, the wearing part's first
+code), the shared base's shortcut (`MachineAssembly.FillNext`). On an assembled mill Ctrl does what it does in
 survival: it takes the trunk, else the blade kit, back, a step back, and the next Ctrl fits a kit
 again. It is part of `UnifiedWoodworking` and runs while that tweak runs
-(`BEBuckingMill.CreativeShortcut`); the server decides, reading the game mode from its own player
+(`BEBuckingMill.WoodworkingShortcut`, `CreativeFills`); the server decides, reading the game mode from its own player
 data, and a player in creative sees its help line (`seraphhorizons:woodworking-help-creative-upgrade`)
 while a part is missing.
 
-**Power.** `BEBehaviorMillMP`, a mechanical power consumer on the power ghost, connects only
-through the rig's power face, turned to the mill's facing (like Immersive Woodworking's
-`BEBehaviorSawmillMP`, without its cap on the network's speed). It loads the shaft with 0.005 until
-the mill is assembled, then with `Resistance`. The mill runs its saws' cycle, cuts, and pulls from a
-rack only while it is assembled and the shaft turns at `MinSpeed` or faster.
+**Power.** The shared `BEBehaviorMachineMP`, a mechanical power consumer on the power cell, connects only
+through the rig's power face (the base's `power` anchor, `Rig` being an `IMachineRig`), turned to the mill's
+facing (like Immersive Woodworking's `BEBehaviorSawmillMP`, without its cap on the network's speed). It loads
+the shaft with 0.005 (`MachineLoad.Unassembled`) until the mill is assembled with its blade kit, then with
+`Resistance`. The mill runs its saws' cycle, cuts, and pulls from a rack only while it is assembled and the
+shaft turns at `MinSpeed` or faster: the base's running rules, the cycle running empty too (`HasWork`), the
+holds (winding stopped saws up by hand, a trunk waiting for the top) the mill's own.
 
-**Oil.** With `MachineOil` on (`../README.md`, "Machines need oil"), the mill keeps an oil tank
-(`OilState`, saved in its tree under `seraphhorizons:oil` and synced), built empty: while it is dry
-`Resistance` is multiplied by `MachineOilSettings.DryResistanceMultiplier` (3). Holding oil, a click
-on any cell pours it before anything else in `OnInteract`; a finished cut drains
+**Oil.** With `MachineOil` on (`../README.md`, "Machines need oil"), the mill keeps an oil tank, the shared
+base's (`MachineOiling`, `OilMachine.BuckingMill`, saved in its tree under `seraphhorizons:oil` and synced),
+built empty: while it is dry `Resistance` is multiplied by `MachineOilSettings.DryResistanceMultiplier` (3).
+Holding oil, a click on any cell pours it before anything else; a finished cut drains
 `MachineOilSettings.BuckingMill.DrainPerJob` (2) per stored log, rounded up over the trunk
 (`OilDrain.PerTrunk`); the block info shows the tank; a dry mill smokes while it turns.
+
+**Block info.** The shared layout (`MachineText`): the build (the stage and what it still takes, with a line
+for the blade kit until the parts are all in) or the blade kit's share left; the state (`Running`, with the
+cut's percent while a trunk is on; `buckingmill-state-*`); the oil; then the mill's own lines: winding the
+saws up, where the saws are and the trunk on the bed, a trunk going on at the top, and the rack. With a wrench:
+the kit's uses left, how fast it cuts, the cut in shaft turns, the oil a job drains, the shaft and the facing.
 
 **Trunks.** One at a time, held as the trunk's whole item stack, so one taken back out is unchanged.
 It is shown as one of two of Logging Expanded's models, whatever its own size (`../Machines/Core/TrunkBox.cs`):
@@ -158,7 +173,7 @@ can see why nothing is coming.
 **A rosser in line.** The same three cells also find a second kind of feeder: a machine whose
 block entity implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`), the rosser. A rosser
 placed beyond the far end, facing the mill's way, has its outfeed end in those cells. `CheckRack`
-asks each cell first for a feeder (the block entity there, or the controller of a ghost there,
+asks each cell first for a feeder (the block entity there, or the controller of a cell there,
 through `IMachineGhost`), and counts one only if it faces the mill's own way (`Side`) and the cell
 is one of its outfeed cells (`HasOutfeedCell`); otherwise it looks for a rack as before. The
 feeder's rules say whether a trunk is finished (`PeekFinished`); the mill then applies the rack's
@@ -168,7 +183,7 @@ trunk the mill does not take stays on the rosser. The block info adds three `Rac
 `FeederEmpty`, `FeederBusy` (a trunk is on its way through) and `FeederReady`; between offers
 that do not pull, it names a trunk the player has to deal with first, then one on its way, then an
 empty rosser, then an empty rack (`Feeding.MoreTelling`). The Atlas scenarios test this with a
-stub feeder in every cell and facing, and through a ghost, and with real rossers placed in line on
+stub feeder in every cell and facing, and through a stub cell, and with real rossers placed in line on
 every facing. The rosser answers `HasOutfeedCell` only for its controller's cell, the one on the
 trunk's line, so a rosser offset one block sideways is still found and one further off is not; its
 side of the hand-off is in `../Rosser/README.md` ("The mill in line"). To set the two up, place the
@@ -244,9 +259,10 @@ log block whose size is the count). If a member is missing the mod logs one warn
 takes and cuts no trunks.
 
 **Rendering.** The controller draws the static frame through its JSON shape,
-`shapes/block/buckingmill_frame.json`. The block entity implements `IMillVisualState` (facing,
-fitted parts, blade metal, trunk, phase, client-side progress and saw depth, shaft angle and
-speed), which `MillRenderer` polls to draw the moving parts and the trunk (see [Model](#model)).
+`shapes/block/buckingmill_frame.json`. `MillRenderer`, the mill's own renderer rather than the shared
+`MachineRenderer` (it draws the trunk, the blades in the kit's metal, and the sawing's sound and sawdust;
+`BEMachine.CreateRenderer`), polls the block entity (facing, the parts it shows, blade metal, trunk, phase,
+client-side progress and saw depth, shaft angle and speed) to draw the moving parts and the trunk (see [Model](#model)).
 
 ## Config
 
@@ -563,18 +579,18 @@ The model is posed for θ = 0, depth 0 and going down. The exceptions are the yo
 
 ### Rendering
 
-`MillRenderer` (client only, made and disposed by `BEBuckingMill`) draws everything that moves. The static frame comes from the block's own JSON shape, `buckingmill_frame.json`, which holds the same elements as the `frame` part. The renderer skips that part, so the frame is never drawn twice.
+`MillRenderer` (client only, made and disposed by the shared base for `BEBuckingMill`) draws everything that moves. The static frame comes from the block's own JSON shape, `buckingmill_frame.json`, which holds the same elements as the `frame` part. The renderer skips that part, so the frame is never drawn twice.
 
 The renderer:
 - **Builds one mesh per moving rig part** from `buckingmill.json` in a single tessellation: each element's `JointId` is set to its part + 1, `TesselateShapeWithJointIds` writes it per vertex into `CustomInts`, and the faces are copied out by that tag (`MachineMeshes.PartMeshes`). If the tags don't check out it falls back, logged once, to one tessellation per part with every other part's elements blanked, as Immersive Woodworking's sawmill renderer does.
 - **Shares them**: the uploaded meshes are cached for the session (`MachinePartMeshes`), the plain parts once and the blades once per blade metal, for every mill; they are disposed when the client leaves the world, never by a renderer, which disposes only its trunk's mesh.
 - **Draws each part** with its rig matrix (`RigParts.Matrices(θ, depth, lifting, ψ)` in `../Machines/Core/RigAnimation.cs`), turned to the mill's facing.
-  - A part whose `requires` is not fitted is skipped; the levers part is drawn when `HasLevers`.
+  - A part whose `requires` is not fitted is skipped (`BEMachine.ShowsPart`: the build's draws, the blade kit's wearing part).
   - It registers for the opaque pass and both shadow passes, and draws nothing beyond 64 blocks.
   - The rope's matrix scales along one axis, so it is not rigid.
 - **Blade texture:** the blade meshes take the fitted kit's metal (`game:block/metal/ingot/{metal}`) in place of `metal`. The head's clamps keep iron.
 - **The loaded trunk** is Logging Expanded's own block of the trunk's wood without branches, in the `lg` size for a thin trunk and `xxl` for a thick one (`Trunks.ShownBlock`), whatever the stack's own size. It is laid on the bed from its tessellated bounds: turned onto x, centred on `trunkBed.origin`, its underside on the bed. It stays whole until the cut finishes and the gameplay clears it.
-- **Shaft angle:** taken from the power ghost's `AngleRad`, which the network already advances smoothly on the client, and accumulated into a continuous angle.
+- **Shaft angle:** taken from the power cell's `AngleRad`, which the network already advances smoothly on the client, and accumulated into a continuous angle.
   - The native shaft angle is `-AngleRad` facing south or west and `+AngleRad` facing north or east (`MillMotion.NativeShaftAngle`).
   - That makes the shaft turn with a vanilla axle on the power face, which draws itself as a right-handed turn of `-AngleRad` about the world axis.
 - **Depth, lifting and travel:** depth is the block entity's `ClientSawDepth`, and lifting is 1 while `ClientRising`, otherwise 0. The shaft's travel ψ adds up the size of every turn of the shaft, so the rectified gears turn the same way whichever way the network drives it.
@@ -623,7 +639,8 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
 - `tests/BuckingSawmill/` (part of the mod's unit tests, `dotnet test mods-src/seraphhorizons/tests`,
   no game needed) compiles `Core/` and tests
   the rig parser (with its own fixture, and the shipped `buckingmill-rig.json`), the rotation maths, the
-  assembly rules (one kit, after both sashes) and the creative shortcut's order, the cut arithmetic
+  assembly rules on the shipped build file (`MillBuildTests`: any order, a part a click, one kit of any metal
+  after both sashes, its own durability, taken out with what is left; the creative shortcut), the cut arithmetic
   (wear one per stored log, the blade speed by tier and that it shortens the cut only), the trunk's
   shown size and its box (centred on the bed, clipped into cells, reaching up through an empty cell,
   and what of it the shipped cells cover), the saws' cycle (empty down and up, turning at both ends in
@@ -640,7 +657,7 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
 - `tests/PackTests/BuckingSawmillScenarios.cs` (Atlas) loads this build with every locked mod: the
   mod loads cleanly with its recipe, the bridge resolves against the pinned Logging Expanded,
-  placing stamps the ghosts in every facing and breaking removes them and drops the parts, a
+  placing stamps the cells in every facing and breaking removes them and drops the parts, a
   player looking each of the four ways places a mill that extends away from them (the axle cell 5
   blocks ahead, the rack cells beyond it, the output behind the clicked block),
   assembly follows the rules (levers included), racks feed debranched trunks only (also through a
@@ -666,7 +683,7 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   selection boxes, and the collision boxes reaching the lid's height cover the whole cell. Each metal's
   kit has its expected speed, the metal-properties fallback agrees with the game's saws, and a
   steel kit cuts in 1/2.05 of copper's turns while the saws still rise at the same rate. Every kit's
-  durability is tripled. In creative, Ctrl + right click fits the parts one by one with nothing
+  durability is tripled. In creative, Ctrl + right click fits the parts, then a kit, with nothing
   taken (not in survival, not with Shift), shows its help line, and on the assembled mill takes
   the kit back and fits a new one. They are part of `WoodworkingScenarios`, which shares one
   server with the other woodworking scenarios (the rosser's and the debarked trunk's run apart,
@@ -679,7 +696,7 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
 - `tests/BuckingSawmill/FeedingTests.cs` also covers the second feeder kind: the rack's and the
   feeder's offers, which states pull, the order `MoreTelling` gives (the racks' pairs as the old enum
   order), the states' saved numbers and each state's lang line. `tests/PackTests/MillFeederScenarios.cs`
-  (Atlas) finds a stub feeder in every infeed cell and facing, directly and through a stub ghost,
+  (Atlas) finds a stub feeder in every infeed cell and facing, directly and through a stub cell,
   ignores one facing another way or in a cell that is not its outfeed cell, never takes with an
   unassembled mill, and has a running mill take a finished debarked trunk once, at the top, and cut it
   into debarked logs. `DebarkedTrunkScenarios` has the mill cut a debarked trunk into debarked logs,

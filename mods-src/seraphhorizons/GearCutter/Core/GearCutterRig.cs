@@ -8,9 +8,10 @@ namespace SeraphHorizons.Mod.GearCutter.Core;
 /// The gear cutter's footprint, anchors, work and moving parts, from
 /// assets/seraphhorizons/config/gearcutter-rig.json (written by GearCutter/tools/make_shape.py).
 /// Native, south-facing frame, controller cell at (0,0,0), blocks. The keys are the README's ("Rig
-/// schema"); unknown keys are ignored. Throws <see cref="FormatException"/> naming what is wrong.
+/// schema"); unknown keys are ignored. Its power cell and face are the shared machine base's <c>power</c>
+/// anchor (<see cref="IMachineRig"/>). Throws <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class GearCutterRig
+public sealed class GearCutterRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     public Int3 PowerCell { get; }
@@ -27,6 +28,21 @@ public sealed class GearCutterRig
     /// <summary>Axle turns per tooth as the model is drawn.</summary>
     public float TurnsPerTooth { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>Its one anchor for the shared machine base: <c>power</c>, the axle on <see cref="PowerFace"/> of
+    /// <see cref="PowerCell"/>.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors =>
+        _anchors ??= new Dictionary<string, MachineAnchor> { [MachineRigs.Power] = new(MachineRigs.Power, PowerCell, PowerFace.Face()) };
+
+    private IReadOnlyDictionary<string, MachineAnchor>? _anchors;
+
+    public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
+
+    /// <summary>Placed as the mills are (<see cref="Footprint.PlacedFacing"/>): the column's back, native west, away
+    /// from the player.</summary>
+    public Side PlacedSide(Side look) => Footprint.PlacedFacing(look);
 
     public GearCutterRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side outputSide,
                          Float3 output, Float3 chips, Float3 drip, WorkQuantity work, float turnsPerTooth, RigParts? movingParts = null)
@@ -59,9 +75,6 @@ public sealed class GearCutterRig
         TurnsPerTooth = turnsPerTooth;
         MovingParts = movingParts ?? new RigParts([], work);
     }
-
-    /// <summary>The cells other than the controller's, in file order.</summary>
-    public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
     /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell, where the finished gear
     /// is dropped.</summary>

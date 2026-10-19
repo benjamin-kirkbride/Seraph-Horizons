@@ -112,9 +112,9 @@ public partial class MillWorldScenarios
     {
         Assert.True(SluiceSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:sluice-{side}")));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:sluice-{side}")));
         Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:sluice-north");
-        var build = OreMachinesSystem.Of(World.Api).Build("sluice");
+        var build = MachinesSystem.Of(World.Api).Build("sluice");
         Assert.NotNull(build);
         Assert.Equal(["riffles", "services"], build!.Stages.Select(s => s.Id));
         var rig = OreMachinesSystem.Of(World.Api).Rig("sluice", ["concentrate"]);

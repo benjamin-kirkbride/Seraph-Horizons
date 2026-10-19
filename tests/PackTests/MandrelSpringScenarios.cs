@@ -149,7 +149,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(3, station.JobClass);
         Assert.False(station.HollowOn);
         Assert.InRange(station.RodTemperature, 1000, 1100);
-        Assert.Contains("A steel rod on the mandrel", MandrelInfo(station, player));
+        Assert.Contains("On the mandrel: a steel rod", MachineTest.Info(station, player));
         // no tongs: nothing else goes on (a click is a refused hold), the hold is refused and nothing winds
         HoldTongs(player, null);
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Forging.LeadHollow))?.StackSize);
@@ -187,7 +187,7 @@ public partial class SharedWorldScenarios
         Assert.InRange(spring.Collectible.GetTemperature(W, spring), temperature - 100, temperature + 1);
         Assert.True(spring.Collectible.GetTemperature(W, spring) > 751);
         Assert.Equal(durability - MandrelMod.Config.TongsWearPerRod, tongs.Collectible.GetRemainingDurability(tongs));
-        Assert.Contains("Mandrel bare", MandrelInfo(station, player));
+        Assert.Contains("Mandrel bare", MachineTest.Info(station, player));
         CutterKillItems(pos);
         HoldTongs(player, null);
     }
@@ -211,7 +211,7 @@ public partial class SharedWorldScenarios
         station.Rod!.Collectible.SetTemperature(W, station.Rod, 700);
         await MandrelHold(station, player, 20);
         Assert.Equal(wound, station.Wind.Work, 6);
-        Assert.Contains("too cold to wind", MandrelInfo(station, player));
+        Assert.Contains("too cold to wind", MachineTest.Info(station, player));
         // taken back, straight, at 700 °C
         CutterClick(player, pos, null, ctrl: true);
         Assert.False(station.RodOn);

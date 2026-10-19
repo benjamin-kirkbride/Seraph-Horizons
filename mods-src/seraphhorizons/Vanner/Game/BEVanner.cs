@@ -36,6 +36,9 @@ public class BEVanner : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.Vanner;
 
+    /// <summary>Oiled, its job a rock vanned (<see cref="BEOreMachine.WorkItem"/>).</summary>
+    protected override OilMachine? OilKind => OilMachine.Vanner;
+
     protected override IReadOnlyList<string> OutputAnchors => [Concentrate, Tailings];
 
     /// <summary>What the concentrators wash: crushed or ground ore, rich gravel and bog iron

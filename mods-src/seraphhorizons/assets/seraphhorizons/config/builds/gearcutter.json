@@ -1,0 +1,72 @@
+{
+	"_comment": "The gear cutter's build (GearCutter/README.md, 'Build order', #480): its ten stages after the frame and their materials, in the only order they go in; read by Machines/Core/MachineBuildJson.cs (its schema) and kept by the shared machine base (docs/modeling/machine-base.md). The spindle and the index are each fed the bill their own items once had (2 steel rods, 2 steel plates, one lot of metal parts), a material a click; every other stage takes one item. The cutter kit is the wearing part, fitted as the cutter stage and durable: it goes in with the durability it has left (uses is the kit item's durability, set when the game loads), is worn by GearCutterSettings.CutterWearPerGear over the oil's fill a gear, comes back out by Ctrl with what is left, and a spent one is gone. The master is the last stage, either temporal gear (picks: which one is drawn, and decides the gear size), and comes back off by Ctrl once the kit is out. No block: the cutter's records are its own in the recipe export, not the ore machines' generic ones.",
+	"machine": "gearcutter",
+	"stages": [
+		{
+			"id": "spindle", "name": "spindle", "adds": ["spindle"],
+			"materials": [
+				{ "codes": ["game:rod-steel"], "quantity": 2 },
+				{ "codes": ["game:metalplate-steel"], "quantity": 2 },
+				{ "codes": ["game:metal-parts"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "feedscrew", "name": "feed screw", "adds": ["feedscrew"],
+			"materials": [
+				{ "codes": ["seraphhorizons:gearcutterfeedscrew"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "camfeed", "name": "feed cam drum", "adds": ["camfeed"],
+			"materials": [
+				{ "codes": ["game:jonasframes-gearbox02"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "camindex", "name": "index cam drum", "adds": ["camindex"],
+			"materials": [
+				{ "codes": ["game:jonasframes-gearbox02"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "liftcam", "name": "lift cam", "adds": ["liftcam"],
+			"materials": [
+				{ "codes": ["seraphhorizons:gearcutterliftcam"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "index", "name": "index", "adds": ["index"],
+			"materials": [
+				{ "codes": ["game:rod-steel"], "quantity": 2 },
+				{ "codes": ["game:metalplate-steel"], "quantity": 2 },
+				{ "codes": ["game:metal-parts"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "oiler", "name": "oiler", "adds": ["oiler"],
+			"materials": [
+				{ "codes": ["game:jonasparts-valve01"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "head", "name": "dividing head", "adds": ["head"],
+			"materials": [
+				{ "codes": ["game:jonasframes-gears02", "game:jonasframes-gears01"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "cutter", "name": "cutter", "adds": ["cutter"],
+			"materials": []
+		},
+		{
+			"id": "master", "name": "master", "adds": ["master", "masterlarge"],
+			"materials": [
+				{ "codes": ["game:gear-temporal", "game:largegear-temporal"], "quantity": 1,
+				  "picks": { "game:gear-temporal": "master", "game:largegear-temporal": "masterlarge" } }
+			]
+		}
+	],
+	"wearing": [
+		{ "id": "kit", "codes": ["seraphhorizons:gearcutterkit-steel"], "count": 1, "uses": 500, "requires": "cutter", "stage": "cutter", "durable": true }
+	]
+}

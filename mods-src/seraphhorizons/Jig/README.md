@@ -333,6 +333,27 @@ launder); its own water inlet (the house's line had one nozzle over the sieve). 
 guide beam and the tail rod, the feed trough, the contents, the levels and flows for this layout, and the
 tests.
 
+## Oil
+
+The jig takes oil (`MachineOil`; `OilKind` `OilMachine.Jig` on the shared machine base's `MachineOiling`), as every
+machine on a shaft does: built dry, its load on its shaft is three times its own (`DryResistanceMultiplier`) until it
+is oiled, and a dry one smokes while it turns. Oil goes in by right-click on any cell with a container of oil or a
+lump of rendered fat (the mod's README, "Machines need oil"). Its job is a rock jigged, drained as each rock is worked (`BEOreMachine.WorkItem`); idle turning costs nothing.
+
+| Setting (`MachineOilSettings.Jig`) | Default | |
+|---|---|---|
+| `Tank` | 500 (5 L) | 5000 points a unit of working load: 0.1 × 5000 |
+| `DrainPerJob` | 1.4 | 2 points a unit of load and a shaft turn: 2 × 0.1 × its turns a job |
+
+**Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
+copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
+mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
+jig's load is 0.1; it works 8 rocks an hour at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 / 8 = 7.16 turns a rock, and 2 × load × turns rounds to 1.4. A full tank is 357 rocks, about 44 hours of work at the
+reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
+battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
+the defaults to the shipped figures.
+
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in projections rendered from the written files, not yet in a client.
@@ -397,7 +418,7 @@ Built (#919; the mod's README, "Jig"): a continuous concentrator, r = 0.60, 8 ro
   in); `water` (both surfaces) once it is built and its reservoir holds any, `bed` while it works (the
   blocktype's `extraRequires`). The renderer draws in the opaque pass only, so the water's surfaces are opaque
   sheets over the bed (weak spot 5); the frame shape is the block's.
-- **Anchors.** `power` takes the axle (`oremachine-cellpower-west` turned to the world); `infeed` a chute laid down
+- **Anchors.** `power` takes the axle (`machine-cellpower-west` turned to the world); `infeed` a chute laid down
   onto it; `concentrate` and `tailings` a chute laid to take from them or a container; with nothing at the
   tailings face the tailings fall to the ground below it and heap as gravel (`Tailings.Landing`, since the face is
   in the upper row); `water` a ppex pipe. `levels`, `sieve`, `pipes`, `contents` and `drive` are not read.

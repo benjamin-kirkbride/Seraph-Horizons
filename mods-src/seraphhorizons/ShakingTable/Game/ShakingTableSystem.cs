@@ -9,7 +9,7 @@ namespace SeraphHorizons.Mod.ShakingTable;
 
 /// <summary>
 /// The shaking table (#921; README "Shaking table"): registers its block entity and says what it washes. Its
-/// frame is the shared ore machine block (<see cref="BlockOreMachine"/>), its cells the shared ones; its figures
+/// frame is the shared machine block (<see cref="BlockMachine"/>), its cells the shared ones; its figures
 /// are ore-core's (<c>config/ore-processing.json</c>, <c>machines.table</c>). With the <c>ShakingTable</c>
 /// switch off, or ore processing off (its concentrate does not exist then), the server leaves its frame and
 /// recipe out of the game.
@@ -37,7 +37,7 @@ public class ShakingTableSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 
     /// <summary>Whether the table washes <paramref name="stack"/>: what the sluice and the jig wash (crushed or

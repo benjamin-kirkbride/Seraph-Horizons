@@ -324,11 +324,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
         // The mod's other blocks are the bucking sawmill's, off here as well, the inn flag and sign,
         // which load with TravellingMerchants off too (a world may hold them), and the springs, which
-        // load with Springs off so that those in a world turn back into water, and the ore machines' shared
+        // load with Springs off so that those in a world turn back into water, and the machine base's shared
         // cells (Machines/Game, #711), which belong to no one machine's switch and nothing places on its own.
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
             && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal)
-            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("oremachine-", StringComparison.Ordinal));
+            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("machine-", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own
@@ -565,7 +565,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("drawbench") == true);
         Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("drawdie") == true);
         // the parts it takes are the game's, and exist either way
-        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.DrawBench.Core.DrawBenchParts.GearboxCode)));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:jonasframes-gearbox01")));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:(drawbench|drawdie)"))
@@ -638,7 +638,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.EidolonGantry.EidolonGantrySystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("eidolongantry"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("eidolongantry") == true);
-        Assert.True(W.GetBlock(new AssetLocation(SeraphHorizons.Mod.EidolonGantry.Core.GantryParts.AxleCode)) is { Id: > 0 });
+        Assert.True(W.GetBlock(new AssetLocation("game:woodenaxle-ud")) is { Id: > 0 });
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && e.Value.Contains("handbook://block-seraphhorizons:eidolongantry", StringComparison.Ordinal))
@@ -763,7 +763,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.Riddle.RiddleSystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("riddle"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("riddle") == true);
-        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleParts.MeshCodes)
+        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleBuild.MeshCodes)
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
@@ -790,7 +790,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("halfplate"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("squaringshear") == true);
         Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.SquaringShear.Core.Cutting.LeadPlate)));
-        foreach (var code in SeraphHorizons.Mod.SquaringShear.Core.SquaringShearParts.GaugeCodes)
+        foreach (var code in new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" })
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
