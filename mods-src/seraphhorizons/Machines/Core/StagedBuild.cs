@@ -10,10 +10,13 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// before the rest of its stage (the jaw breaker's toggles, then its springs). <see cref="Wearing"/>
 /// names the wearing part this material is the first set of (<see cref="MachineAssembly"/>).
 /// <see cref="OneType"/>: every item of it must be the first one's code (the stall roaster's brickwork, any
-/// fired brick but all of one type, #925).
+/// fired brick but all of one type, #925). <see cref="IfExists"/>: the material is left out of a game that
+/// has none of its items (the draw bench's spring, with the <c>MandrelSprings</c> switch off;
+/// <see cref="MachineBuild.Resolve"/>). <see cref="Partial"/>: a click puts in as many as are held, fewer than
+/// the material still needs too (the rosser's ring sections, one at a time if need be), not only all of it.
 /// </summary>
 public sealed record BuildMaterial(IReadOnlyList<string> Codes, int Quantity, IReadOnlyDictionary<string, string>? Picks = null,
-    IReadOnlyList<string>? Draws = null, string? Wearing = null, bool OneType = false)
+    IReadOnlyList<string>? Draws = null, string? Wearing = null, bool OneType = false, bool IfExists = false, bool Partial = false)
 {
     /// <summary>Whether <paramref name="code"/> (a full code) is this material.</summary>
     public bool Matches(string code) => Codes.Any(p => CodePattern.Matches(p, code));
@@ -53,8 +56,9 @@ public enum StageFitVerdict
 /// how many of the stack it takes.</summary>
 public readonly record struct StageFit(StageFitVerdict Verdict, int Stage, int Material, int Count);
 
-/// <summary>A fitted item as breaking the machine gives it back.</summary>
-public readonly record struct StageDrop(string Code, int Count);
+/// <summary>A fitted item as breaking the machine gives it back; a durable wearing part's with the
+/// durability it has left (<see cref="WearingPart.Durable"/>), null for every other.</summary>
+public readonly record struct StageDrop(string Code, int Count, double? Durability = null);
 
 /// <summary>Code patterns: full codes with <c>*</c> for any run of characters.</summary>
 public static class CodePattern
@@ -134,17 +138,22 @@ public sealed class StagedBuild
     public int StagesDone => Next ?? Stages.Count;
 
     /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn as far as the build
-    /// goes: null always (the frame); a stage's <see cref="MachineStage.Adds"/> once it is complete, a
-    /// pick only when its material was put in that way. A <c>requires</c> no stage adds is the
-    /// machine's own (contents, a wearing part) and is not the build's: true here.</summary>
+    /// goes: null always (the frame); a material's <see cref="BuildMaterial.Draws"/> once it is all in; a
+    /// stage's <see cref="MachineStage.Adds"/> once it is complete; a pick, either way, only when its
+    /// material was put in that way. A <c>requires</c> no stage adds is the machine's own (contents, a
+    /// wearing part) and is not the build's: true here.</summary>
     public bool Fitted(string? requires)
     {
         if (requires == null)
             return true;
         for (int s = 0; s < Stages.Count; s++)
             for (int m = 0; m < Stages[s].Materials.Count; m++)
-                if (Stages[s].Materials[m].Draws?.Contains(requires) == true)
-                    return Missing(s, m) == 0 && (s == 0 || StageComplete(s - 1));
+            {
+                var material = Stages[s].Materials[m];
+                if (material.Draws?.Contains(requires) == true)
+                    return Missing(s, m) == 0 && (s == 0 || StageComplete(s - 1))
+                           && (material.Picks?.Values.Contains(requires) != true || _fitted[s][m].Keys.Any(code => material.PickOf(code) == requires));
+            }
         for (int s = 0; s < Stages.Count; s++)
         {
             var stage = Stages[s];
@@ -202,10 +211,13 @@ public sealed class StagedBuild
         }
         if (material < 0)
         {
+            // a stage still to come that takes it says so before an earlier one that took it (the eidolon
+            // gantry's rods: the crank shaft's, then the crank's)
+            if (anyMaterial < 0 && Find(code, next + 1, Stages.Count).Stage >= 0)
+                return new StageFit(StageFitVerdict.OutOfOrder, next, -1, 0);
             if (anyMaterial >= 0 || Find(code, 0, next).Stage >= 0)
                 return new StageFit(StageFitVerdict.AlreadyFitted, next, anyMaterial, 0);
-            return new StageFit(Find(code, next + 1, Stages.Count).Stage >= 0 ? StageFitVerdict.OutOfOrder : StageFitVerdict.NotAMaterial,
-                next, -1, 0);
+            return new StageFit(StageFitVerdict.NotAMaterial, next, -1, 0);
         }
         var picked = Stages[next].Materials[material];
         if (picked.Picks != null && _fitted[next][material].Keys.Any(c => picked.PickOf(c) != picked.PickOf(code)))
@@ -215,7 +227,7 @@ public sealed class StagedBuild
         int missing = Missing(next, material);
         if (held >= missing)
             return new StageFit(StageFitVerdict.Fits, next, material, missing);
-        if (held >= maxStack)
+        if (held >= maxStack || picked.Partial)
             return new StageFit(StageFitVerdict.Fits, next, material, held);
         return new StageFit(StageFitVerdict.TooFew, next, material, 0);
     }
@@ -231,6 +243,25 @@ public sealed class StagedBuild
         string key = CodePattern.Normalise(code)!;
         into[key] = into.GetValueOrDefault(key) + fit.Count;
         return fit;
+    }
+
+    /// <summary>Takes stage <paramref name="stage"/> back out (the gear cutter's master, changed by Ctrl +
+    /// right-click): every item it holds, by code; empty, with nothing taken, unless it is complete and no
+    /// later stage holds anything, so the build stays a run from the first stage.</summary>
+    public IReadOnlyList<StageDrop> TakeStage(int stage)
+    {
+        if (stage < 0 || stage >= Stages.Count || !StageComplete(stage))
+            return [];
+        for (int s = stage + 1; s < Stages.Count; s++)
+            if (_fitted[s].Any(m => m.Values.Any(n => n > 0)))
+                return [];
+        var drops = new List<StageDrop>();
+        foreach (var material in _fitted[stage])
+        {
+            drops.AddRange(material.Where(kv => kv.Value > 0).Select(kv => new StageDrop(kv.Key, kv.Value)));
+            material.Clear();
+        }
+        return drops;
     }
 
     /// <summary>What the next stage still takes: each material missing and how many; empty when built.</summary>

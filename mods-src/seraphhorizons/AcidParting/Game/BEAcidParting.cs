@@ -33,7 +33,7 @@ namespace SeraphHorizons.Mod.AcidParting;
 /// <see cref="FirstGoldSlot"/> on the gold, slots <see cref="FirstSilverSlot"/> on the silver; all drop when it is
 /// broken, with the cap. The acid and the water are lost with it.</para>
 /// </summary>
-public class BEAcidParting : BEOreMachine
+public class BEAcidParting : BEFiredOreMachine
 {
     public const int DoreSlot = 1, FirstGoldSlot = 2, FirstSilverSlot = 10;
     private const int LastSlot = MaxOutputs * SlotsPerOutput;
@@ -42,12 +42,11 @@ public class BEAcidParting : BEOreMachine
     private static readonly AssetLocation PourSound = new("game", "sounds/effect/water-pour");
 
     private Damper _damper;
-    private bool _capped, _lit, _started;
+    private bool _lit, _started;
     private double _fireLeft, _chargeUnits, _parted, _acid;
     private double _lastHours = double.NaN;
     private string? _ore;
     private readonly UnitCarry _carry = new();
-    private FurnaceRow _row = new(0, 1, null, 0, null, RowProblem.NoChimney);
     private double _syncedParted;
 
     public override OreMachine? Kind => OreMachine.AcidParting;
@@ -62,11 +61,11 @@ public class BEAcidParting : BEOreMachine
     private AcidPartingSystem VesselSystem => AcidPartingSystem.Of(Api);
     public AcidPartingConfig VesselConfig => VesselSystem.Config;
     public AcidPartingRig? VesselRig => Api == null ? null : VesselSystem.Rig;
+    protected override FiredRig? FiredRig => VesselRig;
+    protected override bool RowInOwnTick => true;
 
     public Damper Damper => _damper;
-    public bool Capped => _capped;
-    public bool Lit => _lit;
-    public FurnaceRow Row => _row;
+    public override bool Lit => _lit;
     /// <summary>Litres of nitric acid in the vessel (weak acid kept from the last charge counted).</summary>
     public double Acid => _acid;
     /// <summary>Units of the charge parting (its bars' gold), once started.</summary>
@@ -88,14 +87,10 @@ public class BEAcidParting : BEOreMachine
     public VesselPhase Phase => AcidPartingRules.PhaseOf(Bars, _chargeUnits, _parted, _started);
 
     /// <summary>The share of its full draught it burns and parts at now.</summary>
-    public double Draught => AcidPartingRules.Draught(_damper, _row.Works, VesselConfig);
+    public double Draught => AcidPartingRules.Draught(_damper, Row.Works, VesselConfig);
 
     /// <summary>Silver units the tub's copper can still throw down; 0 with none hung.</summary>
     public double CopperLeft => Assembly?.Wearing.Fitted(CopperPart)?.Left ?? 0;
-
-    /// <summary>The fired brick type of its brickwork (<c>red</c>), once the first is in.</summary>
-    public string? BrickType =>
-        Assembly?.Build.CodeIn(0, 0) is { } code && VesselRig is { } rig ? rig.Bricks.TypeOf(code) : null;
 
     public override bool HasWork => Phase == VesselPhase.Parting || Phase == VesselPhase.Charged && AcidPartingRules.AcidReady(Bars, _acid, VesselConfig);
 
@@ -114,35 +109,6 @@ public class BEAcidParting : BEOreMachine
 
     // ---- The row and its chimney (the crucible furnace's rule) ----
 
-    /// <summary>The chimney standing on the outlet, counted as the crucible furnace counts its own.</summary>
-    public ChimneyColumn ChimneyOnOutlet()
-    {
-        if (VesselRig is not { } rig)
-            return default;
-        var ba = Api.World.BlockAccessor;
-        var pos = CellPos(rig.ChimneyBase);
-        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), CrucibleFurnaceSystem.Of(Api).Config);
-    }
-
-    private BEAcidParting? Neighbour(int k)
-    {
-        if (VesselRig is not { } rig)
-            return null;
-        var w = Footprint.ToWorld(new Int3(k * rig.Width, 0, 0), Side);
-        return Api.World.BlockAccessor.GetBlockEntity(Pos.AddCopy(w.X, w.Y, w.Z)) is BEAcidParting { Built: true } v && v.Side == Side ? v : null;
-    }
-
-    /// <summary>Its row: vessels side by side along their width, one chimney on any outlet, the others capped.</summary>
-    public FurnaceRow FindRow()
-    {
-        if (VesselRig is not { } rig || !Built)
-            return new FurnaceRow(0, 1, null, 0, null, RowProblem.NoChimney);
-        RowMember? At(int k) => k == 0
-            ? new RowMember(_capped, ChimneyOnOutlet())
-            : Neighbour(k) is { } other ? new RowMember(other.Capped, other.ChimneyOnOutlet()) : null;
-        return FurnaceRow.Find(At, rig.RowMax, rig.MinChimney);
-    }
-
     // ---- The fire and the parting ----
 
     private void OnVesselTick(float dt)
@@ -153,12 +119,7 @@ public class BEAcidParting : BEOreMachine
         if (!Built)
             return;
         bool dirty = false;
-        var row = FindRow();
-        if (row != _row)
-        {
-            _row = row;
-            dirty = true;
-        }
+        dirty |= RefreshRow();
         double fired = Burn(hours * Draught, ref dirty);
         dirty |= PartFor(fired);
         if (dirty)
@@ -278,31 +239,17 @@ public class BEAcidParting : BEOreMachine
 
     // ---- Fire ----
 
-    public override bool Ignitable => Built;
-
-    public override bool Burning => _lit;
-
     public override string? CannotIgnite() =>
         !Built ? Lang.Get("seraphhorizons:acidparting-error-notbuilt")
         : _lit ? RefusalText(VesselRefusal.Burning)
         : FuelSlot.Empty ? RefusalText(VesselRefusal.NoFuel)
         : null;
 
-    public override void Ignite(IPlayer? byPlayer)
+    protected override void Light(IPlayer? byPlayer)
     {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        if (CannotIgnite() is { } why)
-        {
-            if (byPlayer is IServerPlayer sp)
-                sp.SendIngameError("acidparting", why);
-            return;
-        }
         _lit = TakeFuel();
         _lastHours = Api.World.Calendar.TotalHours;
-        _row = FindRow();
         Api.World.PlaySoundAt(new AssetLocation("game", "sounds/torch-ignite"), Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, byPlayer, true, 16, 0.6f);
-        MarkDirty(true);
     }
 
     // ---- Interaction ----
@@ -318,9 +265,6 @@ public class BEAcidParting : BEOreMachine
     }
 
     private Int3 LocalCell(BlockPos cell) => Footprint.ToLocal(new Int3(cell.X - Pos.X, cell.Y - Pos.Y, cell.Z - Pos.Z), Side);
-
-    private bool IsOutletTop(BlockSelection sel) =>
-        VesselRig is { } rig && sel.Face == BlockFacing.UP && LocalCell(sel.Position) == rig.OutletCell;
 
     /// <summary>Whether the click is at the tub rather than the vessel: in the hood's cell, nearer the tub's mouth.</summary>
     private bool AtTub(BlockSelection sel) =>
@@ -367,14 +311,9 @@ public class BEAcidParting : BEOreMachine
         var c = VesselConfig;
         if (stack == null)
         {
-            if (_capped && IsOutletTop(blockSel))
+            if (Capped && IsOutletTop(blockSel))
             {
-                if (server && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-                {
-                    _capped = false;
-                    Give(byPlayer, new ItemStack(plate, rig.CapCount));
-                    MarkDirty(true);
-                }
+                Uncap(byPlayer);
                 return true;
             }
             if (AtAsh(blockSel))
@@ -411,20 +350,8 @@ public class BEAcidParting : BEOreMachine
         }
 
         string code = stack.Collectible.Code.ToString();
-        if (!_capped && code == rig.CapCode && IsOutletTop(blockSel))
-        {
-            if (stack.StackSize < rig.CapCount)
-                return false;
-            if (server)
-            {
-                slot!.TakeOut(rig.CapCount);
-                slot.MarkDirty();
-                _capped = true;
-                Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/anvil1"), Pos, -0.25, byPlayer);
-                MarkDirty(true);
-            }
-            return true;
-        }
+        if (!Capped && code == rig.CapCode && IsOutletTop(blockSel))
+            return Cap(byPlayer, slot!);
         if (IsDore(stack))
         {
             if (DoreSlotItem.Itemstack is { } inside && !inside.Equals(Api.World, stack, GlobalConstants.IgnoredStackAttributes))
@@ -515,14 +442,6 @@ public class BEAcidParting : BEOreMachine
         MarkDirty(true);
     }
 
-    private void Give(IPlayer byPlayer, ItemStack? stack)
-    {
-        if (stack == null || stack.StackSize <= 0)
-            return;
-        if (!byPlayer.InventoryManager.TryGiveItemstack(stack, true))
-            Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
-    }
-
     public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
     {
         var help = new List<WorldInteraction>(base.InteractionHelp(forPlayer));
@@ -549,12 +468,12 @@ public class BEAcidParting : BEOreMachine
             help.Add(new WorldInteraction
             {
                 ActionLangCode = Key("light"), MouseButton = EnumMouseButton.Right,
-                Itemstacks = ObjectCacheUtil.GetOrCreate(world.Api, "acidparting-ignitestacks", () => BlockBehaviorCanIgnite.CanIgniteStacks(world.Api, true).ToArray()),
+                Itemstacks = FurnaceFiring.IgniteStacks(world.Api),
             });
         if (SilverBits > 0)
             help.Add(new WorldInteraction { ActionLangCode = Key("silver"), MouseButton = EnumMouseButton.Right });
         help.Add(new WorldInteraction { ActionLangCode = Key("damper"), MouseButton = EnumMouseButton.Right });
-        help.Add(_capped
+        help.Add(Capped
             ? new WorldInteraction { ActionLangCode = Key("uncap"), MouseButton = EnumMouseButton.Right }
             : new WorldInteraction { ActionLangCode = Key("cap"), MouseButton = EnumMouseButton.Right, Itemstacks = Of(rig.CapCode) });
         return help.ToArray();
@@ -576,7 +495,7 @@ public class BEAcidParting : BEOreMachine
             case VesselRequires.DamperOpen or VesselRequires.DamperHalf or VesselRequires.DamperShut:
                 return base.ShowsPart("sandbath") && VesselRequires.Of(_damper) == requires;
             case VesselRequires.OutletCap:
-                return _capped;
+                return Capped;
         }
         if (requires is null || !VesselRequires.Extra.Contains(requires) || requires == VesselRequires.Copper)
             return base.ShowsPart(requires);
@@ -598,49 +517,12 @@ public class BEAcidParting : BEOreMachine
         };
     }
 
-    public override string TextureKey => BrickType ?? "";
-
-    /// <summary>The block's textures, the brickwork's <c>brick</c> code in the vessel's brick type: its base with its
-    /// overlays, composed into the block atlas as the crucible furnace's and the stall roaster's are.</summary>
-    public override ITexPositionSource PartTextures(ICoreClientAPI capi)
-    {
-        var inner = capi.Tesselator.GetTextureSource(Block);
-        if (VesselRig is not { } rig || (rig.Bricks.Get(BrickType) ?? rig.Bricks.Get(rig.Bricks.Default)) is not { } brick)
-            return inner;
-        var composite = new CompositeTexture(new AssetLocation(brick.Base))
-        {
-            BlendedOverlays = brick.Overlays.Select(o => new BlendedOverlayTexture { Base = new AssetLocation(o) }).ToArray(),
-        };
-        return capi.BlockTextureAtlas.GetOrInsertTexture(composite, out _, out var pos) && pos != null
-            ? new CodeTextureSource(inner, rig.Bricks.TextureCode, pos)
-            : inner;
-    }
-
-    private sealed class CodeTextureSource(ITexPositionSource inner, string code, TextureAtlasPosition pos) : ITexPositionSource
-    {
-        public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] => textureCode == code ? pos : inner[textureCode]!;
-    }
-
-    // ---- Breaking ----
-
-    /// <summary>The frame and every stage's items, the copper's with use left, and the cap. The fuel, the dore and the
-    /// bits drop with the inventory; a charge parting is lost with its acid and water.</summary>
-    public override IEnumerable<ItemStack> AssemblyDrops()
-    {
-        foreach (var drop in base.AssemblyDrops())
-            yield return drop;
-        if (VesselRig is { } rig && _capped && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-            yield return new ItemStack(plate, rig.CapCount);
-    }
-
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
         tree.SetInt("damper", (int)_damper);
-        tree.SetBool("capped", _capped);
         tree.SetBool("lit", _lit);
         tree.SetBool("started", _started);
         tree.SetDouble("fireLeft", _fireLeft);
@@ -654,19 +536,12 @@ public class BEAcidParting : BEOreMachine
             tree.RemoveAttribute("ore");
         tree.SetDouble("carryGold", _carry.HeldFor(GoldKey));
         tree.SetDouble("carrySilver", _carry.HeldFor(SilverKey));
-        tree.SetInt("rowFirst", _row.First);
-        tree.SetInt("rowCount", _row.Count);
-        tree.SetInt("rowChimneyAt", _row.ChimneyAt ?? int.MinValue);
-        tree.SetInt("rowChimneyHeight", _row.ChimneyHeight);
-        tree.SetInt("rowOpenOutlet", _row.OpenOutlet ?? int.MinValue);
-        tree.SetInt("rowProblem", (int)_row.Problem);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
         _damper = (Damper)Math.Clamp(tree.GetInt("damper"), 0, 2);
-        _capped = tree.GetBool("capped");
         _lit = tree.GetBool("lit");
         _started = tree.GetBool("started");
         _fireLeft = Math.Max(0, tree.GetDouble("fireLeft"));
@@ -676,9 +551,6 @@ public class BEAcidParting : BEOreMachine
         _lastHours = tree.GetDouble("lastHours", double.NaN);
         _ore = tree.GetString("ore");
         _carry.Restore([new(GoldKey, tree.GetDouble("carryGold")), new(SilverKey, tree.GetDouble("carrySilver"))]);
-        int? Opt(string key) => tree.GetInt(key, int.MinValue) is var v && v != int.MinValue ? v : null;
-        _row = new FurnaceRow(tree.GetInt("rowFirst"), Math.Max(1, tree.GetInt("rowCount", 1)), Opt("rowChimneyAt"),
-            tree.GetInt("rowChimneyHeight"), Opt("rowOpenOutlet"), (RowProblem)tree.GetInt("rowProblem", (int)RowProblem.NoChimney));
     }
 
     // ---- Info ----
@@ -710,15 +582,6 @@ public class BEAcidParting : BEOreMachine
             dsc.AppendLine(L("silver", SilverBits));
         dsc.AppendLine(_lit ? L("fire", N(_fireLeft), FuelSlot.StackSize) : L("nofire", FuelSlot.StackSize));
         dsc.AppendLine(L("damper-" + _damper.ToString().ToLowerInvariant()));
-        dsc.AppendLine(_row.Problem switch
-        {
-            RowProblem.None => L("row", _row.Count, _row.ChimneyHeight),
-            RowProblem.TooManyFurnaces => L("row-toomany", rig.RowMax),
-            RowProblem.OutletOpen => L("row-open"),
-            RowProblem.ChimneyTooShort => L("row-short", _row.ChimneyHeight, rig.MinChimney),
-            RowProblem.NoChimneyTop => L("row-notop"),
-            RowProblem.ChimneyTopBuried => L("row-buried"),
-            _ => L(_capped && _row.Count == 1 ? "row-capped" : "row-none", rig.MinChimney),
-        });
+        dsc.AppendLine(RowLine());
     }
 }

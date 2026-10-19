@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.EidolonGantry.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -13,29 +13,39 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.EidolonGantry;
 
 /// <summary>
-/// The eidolon gantry's controller (the foot of its front right post). Holds the winch's fitted
-/// parts (<see cref="GantryParts"/>: every item's code, the drum's and spine's of the gantry's
-/// wood) and the winch's depth (0 hung, 1 let down; nothing drives it yet), keeps its ghost cells
-/// stamped, and hands every click the winch does not take to its extensions
-/// (<see cref="IEidolonGantryExtension"/>: the body stages, #672). The client draws the winch and
-/// the hung parts (<see cref="EidolonGantryRenderer"/>). The rules are EidolonGantry/Core's.
+/// The eidolon gantry's controller (the foot of its front right post), on the shared machine base
+/// (<see cref="BEMachine"/>: its winch the staged build from <c>config/builds/eidolongantry.json</c>, in
+/// the gantry's wood (<see cref="GantryBuild.ForWood"/>), its cells, its block info, its renderer). It
+/// keeps the winch's depth (0 hung, 1 let down; nothing drives it yet) and the eidolon's body on the spine
+/// (<see cref="Body"/>, <see cref="GantryBody"/>: the body stages, waking it, the dock), which takes every
+/// click the winch does not and the crank's turns. Hand-built and not driven: no power, no oil. Its hollow
+/// cells, the open middle the body hangs in and walks out of and the crank's, have no boxes. The rules are
+/// EidolonGantry/Core's.
 /// </summary>
-public class BEEidolonGantry : BlockEntity
+public class BEEidolonGantry : BEMachine
 {
-    private const string PartKeyPrefix = "part-";
-    public static readonly AssetLocation GhostCode = new(EidolonGantrySystem.Domain, "eidolongantryghost");
+    /// <summary>How fast the drawn depth follows the gantry's, per second (a full let-down in 8 s).</summary>
+    public const double DepthRate = 0.125;
 
-    private GantryParts _parts = new("oak");
     private double _depth;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private EidolonGantryRenderer? _renderer;
+    private double? _shownDepth;
+    private readonly GantryBody _body;
 
-    public Side Side { get; private set; } = Side.North;
-    /// <summary>The gantry's wood, its <c>wood</c> variant.</summary>
-    public string Wood { get; private set; } = "oak";
-    public GantryParts Parts => _parts;
+    public BEEidolonGantry()
+    {
+        _body = new GantryBody(this);
+    }
+
+    /// <summary>The gantry's wood, its <c>wood</c> variant: the drum's planks and the spine's beams are of it.</summary>
+    public string Wood => Block?.Variant?["wood"] ?? "oak";
+
+    /// <summary>The eidolon's body on the spine, and the dock.</summary>
+    public GantryBody Body => _body;
+
     /// <summary>The winch and the spine are fitted: the body can be built on the spine.</summary>
-    public bool WinchComplete => _parts.Complete;
+    public bool WinchComplete => Built;
+
+    public new GantryRig? Rig => base.Rig as GantryRig;
 
     /// <summary>How far the winch has let the spine (and whatever hangs on it) down, 0..1: 0 hung, 1
     /// the body's feet on the floor (the rig's <c>depth</c>). Set on the server; synced.</summary>
@@ -52,53 +62,21 @@ public class BEEidolonGantry : BlockEntity
         }
     }
 
-    /// <summary>The gantry's extensions, in their blocktype order.</summary>
-    public IEnumerable<IEidolonGantryExtension> Extensions => Behaviors.OfType<IEidolonGantryExtension>();
+    protected override MachineBuild? BuildSpec(IWorldAccessor world) =>
+        base.BuildSpec(world) is { } build ? GantryBuild.ForWood(build, Wood) : null;
 
-    /// <summary>Every winch stage, the spine and every extension fitted.</summary>
-    public bool Complete => _parts.Complete && Extensions.All(e => e.Complete);
+    protected override bool HollowCellsOpen => true;
 
-    private GantryRig? Rig => EidolonGantrySystem.Of(Api).Rig;
+    // the creative shortcut fits the body's stages too, once the winch is built
+    protected override bool CreativeFills => !Built || !_body.Complete;
 
     public override void Initialize(ICoreAPI api)
     {
-        // Before the behaviors initialise, so an extension finds the wood and side.
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        Wood = Block.Variant["wood"] ?? "oak";
-        if (_parts.Wood != Wood)
-            _parts = GantryParts.Restore(Wood, _parts.Snapshot());
         base.Initialize(api);
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-        {
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            // A ghost can vanish without being broken (an explosion, another mod).
-            RegisterGameTickListener(_ => EnsureGhosts(), 2000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 500);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockEidolonGantry)
-                _renderer = new EidolonGantryRenderer(capi, this, rig);
-        }
+        _body.Initialize(api);
     }
 
     // ---- Footprint ----
-
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point (the rig's anchors: <c>body</c>, <c>hang</c>, <c>fit</c>,
-    /// <c>exit</c>) as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
 
     /// <summary>How far from where the body hangs (the rig's <c>body</c> point) an eidolon counts as
     /// standing in the gantry, its dock (<see cref="Docks"/>), blocks.</summary>
@@ -115,19 +93,15 @@ public class BEEidolonGantry : BlockEntity
     }
 
     /// <summary>The gantry whose dock <paramref name="pos"/> (an entity's feet) is in, or null: the
-    /// gantry cell there (a ghost, or the controller) and <see cref="Docks"/>. For repair in the
+    /// gantry cell there (a cell, or the controller) and <see cref="Docks"/>. For repair in the
     /// gantry (#674, <c>EntityBehaviorEidolonRepair.GantryAround</c>). Server or client, wherever the cell's block entity is loaded.</summary>
     public static BEEidolonGantry? DockAt(IBlockAccessor blockAccessor, Vec3d pos) =>
         At(blockAccessor, pos.AsBlockPos) is { } gantry && gantry.Docks(pos) ? gantry : null;
 
-    /// <summary>The gantry <paramref name="pos"/> is a cell of (its controller, or a ghost pointing at
+    /// <summary>The gantry <paramref name="pos"/> is a cell of (its controller, or a cell pointing at
     /// one), or null.</summary>
-    public static BEEidolonGantry? At(IBlockAccessor blockAccessor, BlockPos pos)
-    {
-        var be = blockAccessor.GetBlockEntity(pos);
-        return be as BEEidolonGantry
-               ?? ((be as BEEidolonGantryGhost)?.Principal is { } principal ? blockAccessor.GetBlockEntity(principal) as BEEidolonGantry : null);
-    }
+    public static BEEidolonGantry? At(IBlockAccessor blockAccessor, BlockPos pos) =>
+        MachineFire.MachineAt(blockAccessor, pos) as BEEidolonGantry;
 
     /// <summary>Where the body hangs (the rig's <c>body</c> point) in the world: where a woken eidolon
     /// stands as it wakes and a docking one backs onto the spine from. Null without the rig.</summary>
@@ -166,235 +140,75 @@ public class BEEidolonGantry : BlockEntity
     /// <summary>The world side a native side is turned to (the rig's <c>exitSide</c>, west).</summary>
     public Side WorldSide(Side native) => Footprint.ToWorld(native, Side);
 
-    public IEnumerable<BlockPos> GhostCells() => Rig is { } rig ? rig.GhostCells.Select(c => CellPos(c.Pos)) : [];
-
-    /// <summary>A cell's boxes, for selection and collision alike: none in a hollow cell (the
-    /// crank's, and the open space the body hangs in and walks out of).</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) =>
-        _cells?.GetValueOrDefault(Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig)
-            return;
-        var side = Side;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        _cells = rig.Cells.ToDictionary(c => c.Pos, c =>
-            c.Hollow ? [] : c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-    }
-
     /// <summary>The crank's selection box in its cell (cell-local, native frame): the crank's web and
     /// handle and the ratchet, from the post's outer face out. Selection only: the cell stays hollow,
     /// nothing to collide with.</summary>
     public static readonly Box CrankBox = new(0.05f, 0.05f, 0f, 1f, 1f, 0.55f);
 
-    /// <summary>Whether <paramref name="cellPos"/> is the winch crank's cell.</summary>
-    public bool IsCrankCell(BlockPos? cellPos) =>
-        cellPos != null && Rig is { } rig
-        && Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side) == rig.CrankCell;
+    /// <summary>The winch's crank is fitted.</summary>
+    public bool CrankFitted => Assembly?.Build.Fitted("crank") == true;
 
-    /// <summary>A cell's selection boxes: its <see cref="CellBoxes"/>, and in the crank's cell, once the
-    /// crank is fitted, the crank (<see cref="CrankBox"/>), so it can be turned.</summary>
-    public Cuboidf[]? SelectionBoxes(BlockPos cellPos)
+    /// <summary>Whether <paramref name="cellPos"/> is the winch crank's cell.</summary>
+    public bool IsCrankCell(BlockPos? cellPos) => cellPos != null && Rig is { } rig && LocalOf(cellPos) == rig.CrankCell;
+
+    /// <summary>A cell's selection boxes: its own, and in the crank's cell, once the crank is fitted, the
+    /// crank (<see cref="CrankBox"/>), so it can be turned.</summary>
+    public override Cuboidf[]? SelectionBoxes(BlockPos cellPos)
     {
-        if (_parts.Has(GantryStage.Crank) && IsCrankCell(cellPos))
+        if (CrankFitted && IsCrankCell(cellPos))
         {
             var w = Footprint.ToWorld(CrankBox, Side);
             return [new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2)];
         }
-        return CellBoxes(cellPos);
-    }
-
-    private Block? GhostBlock() => Api.World.GetBlock(GhostCode);
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock() is not { } ghost)
-            return;
-        foreach (var pos in GhostCells())
-            StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEEidolonGantryGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock() is not { } expected)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEEidolonGantryGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-            if (ba.GetBlock(pos) is BlockEidolonGantryGhost && ba.GetBlockEntity(pos) is BEEidolonGantryGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
+        return base.SelectionBoxes(cellPos);
     }
 
     // ---- Interaction ----
 
     /// <summary>
-    /// Right-click on the gantry or any of its cells (<paramref name="cell"/>, the one clicked). A click
-    /// on the crank turns it: the extensions are asked in turn (<see cref="IEidolonGantryExtension.OnCrank"/>).
-    /// Otherwise, in creative mode, Ctrl fits the next stage
-    /// (the winch's, then each extension's) with nothing taken. A winch part in hand while the winch
-    /// is not complete goes to the winch (fitted if it is the next stage's). Every other click is
-    /// offered to the extensions in turn; a winch part nobody takes is refused as already fitted.
-    /// Decided and done on the server; the client only says whether the click is the gantry's.
+    /// Before the winch's build: a click on the crank, once fitted, is a turn of it (the body's: it wakes a
+    /// complete eidolon); once the winch is built, the creative shortcut fits the body's next stage, and
+    /// every other click is offered to the body first (its layers take rods, plates, nails and chain, which
+    /// the winch did too). A winch part the body does not take then goes on to the build, which refuses it.
     /// </summary>
-    public bool OnInteract(IPlayer byPlayer, BlockPos? cell = null)
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        if (_parts.Has(GantryStage.Crank) && IsCrankCell(cell))
+        bool server = Api.Side == EnumAppSide.Server;
+        if (CrankFitted && IsCrankCell(blockSel?.Position))
         {
-            foreach (var extension in Extensions)
-                if (extension.OnCrank(this, byPlayer))
-                    return true;
-            if (Api.Side == EnumAppSide.Server)
-                Error(byPlayer, "error-crank-nothing");
+            if (!_body.OnCrank(byPlayer) && server)
+                Refuse(byPlayer, "error-crank-nothing");
             return true;
         }
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
-        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
-        if (CreativeShortcutApplies(byPlayer))
+        if (!Built)
+            return null;
+        if (CreativeShortcut(byPlayer))
         {
-            if (Api.Side == EnumAppSide.Server)
-                FitNext(byPlayer);
+            if (server)
+                _body.CreativeFitNext(byPlayer);
             return true;
         }
-        bool part = _parts.IsPart(code);
-        if (part && !_parts.Complete)
-        {
-            if (Api.Side == EnumAppSide.Server)
-                TryFitPart(slot!, byPlayer);
-            return true;
-        }
-        foreach (var extension in Extensions)
-            if (extension.OnGantryInteract(this, byPlayer, slot))
-                return true;
-        if (!part)
-            return false;
-        if (Api.Side == EnumAppSide.Server)
-            Error(byPlayer, "error-part-fitted");
-        return true;
+        return _body.OnInteract(byPlayer, slot) ? true : null;
     }
 
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a gantry with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
-    {
-        var controls = byPlayer.Entity.Controls;
-        return !Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
+    /// <summary>After the winch's build: a body item before the spine is hung (the body says it needs it).</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel) =>
+        !Built && _body.OnInteract(byPlayer, slot);
 
-    /// <summary>The creative shortcut (server side): fits the winch's next stage with its first
-    /// item, or once the winch is complete, the first extension's that has one, nothing taken.</summary>
-    public bool FitNext(IPlayer? byPlayer)
-    {
-        if (_parts.NextPart is { } next)
-        {
-            if (Collectible(next) is not { } collectible)
-            {
-                Api.Logger.Warning("[seraphhorizons] Eidolon gantry: no {0} for the creative shortcut", next);
-                return false;
-            }
-            return TryFitPart(new DummySlot(new ItemStack(collectible, GantryParts.Needed(_parts.Next!.Value))), byPlayer, free: true);
-        }
-        foreach (var extension in Extensions)
-            if (!extension.Complete && extension.CreativeFitNext(this, byPlayer))
-                return true;
-        return false;
-    }
-
-    /// <summary>Fits every winch stage still open (the assembled creative stack; server side).</summary>
+    /// <summary>Fits every winch stage still open, nothing taken (server side; the scenarios').</summary>
     public void FitAll()
     {
-        _parts.FitAll();
+        if (Assembly is not { } assembly)
+            return;
+        while (!assembly.Built && assembly.FillNext())
+        {
+        }
         MarkDirty(true);
     }
-
-    /// <summary>Fits the part in <paramref name="slot"/> if it is the winch's next stage's (server
-    /// side); false, with an error to the player, when the rules say no. As many as the stage takes
-    /// (<see cref="GantryParts.Needed"/>) are taken from the slot unless the player is in creative
-    /// mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        var stack = slot.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack == null)
-            return false;
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
-        var verdict = _parts.CanFit(code, out var stage, consumes ? stack.StackSize : int.MaxValue);
-        if (verdict != GantryFitVerdict.Fits)
-        {
-            switch (verdict)
-            {
-                case GantryFitVerdict.OutOfOrder:
-                    Error(byPlayer, "error-order", StageName(_parts.Next));
-                    break;
-                case GantryFitVerdict.AlreadyFitted:
-                    Error(byPlayer, "error-part-fitted");
-                    break;
-                case GantryFitVerdict.TooFew:
-                    Error(byPlayer, "error-too-few", GantryParts.Needed(_parts.Next!.Value), StageName(_parts.Next));
-                    break;
-                default:
-                    Error(byPlayer, "error-not-a-part");
-                    break;
-            }
-            return false;
-        }
-        _parts.Fit(code);
-        if (consumes)
-        {
-            slot.TakeOut(GantryParts.Needed(stage));
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        return true;
-    }
-
-    /// <summary>A winch stage's name as the block info and the errors show it.</summary>
-    public static string StageName(GantryStage? stage) =>
-        stage is { } s ? Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-stage-" + GantryRequires.Name(s)) : "";
 
     /// <summary>Sends <paramref name="byPlayer"/> the gantry's error <paramref name="key"/>
     /// (<c>seraphhorizons:eidolongantry-{key}</c>); false, for returning.</summary>
-    public bool Error(IPlayer? byPlayer, string key, params object[] args)
+    public bool Refuse(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
             sp.SendIngameError("eidolongantry-" + key, Lang.GetL(sp.LanguageCode, EidolonGantrySystem.Domain + ":eidolongantry-" + key, args));
@@ -410,47 +224,63 @@ public class BEEidolonGantry : BlockEntity
         return Api.World.GetBlock(loc) is { Id: > 0 } block ? block : null;
     }
 
-    // The client removes a broken gantry at once, and an update the server sent before it heard of
-    // the break then brings the block entity back over air: drop it.
-    private void OnClientTick(float dt)
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help) => help.AddRange(_body.Help(forPlayer));
+
+    // ---- Drawing ----
+
+    /// <summary>A body stage's parts are drawn by the body's rules (<see cref="GantryBody.Shows"/>), the
+    /// winch's by its build.</summary>
+    public override bool ShowsPart(string? requires) =>
+        GantryRequires.IsBodyStage(requires) ? _body.Shows(requires!) : base.ShowsPart(requires);
+
+    /// <summary>The rig posed by the winch's depth, eased at <see cref="DepthRate"/>: letting down turns the
+    /// crank, layshaft, drum and sheave, throws the pawl off, pays out the chain and brings the hook, the
+    /// spine and the body down. The crank's clock θ moves nothing.</summary>
+    public override RigInput FrameInput(float dt, bool far)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is BlockEidolonGantry)
-            return;
-        DisposeRenderer();
-        Api.World.BlockAccessor.RemoveBlockEntity(Pos);
+        double target = _depth, shown = _shownDepth ?? target, step = DepthRate * dt;
+        _shownDepth = Math.Abs(target - shown) <= step ? target : shown + Math.Sign(target - shown) * step;
+        return new RigInput(0, Depth: _shownDepth.Value);
+    }
+
+    /// <summary>The hung body's layers, each in its material: the parts are drawn again when they change.</summary>
+    public override string TextureKey =>
+        string.Join(";", _body.Textures.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + kv.Value));
+
+    /// <summary>The block's textures (the frame's wood), with the body's layer codes in the layers it wears.</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi) =>
+        new LayerTextureSource(capi, base.PartTextures(capi), _body.Textures);
+
+    /// <summary>A block's textures with the body's layer codes drawn in the textures it wears (asset
+    /// paths under <c>textures/</c>), each put in the block atlas the first time it is asked for.</summary>
+    private sealed class LayerTextureSource(ICoreClientAPI capi, ITexPositionSource inner, IReadOnlyDictionary<string, string> layers) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+
+        public TextureAtlasPosition this[string textureCode]
+        {
+            get
+            {
+                if (!layers.TryGetValue(textureCode, out var path))
+                    return inner[textureCode]!;
+                var loc = new AssetLocation(path);
+                var pos = capi.BlockTextureAtlas[loc];
+                if (pos == null && capi.Assets.Exists(loc.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png")))
+                    capi.BlockTextureAtlas.GetOrInsertTexture(loc, out _, out pos);
+                return pos ?? inner[textureCode]!;
+            }
+        }
     }
 
     // ---- Breaking ----
 
-    /// <summary>What breaking the gantry gives besides the frame: every winch part fitted, as many
-    /// as each stage took, and everything the extensions hold.</summary>
-    public IEnumerable<ItemStack> PartDrops()
-    {
-        foreach (var drop in _parts.Returns())
-            if (Collectible(drop.Code) is { } collectible)
-                yield return new ItemStack(collectible, drop.Count);
-        foreach (var extension in Extensions)
-            foreach (var stack in extension.Drops(Api.World))
-                yield return stack;
-    }
+    /// <summary>Every winch part fitted, as many as each stage took, and everything the body holds.</summary>
+    public override IEnumerable<ItemStack> AssemblyDrops() => base.AssemblyDrops().Concat(_body.Drops());
 
     public override void OnBlockRemoved()
     {
+        _body.OnBlockRemoved();
         base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -458,47 +288,27 @@ public class BEEidolonGantry : BlockEntity
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var stage in GantryRequires.Stages)
-            tree.RemoveAttribute(PartKeyPrefix + GantryRequires.Name(stage));
-        foreach (var (requires, code) in _parts.Snapshot())
-            tree.SetString(PartKeyPrefix + requires, code);
         tree.SetDouble("depth", _depth);
+        _body.ToTreeAttributes(tree);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        var fitted = new Dictionary<string, string>();
-        foreach (var stage in GantryRequires.Stages)
-            if (tree.GetString(PartKeyPrefix + GantryRequires.Name(stage)) is { Length: > 0 } code)
-                fitted[GantryRequires.Name(stage)] = code;
-        // The wood is the block's; before Initialize (a chunk loading) it is not known yet, and
-        // Initialize restores the parts again on the right wood.
-        string wood = Block?.Variant?["wood"] ?? Wood;
-        _parts = GantryParts.Restore(wood, fitted);
         _depth = Math.Clamp(tree.GetDouble("depth"), 0, 1);
+        _body.FromTreeAttributes(tree);
     }
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
-    {
-        base.GetBlockInfo(forPlayer, dsc);
-        string L(string key, params object[] args) => Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-" + key, args);
-        if (_parts.Next is { } next)
-        {
-            dsc.AppendLine(L("info-next", StageName(next), StageNeeds(next)));
-            var after = GantryRequires.Stages.Where(s => s > next && !_parts.Has(s)).ToList();
-            if (after.Count > 0)
-                dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));
-        }
-        else
-            dsc.AppendLine(L("info-winch-complete"));
-    }
+    protected override void AppendContents(StringBuilder dsc) => _body.AppendInfo(dsc);
 
-    /// <summary>What a stage takes, as the info line shows it: its count and item (the drum's
-    /// planks and the spine's beams named in the gantry's wood).</summary>
-    public string StageNeeds(GantryStage stage) =>
-        Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-needs-" + GantryRequires.Name(stage), GantryParts.Needed(stage),
-            Lang.Get("game:material-" + Wood));
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        string L(string key, params object[] args) => Lang.Get(EidolonGantrySystem.Domain + ":eidolongantry-" + key, args);
+        if (Built)
+            dsc.AppendLine(L("info-depth", Math.Round(100 * _depth).ToString(CultureInfo.InvariantCulture)));
+        if (_body.HoldsEidolon)
+            dsc.AppendLine(L("info-docked-id", _body.DockedId, L(_body.DockedEidolon != null ? "info-docked-loaded" : "info-docked-unloaded")));
+    }
 }

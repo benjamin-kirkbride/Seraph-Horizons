@@ -5,9 +5,9 @@
 // OreProcessing off.
 {
 	code: "jig",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.Jig",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the jig runs away from the
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the jig runs away from the
 	// player, its spout end (the controller) nearest them.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -33,7 +33,7 @@
 		"bed":        { base: "game:block/stone/gravel/granite" }
 	},
 	attributes: {
-		oreMachine: { machine: "jig", extraRequires: ["water", "bed"] },
+		machine: { machine: "jig", extraRequires: ["water", "bed"] },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:jig-handbook-card-title", text: "seraphhorizons:jig-handbook-card-text" },

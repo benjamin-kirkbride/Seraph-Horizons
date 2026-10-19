@@ -1,0 +1,38 @@
+{
+	"_comment": "The draw bench's build (DrawBench/README.md, 'Build order'): each stage after the frame and its materials, as its rig's parts draw them; read by Machines/Core/MachineBuildJson.cs (its schema) and kept by the shared machine base (docs/modeling/machine-base.md). A stage's items go in one material a click, as many as it takes at once: the endless chain is two of the game's chains, the mandrel bar and the follower's spindle two rods. The mandrel stage also takes the follower's spring, in a click of its own before or after the rods, while springs exist (ifExists: the MandrelSprings switch). The die is the wearing part, fitted with the last stage and durable: it goes in with the durability it has left (uses is DrawBenchSettings.DieDurability, set when the game loads), is worn DieWearPerHollow a tube blank, comes back out by Ctrl with what is left, and a spent one is gone. No block: the bench's construction record is its own in the recipe export, not the ore machines' generic one.",
+	"machine": "drawbench",
+	"stages": [
+		{
+			"id": "gearbox", "name": "gearbox", "adds": ["gearbox"],
+			"materials": [
+				{ "codes": ["game:jonasframes-gearbox01"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "chain", "name": "chain", "adds": ["chain"],
+			"materials": [
+				{ "codes": ["game:metalchain-iron", "game:metalchain-meteoriciron", "game:metalchain-steel"], "quantity": 2 }
+			]
+		},
+		{
+			"id": "dog", "name": "dog", "adds": ["dog"],
+			"materials": [
+				{ "codes": ["game:bracket-heavy-iron", "game:bracket-heavy-meteoriciron", "game:bracket-heavy-steel"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "mandrel", "name": "mandrel", "adds": ["mandrel"],
+			"materials": [
+				{ "codes": ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], "quantity": 2 },
+				{ "codes": ["seraphhorizons:spring-steel"], "quantity": 1, "ifExists": true }
+			]
+		},
+		{
+			"id": "die", "name": "die", "adds": ["die"],
+			"materials": []
+		}
+	],
+	"wearing": [
+		{ "id": "die", "codes": ["seraphhorizons:drawdie-steel", "seraphhorizons:drawdie-iron"], "count": 1, "uses": 100, "requires": "die", "stage": "die", "durable": true }
+	]
+}

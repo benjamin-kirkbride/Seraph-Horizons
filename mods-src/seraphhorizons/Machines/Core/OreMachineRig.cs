@@ -12,7 +12,7 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// <see cref="Parse"/>: content drawn by the machine's state, the arrastra's charge). Unknown keys are the
 /// machine's own and ignored here. Throws <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class OreMachineRig
+public sealed class OreMachineRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; }

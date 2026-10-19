@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Riddle.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -8,8 +9,10 @@ using Vintagestory.API.Config;
 namespace SeraphHorizons.Mod.Riddle;
 
 /// <summary>
-/// The riddle (#714): registers its classes and holds what its block shares: its settings (RiddleSettings
-/// in ModConfig/seraphhorizons.json) and the rig (assets/seraphhorizons/config/riddle-rig.json). With the
+/// The riddle (#714): registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame is the shared block, its build
+/// <c>config/builds/riddle.json</c>) and holds its settings (RiddleSettings in ModConfig/seraphhorizons.json)
+/// and the rig (assets/seraphhorizons/config/riddle-rig.json). With the
 /// <c>Riddle</c> switch off, or <c>OreProcessing</c> off (there is no crushed ore to riddle), the server
 /// leaves its block and its recipe out of the game (<see cref="Disable"/>). A hand station: no power, no
 /// oil, and no automated input or output.
@@ -17,6 +20,9 @@ namespace SeraphHorizons.Mod.Riddle;
 public class RiddleSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "riddle";
     public static readonly AssetLocation RigAsset = new(Domain, "config/riddle-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
@@ -68,8 +74,8 @@ public class RiddleSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.Riddle", typeof(BlockRiddle));
         api.RegisterBlockEntityClass("seraphhorizons.Riddle", typeof(BERiddle));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find it

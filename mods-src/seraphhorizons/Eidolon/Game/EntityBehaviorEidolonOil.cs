@@ -115,7 +115,7 @@ public class EntityBehaviorEidolonOil(Entity entity) : EntityBehavior(entity), I
     }
 
     /// <summary>A right-click holding oil, on it or on the gantry it is docked in
-    /// (<c>BEBehaviorEidolonBody</c>): whether it is the oil's (<see cref="Takes"/>, the player's
+    /// (<c>GantryBody</c>): whether it is the oil's (<see cref="Takes"/>, the player's
     /// held item), pouring what fits on the server.</summary>
     public bool PourFrom(IPlayer player)
     {

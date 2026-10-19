@@ -516,7 +516,7 @@ gameplay reads, and where:
 
 - **The iron frame** is the controller block, `seraphhorizons:acidparting-{side}` (the item is `-north`), class
   `seraphhorizons.OreMachine`, drawing `acidparting_frame.json`; its grid recipe is the rig's `build.frame`
-  (`recipes/grid/acidparting.json`). Placed, it stamps the shared `oremachine-cell` into the other three cells.
+  (`recipes/grid/acidparting.json`). Placed, it stamps the shared `machine-cell` into the other three cells.
 - **The stages** are `config/builds/acidparting.json`, the rig's `build.stages` with the same counts; the brickwork
   is a `oneType` material listing the rig's nine `bricks` types. The copper plates are the build's wearing part
   (`copper`, a `game:metalplate-copper`, 680 units of silver), drawn by its `requires`. A test holds the build to the

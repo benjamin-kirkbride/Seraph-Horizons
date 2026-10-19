@@ -239,21 +239,24 @@ in a client or the site's viewer.
 
 ## Gameplay
 
-The rules are game-independent in `Core/` (`SquaringShearParts.cs`, `Cutting.cs`,
-`SquaringShearConfig.cs`, `SquaringShearRig.cs`, and `SquaringShearView.cs`: the renderer's view of the
-shear and its clock); the game side is `Game/` (`SquaringShearSystem`, the controller
-`BlockSquaringShear` and `BESquaringShear`, the ghost `BlockSquaringShearGhost` with
-`BESquaringShearGhost`, and `SquaringShearRenderer`), copied from the press brake's
-(`../PressBrake/README.md`, "Gameplay"). The mod's README, "Squaring shear", is the player-facing
+The rules are game-independent in `Core/` (`Cutting.cs` with the `requires` vocabulary,
+`SquaringShearConfig.cs`, `SquaringShearRig.cs`, and `SquaringShearClock.cs`: the renderer's treadle
+clock), and its build is data, `assets/seraphhorizons/config/builds/squaringshear.json`. The game side is
+the shared machine base (`../Machines/Game/`, docs/modeling/machine-base.md), as the press brake's
+(`../PressBrake/README.md`, "Gameplay"): the frame is `BlockMachine`, the far cell the shared
+`machine-cell`, the parts are drawn by `MachineRenderer`; `Game/` holds only `SquaringShearSystem` (its
+settings and rig, which it names to `MachinesSystem`) and `BESquaringShear : BEMachine`, a hand machine
+(`HandWorked`) with no power anchor and no oil. The mod's README, "Squaring shear", is the player-facing
 summary; the decisions are here. Everything is read from the rig through its anchors, `requires` and the
 stable part id `crosshead`, never element names.
 
 **Blocks and item.** `seraphhorizons:squaringshear-frame-{side}`
 (`assets/seraphhorizons/blocktypes/squaringshear/frame.json`, drawing `squaringshear_frame.json`; its
-textures are every texture of both shapes, `blade` and `gauge` included) and `squaringshear-ghost` for
-the far cell. Placement (`side` = the player's look, `SquaringShearRig.PlacedSide`, so the shear runs
-away from them with the table end nearest), the ghost, its repair, breaking through it and the boxes
-(selection from the rig's cells, collision with their lids) are the press brake's. The half plate,
+textures are every texture of both shapes, `blade` and `gauge` included; class `seraphhorizons.Machine`)
+and the shared `machine-cell` in the far cell. Placement (`side` = the player's look,
+`SquaringShearRig.PlacedSide`, every machine's rule, so the shear runs away from them with the table end
+nearest), the cell, its repair, breaking through it and the boxes (selection from the rig's cells,
+collision with their lids) are the machine base's. The half plate,
 `seraphhorizons:halfplate-{copper,lead}` (`assets/seraphhorizons/itemtypes/halfplate.json`,
 `shapes/item/halfplate.json`: one 8 × 1 × 4 box in the game's plate texture), stacks to 16, stands on
 the ground and on shelves, and melts back into one ingot (a plate melts into two). It is the shear's
@@ -264,8 +267,9 @@ the press brake's, in another pattern (`PPP,NHN,L_L`, the brake's `NHN,PPP,L_L`)
 no rod: the frame's own iron (the bosses, pins, links, shoes and knuckles) is the nails and strips, and
 the blades and the gauge are the stages.
 
-**Stages** (`SquaringShearParts`), one item a stage, in `SquaringShearStage` order, the next missing
-stage the only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart` otherwise):
+**Stages** (`config/builds/squaringshear.json`, kept by the base's `MachineAssembly`), one item a stage,
+in order, the next missing stage the only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart`
+otherwise, with the shared messages):
 
 | # | `requires` | Item (verified in game 1.22.7's `survival/itemtypes`: `resource/metalplate.json`, `part/rod.json`) |
 |---|---|---|
@@ -278,21 +282,24 @@ out, and no longer does). Ctrl takes the plate off while it is still whole (W = 
 stays (an error says so). With no plate on, a Ctrl click is an ordinary click. Breaking drops every part
 and a whole plate (a half-cut one is lost). The
 creative shortcut (Ctrl in creative mode on an incomplete shear) fits each stage's first code. A save
-restores the stages as a run from the first.
+restores the stages as a run from the first (a shear saved before the shared base loads as a bare frame;
+its old keys are not read).
 
 **Hold to work** (the quern's pattern, as the press brake's): the block forwards the interaction's
-start, every step, the stop and the cancel to the block entity (the ghost forwards them too). A click
+start, every step, the stop and the cancel to the block entity (`BlockMachine`; the cell forwards them
+too). A click
 with a part fits it; with a plate on an empty table, loads it (and, held on, the steps that follow work
 it); anything else (an empty hand, a tool, a plate on a loaded table) on a complete shear is a work
 click, Shift excepted so a held block can still be placed against the shear. The server keeps the
-players working the treadle in `TreadleHolds`, refreshed by each step and dropped on the stop, or after
-`Cutting.HoldTimeoutMs` (600) without a step. Its 50 ms tick cuts while anyone holds: θ, the treadle
+players working the treadle in the base's `HandHolds`, refreshed by each step and dropped on the stop, or
+after `HandHolds.DefaultTimeoutMs` (600) without a step. Its 50 ms tick cuts while anyone holds (the
+base's `Working` state, `WorkUnpowered`): θ, the treadle
 clock, turns `Cutting.StrokesPerSecond` (1) a second, and `BESquaringShear.Cut(radians)` advances W by
 `PlatesFor(radians, StrokesPerPlate(k))` (the Atlas scenarios call it to finish a plate). Whether anyone
 holds is synced (`held`), and the client's own player counts as holding for 250 ms after its last step,
 so the renderer answers at once. No animation of its own: the game's held-interaction pose is used.
 
-**The cut** (`Cutting`, `CutJob`). The work is a plate, `game:metalplate-lead` (k 1) or `-copper` (k 2),
+**The cut** (`Cutting`, the base's `MachineJob` ending at 1). The work is a plate, `game:metalplate-lead` (k 1) or `-copper` (k 2),
 the rig's `cut.plates`, cut once across its middle; what comes off is `cut.halfPlates[k]`
 (`seraphhorizons:halfplate-{metal}`), `cut.halfPlatesPerPlate` (2) of it. Nothing else goes on: a half
 plate, an angle, an ingot or another metal's plate is refused. A plate goes on only on a complete shear,
@@ -312,11 +319,11 @@ rig's `cut.strokesPerPlate` (`SquaringShearRigTests.The_default_pace_is_the_rigs
 the server sends them to clients in the block entity's tree. The blades do not wear, so there is no
 durability setting, no tool in the export and no oil.
 
-**Renderer** (`SquaringShearRenderer`, through `ISquaringShearView`: facing, fitted parts, the blades'
-and gauge's metals, the plate's class and the server's W, and whether anyone holds). Every rig part with
+**Renderer** (the base's `MachineRenderer`, posed by `BESquaringShear.FrameInput`). Every rig part with
 a `requires`, a ride or a driver, from `squaringshear.json`, drawn when its stage is fitted, with the
 texture codes `blade` and `gauge` set to the fitted plate's and rod's metals
-(`MachineMeshes.MetalTexture`, one mesh set per pair of metals). The sheet's parts (`platelead`,
+(`MachineMeshes.MetalTexture`; `TextureKey` is the pair of metals, so the meshes are built again when it
+changes). The sheet's parts (`platelead`,
 `platecopper`) are drawn only while that metal's plate is on the table: once the halves are delivered
 they drop as items, and the sheet is not drawn while p eases out, though the hold-down eases back with
 it. `SquaringShearClock` turns θ while held, and shows W through `Machines/Core/HeldWorkFollower`, as the

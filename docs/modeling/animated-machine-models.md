@@ -8,7 +8,8 @@ detail; this guide is about the process, and the mistakes worth not repeating. T
 second machine built this way, and the first to share the mill's code: what it added to the rig and
 to the process is in [A second machine: the rosser](#a-second-machine-the-rosser).
 [Model pitfalls](pitfalls.md) is the short list of things that went wrong, to read before starting
-and before calling a model done.
+and before calling a model done. [The shared machine base](machine-base.md) is the game side every machine
+is built on: its block, cells, block entity, power, oil, build data and block info.
 
 ## When to use this approach
 
@@ -110,7 +111,8 @@ Then decide, and check against each other:
 - **Footprint:** which cells, and which cell is the controller. Make the controller the block the
   player clicks: the sawmill's is the middle of the near end.
 - **Orientation at placement:** which way the machine extends from the player
-  (`Footprint.PlacedFacing`; `BlockBuckingMill.TryPlaceBlock` sets the variant itself). Note that
+  (`Footprint.PlacedFacing`; the shared `BlockMachine.TryPlaceBlock` sets the variant itself by the rig's
+  `IMachineRig.PlacedSide`, the mill's `Footprint.PlacedFacing`). Note that
   `Block.SuggestedHVOrientation` returns the direction the player is looking, not the direction
   back toward them.
 - **Material in and out:** the sawmill takes trunks in at one end and drops logs at the other.
@@ -314,13 +316,14 @@ two halves agree where the direction changes, so nothing jumps. `gauge` stands f
 weight, and `roll` for rolling contact, so neither needs information no part could carry; the
 rosser needed them because its parts move with where the trunk is, which no shaft angle says.
 
-**The contract with gameplay.** The block entity implements a small read-only interface
-(`IMillVisualState`): facing, fitted parts, blade metal, trunk, phase, client-side progress and
-depth, direction, shaft angle and speed. The renderer polls it and nothing else. A part's
+**The contract with gameplay.** The renderer reads a small read-only part of the block entity: facing, the
+parts it shows (`BEMachine.ShowsPart`), blade metal, trunk, phase, client-side progress and
+depth, direction, shaft angle and speed. It polls that and nothing else. A part's
 `requires` (`crankshaft`, `levers`, `sash1`, ...) hides it until that item is fitted. Gameplay
 reads only the rig's anchors, never element names. This contract let the model and the gameplay
-be rebuilt separately many times. The rosser's is `IRosserVisualState` (fitted parts, heads' metal,
-trunk and class, client-side travel, state, running, wet, shaft angle and speed).
+be rebuilt separately many times. The rosser's renderer reads the same of `BERosser` (the parts it shows, heads'
+metal, trunk and class, client-side travel, trip state, running, wet, shaft angle and speed). Both machines now
+sit on the shared machine base (`machine-base.md`), each keeping its own renderer for its trunk.
 
 **Keeping the implementations in step.** The driver maths exists three times:
 - the Python reference, `Machines/tools/machinegen/rigmath.py`;
@@ -351,15 +354,18 @@ The rosser (`mods-src/seraphhorizons/Rosser/`) is a ring debarker that draws a L
 lengthwise through a spinning cutter ring. Its README documents the machine; this is what building it
 added to the approach.
 
-**Share the maths, copy the game classes.** Before the rosser, the mill's rig maths, footprint, trunk
+**Share the maths; the game classes followed.** Before the rosser, the mill's rig maths, footprint, trunk
 box and Logging Expanded bridge were moved to `Machines/` (C#) and the generic half of its generator
 to `Machines/tools/machinegen/` (Python), both with `git mv` and namespace fixes only. Three gates
 held the shipped mill while that happened: its unit tests with its reference poses, its Atlas
 scenarios, and a byte-identical regeneration of its model. The game classes (renderer, ghosts, block
-entity) were copied and adapted instead, as they are client-heavy and untested by Atlas; unifying
-them is a follow-up once both have been seen in the game. A second taker or feeder is an interface
-in the shared code (`ITrunkFeeder`, `IMachineGhost`), not a reference from one machine to the other's
-block entity.
+entity) were copied and adapted instead, as they were client-heavy and untested by Atlas, and every
+machine after the rosser copied them again. They are now one: the shared machine base (`BEMachine`,
+`BlockMachine`, the shared cells, one power behaviour with oil, `MachineRenderer`; [The shared machine
+base](machine-base.md)) carries every machine, the mill and the rosser included. A new machine starts there,
+not from a copy. A second taker or feeder is an
+interface in the shared code (`ITrunkFeeder`, `IMachineGhost`, which the shared cell implements), not a
+reference from one machine to the other's block entity.
 
 **A material that moves through the machine is an input, not a prop.** The trunk's travel T is saved
 and synced by the server, advanced on the client with the shaft between syncs, and interpolated per

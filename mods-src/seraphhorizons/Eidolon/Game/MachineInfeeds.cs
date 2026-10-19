@@ -1,5 +1,6 @@
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Eidolon.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Rosser;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
@@ -19,7 +20,7 @@ public sealed record MachineInfeed(BlockPos Machine, string Kind, IReadOnlyList<
 }
 
 /// <summary>Finds the machine infeed a hauler delivers to from any cell of the machine (the
-/// controller or a ghost): a rosser (<see cref="BERosser"/>) or a bucking mill
+/// controller or a cell): a rosser (<see cref="BERosser"/>) or a bucking mill
 /// (<see cref="BEBuckingMill"/>). The crew order (#679) uses the same.</summary>
 public static class MachineInfeeds
 {
@@ -29,10 +30,10 @@ public static class MachineInfeeds
     /// <summary>The machine whose cell is at <paramref name="pos"/>, or null.</summary>
     public static MachineInfeed? Find(IWorldAccessor world, BlockPos pos)
     {
-        var be = world.BlockAccessor.GetBlockEntity(pos);
-        if ((be as BERosser ?? (be as BERosserGhost)?.Rosser) is { } rosser && rosser.InfeedCells() is { } r)
+        var machine = MachineFire.MachineAt(world.BlockAccessor, pos);
+        if (machine is BERosser rosser && rosser.InfeedCells() is { } r)
             return new MachineInfeed(rosser.Pos.Copy(), RosserKind, r.Cells, r.OutwardX, r.OutwardZ, rosser.Takes);
-        if ((be as BEBuckingMill ?? (be as BEMillGhost)?.Mill) is { } mill && mill.InfeedCells() is { } m)
+        if (machine is BEBuckingMill mill && mill.InfeedCells() is { } m)
             return new MachineInfeed(mill.Pos.Copy(), MillKind, m.Cells, m.OutwardX, m.OutwardZ, mill.Takes);
         return null;
     }

@@ -6,9 +6,9 @@
 // or OreProcessing off.
 {
 	code: "parkeskettle",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.ParkesKettle",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the kettle's front (its fire door
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the kettle's front (its fire door
 	// and ash mouth) faces the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -34,7 +34,7 @@
 		"ember":  { base: "game:block/coal/ember" }
 	},
 	attributes: {
-		oreMachine: {
+		machine: {
 			machine: "parkeskettle",
 			extraRequires: [
 				"lead1", "lead2", "lead3", "lead4", "zinc", "crust", "fuel1", "fuel2", "fire1", "fire2",

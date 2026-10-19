@@ -71,6 +71,15 @@ internal sealed class OilSite(IWorldSession world, BlockPos pos, IPlayer player)
         return sb.ToString();
     }
 
+    /// <summary>The block info as a player holding a wrench sees it: the oil's detail too.</summary>
+    public string WrenchInfo(BlockEntity be)
+    {
+        var held = Hand.Itemstack;
+        Hand.Itemstack = Stack("game:wrench-iron");
+        try { return Info(be, player); }
+        finally { Hand.Itemstack = held; }
+    }
+
     /// <summary>Whether <paramref name="method"/> carries a patch of machine oil's.</summary>
     public static bool Patched(MethodBase? method) =>
         method != null && Harmony.GetPatchInfo(method) is { } info
@@ -136,8 +145,10 @@ public partial class SharedWorldScenarios
         Assert.True(state.Dry);
         Assert.Equal(cfg.Tank, state.Tank.Capacity);
         Assert.Equal(0.085f * 3, mp.GetResistance(), 4);
-        // The Dry line gives the load the shaft last asked, against the oiled one.
-        Assert.Contains("Dry: a load of 25.5 kN on its shaft, 3× the 8.5 kN it takes oiled", OilSite.Info(be, p.Player));
+        // The Dry line, the shared oil piece's; with a wrench, the load the shaft last asked against the oiled one.
+        Assert.Contains("Dry: it takes 3× the power to turn. Apply oil to it.", OilSite.Info(be, p.Player));
+        Assert.Contains("Hold a wrench to see more", OilSite.Info(be, p.Player));
+        Assert.Contains("Dry: a load of 25.5 kN on its shaft, 3× the 8.5 kN it takes oiled", site.WrenchInfo(be));
 
         // Four lumps of tallow, half a litre each.
         Assert.True(site.RightClick(pos, site.Stack(OilSite.Tallow, 4)));
@@ -146,8 +157,10 @@ public partial class SharedWorldScenarios
         Assert.Equal(0.085f, mp.GetResistance(), 4);
         Assert.Contains("Oil: 200 of 1000", OilSite.Info(be, p.Player));
         Assert.DoesNotContain("Dry", OilSite.Info(be, p.Player));
-        // Oiled, the load line stays, in kN.
-        Assert.Contains("Load: 8.5 kN", OilSite.Info(be, p.Player));
+        // Oiled, the load and a job's drain are a wrench's, in kN.
+        Assert.DoesNotContain("Load:", OilSite.Info(be, p.Player));
+        Assert.Contains("Load: 8.5 kN", site.WrenchInfo(be));
+        Assert.Contains("Oil a job: 0.5, enough for 400 more", site.WrenchInfo(be));
 
         // A full bucket of flax oil: as much as fits, the rest stays in the bucket.
         var bucket = site.BucketOf(OilSite.FlaxOil, 1000);
@@ -209,12 +222,12 @@ public partial class SharedWorldScenarios
         Assert.Equal(0.0005f, toggle.GetResistance(), 5);
         hammer.HammerStack = site.Stack("game:helvehammer-iron");
         Assert.Equal(0.125f * 3, toggle.GetResistance(), 4);
-        Assert.Contains("Dry: a load of 37.5 kN on its shaft, 3× the 12.5 kN it takes oiled", OilSite.Info(hammer, p.Player));
+        Assert.Contains("Dry: a load of 37.5 kN on its shaft, 3× the 12.5 kN it takes oiled", site.WrenchInfo(hammer));
 
         Assert.True(site.RightClick(side, site.BucketOf(OilSite.FlaxOil, 300)));
         Assert.Equal(300, ForeignMachines.StateOf(hammer)!.Tank.Points, 3);
         Assert.Equal(0.125f, toggle.GetResistance(), 4);
         Assert.Contains("Oil: 300 of 1000", OilSite.Info(hammer, p.Player));
-        Assert.Contains("Load: 12.5 kN", OilSite.Info(hammer, p.Player));
+        Assert.Contains("Load: 12.5 kN", site.WrenchInfo(hammer));
     }
 }

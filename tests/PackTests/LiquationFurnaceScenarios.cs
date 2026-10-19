@@ -52,13 +52,13 @@ public partial class MillWorldScenarios
     {
         Assert.True(LiquationFurnaceSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(LiquationFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(LiquationFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(LiquationFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(LiquationFrame + "north"));
         Assert.Equal("liquationfurnace", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(LiquationFurnaceSystem.Of(World.Api).Rig);
         Assert.Equal(LiquationRequires.Extra(2).Order(), block.ExtraRequires.Order());
-        var build = OreMachinesSystem.Of(World.Api).Build("liquationfurnace")!;
+        var build = MachinesSystem.Of(World.Api).Build("liquationfurnace")!;
         Assert.Equal(["brickwork", "lining", "fittings"], build.Stages.Select(s => s.Id).ToArray());
         foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
             Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0 }, code);
@@ -115,7 +115,7 @@ public partial class MillWorldScenarios
         Assert.True(furnace.ShowsPart("cakes"));
 
         // nothing to light yet; then coke through the open door, eight of ten
-        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, OreMachineFire.IgniteState(player.Entity, pos, 1.5f));
+        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, MachineFire.IgniteState(player.Entity, pos, 1.5f));
         Assert.Equal(2, CutterClick(player, pos, CutterItem("game:coke", 10))?.StackSize);
         Assert.Equal(8, furnace.Fuel);
         Assert.True(furnace.ShowsPart("fuel2") && !furnace.ShowsPart("fire1"));
@@ -132,9 +132,9 @@ public partial class MillWorldScenarios
         Assert.Equal(Damper.Open, furnace.Damper);
 
         // lit as the forge is, with a firestarter or a torch held 1.5 s on any of its cells
-        Assert.Equal(EnumIgniteState.IgniteNow, OreMachineFire.IgniteState(player.Entity, cell, 1.5f));
+        Assert.Equal(EnumIgniteState.IgniteNow, MachineFire.IgniteState(player.Entity, cell, 1.5f));
         var handling = EnumHandling.PassThrough;
-        OreMachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
         Assert.True(furnace.Lit);
         Assert.True(furnace.ShowsPart("fire2") && !furnace.ShowsPart("fuel1"));
 

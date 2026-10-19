@@ -368,31 +368,37 @@ The model has been reviewed in projections rendered from the written files and i
 
 The rules are game-independent in `Core/` (`Forging.cs`: the `requires` vocabulary, the mandrel, the
 hollows by metal and the job; `MandrelStationConfig.cs`; `MandrelStationRig.cs`; and
-`MandrelStationView.cs`: the renderer's view of the station and its clock); the game side is `Game/`
-(`MandrelStationSystem`, the controller `BlockMandrelStation` and `BEMandrelStation`, the ghost
-`BlockMandrelStationGhost` with `BEMandrelStationGhost`, and `MandrelStationRenderer`), copied from the
-press brake's (`../PressBrake/README.md`, "Gameplay") with its held lever replaced by blows. The mod's
+`MandrelStationClock.cs`: the renderer's clock), and its build is data,
+`assets/seraphhorizons/config/builds/mandrelstation.json`. The game side is the shared machine base
+(`../Machines/Game/`, docs/modeling/machine-base.md), as the press brake's (`../PressBrake/README.md`,
+"Gameplay"), with its held lever replaced by blows: the frame is `BlockMachine`, the far cell the shared
+`machine-cell`, the parts are drawn by `MachineRenderer`; `Game/` holds only `MandrelStationSystem` (its
+settings and rig, which it names to `MachinesSystem`) and `BEMandrelStation : BEMachine`, whose hand work
+(`HandWorked`) is the spring job's winding; no power anchor and no oil. The mod's
 README, "Mandrel forging station", is the player-facing summary; the decisions are here. Everything is
 read from the rig through its anchors, `forge` and `requires`, never element names.
 
 **Blocks.** `seraphhorizons:mandrelstation-frame-{side}` (`assets/seraphhorizons/blocktypes/mandrelstation/frame.json`,
 drawing `mandrelstation_frame.json`; its textures are every texture of both shapes, `mandrel` included)
-and `mandrelstation-ghost` for the far cell. The contract writes the block as `mandrelstation-{side}`;
+(class `seraphhorizons.Machine`) and the shared `machine-cell` in the far cell. The contract writes the block as `mandrelstation-{side}`;
 gameplay names it `-frame-{side}`, as the press brake's and the draw bench's are, since what is placed is
 the frame and the mandrel is fitted to it. Placement (`side` = the player's look,
-`MandrelStationRig.PlacedSide`, the stump nearest them and the mandrel pointing away), the ghost, its
-repair, breaking through it and the boxes (selection from the rig's cells, collision with their lids)
-are the press brake's. The frame recipe (`assets/seraphhorizons/recipes/grid/mandrelstation.json`): an
+`MandrelStationRig.PlacedSide`, every machine's rule, the stump nearest them and the mandrel pointing
+away), the cell, its repair, breaking through it and the boxes (selection from the rig's cells, collision
+with their lids) are the machine base's. The frame recipe (`assets/seraphhorizons/recipes/grid/mandrelstation.json`): an
 oak log stood on end for the stump, an iron or steel plate (the bracket's base plate and the swage), two
 nails and strips of iron, meteoric iron or steel (the hoop and the strap bands) and a hammer. It takes
 no rod: the mandrel is the one fitted part.
 
-**The mandrel** (`MandrelPart`): `game:rod-iron`, `-meteoriciron` or `-steel` (verified in game 1.22.7's
-`survival/itemtypes/part/rod.json`), fitted by right-click on the stump or the ghost; a second is
-refused with a message, and a rod of another metal is the item's own business. Once fitted it stays in:
+**The mandrel** (`MandrelPart`, the build's one stage `mandrel`, kept by the base's `MachineAssembly`):
+`game:rod-iron`, `-meteoriciron` or `-steel` (verified in game 1.22.7's
+`survival/itemtypes/part/rod.json`), fitted by right-click on the stump or the cell; a second is
+refused with the station's own message (on a fitted station every mandrel rod goes to the spring job's
+`OfferRod` before the build sees it), and a rod of another metal is the item's own business. Once fitted it stays in:
 only breaking the station gives it back, as the contract has it. A machine's parts come out by hand only
 when they are consumables (the draw bench's die), and the mandrel station has none, so there is no
 take-out path, no help line for one and no lang string. The creative shortcut (Ctrl in creative mode with no mandrel) fits an iron one free.
+A station saved before the shared base loads as a bare frame (its old keys are not read).
 Breaking drops the frame, the mandrel and a hollow not yet struck (a struck one is lost).
 
 **Blows** (the anvil's pattern: `BlockEntityAnvil` takes a hammer's hits). A hollow section, the game's
@@ -402,7 +408,8 @@ and only when its pipe section exists (`UnifiedPipes`' item; with that switch of
 with a message). Then **each right-click with any of the game's hammers** (`game:hammer-*`) on the
 station is a blow, no faster than one each `Forging.BlowIntervalMs` (300) on a station, so right-click
 held does not hammer faster than a smith swings. A blow advances W by (the hammer's tool tier /
-`BaseHammerTier`) / `BlowsPerHollow` of the hollow's metal (`Forging.WorkPerBlow`, `ForgeJob.Strike`):
+`BaseHammerTier`) / `BlowsPerHollow` of the hollow's metal (`Forging.WorkPerBlow`, `Forging.Strike`, a
+counted step of the base's `MachineJob`):
 `BlowsPerHollow` is the count for the base hammer, the copper one, and the tier is read from the held
 hammer's item (`CollectibleObject.ToolTier`, the game's `tooltierbytype`: copper, gold and silver 2, the
 three bronzes 3, iron and meteoric iron 4, steel 5) at each blow; a hammer with no tier counts as the
@@ -433,10 +440,10 @@ blows struck and W as a percentage, since the blows left depend on the hammer.
 `HammerWearPerBlow` 1, as a blow on the anvil costs a hammer one. Nothing of the station wears, so there
 is no oil and no tool of its own.
 
-**Renderer** (`MandrelStationRenderer`, through `IMandrelStationView`: facing, the mandrel fitted and its
-metal, the hollow's class, the server's W and blows). Every rig part with a `requires`, a ride or a
-driver, from `mandrelstation.json`, drawn when fitted (the mandrel), with the texture code `mandrel` set
-to the fitted rod's metal (`MachineMeshes.MetalTexture`, one mesh set a metal). The hollow's parts
+**Renderer** (the base's `MachineRenderer`, posed by `BEMandrelStation.FrameInput`). Every rig part with a
+`requires`, a ride or a driver, from `mandrelstation.json`, drawn when fitted (the mandrel), with the
+texture code `mandrel` set to the fitted rod's metal (`MachineMeshes.MetalTexture`; `TextureKey` is the
+metal, so the meshes are built again when it changes). The hollow's parts
 (`hollowlead`, `hollowcopper`) are drawn only while that metal's hollow is on: once the sections are
 delivered they are items, and the work is not drawn while p eases out (the contract's "Changes").
 `MandrelStationClock` eases W and θ (2π a blow) to the server's after each blow, exponentially, settling
@@ -478,9 +485,10 @@ for the frame (`MachineSchematics`).
 Built to the contract the model left (settled with the owner: steel rods only, one rod a spring, wound on the
 mandrel already fitted, by hand with tongs, right-click held, about 8 s (4 at first); heat by the anvil's rules). Everything
 is read from the rig (`wind`, `requires`, the anchors), never element names. The rules are in `Core/Winding.cs`
-(the verdict for a rod, the heat rule, the glow, `WindJob`, `WindHolds`) and `Core/MandrelStationRig.cs`
-(`WindSpec`, the rig's `wind`); the game side is `BEMandrelStation` ("Winding"), with the held interaction in
-`BlockMandrelStation` and its ghost. Switch: `MandrelSprings` (with `MandrelStation`).
+(the verdict for a rod, the heat rule, the glow, the job: a `MachineJob` of class 3) and
+`Core/MandrelStationRig.cs` (`WindSpec`, the rig's `wind`); the game side is `BEMandrelStation` ("Winding"),
+with the held interaction the base's (`BlockMachine` and the cell forward it, `HandHolds` keeps the
+winders). Switch: `MandrelSprings` (with `MandrelStation`).
 
 - **The vocabulary.** `MandrelRequires.RodSteel` (`rodsteel`) is known, and `MandrelRequires.Work(k)` gives a
   job's work: the hollows for 1 and 2, the rod for 3. The reader takes `wind` (optional: a rig without one has
@@ -500,9 +508,11 @@ is read from the rig (`wind`, `requires`, the anchors), never element names. The
   temperature, which the game's temperature attributes go on cooling).
 - **Its class.** A rod on is k = 3 (`wind.class`) for the rig and the clock; `MandrelStationClock` carries 1, 2
   and 3, and the view reads `JobClass`, `JobWork`, `Held`, `TurnsPerRod` and `RodTemperature`.
-- **Winding.** With a rod on, any right-click on the station or its ghost (Shift aside) starts winding, held as
-  the press brake's lever is: `OnBlockInteractStep` keeps the player in `WindHolds` while they hold, and the
-  server's 50 ms tick winds by `Winding.RadiansPerSecond` × dt while anyone does, W advancing by a turn over
+- **Winding.** With a rod on, any right-click on the station or its cell (Shift aside) starts winding, held as
+  the press brake's lever is: `OnInteractStep` keeps the player in the base's `HandHolds` (600 ms) while they
+  hold, a rod is on and they have tongs (with no rod on the step ends, so a hammer's held click repeats as a
+  click), and the server's 50 ms tick winds (the base's `Working` state, `WorkUnpowered`) by
+  `Winding.RadiansPerSecond` × dt while anyone does, W advancing by a turn over
   `TurnsPerRod` (8, the rig's `wind.turnsPerRod`, held together by a test): eight seconds a rod. The player needs
   **tongs** in either hand (any item whose tool is `Tongs`: the game's `game:tongs` and metal tongs; the game
   keeps them in the off hand), none in creative mode; without, an error and no hold. W syncs every 0.02;
@@ -516,7 +526,8 @@ is read from the rig (`wind`, `requires`, the anchors), never element names. The
 - **Drawn.** The `rodsteel` parts are drawn only while a rod is on and p is 1 (`MandrelStationClock.ShowsWork`:
   for class 3, p jumps to 1 as the rod goes on); never the hollows' during a spring, nor the spring's during a
   hollow. At delivery the job is off at once and the parts are not drawn while p eases out.
-- **Drawn hot.** `MandrelStationRenderer` sets, for each part whose `requires` is in `wind.hot`, the standard
+- **Drawn hot.** `BEMandrelStation.PartGlow` (the base's hook, which `MachineRenderer` reads) gives, for each
+  part whose `requires` is in `wind.hot`, the standard
   shader's `RgbaGlowIn` from `ColorUtil.GetIncandescenceColorAsColor4f(temp)` with alpha extraGlow / 255 and
   `ExtraGlow` = `Winding.ExtraGlow(temp)` = Clamp((temp − 550) / 2, 0, 255), and zero glow for every other part
   (and after the loop), the rod's temperature read on the client from the synced stack each frame.
@@ -537,10 +548,10 @@ is read from the rig (`wind`, `requires`, the anchors), never element names. The
   section names the spring and the draw bench's use of it, and the spring's own page.
 - **The draw bench** takes one spring in its mandrel stage, with its rods (`../DrawBench/README.md`).
 - **Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the verdict for a rod, the heat rule, the glow,
-  `WindJob`, `WindHolds`, the clock's class 3 at p 1, the reader's `wind` and its refusals),
+  the winding job, the shared hand holds, the clock's class 3 at p 1, the reader's `wind` and its refusals),
   `MandrelStationRigTests.cs` (the shipped rig's spring job, its pace the settings'); Atlas
   `tests/PackTests/MandrelSpringScenarios.cs` (the spring and forgeable rods load; a rod on the forge heats; a
-  cold rod refused, a hot one wound with tongs from the stump and the ghost into a hot spring and the tongs worn;
+  cold rod refused, a hot one wound with tongs from the stump and the cell into a hot spring and the tongs worn;
   a cooled rod stopped, taken back and put on again; breaking; a steel rod as the mandrel on a bare station),
   `RecipeExportMandrelStationScenarios.Mandrel_station_winds_a_steel_rod_into_a_spring_record` and
   `SwitchesOffScenarios.Mandrel_springs_off_there_is_no_spring`.

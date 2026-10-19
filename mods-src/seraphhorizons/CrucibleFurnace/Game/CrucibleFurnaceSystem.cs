@@ -1,6 +1,7 @@
 using System.Text;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -11,7 +12,7 @@ namespace SeraphHorizons.Mod.CrucibleFurnace;
 
 /// <summary>
 /// Stainless steel's crucible furnace (<c>StainlessSteel</c>, #484 part C, #796, README "Crucible
-/// furnace"): a 3 x 3 x 2 machine of ghost cells placed from its iron frame and built in stages, one
+/// furnace"): a 3 x 3 x 2 machine on the shared machine base, placed from its iron frame and built in stages, one
 /// two-pot hole fired with coke on natural draught, its chimney (shared along a row) setting the draught,
 /// each fireclay melting pot's charge melting into ferrosilicon, ferrochrome, stainless steel or iron
 /// (<see cref="PotRecipes"/>). Holds what its blocks share: its settings, the pot recipes, the rig
@@ -25,7 +26,8 @@ public class CrucibleFurnaceSystem : ModSystem
     public const string Domain = "seraphhorizons";
     public const string FrameCode = "seraphhorizons:cruciblefurnace-frame-north";
     public const string FurnaceClass = "seraphhorizons.CrucibleFurnace";
-    public const string GhostClass = "seraphhorizons.CrucibleFurnaceGhost";
+    /// <summary>The furnace's id on the shared machine base: its build file's and rig's.</summary>
+    public const string MachineId = "cruciblefurnace";
     public const string PotClass = "seraphhorizons.MeltingPot";
     public const string SmeltedPotClass = "seraphhorizons.MeltingPotSmelted";
     public const string GuidePageCode = "seraphhorizons-cruciblefurnace";
@@ -38,7 +40,6 @@ public class CrucibleFurnaceSystem : ModSystem
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/cruciblefurnace/frame.json"),
-        new(Domain, "blocktypes/cruciblefurnace/ghost.json"),
         new(Domain, "blocktypes/cruciblefurnace/meltingpot.json"),
         new(Domain, "itemtypes/ferrosilicon.json"),
         new(Domain, "itemtypes/ferrochrome.json"),
@@ -103,10 +104,8 @@ public class CrucibleFurnaceSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         _api = api;
-        api.RegisterBlockClass(FurnaceClass, typeof(BlockCrucibleFurnace));
         api.RegisterBlockEntityClass(FurnaceClass, typeof(BECrucibleFurnace));
-        api.RegisterBlockClass(GhostClass, typeof(BlockCrucibleFurnaceGhost));
-        api.RegisterBlockEntityClass(GhostClass, typeof(BECrucibleFurnaceGhost));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
         api.RegisterBlockClass(PotClass, typeof(BlockMeltingPot));
         api.RegisterBlockClass(SmeltedPotClass, typeof(BlockMeltingPotSmelted));
         // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server

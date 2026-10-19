@@ -26,15 +26,15 @@ public partial class MillWorldScenarios
     {
         Assert.True(ShakingTableSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(TableFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(TableFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(TableFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(TableFrame + "north"));
         Assert.Equal("shakingtable", block.Machine);
         Assert.Equal("Shaking table frame", new ItemStack(block).GetName());
         var rig = block.Rig!;
         Assert.Equal(Int3.Zero, rig.Anchor(OreMachineRig.Power)!.Value.Cell);
         foreach (var outlet in new[] { ShakingTabling.Concentrate, ShakingTabling.Middlings, ShakingTabling.Tailings })
             Assert.NotNull(rig.Anchor(outlet));
-        var build = OreMachinesSystem.Of(World.Api).Build("shakingtable");
+        var build = MachinesSystem.Of(World.Api).Build("shakingtable");
         Assert.Equal(["deck", "rectifier", "head", "services"], build!.Stages.Select(s => s.Id));
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == TableFrame + "north" && r.Enabled);
         Assert.Contains(recipe.ResolvedIngredients!, i => i?.Code?.Path == "plank-*" && i.Quantity == 9);
@@ -111,6 +111,7 @@ public partial class MillWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(table.Built);
+        MachineTest.FillOil(table);
         Assert.True(table.ShowsPart("pipelead"));
         Assert.False(table.ShowsPart("pipecopper"));
         Assert.Equal(0.1f, table.Resistance, 3);

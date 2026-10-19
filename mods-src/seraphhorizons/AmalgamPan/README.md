@@ -15,7 +15,9 @@ in; the shoes work them into a pulp, and the mercury takes up the free gold or s
 grey paste, to be retorted in the still (#726).
 
 This folder holds the model's generator and its rig (`tools/`), and the gameplay (#718): its rules in
-`Core/`, the game side in `Game/`, described in the mod's README, "Ore processing: the amalgam pan". The
+`Core/`, the game side in `Game/` (`BEAmalgamPan : BEMachine` on the shared machine base,
+docs/modeling/machine-base.md: the frame is `BlockMachine`, the axle the shared `BEBehaviorMachineMP` at the rig's
+`power` anchor, the parts drawn by `MachineRenderer`; no oil), described in the mod's README, "Ore processing: the amalgam pan". The
 model is #719. "Gameplay" below says what the rig offers it and how the gameplay takes it.
 
 **Worked as the quern is.** The game's quern (`game:quern-*`, `BlockQuern` with an `MPConsumer` entity

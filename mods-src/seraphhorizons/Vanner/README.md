@@ -322,6 +322,27 @@ box's and the frame's), `fb_*` (`floor`, `w`, `e`, `s`, `weir`, `apron`), `pipec
 `spraypost`, `spraybracket`, `cb_*`, `tb_*`). Hand edits are lost when the script runs again:
 port them into `make_shape.py`, or stop regenerating.
 
+## Oil
+
+The vanner takes oil (`MachineOil`; `OilKind` `OilMachine.Vanner` on the shared machine base's `MachineOiling`), as every
+machine on a shaft does: built dry, its load on its shaft is three times its own (`DryResistanceMultiplier`) until it
+is oiled, and a dry one smokes while it turns. Oil goes in by right-click on any cell with a container of oil or a
+lump of rendered fat (the mod's README, "Machines need oil"). Its job is a rock vanned, drained as each rock is worked (`BEOreMachine.WorkItem`); idle turning costs nothing.
+
+| Setting (`MachineOilSettings.Vanner`) | Default | |
+|---|---|---|
+| `Tank` | 400 (4 L) | 5000 points a unit of working load: 0.08 × 5000 |
+| `DrainPerJob` | 3.1 | 2 points a unit of load and a shaft turn: 2 × 0.08 × its turns a job |
+
+**Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
+copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
+mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
+vanner's load is 0.08; it works 3 rocks an hour at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 / 3 = 19.1 turns a rock, and 2 × load × turns rounds to 3.1. A full tank is 129 rocks, about 44 hours of work at the
+reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
+battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
+the defaults to the shipped figures.
+
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in projections rendered from the written files. No one has yet looked at it in a
@@ -393,7 +414,7 @@ its products. Its pass is `Core/Vanning.cs`, on the concentrators' `Concentrator
 - **The clock.** The shared renderer turns θ with the power cell's shaft about native z (the power face is south)
   and ψ with its travel, so the shake, the uprights and the creep move by the shared rig maths; θ holds still until
   the vanner is built. `drive` is not read.
-- **Anchors.** The power cell and face take the axle (`oremachine-cellpower-south` turned to the world); the
+- **Anchors.** The power cell and face take the axle (`machine-cellpower-south` turned to the world); the
   infeed cell's top face takes a chute coming down (`chute-straight-ud`); the water face a ppex pipe; the
   concentrate face a chute laid to take from it or a container; the tailings face the same, or the sand heap.
 - **Work.** `machines.vanner` (r 0.80, load 0.08 steady, 15 L a rock, 3 an hour at 0.6): each item one pass of the

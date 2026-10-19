@@ -7,7 +7,7 @@ namespace SeraphHorizons.Mod.AcidParting;
 /// <summary>
 /// The acid parting vessel (#931; README "Ore processing: the acid parting vessel"): registers its block entity and
 /// holds its settings (AcidPartingSettings in ModConfig/seraphhorizons.json) and the gameplay half of its rig
-/// (<see cref="AcidPartingRig"/>). Its frame is the shared ore machine block (<see cref="BlockOreMachine"/>), its cells
+/// (<see cref="AcidPartingRig"/>). Its frame is the shared machine block (<see cref="BlockMachine"/>), its cells
 /// the shared ones. With the <c>AcidParting</c> switch off, or ore processing off (it parts dore, ore processing's
 /// bullion, which then does not exist), the server leaves its frame and its recipes (the frame's, and aqua fortis
 /// cooked from saltpeter and sulfuric acid) out of the game.
@@ -72,7 +72,7 @@ public class AcidPartingSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 
     // The settings object is the one in the mod's loaded config, so the fixes hold for every reader.

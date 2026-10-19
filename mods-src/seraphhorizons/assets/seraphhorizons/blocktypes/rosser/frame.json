@@ -1,8 +1,8 @@
 {
 	code: "rosser",
-	class: "seraphhorizons.Rosser",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.Rosser",
-	// No HorizontalOrientable: BlockRosser.TryPlaceBlock picks the side so the rosser extends away
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the rosser extends away
 	// from the player (Machines/Core/Footprint.cs, PlacedFacing), as the bucking mill does. The
 	// shape is turned as the footprint is (Footprint.RotateY).
 	variantgroups: [

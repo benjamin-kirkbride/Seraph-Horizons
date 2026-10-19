@@ -130,6 +130,61 @@ public class OreMachineSharedTests
     }
 
     [Fact]
+    public void A_partial_material_takes_as_many_as_are_held()
+    {
+        var b = MachineBuildJson.Parse("""
+            { "machine": "partial", "stages": [ { "id": "ring", "adds": ["ring"], "materials": [
+              { "codes": ["game:largegearsection-wood"], "quantity": 4, "partial": true, "draws": ["ring"] },
+              { "codes": ["game:rod-iron"], "quantity": 2 } ] } ] }
+            """).NewBuild();
+        Assert.Equal((StageFitVerdict.Fits, 1), (b.CanFit("game:largegearsection-wood", 1, maxStack: 64).Verdict, b.CanFit("game:largegearsection-wood", 1, maxStack: 64).Count));
+        b.Fit("game:largegearsection-wood", 3, maxStack: 64);
+        Assert.False(b.Fitted("ring"));
+        // never more than it still needs
+        Assert.Equal(1, b.Fit("game:largegearsection-wood", 10, maxStack: 64).Count);
+        Assert.True(b.Fitted("ring"));
+        // a material without it still wants all it needs at once
+        Assert.Equal(StageFitVerdict.TooFew, b.CanFit("game:rod-iron", 1, maxStack: 64).Verdict);
+    }
+
+    [Fact]
+    public void A_drawn_pick_is_drawn_once_its_material_is_in_and_only_in_the_metal_put_in()
+    {
+        var b = MachineBuildJson.Parse("""
+            { "machine": "drip", "stages": [ { "id": "parts", "adds": ["shaft", "pipecopper", "pipelead"], "materials": [
+              { "codes": ["game:rod-iron"], "quantity": 1, "draws": ["shaft"] },
+              { "codes": ["ppex:pipe-straight-ns-copper", "ppex:pipe-straight-ns-lead"], "quantity": 4, "draws": ["pipecopper", "pipelead"],
+                "picks": { "ppex:pipe-straight-*-copper": "pipecopper", "ppex:pipe-straight-*-lead": "pipelead" } } ] } ] }
+            """).NewBuild();
+        b.Fit("ppex:pipe-straight-ns-lead", 4);
+        Assert.False(b.Complete);
+        Assert.True(b.Fitted("pipelead"));
+        Assert.False(b.Fitted("pipecopper"));
+        Assert.False(b.Fitted("shaft"));
+    }
+
+    [Fact]
+    public void A_wearing_parts_uses_can_follow_the_item_fitted()
+    {
+        var build = MachineBuildJson.Parse("""
+            { "machine": "blades", "stages": [ { "id": "frame", "adds": [], "materials": [ { "codes": ["game:rod-iron"], "quantity": 1 } ] } ],
+              "wearing": [ { "id": "blade", "codes": ["game:blade-*"], "count": 1, "uses": 1, "durable": true } ] }
+            """).WithUses("blade", code => code == "game:blade-steel" ? 400 : code == "game:blade-copper" ? 100 : 0);
+        var w = build.NewWearing();
+        Assert.Equal(RenewVerdict.Renews, w.Renew("game:blade-copper", 1, built: true));
+        Assert.Equal(100, w.Fitted("blade")!.Value.Left);
+        Assert.True(w.Wear("blade", 100));
+        // a durable part goes in with what it has left, never past its own metal's figure
+        w.Renew("game:blade-steel", 1, built: true, uses: 1000);
+        Assert.Equal(400, w.Fitted("blade")!.Value.Left);
+        w.Wear("blade", 100);
+        Assert.Equal(0.75, w.ShareLeft("blade"), 3);
+        // an item it gives no figure for has the file's
+        var restored = WearingParts.Restore(build.Wearing, new Dictionary<string, (string, double)> { ["blade"] = ("game:blade-tin", 5) });
+        Assert.Equal(1, restored.Fitted("blade")!.Value.Left);
+    }
+
+    [Fact]
     public void A_snapshot_restores_and_drops_what_no_longer_fits()
     {
         var b = Fixture().NewBuild();

@@ -1,7 +1,7 @@
 # Crucible furnace: the model
 
 Part of the Seraph Horizons mod (`../README.md`, "Crucible furnace"): the generated model of the crucible furnace
-as one machine (#753), placed as a multiblock with ghost cells like the pack's other machines. It replaced the row of
+as one machine (#753), placed as a multiblock on the shared machine base like the pack's other machines. It replaced the row of
 grid-crafted melting holes (#796).
 
 **Status: in the game** (#796). This folder's `tools/` holds the model's generator and its checks; `Core/` and
@@ -118,7 +118,7 @@ order), and the viewer's **Build** select steps through them:
 
 | | Stage | `requires` | What it puts in | Materials | Gear |
 |---|---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the binding's corner straps and top bands, the grate's bearers and firebars, the ash mouth's lintel and the damper's guides, and 5 short posts under the bearers and the lintel, hidden in the brickwork (below) | **4 iron rods, 1 iron plate** (its 760 voxels of iron at 128 an ingot: below) | 23.07 |
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its cells | none (the frame part) | What stands on its own: the binding's corner straps and top bands, the grate's bearers and firebars, the ash mouth's lintel and the damper's guides, and 5 short posts under the bearers and the lintel, hidden in the brickwork (below) | **4 iron rods, 1 iron plate** (its 760 voxels of iron at 128 an ingot: below) | 23.07 |
 | 1 | **Brickwork** | `brickwork` (and the `hinge` part) | The base, the ash pit and the ash mouth, the outer walls: 12.34 blocks of brick; and with it, at no cost of its own, the hinge's pins and the lid's stops on their 8 ties | **25 fired bricks**, any one type (`game:burnedbrick-*`) | 8.50 (brown brick: 4.38) |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the hole's walls and the seat's ledge, the flue and the stack), the outlet's curb and the pots' stands: 2.15 blocks | **9 tier-3 refractory bricks** (`game:refractorybrick-fired-tier3`), **4 fire clay** (`game:clay-fire`) | 9.00 |
 | 3 | **Lid and damper** | `lid` (and the damper's place) | The lid, and the damper in its recess | 4 tier-3 refractory bricks, 2 iron plates | 19.37 |
@@ -137,8 +137,9 @@ and 4 refractory bricks a block (8 and a mortar make 2), rounded up, that is 25 
 bricks (8.60); fire clay one per 2.5 refractory bricks, 4. The owner's estimate was about 24 and 10. The lid stage's
 materials and the frame's recipe are as the owner settled them (the lid's firebrick alone measures 0.16 blocks).
 
-**Brickwork and lining take a stack a click**: as many of the held stack as the stage still needs; the stage is
-complete when all its materials are in. The hole's contents, the lid and the damper are drawn only once the furnace
+**A stage's material goes in by the shared build's rule**: a click puts in all the stage still needs of it from
+the held stack, or the whole stack when a full one is still short of it; fewer, not a full stack, is refused. The
+stage is complete when all its materials are in. The hole's contents, the lid and the damper are drawn only once the furnace
 is built, the cap only once the lining (its curb) is in.
 
 **The ties.** So that nothing floats before the brick is in, the least iron joins each piece of iron to the ground,
@@ -442,10 +443,14 @@ Nothing for the model: the build is settled.
 #796 wired the model in; nothing is left on this list. What gameplay reads, and where:
 
 - **The iron frame** is the controller block, `seraphhorizons:cruciblefurnace-frame-{side}` (the item is
-  `-north`), drawing `cruciblefurnace_frame.json`; its grid recipe is the rig's `build.frame`. Placed, it stamps
-  `cruciblefurnace-ghost` into the other 23 cells (`Game/BlockCrucibleFurnace.cs`, `Game/BECrucibleFurnace.cs`).
-- **The stages** are read from `build.stages` (`Core/CrucibleFurnaceRig.cs`) into `Core/FurnaceBuild.cs`: the
-  counts, `oneType` and the brick type, `alsoParts`, `also`. A unit test holds the rig to the owner's build.
+  `-north`), drawing `cruciblefurnace_frame.json`; its grid recipe is the rig's `build.frame`. It is a machine on
+  the shared base (`docs/modeling/machine-base.md`): the block is `BlockMachine`, and placed it stamps the shared
+  `machine-cell` into the other 23 cells; `Game/BECrucibleFurnace.cs` is its `BEMachine`, its cells' boxes its own
+  (they change with the build and the lid), its flue the fired machines' (`Game/FurnaceFiring.cs`).
+- **The stages** are `config/builds/cruciblefurnace.json` on the shared staged build, the rig's `build.stages`
+  (`Core/CrucibleFurnaceRig.cs`) as the build file: the counts, the brick stage `oneType` (its codes the rig's
+  brick types, red first), the hinge drawn with the brickwork and the damper's places once the lid is in. Unit tests
+  hold the rig to the owner's build and the build file to the rig.
 - **The brick** is the rig's `bricks`: the renderer composes the type's `base` and `overlays` into one texture
   (`CompositeTexture` with blended overlays, inserted in the block atlas) and sets the shape's `brick` code to it.
 - **The renderer** (`Game/CrucibleFurnaceRenderer.cs`) draws every part but the frame by its `requires`, the lid at

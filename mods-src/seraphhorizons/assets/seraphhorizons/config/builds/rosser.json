@@ -1,0 +1,26 @@
+{
+	"_comment": "The rosser's build (Rosser/README.md, 'Assembly'): existing items only, in any order, each part drawn once it is all in (draws: the rig's shaft, ring, tyres, rollsin, rollsout, breaker, levers, and the drip's pipes in the metal fitted, pipecopper or pipelead); read by Machines/Core/MachineBuildJson.cs (its schema) and kept by the shared machine base (docs/modeling/machine-base.md). A click takes as many as a part still needs (partial), the drip's four pipes all at once from one stack of one metal; the four rods are one part, the infeed rolls drawn once two are in and the outfeed's with the other two (RosserBuild.Shows); the tyres go on the ring once it is in (BERosser refuses them before). Hoops, rods and plates are iron work while IronWoodworkingMachines is on, else any metal (RosserBuild.AnyMetal). The pipes are a part only while ppex's copper and lead straight pipes exist (ifExists). The scraper heads are the wearing part: four bark spud heads of one metal from one stack, any metal, on the ring once it is in, before or after the rest (BERosser fits them, so with no stage); their uses are their metal's capacity (HeadWearMultiple × that bark spud's durability), worn HeadWearPerStoredLog a stored log; unworn they come back out by Ctrl and with the frame, worn they stay until spent. No block: the rosser has no construction record in the recipe export.",
+	"machine": "rosser",
+	"stages": [
+		{
+			"id": "parts", "name": "parts", "adds": ["shaft", "ring", "tyres", "rollsin", "rollsout", "breaker", "levers", "pipecopper", "pipelead"],
+			"materials": [
+				{ "codes": ["immersivewoodworking:sawmillcrankshaft"], "quantity": 1, "draws": ["shaft"] },
+				{ "codes": ["game:largegearsection-wood"], "quantity": 4, "partial": true, "draws": ["ring"] },
+				{ "codes": ["game:hoop-steel", "game:hoop-iron", "game:hoop-meteoriciron"], "quantity": 2, "partial": true, "draws": ["tyres"] },
+				{ "codes": ["game:rod-steel", "game:rod-iron", "game:rod-meteoriciron"], "quantity": 4, "partial": true, "draws": ["rollsin", "rollsout"] },
+				{ "codes": ["game:metalplate-steel", "game:metalplate-iron", "game:metalplate-meteoriciron"], "quantity": 2, "partial": true, "draws": ["breaker"] },
+				{ "codes": ["immersivewoodworking:sawmilllevers"], "quantity": 1, "draws": ["levers"] },
+				{
+					"codes": ["ppex:pipe-straight-ns-copper", "ppex:pipe-straight-ns-lead", "ppex:pipe-straight-we-copper", "ppex:pipe-straight-we-lead",
+					          "ppex:pipe-straight-ud-copper", "ppex:pipe-straight-ud-lead"],
+					"quantity": 4, "ifExists": true, "draws": ["pipecopper", "pipelead"],
+					"picks": { "ppex:pipe-straight-*-copper": "pipecopper", "ppex:pipe-straight-*-lead": "pipelead" }
+				}
+			]
+		}
+	],
+	"wearing": [
+		{ "id": "heads", "codes": ["immersivewoodworking:barkspudhead-steel", "immersivewoodworking:barkspudhead-*"], "count": 4, "uses": 1, "requires": "heads" }
+	]
+}

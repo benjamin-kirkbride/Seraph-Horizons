@@ -408,23 +408,23 @@ The model has been reviewed in projections rendered from the written files and i
 
 ## Gameplay
 
-The rules are game-independent in `Core/` (`DrawBenchParts.cs`, `Drawing.cs`, `DrawBenchConfig.cs`,
-`DrawBenchRig.cs`, and `DrawBenchView.cs`: the renderer's view of the bench and its clock); the game side
-is `Game/` (`DrawBenchSystem`, the controller `BlockDrawBench` and `BEDrawBench`, the ghosts
-`BlockDrawBenchGhost` and `BlockDrawBenchGhostPower` with `BEDrawBenchGhost`, the load
-`BEBehaviorDrawBenchMP`, and `DrawBenchRenderer`), copied from the gear cutter's
-(`../GearCutter/README.md`, "Gameplay"). The mod's README, "Draw bench", is the player-facing summary;
+The rules are game-independent in `Core/` (`Drawing.cs` with the `requires` vocabulary and the die's
+codes, `DrawBenchConfig.cs`, `DrawBenchRig.cs`, and `DrawBenchClock.cs`: the renderer's W), and its build is
+data, `assets/seraphhorizons/config/builds/drawbench.json`. The game side is the shared machine base
+(`../Machines/Game/`, docs/modeling/machine-base.md): the frame is `BlockMachine`, the cells the shared
+`machine-cell` and the power cell `machine-cellpower-{face}` with the shared `BEBehaviorMachineMP`, the parts
+are drawn by `MachineRenderer`; `Game/` holds only `DrawBenchSystem` (its settings and rig, which it names to
+`MachinesSystem`) and `BEDrawBench : BEMachine`, which takes oil (`OilMachine.DrawBench`). The mod's README, "Draw bench", is the player-facing summary;
 the decisions are here. Everything is read from the rig through its anchors and `requires`, never
 element names.
 
 **Blocks.** `seraphhorizons:drawbench-frame-{side}` (`assets/seraphhorizons/blocktypes/drawbench/frame.json`,
 drawing `drawbench_frame.json`; its textures are every texture of both shapes, `die` included, since the
-renderer draws the parts with the block's texture source), `drawbench-ghost` and
-`drawbench-ghostpower-{side}`: placement, ghosts, ghost repair, breaking through a ghost and the boxes
-(selection from the rig's cells, collision with their lids) are the gear cutter's. **Placing** differs:
-the bench runs along native south, so the `side` placed is the way the player looks
-(`DrawBenchRig.PlacedSide`), and the bench runs away from them with the die end, the block they clicked,
-nearest. (`Footprint.PlacedFacing`, the mills' rule, sends native west along the look, which would lay
+renderer draws the parts with the block's texture source; class `seraphhorizons.Machine`), the shared
+`machine-cell` and `machine-cellpower-{face}`: placement, cells, cell repair, breaking through a cell and the
+boxes (selection from the rig's cells, collision with their lids) are the machine base's. The bench runs
+along native south, so the `side` placed is the way the player looks (`DrawBenchRig.PlacedSide`, every
+machine's rule), and the bench runs away from them with the die end, the block they clicked, nearest. (`Footprint.PlacedFacing`, the mills' rule, sends native west along the look, which would lay
 the bench across it.) The axle then comes in at the far end on the player's right, and the pipe sections come
 off to their left. The frame recipe
 (`assets/seraphhorizons/recipes/grid/drawbench.json`): two metal plates (die stock and the drive head's bed
@@ -435,12 +435,14 @@ in the pack pays stainless gears for its gears, #473), two oak logs (the sills),
 hammer: about 11 ingots of iron (a plate 2, a rod 1, 12 nails and strips 3), under the gear cutter's
 frame (8 steel ingots, 32 nails and strips and 3 stainless gears).
 
-**Stages** (`DrawBenchParts`), in `DrawBenchStage` order, the next missing stage the only one a click
-fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a die with no
-durability `DieSpent`). A stage takes `Needed` of its item, all from the held stack in one click (fewer
-held is `TooFew`, with a message, and nothing is taken): two chains (the endless chain runs round both
-sprockets the bench's length), two rods (the mandrel bar, and the follower's spindle), one of the rest;
-the mandrel stage also takes one spring, in a click of its own before or after the rods (`NeededOf`: one spring; `HasItem` the rods, `HasSpring` the spring, `Has` both), while springs exist (`Springs`, the spring item registered); without them the rods alone fit it. A save keeps the spring under `part-spring`; a bench saved before springs keeps its stages and asks for one.
+**Stages** (`config/builds/drawbench.json`, kept by the base's `MachineAssembly`), in order, the next
+missing stage the only one a click fills (a later stage's item is `OutOfOrder`, one whose stage is in
+`AlreadyFitted`, a die with no durability `Spent`, with the shared messages). A stage takes its material's
+`quantity`, all from the held stack in one click (fewer held is `TooFew`, with a message, and nothing is
+taken): two chains (the endless chain runs round both sprockets the bench's length), two rods (the mandrel
+bar, and the follower's spindle), one of the rest; the mandrel stage also takes one spring, a material of
+its own put in by a click before or after the rods, while springs exist (`ifExists`: the build is resolved
+against the items the game has, `MachineBuild.Resolve`); without them the rods alone fit it.
 Breaking returns as many as went in; a save keeps one code a stage, as before. With the frame (about 11
 iron ingots) and the die (2), the parts bring the bench to about 21 ingots of iron and a Jonas gearbox:
 the chains 4, the bracket 2, the rods 2.
@@ -450,21 +452,25 @@ the chains 4, the bracket 2, the rods 2.
 | 1 | `gearbox` | `game:jonasframes-gearbox01` |
 | 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel`, two |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two, and one `seraphhorizons:spring-steel` (the mandrel station's spring, `DrawBenchParts.SpringCode`; the rods and the spring go in by clicks of their own, either first) |
+| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two, and one `seraphhorizons:spring-steel` (the mandrel station's spring, `ifExists`; the rods and the spring go in by clicks of their own, either first) |
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from two ingots of its metal, 80 voxels (two thick rings and a stepped shoulder), named `drawdie` so the helve hammer leaves it alone) |
 
-The die keeps its durability left and full (`GetRemainingDurability`, `GetMaxDurability`); the die
-item's durability is `DieDurability`, set on the server in `AssetsFinalize` before the types go to
-clients (the file's 100 is the default). Ctrl + right-click takes the die back, with a `durability`
-attribute when worn, and only while no hollow is on the bench (`CanTakeDie`; with one on, an error); the
+The die is the build's durable wearing part (`die`, fitted with the last stage): it goes in with its
+durability left (`GetRemainingDurability`) of the part's uses, `DieDurability`, which is also the die
+item's durability, set on the server in `AssetsFinalize` before the types go to clients (the file's 100 is
+the default; `BEDrawBench.BuildSpec` puts it on the part). Spent or taken out, the stage stays fitted and
+the bench is built but not ready (`Complete` is `Ready`): it puts the token load on its shaft, says it has
+no die, and takes a die by right-click as a renewed set. Ctrl + right-click takes the die back
+(`MachineAssembly.Take`), with a `durability` attribute when worn, and only while no hollow is on the bench
+(with one on, an error); the
 other stages come back only by breaking the frame, which drops every part, the die with its wear, and the
 hollow if no pipe section has come off it yet (the first comes off at W = 0.43125; once one has, the rest of
 it is lost; broken after the fourth's hand-out, before W = 4, nothing is lost and the die is not worn). The creative shortcut
-(Ctrl in creative mode on an incomplete bench) fits each stage's first code, the mandrel's spring a click
-after its rods, the steel die last. A save
-restores the stages as a run from the first; a die with nothing left is dropped.
+(Ctrl in creative mode on a bench not ready) fits each stage's first codes, a whole stage a click (the
+mandrel's rods and spring together), the steel die last. A save restores the stages as a run from the
+first; a die with nothing left is dropped (a bench saved before the shared base loads as a bare frame).
 
-**The draw** (`Drawing`, `DrawJob`). The work is a hollow section, the game's chute section
+**The draw** (`Drawing`, the base's `MachineJob` ending at 4). The work is a hollow section, the game's chute section
 (`game:chutesection-lead` or `-copper`), threaded on the mandrel, and what comes off is four pipe
 sections of its metal, `seraphhorizons:pipesection-lead` or `-copper` (the owner's final chain v2,
 2026-10-07: two angles and solder make a hollow section on the grid; a hollow gives two pipe sections on
@@ -486,28 +492,29 @@ jaws have sprung open), one pipe section drops at `OutputDrop()` (in
 the die end's cell), pushed outward, as the gear cutter's gears do; the tank drains `DrainPerJob` (2) a pipe
 section, 8 a hollow. The model hides the section at the same W (the rig's `draw.handOut`, which the reader
 holds to `Drawing.HandOut`), and the renderer's W is never behind the server's, so the item and the
-model never both show it; `SectionsDone` counts the hand-outs W has reached. (Before, the model dropped
+model never both show it; `Drawing.SectionsDone` counts the hand-outs W has reached. (Before, the model dropped
 each section into the trough to queue there and gameplay delivered at the whole number, a return and a
 pause later.) At W = 4, the dog back at the die after the fourth stroke, the hollow is used up and the die wears
 `DieWearPerHollow` (1), whatever the oil (the export's `wear.rule` `fixed`): at 0 it is gone with the
 tool-break sound and the bench stops until a new die is fitted. The bench then clears; the next hollow
 goes on by hand (the bench never takes from or puts into a chest or other container beside it). The server syncs W every 0.05 section and at every section.
 
-**Oil and load.** `Oil.NewOwn(api, OilMachine.DrawBench)`: the tank (1000), pouring, saving, syncing and the
-smoke are MachineOil's, with the standard dry rule: `BEBehaviorDrawBenchMP.GetResistance` is
-`ResistanceLead` (0.2, empty or drawing lead) or `ResistanceCopper` (0.35) through `Oil.Asked`, three
-times while dry; an unassembled frame puts 0.005. The machine oil page lists the bench and its drain in
+**Oil and load.** The base's oil (`OilKind` `OilMachine.DrawBench`, `DryEffect` `Load`): the tank (1000),
+pouring, saving, syncing and the smoke are MachineOil's, with the standard dry rule: the shared
+`BEBehaviorMachineMP` asks `BEMachine.Resistance`, the bench's `ShaftLoad` `ResistanceLead` (0.2, empty or
+drawing lead) or `ResistanceCopper` (0.35) through `Oil.Asked`, three times while dry; a frame not ready puts 0.005. The machine oil page lists the bench and its drain in
 passages of its own, which `DrawBenchSystem.LangEdits` drops when the switch is off; the gear cutter's
 edits touch other passages, so the page reads right in every on/off combination of the two.
 
-**Renderer** (`DrawBenchRenderer`, through `IDrawBenchView`: facing, fitted parts, die metal, job class and
-the server's W, running, shaft angle and speed, oil fill, turns a section). Every rig part with a `requires`, a
-ride or a driver, from `drawbench.json`, drawn when its stage is fitted; the die's parts are meshed per die
-metal with `die` set to `game:block/metal/ingot/{metal}`. `DrawBenchClock` holds the renderer's W, k and p:
+**Renderer** (the shared `MachineRenderer`, posed by `BEDrawBench.FrameInput`). Every rig part with a
+`requires`, a ride or a driver, from `drawbench.json`, drawn when its stage is fitted (the die while one is
+in); the meshes are built again with `die` set to `game:block/metal/ingot/{metal}` when the die's metal
+changes (`TextureKey`). `DrawBenchClock` holds the renderer's W, k and p:
 W advances with the shaft while running, never behind the server's W and at most 0.1 section ahead of it;
 with no hollow on, W is held at 4 and k while p eases out over 0.4 s (`billetlead` and `billetcopper` are
 drawn while their metal is the clock's class and p > 0), and a new hollow starts from the server's W. θ and ψ come
-from the power ghost's angle about native x (`MillMotion.NativeShaftAngle(.., Axis.X)`). While drawing:
+from the power cell's angle about native x (`MillMotion.NativeShaftAngle(.., Axis.X)`), turning whether or not
+the bench is complete (`Animates`). While drawing:
 metal dust (lead grey, copper red) and, oiled, a wisp of burning lubricant at `die.pos`, drips from the
 oiler at `drip.pos`, and the gears' sound every 1.8 s; a dry bench smokes at the die.
 
