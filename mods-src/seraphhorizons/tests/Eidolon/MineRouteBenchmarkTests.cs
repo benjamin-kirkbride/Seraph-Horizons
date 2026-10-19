@@ -10,7 +10,10 @@ namespace SeraphHorizons.Mod.Tests.Eidolon;
 /// jittered by seeds 7, 11 and 13. The planner leaves a job to today's dispatch where that finishes no later in
 /// its simulations, so the owner's targets are: a makespan no later than today's everywhere; in the open pit and
 /// the trench with three, 10 % under it with less idling; contacts rare and brief (at most about one
-/// a member each 2 minutes of work, none over 2 s, none with one on a narrow way) and no fault.</summary>
+/// a member each 2 minutes of work, none over 2 s, none with one on a narrow way) and no fault. Today's
+/// contacts are held to the same 2 s, and both runners then walk every member home at once
+/// (<see cref="HomeWalk"/>, the game's returners stopping short of one in their way whatever the dispatch,
+/// #1329), every one getting there with no touch over 2 s; the walk home is not in the makespans.</summary>
 public class MineRouteBenchmarkTests(ITestOutputHelper output)
 {
     private sealed record Result(double Makespan, double Idle, double Walked, int Contacts, string Extra)
@@ -27,7 +30,14 @@ public class MineRouteBenchmarkTests(ITestOutputHelper output)
         var team = new TeamRunner(world, c.Area, plan, c.Home, c.Starts, jitter, crossing);
         team.Run(200_000);
         Assert.True(team.AllLeave(c.Home), "today's: all leave");
-        return new Result(team.Makespan, team.Idle.Sum(), team.Walked.Sum(), team.Contacts, "");
+        var home = team.WalkHome();
+        if (crossing)
+        {
+            // contacts brief, as by routes, and so the walk home
+            Assert.True(team.ContactSeconds <= 2, $"today's: a contact of {team.ContactSeconds:0.0} s");
+            AssertHome("today's", home);
+        }
+        return new Result(team.Makespan, team.Idle.Sum(), team.Walked.Sum(), team.Contacts, $"; {home}");
     }
 
     private Result Routes(MineCase c, int? jitter)
@@ -60,8 +70,17 @@ public class MineRouteBenchmarkTests(ITestOutputHelper output)
         Assert.True(runner.ContactSeconds <= 2, $"a contact of {runner.ContactSeconds:0.0} s");
         foreach (var (contacts, work) in runner.ContactRates)
             Assert.True(contacts <= 1 + work / 120, $"{contacts} contacts in {work:0} s of work");
+        var home = runner.WalkHome();
+        AssertHome("routes", home);
         return new Result(runner.Makespan, runner.Idle.Sum(), runner.Walked.Sum(), runner.Contacts,
-            $", chosen {runner.Chosen}, across claims {runner.Crossings}, solves {runner.Solves} (kept {runner.Kept}), repairs {runner.Repairs}, ahead {runner.AheadStops}, replans {runner.Replans}; idle by: {runner.IdleWhy}");
+            $"; {home}, chosen {runner.Chosen}, across claims {runner.Crossings}, solves {runner.Solves} (kept {runner.Kept}), repairs {runner.Repairs}, ahead {runner.AheadStops}, replans {runner.Replans}; idle by: {runner.IdleWhy}");
+    }
+
+    // the walk home (HomeWalk): every member home, two boxes never in each other's over 2 s on the way
+    private static void AssertHome(string runner, HomeWalk home)
+    {
+        Assert.True(home.AllHome, $"{runner}: all walk home");
+        Assert.True(home.ContactSeconds <= 2, $"{runner}: a contact of {home.ContactSeconds:0.0} s on the walk home");
     }
 
     // the open pit and the trench with three: 10 % under today's, with less idling
