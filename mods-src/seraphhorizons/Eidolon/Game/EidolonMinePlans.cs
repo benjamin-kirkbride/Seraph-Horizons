@@ -231,7 +231,7 @@ public class EidolonMinePlans : ModSystem
             return;
         cells.StuckReplanned = false;
         var list = broken.ToList();
-        Take(cells, s => s.Apply(list));
+        Take(cells, s => s.Apply(list, exact: true));
         if (_work.FirstOrDefault(w => w.Cells == cells) is { } work)
             foreach (var cell in list)
                 Retry(work, cell);
@@ -597,6 +597,7 @@ public class EidolonMinePlans : ModSystem
         var skip = new HashSet<MarkPos>(cells.Skip);
         skip.UnionWith(cells.Parked);
         var roof = work.Roof ?? new HashSet<MarkPos>();
+        var kept = cells.Plan is { } last ? new HashSet<MarkPos>(last.Held) : new HashSet<MarkPos>();
         var home = work.Home;
         var token = new CancellationTokenSource();
         var cancel = token.Token;
@@ -607,18 +608,18 @@ public class EidolonMinePlans : ModSystem
         if (cells.Live != null)
             cells.Live.Stale = false;
         cells.Planning = true;
-        work.Job = Task.Run(() => Make(planSite, stateSite, home, skip, bad, roof, cancel));
+        work.Job = Task.Run(() => Make(planSite, stateSite, home, skip, bad, roof, kept, cancel));
     }
 
     // On the worker: the plan, and the live state over it, from what it was given alone. Never throws: a
     // failure comes back as the result's error, a cancelled one as null.
     private static Plan? Make(MineSite planSite, MineSite stateSite, PathCell? home, HashSet<MarkPos> skip, HashSet<PathCell> bad,
-        HashSet<MarkPos> roof, CancellationToken cancel)
+        HashSet<MarkPos> roof, HashSet<MarkPos> kept, CancellationToken cancel)
     {
         try
         {
             var clock = Stopwatch.StartNew();
-            var input = new MinePlanInput(new MineState(planSite, home, bad), home, skip.Contains, bad) { Roof = roof.Contains };
+            var input = new MinePlanInput(new MineState(planSite, home, bad), home, skip.Contains, bad) { Roof = roof.Contains, Kept = kept };
             var planner = new MinePlanner(input);
             while (!planner.Step(TimeSpan.FromMilliseconds(5)))
                 if (cancel.IsCancellationRequested)

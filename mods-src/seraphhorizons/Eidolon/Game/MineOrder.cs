@@ -1489,7 +1489,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         var before = MineDispatch.Before(plan, live, head, ParkedClear(Workers(eidolon)));
         bool footing = MineDispatch.Footing(before, group.Cells);
-        var refused = footing ? MineRefusal.None : live.Check(stand, group.Cells, At(Workers(eidolon)), null, before);
+        var refused = footing ? MineRefusal.None : live.Check(stand, group.Cells, At(Workers(eidolon)), null, before, exact: true);
         if (footing || refused != MineRefusal.None)
         {
             Held(eidolon, $"refused: {(footing ? "footing" : refused.ToString())}", now);
@@ -2159,7 +2159,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         if (Plans is { } plans)
             plans.Broken(Cells, broken);
         else
-            Cells.Live?.Apply(broken);
+            Cells.Live?.Apply(broken, exact: true);
         Mined += broken.Count;
         Strikes++;
         _job?.Tally(eidolon.EntityId, broken.Count);

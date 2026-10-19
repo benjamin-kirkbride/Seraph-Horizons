@@ -69,7 +69,7 @@ a shard (four boots ran past the limit): SwitchesOffScenarios and ConfigDefaults
 (each its own ModConfig), ClearCommandScenarios (a survival world) and HandcarScenarios
 (three players, and the shared world has no slots left).
 
-The eidolon's Eidolon* classes (each its own plain world, a server boot apiece) are nine
+The eidolon's Eidolon* classes (each its own plain world, a server boot apiece) are ten
 shards. Their jobs run in game time on the virtual clock (tests/PackTests/README.md), a
 minute of digging taking a few seconds, so a shard is mostly its boots: `eidolon` the
 entity and the command tool, `eidolon-fittings` its fittings (EidolonFittedScenarios) and
@@ -80,7 +80,8 @@ class, matched by prefix), `eidolon-tall` the tall tunnels and deep pits
 two and three by look-ahead routes held to today's makespans (EidolonLookaheadScenarios,
 with WideDensityProspectingScenarios, a world of its own kept out of `rest`),
 `eidolon-team` waiting in a shared job (EidolonTeamWaitScenarios) and where it walks and
-climbs (EidolonFootingScenarios), `eidolon-fell` felling alone and together
+climbs (EidolonFootingScenarios), `eidolon-overhang` two mining a hillside whose edge wanders
+across the area (EidolonOverhangScenarios, a long dig), `eidolon-fell` felling alone and together
 (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-orders` carrying and guarding
 (EidolonCarryScenarios, EidolonGuardScenarios), and `eidolon-jobs` every other Eidolon*
 class (chunk loading), the complement of the others, kept short so a new one can join it
