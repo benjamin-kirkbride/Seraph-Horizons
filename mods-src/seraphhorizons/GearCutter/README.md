@@ -461,17 +461,19 @@ script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Gameplay
 
-The rules are game-independent in `Core/` (`GearCutterParts.cs`, `GearCut.cs`, `GearCutterConfig.cs`,
-`GearCutterRig.cs`); the game side is `Game/` (`GearCutterSystem`, the controller `BlockGearCutter` and
-`BEGearCutter`, the ghosts `BlockGearCutterGhost` and `BlockGearCutterGhostPower` with
-`BEGearCutterGhost`, the load `BEBehaviorGearCutterMP`, and `GearCutterRenderer`), as the rosser's are.
-The mod's README, "Gear cutter", is the player-facing summary; the decisions are here.
+The rules are game-independent in `Core/` (`GearCutterBuild.cs`, `GearCut.cs`, `GearCutterConfig.cs`,
+`GearCutterRig.cs`); the game side is `Game/` (`GearCutterSystem` and the controller `BEGearCutter`), on the
+shared machine base (`docs/modeling/machine-base.md`): the frame is `BlockMachine`, the other cells the shared
+`machine-cell` and `machine-cellpower-{face}` with the shared load `BEBehaviorMachineMP`, the moving parts
+`MachineRenderer`'s, the build `config/builds/gearcutter.json`, the oil `MachineOiling`'s. The mod's README,
+"Gear cutter", is the player-facing summary; the decisions are here.
 
-**Blocks.** `seraphhorizons:gearcutter-frame-{side}` (`blocktypes/gearcutter/frame.json`, drawing
-`gearcutter_frame.json`, its textures every texture of both shapes, since the renderer draws the parts
-with the block's texture source), `gearcutter-ghost` and `gearcutter-ghostpower-{side}`. Placement,
-ghosts, ghost repair, breaking through a ghost and the boxes (selection from the rig's cells, collision
-with their lids) are the rosser's, without the trunk. The frame recipe (`recipes/grid/gearcutter.json`):
+**Blocks.** `seraphhorizons:gearcutter-frame-{side}` (`blocktypes/gearcutter/frame.json`, class
+`seraphhorizons.Machine`, drawing `gearcutter_frame.json`, its textures every texture of both shapes, since
+the renderer draws the parts with the block's texture source). It is placed as the mills are
+(`attributes.machine.placement` `"mill"`: `Footprint.PlacedFacing`, the column's back away from the player).
+Placement, the cells, their repair, breaking through a cell and the boxes (selection from the rig's cells,
+collision with their lids) are the shared base's. The frame recipe (`recipes/grid/gearcutter.json`):
 8 steel ingots (4 in each ingot slot, steel only), 4 planks, 32 nails and strips of iron, meteoric
 iron or steel, 3 stainless gears (`seraphhorizons:gear-stainless`, in the bottom middle slot, for the gearing
 the frame carries: the feed rectifier's train and the camshaft's worm wheel; every other machine in the
@@ -480,32 +482,27 @@ machine of the gears epic, and a cast bed and column are a lot of metal. The cos
 itself (the cutter does not need Immersive Woodworking, so it is not in
 `patches/woodworking-machine-costs.json`).
 
-**Stages** (`GearCutterParts`). In `GearCutterStage` order, the next missing stage the only one a
-click fills (an item a later stage takes is `OutOfOrder`, one whose stages are all in
-`AlreadyFitted`, a kit with no durability `KitSpent`). Every stage takes one item but the spindle and
-the index, which are **material stages** (`MaterialsFor`): each is fed its bill at the frame, 2
-`game:rod-steel`, 2 `game:metalplate-steel` and 1 `game:metal-parts` (the bill of the grid recipe
-each had for an item of its own), on the ore machines' shared code (`StagedBuild` with
-`BuildMaterial`s, one per material stage): a click puts in one material, all the stage still needs of
-it from the held stack, or a full stack; fewer is `TooFew`, a material already all in
-`AlreadyFitted`. A stage part way in keeps its counts and is drawn only once complete; the block info
-and the help say what it still takes ("Still takes: 2 × Steel rod, ..."), and the errors name the
-stage and its needs as the ore machines' do. The two cam drums each take one
-`game:jonasframes-gearbox02`. The head takes either Jonas gear assembly. The kit keeps its durability
-left and full (`GetRemainingDurability`, `GetMaxDurability`; 500 in `itemtypes/gearcutter/kit.json`). The
-master is `master` for the temporal gear and `masterlarge` for the large one; `Fitted` draws only the
-fitted one. The creative shortcut (`CreativeUpgrades.Applies`, Ctrl in creative mode on an incomplete
-cutter) fits each stage's first code, or fills a material stage, always on (the rosser's follows `UnifiedWoodworking`; this
-machine has nothing to do with woodworking). Take-back (`TakeBack`): the kit, else a blank on the
-arbor, else the master (only once the kit is out); a kit comes back with a `durability` attribute when
-worn. Breaking the frame returns every item fitted and every material put in, a material stage part
-way in too. Restoring a save keeps the stages up to the head as a run from the first (a material
-stage part way in ends it) and the kit and the master only with the head, as the rules could have
-fitted them. The material stages' counts are saved under `materials` (`MaterialSnapshot`). The
-spindle and the index once had items of their own (`seraphhorizons:gearcutterspindle`,
-`seraphhorizons:gearcutterindex`, from the same bill on the grid), no longer registered: a cutter
-saved with one fitted restores with that stage complete (`LegacySpindleCode`, `LegacyIndexCode`), so
-breaking it gives back the bill; loose items of them become unknown items.
+**Stages** (`config/builds/gearcutter.json`, kept by the shared `MachineAssembly`). Ten stages after the
+frame, in that order only, the next stage the only one a click fills (the shared messages: a later stage's
+item is out of order, an item whose stages are all in already fitted). Every stage takes one item but the
+spindle and the index, which are fed their bill at the frame, 2 `game:rod-steel`, 2 `game:metalplate-steel`
+and 1 `game:metal-parts` (the bill of the grid recipe each had for an item of its own), a material a click:
+all the stage still needs of it from the held stack, or a full stack; fewer is too few. A rod held while the
+index is not yet next reads as the spindle's, already fitted. A stage part way in keeps its counts and is
+drawn only once complete; the block info and the help say what it still takes. The two cam drums each take
+one `game:jonasframes-gearbox02`. The head takes either Jonas gear assembly. The **cutter kit** is the
+build's durable wearing part (`kit`), fitted as the cutter stage: it goes in with the durability it has left,
+its uses the kit item's durability (500 in `itemtypes/gearcutter/kit.json`, set by `BEGearCutter.BuildSpec`),
+and a spent kit is refused. The **master** is the last stage, either temporal gear (`picks`: `master` for the
+temporal gear and `masterlarge` for the large one, so only the fitted one is drawn), and its class decides the
+gear size (`GearCutterBuild.Master`). The cutter is whole (`Ready`, its name, its load) with every stage and
+the kit in. The creative shortcut (Ctrl in creative mode while it is not whole) fills the next stage, a new kit
+and the small master included, always on (the rosser's follows `UnifiedWoodworking`; this machine has nothing
+to do with woodworking). Take-back (`GearCutterBuild.TakeBack`): the kit (`MachineAssembly.Take`, with its
+durability), else a blank on the arbor, else the master (only once the kit is out: `StagedBuild.TakeStage`
+takes the last stage back off); the other master then goes in, before the kit. Breaking the frame returns every
+item fitted and every material put in, a stage part way in too, the kit with its durability. Saves are the
+shared base's (the build and the kit by stage and code); a cutter saved before the move loads as a bare frame.
 
 **The cut** (`GearCut`, `CutJob`). A blank goes on only on a complete cutter, one at a time, of the
 master's size. W runs from 0 to 12 or 20 by `TeethFor(radians, TurnsPerTooth)` while
@@ -515,34 +512,34 @@ finish a gear without minutes of turning). A finished gear drops at `OutputDrop(
 moved 0.15 beyond the output face, into `GearCutterRig.OutputNeighbour()`, pushed outward). Blanks go
 on by hand only: the cutter never takes from or puts into a chest or other container beside it.
 
-**Oil and wear** (`GearCutterWear`). `Oil.NewOwn(api, OilMachine.GearCutter)`: the tank, pouring,
-saving, syncing and smoke are MachineOil's. `BEBehaviorGearCutterMP.GetResistance` is `Resistance`
-whatever the tank holds (the mill's and the rosser's multiply while dry). When a gear finishes:
-fill = points / tank before this gear's drain; wear = ceil(`CutterWearPerGear` × teeth / 12 / fill),
-at most what is left, all of it at fill 0; then the drain (`DrainPerJob`, doubled for a large gear);
-then `WearKit`, which at 0 removes the kit and plays the tool-break sound. The gear is delivered
-either way. `Oil.Info` takes `dryLoad: false`, so the cutter's info has no "takes 3× the power"
-line; it adds the wear multiplier (or "the next gear breaks the kit") and the kit's gears left at the
-current fill (`GearsLeft`).
+**Oil and wear** (`GearCutterWear`). `OilMachine.GearCutter` with `OilDryEffect.Wear`: the tank, pouring,
+saving, syncing and smoke are `MachineOiling`'s, and the shaft's load is `Resistance` whatever the tank holds
+(the mill's and the rosser's multiply while dry). When a gear finishes: fill = points / tank before this
+gear's drain; wear = ceil(`CutterWearPerGear` × teeth / 12 / fill), at most what is left, all of it at fill 0;
+then the drain (`DrainPerJob`, doubled for a large gear); then the kit wears (`WearingParts.Wear`), which at 0
+removes it and plays the tool-break sound. The gear is delivered either way. The block info is the shared
+layout: the kit's share left, the state, the oil (dry, "it wears its cutter fast", and never "takes 3× the
+power"), then the master and the gears the kit has left at the current fill (`GearsLeft`; dry, "the next gear
+breaks the cutter kit") and the blank's teeth cut; a wrench adds the kit's uses, the oil a gear drains, the
+wear multiplier, the cut's W and turns a tooth, the shaft and the axle's face.
 
-**Renderer.** Every rig part with a `requires`, a ride or a driver, from `gearcutter.json`
-(`MachineMeshes.PartMeshes`), drawn when `BEGearCutter.Fitted(requires)`: the parts' rule, `cover`
-always, `blanksmall` / `blanklarge` while that blank is on. Inputs: θ and ψ from the power ghost's
-angle about native x (`MillMotion.NativeShaftAngle(.., Axis.X)`); W advanced per frame by the shaft
-while running, never behind the server's W and at most 0.3 tooth ahead of it, at the master's end
-with no blank on (so the clutch is out and the index stands at rest); k the master's class, held while
-p eases out over 0.4 s; `Oil` the tank's fill (1 with MachineOil off). Particles while running: steel
-chips and now and then a spark at `chips.pos`; with oil in the tank, a downward oil spray at
-`drip.pos`.
+**Renderer.** The shared `MachineRenderer` draws every rig part with a `requires`, a ride or a driver, from
+`gearcutter.json`, when `BEGearCutter.ShowsPart(requires)`: the build's rule, `cover` always, `blanksmall` /
+`blanklarge` while that blank is on. Inputs (`BEGearCutter.FrameInput`, `GearCutterClock`): θ and ψ the power
+cell's shaft angle about native x; W advanced per frame by the shaft while running, never behind the server's
+W and at most 0.3 tooth ahead of it, at the master's end with no blank on (so the clutch is out and the index
+stands at rest); k the master's class, held while p eases out over 0.4 s; `Oil` the tank's fill (1 with
+MachineOil off). Particles while running: steel chips and now and then a spark at `chips.pos`; with oil in
+the tank, a downward oil spray at `drip.pos`.
 
 The part meshes come from one tessellation of the shape, not one per part (that froze the client
 for a moment on placing a cutter: 75 clones and tessellations of 1466 elements): every element's
 `JointId` is set to its part + 1, `TesselateShapeWithJointIds` writes it per vertex into
 `CustomInts`, and the faces are copied out by that tag (`MachineMeshes.PartMeshes`,
 `Machines/Core/PartSplit.cs`), with a logged fallback to the per-part way if the tags don't check
-out. The uploaded meshes are cached for the session (`MachinePartMeshes`) and shared by every cutter,
-so a second one or a chunk reload builds nothing; they are disposed when the client leaves the world,
-never by a renderer.
+out. The uploaded meshes are cached for the session (`MachinePartMeshes`, which the shared renderer uses) and
+shared by every cutter, so a second one or a chunk reload builds nothing; they are disposed when the client
+leaves the world, never by a renderer.
 
 **Settings** (`GearCutterSettings`): `TurnsPerTooth` 12, `CutterWearPerGear` 10, `Resistance` 0.2 and
 `MinSpeed` 0.05 (the rosser's), each falling back to its default with a warning when out of range;
@@ -579,9 +576,10 @@ it to change the master; the kit's wear rounds up per gear; a cutter with no Mac
   the driver fixture (`tests/Machines/driver-fixture.json`) holds the `oil` input and the work quantity
   in all three.
 - `make_shape.py` checks its own output every time it regenerates the model.
-- `tests/GearCutter/GearCutterGameplayTests.cs` (the same project, no game): the build order and what
-  each stage takes, out-of-order and repeated parts refused, the two cam drums, either Jonas head,
-  the masters' classes and what is drawn, take-back order, drops and saves; the cut's turns per tooth,
+- `tests/GearCutter/GearCutterGameplayTests.cs` (the same project, no game): the build file through the
+  shared `MachineAssembly`: the order and what each stage takes, out-of-order and repeated parts refused,
+  the two cam drums, either Jonas head, the masters' classes and what is drawn, take-back order, drops and
+  saves; the renderer's clock; the cut's turns per tooth,
   progress by angle and the teeth by master; the kit's wear over the fill, the large gear's 20/12,
   the empty tank taking the whole kit; the settings, and the shipped rig's anchors, neighbours and
   `cut.turnsPerTooth` against the gameplay's default.

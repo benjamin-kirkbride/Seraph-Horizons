@@ -2048,14 +2048,15 @@ powered generating gear cutter that cuts stainless gear blanks into stainless ge
 stainless gears (20). Its model, rig and generator are described in `GearCutter/README.md`; this is the
 gameplay, in `GearCutter/` (rules in `GearCutter/Core/`, the game side in `GearCutter/Game/`).
 
-**Blocks.** `seraphhorizons:gearcutter-frame-{side}` is the controller, placed as the mill and the
-rosser are (`Footprint.PlacedFacing`: the machine runs away from the player), with a ghost in each of
-the rig's other seven cells (`gearcutter-ghost`) and the power ghost
-(`gearcutter-ghostpower-{side}`), which takes the axle on the column's back face (native west).
+**Blocks.** `seraphhorizons:gearcutter-frame-{side}` is the controller, on the shared machine base
+(`docs/modeling/machine-base.md`), placed as the mill and the rosser are (`attributes.machine.placement`
+`"mill"`, `Footprint.PlacedFacing`: the machine runs away from the player), with the shared machine cell in
+each of the rig's other seven cells and the shared power cell (`machine-cellpower-{face}`), which takes the
+axle on the column's back face (native west). Its build is `config/builds/gearcutter.json`.
 The frame is a grid recipe: eight steel ingots (four in each ingot slot; steel only, as the end of
 the gears epic), four planks and 32 iron (or meteoric iron or steel) nails and strips, with a hammer.
 
-**Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; the
+**Stages.** Fitted by right-click on the frame or any of its cells with the item, in this order only; the
 next missing stage is the only one a click fills, and anything of a later stage is refused with a
 message naming the next. Most stages take one item; the spindle and the index take materials, fed at
 the frame as the ore machines' stages are ("Ore machines: what they share"): a click puts in one
@@ -2081,13 +2082,14 @@ work them. Items are taken from the hand outside creative mode; in creative mode
 on an incomplete cutter fits its next stage with nothing taken (the small master, a new kit, a
 material stage's whole bill).
 **Ctrl + right-click** takes back the cutter kit, with what durability it has left; then a blank on
-the arbor (its cut lost); then the master. Every other stage comes back only by breaking the frame,
-which drops the frame, every fitted item by code, every material put in (a stage part way in too),
-the kit with its durability and the blank. A save keeps every fitted code, the material stages'
-counts and the kit's durability. The spindle and the index were once items of their own, made on the
-grid from the same bill (`seraphhorizons:gearcutterspindle`, `seraphhorizons:gearcutterindex`); they
-are no longer registered. A cutter saved with one fitted loads with that stage complete, and
-breaking it gives back the bill; loose ones in inventories become unknown items.
+the arbor (its cut lost); then the master (the last stage taken back off: the other master then goes
+in before the kit). Every other stage comes back only by breaking the frame, which drops the frame,
+every fitted item by code, every material put in (a stage part way in too), the kit with its
+durability and the blank. A save keeps every fitted code, the material stages' counts and the kit's
+durability; a cutter saved before it moved onto the shared machine base loads as a bare frame. The
+spindle and the index were once items of their own, made on the grid from the same bill
+(`seraphhorizons:gearcutterspindle`, `seraphhorizons:gearcutterindex`); they are no longer registered,
+and loose ones in inventories become unknown items.
 
 **Work.** Complete is every stage in, the kit with durability left. A blank goes on the arbor by
 right-click, one at a time; the cutter never takes from or puts into a chest or other container
@@ -2109,14 +2111,15 @@ it has left, so it breaks on that gear (with the tool-break sound; the gear stil
 spent kit stops the cutter with the blank on until a new kit is fitted; the cut resumes where it
 was. With MachineOil off there is no tank and the kit wears at its base. Steady at a full tank a
 kit cuts 50 small gears; cut from full without topping up (the tank falling 10 a gear) about 40. A
-dry cutter smokes while it cuts. The block info shows the next stage, the master, the kit's
-durability and about how many gears it has left at this fill, the cut's teeth, MachineOil's oil
-line with its load, the same oiled or dry (never the dry line: `Oil.Asked` with `dryLoad: false`
-records it unmultiplied) and the wear multiplier, or that the next gear breaks the kit.
+dry cutter smokes while it cuts. The block info is the machines' shared layout: the next stage or
+the kit's share left, the state, the oil (dry, that it wears its cutter fast, never that it turns
+harder: `OilDryEffect.Wear`), then the master, about how many gears the kit has left at this fill (or
+that the next gear breaks it) and the cut's teeth; a wrench adds the kit's uses, the oil a gear
+drains, the wear multiplier, the cut's W, the shaft's speed and load and the axle's face.
 
 **Drawn.** The block draws `gearcutter_frame.json`; the renderer splits `gearcutter.json` by element
 name into the rig's parts and draws each whose `requires` is fitted: the cover always, a blank's
-parts while that blank is on the arbor, one master's while it is fitted. θ is the power ghost's
+parts while that blank is on the arbor, one master's while it is fitted. θ is the power cell's
 angle about native x; k is the master's class (held while its presence eases out); the reservoir's
 oil follows the tank's fill (`oil`). While it cuts: chips and sparks at `chips.pos`, and with oil
 in the tank a spray from the injection valve's nozzle at `drip.pos`.
@@ -2658,14 +2661,15 @@ side in `CylinderBorer/Game/`).
 
 **Blocks.** `seraphhorizons:cylinderborer-frame-{side}` is the controller: the bench end, with the feed's
 drum and weight, the block the player clicks, with the borer running four blocks away from them along
-their line of sight, two high, a ghost in each of the rig's other cells (`cylinderborer-ghost`) and the
-power ghost (`cylinderborer-ghostpower-{side}`) at the far end at ground level, which takes the axle in
-line with the borer (native south). The frame is a grid recipe: two oak logs (placed, upright) and two oak
+their line of sight, two high, on the shared machine base (`docs/modeling/machine-base.md`): the shared
+machine cell in each of the rig's other cells and the shared power cell (`machine-cellpower-{face}`) at the
+far end at ground level, which takes the axle in line with the borer (native south). Its build is
+`config/builds/cylinderborer.json`. The frame is a grid recipe: two oak logs (placed, upright) and two oak
 planks, two metal plates and two rods of iron, meteoric iron or steel, 12 nails and strips of the same, two
 stainless gears (the entry shaft's pinion and its drive, #473; the great wheel comes with the bar) and a
 hammer.
 
-**Stages.** Fitted by right-click on the frame or any ghost with what each takes, in this order only; a
+**Stages.** Fitted by right-click on the frame or any of its cells with what each takes, in this order only; a
 stage takes nothing before the one ahead of it is complete, and anything of a later stage is refused with a
 message naming the next and what it takes. No stage has an intermediate item of its own: the bar and the
 feed take their materials directly at the frame, as the ore machines' stages do (`StagedBuild`, below "Ore
@@ -2673,8 +2677,8 @@ machines: what they share"), a material a click: all the stage still needs of it
 whole full stack; fewer, not a full stack, is refused ("Not enough"). A stage partly in keeps what it holds
 (saved with the borer) and is drawn only once complete. Every item put in is kept by its own code, so the
 rods and the plate may be of mixed metals and breaking the frame gives back exactly what went in. The rules
-are `CylinderBorerParts` (`CylinderBorer/Core/`), which keeps the stage order, the head's durability and the
-take-back and holds the counts in Machines' `StagedBuild`.
+are the build file's on the shared `MachineAssembly` (the stage order and counts in Machines' `StagedBuild`,
+the head its durable wearing part), the take-back `CylinderBorerBuild`'s (`CylinderBorer/Core/`).
 
 | # | Stage (`requires`) | Takes | Draws |
 |---|---|---|---|
@@ -2692,9 +2696,7 @@ the frame, which drops the frame, everything put in, the head with its durabilit
 bushings, the bar and the feed had items of their own (`seraphhorizons:cylinderborerbushings`,
 `cylinderborerbar`, `cylinderborerfeed`, made on the grid from what their stages now take) until the stages
 took their materials directly; the items are no longer registered (one left in an inventory is an unknown
-item). A borer saved with them fitted (each stage then one item, saved as `part-{stage}`) restores with those
-stages complete in what the items were made from, the rods and plate in iron, so breaking it gives those back;
-it is saved anew as `fitted`, each code's count by `stage/material/code`.
+item). A borer saved before it moved onto the shared machine base loads as a bare frame.
 
 **The castings.** A cylinder is cast, never forged: clay-form a cylinder mold
 (`seraphhorizons:cylindermold-{color}-raw`, blue, red or fire clay, `recipes/clayforming/cylindermold.json`:
@@ -2731,14 +2733,15 @@ The oil spares the cutter head: it loses `HeadWearPerCylinder` (1) a cylinder wi
 the tank's fill when the cylinder is done (rounded up: twice at half full, ten times at a tenth), and a
 cylinder bored dry takes all it has left, so it breaks on it (the tool-break sound) and the borer stops
 until a new head goes in. 8 points: 8 cylinders on a full tank. It smokes while it cuts dry. The block info
-shows the build as the ore machines word it (the next stage, "Build: stage 2 of 4, boring bar", and "Still
-takes:" what it still needs), the head's durability and the cylinders it has left at this oil, the casting's
-metal and how far it is bored, the oil and the wear, and the speed.
+is the machines' shared layout: the build ("Build: stage 2 of 4, boring bar", and "Still takes:" what it still
+needs) or the head's share left, the state with how far the bore is, the oil (dry, that it wears its cutter
+fast), then the cylinders the head has left at this oil and the casting's metal; a wrench adds the head's uses,
+the oil a cylinder drains, the wear multiplier, the bore's W, the shaft's speed and load and the axle's face.
 
 **Drawn.** The block draws `cylinderborer_frame.json`; the renderer splits `cylinderborer.json` into the
 rig's parts and draws each whose stage is fitted, and the casting of the job's metal, with its cast skin and
 chains, only while it is in the cradle (each metal's casting is its own parts, in ppex's iron or steel
-texture). θ is the power ghost's angle about native z; W runs on with the shaft between the server's syncs;
+texture). θ is the power cell's angle about native z; W runs on with the shaft between the server's syncs;
 when a cylinder is done the head, the crosshead and the weight ease back over 0.4 s. While it cuts: chips at
 the bore's mouth, oil drips from the far bushing's cup with oil in the tank, and the gears' sound.
 

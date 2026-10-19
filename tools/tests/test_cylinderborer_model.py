@@ -34,7 +34,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "cylinderborer-
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cylinderborer.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cylinderborer_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "CylinderBorer" / "rig-reference.json").read_text())
-# the fitted parts in their order after the frame (CylinderBorer/Core/CylinderBorerParts.cs): the bar's bushings, the
+# the fitted parts in their order after the frame (config/builds/cylinderborer.json): the bar's bushings, the
 # bar with its great wheel, the weighted feed, the cutter head (the wearing kit); the work is an iron or a steel casting
 # of ppex's engine cylinder
 REQUIRES = {"bushings", "bar", "feed", "cutterhead", "blankiron", "blanksteel", None}

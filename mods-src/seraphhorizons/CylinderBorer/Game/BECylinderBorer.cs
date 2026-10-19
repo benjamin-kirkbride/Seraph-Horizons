@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.CylinderBorer.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -14,61 +14,54 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.CylinderBorer;
 
 /// <summary>
-/// The cylinder borer's controller (#639). Holds the fitted parts (<see cref="CylinderBorerParts"/>:
-/// every item's code and the cutter head's durability), the casting in the cradle as its item stack
-/// and the bore (<see cref="BoreJob"/>: W, the head's travel through it), and its MachineOil tank.
-/// The server bores from the power ghost's shaft angle, wears the head by the tank's fill when a
-/// cylinder is done, drops the bored cylinder at the output face or puts it in a container there,
-/// takes the next casting from a chest or hopper at the infeed face, and keeps the ghost cells
-/// stamped; the client draws it (<see cref="CylinderBorerRenderer"/>, through
-/// <see cref="ICylinderBorerView"/>). The rules are CylinderBorer/Core's.
+/// The cylinder borer's controller (#639), on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/cylinderborer.json</c> with the cutter head its durable wearing part, its cells and power
+/// cell, its oil (<see cref="OilMachine.CylinderBorer"/>, whose dry tank wears the head, never the load:
+/// <see cref="OilDryEffect.Wear"/>), its block info, its renderer). It keeps the casting in the cradle as its item
+/// stack and the bore (<see cref="BoreJob"/>: W, the head's travel through it). The server bores from the power
+/// cell's shaft angle, wears the head by the tank's fill when a cylinder is done, drains a cylinder's oil, drops
+/// the bored cylinder at the output face or puts it in a container there, and takes the next casting from a chest
+/// or hopper at the infeed face; the client poses the rig from the shaft and its own W
+/// (<see cref="CylinderBorerClock"/>). The rules are CylinderBorer/Core's.
 /// </summary>
-public class BECylinderBorer : BlockEntity, ICylinderBorerView
+public class BECylinderBorer : BEMachine
 {
     private static readonly AssetLocation BreakSound = new("game", "sounds/effect/toolbreak");
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation CylinderSound = new("game", "sounds/block/ingot");
     private static readonly AssetLocation BoreSound = new("game", "sounds/effect/gears");
-    // What is fitted, by StagedBuild key (stage/material/code) and count.
-    private const string FittedKey = "fitted";
-    // The save before the bar and the feed took their materials: one item's code a stage.
-    private const string LegacyPartKeyPrefix = "part-";
     // The server syncs W at least this often (blocks of travel); the renderer follows the shaft between.
     private const double SyncStep = 1.0 / 32;
     // After a cylinder is done the infeed waits this long, so the head eases back out of the empty
     // cradle (the model's presence) before the next casting goes in.
     private const long ClearMs = 600;
+    private const float ChipInterval = 0.2f;
+    private const float DripInterval = 0.45f;
 
-    private CylinderBorerParts _parts = new();
     private ItemStack? _blank;
     private BoreJob _job = BoreJob.None;
-    private OilState? _oil;
-    private float _lastAngle;
-    private bool _angleSeeded;
     private long _finishedAt = long.MinValue / 2;
-    private float _smokeSeconds;
     private float _soundSeconds;
-    private float? _serverMinSpeed;
     private float? _serverTurnsIron;
     private float? _serverTurnsSteel;
     private int? _serverWearPerCylinder;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private Dictionary<Int3, Cuboidf[]>? _collision;
     private Dictionary<Int3, Cuboidf[]>? _cellsLoaded;
     private Dictionary<Int3, Cuboidf[]>? _collisionLoaded;
-    private CylinderBorerRenderer? _renderer;
+    private readonly CylinderBorerClock _clock = new();
+    private double _lastPsi;
+    private float _chipTimer;
+    private float _dripTimer;
 
-    public Side Side { get; private set; } = Side.North;
-    public CylinderBorerParts Parts => _parts;
-    public bool Complete => _parts.Complete;
     public bool BlankOn => _job.On && _blank != null;
     public ItemStack? Blank => _blank;
     public BoreJob Job => _job;
-    /// <summary>The borer's oil, or null without the <c>MachineOil</c> switch.</summary>
-    public OilState? Oiling => _oil;
-    /// <summary>The tank's fill, 0..1: 1 without a tank (MachineOil off), so the head wears at its base rate.</summary>
-    public double OilFill => _oil == null ? 1 : OilDrain.Fill(_oil.Tank);
-    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
+
+    /// <summary>The fitted cutter head: its code and durability left; null without one (taken out, or spent).</summary>
+    public (string Code, double Left)? Head => Assembly?.Wearing.Fitted(CylinderBorerBuild.HeadPart);
+
+    /// <summary>The head's durability left; 0 without a head.</summary>
+    public int HeadLeft => Head is { } h ? (int)Math.Round(h.Left) : 0;
+
     public double TurnsPerBlock(int k) => k switch
     {
         1 => _serverTurnsIron ?? Config.TurnsPerBlockIron,
@@ -76,312 +69,110 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
         _ => 0,
     };
     private int WearPerCylinder => _serverWearPerCylinder ?? Config.HeadWearPerCylinder;
-    public float ShaftAngle => Power?.AngleRad ?? 0;
-    public float ShaftSpeed => Math.Abs(Power?.TrueSpeed ?? 0);
-    /// <summary>Complete, a casting in and the shaft fast enough: the bore runs.</summary>
-    public bool Running => Boring.Running(_parts.Complete, BlankOn, ShaftSpeed, MinSpeed);
 
-    // ICylinderBorerView
-    public bool PartFitted(string? requires) => _parts.Fitted(requires);
-    public int JobClass => BlankOn ? _job.Class : 0;
-    public double JobWork => _job.Work;
+    private CylinderBorerConfig Config => CylinderBorerSystem.Of(Api).Config;
+    private new CylinderBorerRig? Rig => base.Rig as CylinderBorerRig;
 
-    private CylinderBorerSystem System => CylinderBorerSystem.Of(Api);
-    private CylinderBorerConfig Config => System.Config;
-    private CylinderBorerRig? Rig => System.Rig;
+    /// <summary>The head's uses are the head item's durability.</summary>
+    protected override MachineBuild? BuildSpec(IWorldAccessor world) =>
+        base.BuildSpec(world) is { } spec && world.GetItem(new AssetLocation(CylinderBorerBuild.HeadCode)) is { Durability: > 0 } head
+            ? spec.WithUses(CylinderBorerBuild.HeadPart, head.Durability)
+            : base.BuildSpec(world);
 
-    /// <summary>The power ghost's mechanical power behavior, looked up afresh each time.</summary>
-    public BEBehaviorCylinderBorerMP? Power =>
-        Api != null && Rig is { } rig
-            ? Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.PowerCell))?.GetBehavior<BEBehaviorCylinderBorerMP>()
-            : null;
+    protected override OilMachine? OilKind => OilMachine.CylinderBorer;
+    protected override OilDryEffect DryEffect => OilDryEffect.Wear;
+    protected override float ConfigMinSpeed => Config.MinSpeed;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 200;
+    public override int RenderRange => 48;
+
+    /// <summary>Whole with its cutter head in: until then it puts the token load on its shaft.</summary>
+    public override bool Complete => Ready;
+    protected override bool LoadsShaft => Ready;
+    protected override bool CreativeFills => !Ready;
+
+    /// <summary>The configured resistance, oiled or dry: its oil spares the cutter head, never its load.</summary>
+    protected override double ShaftLoad => Config.Resistance;
+
+    public override bool HasWork => BlankOn;
+    public override double? WorkProgress => BlankOn ? _job.Work / Boring.Travel : null;
+    protected override Float3? SmokePoint => Rig?.Chips;
 
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        BuildBoxes();
+        BuildCastingBoxes();
+        // once a second, the infeed
         if (api.Side == EnumAppSide.Server)
-        {
-            _oil ??= Oil.NewOwn(api, OilMachine.CylinderBorer);
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(OnTick, 50);
-            RegisterGameTickListener(OnSlowTick, 1000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 200);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockCylinderBorer)
-                _renderer = new CylinderBorerRenderer(capi, this, this, rig);
-        }
+            RegisterGameTickListener(_ => PullFromInfeed(), 1000);
     }
 
-    // ---- Footprint ----
+    // ---- The cells' boxes: the casting's among them while one is in the cradle ----
 
-    public BlockPos CellPos(Int3 local)
+    public override Cuboidf[]? CellBoxes(BlockPos cellPos) =>
+        BlankOn && _cellsLoaded?.GetValueOrDefault(LocalOf(cellPos)) is { } loaded ? loaded : base.CellBoxes(cellPos);
+
+    public override Cuboidf[]? CollisionBoxes(BlockPos cellPos) =>
+        BlankOn && _collisionLoaded?.GetValueOrDefault(LocalOf(cellPos)) is { } loaded ? loaded : base.CollisionBoxes(cellPos);
+
+    // The boxes never change: built once, then only read (collision lookups can run off the main thread). The
+    // loaded tables add the casting's box, cut into the cells it crosses, to the cells' own.
+    private void BuildCastingBoxes()
     {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
-
-    /// <summary>Every ghost cell's world position, and whether it is the power ghost.</summary>
-    public IEnumerable<(BlockPos Pos, bool Power)> GhostCells() =>
-        Rig is { } rig ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell)) : [];
-
-    /// <summary>A cell's selection boxes, the casting's part of the cell among them while one is in the cradle.</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Lookup(BlankOn ? _cellsLoaded : _cells, cellPos);
-
-    /// <summary>A cell's selection boxes and, on a column's top cell, the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Lookup(BlankOn ? _collisionLoaded : _collision, cellPos);
-
-    private Cuboidf[]? Lookup(Dictionary<Int3, Cuboidf[]>? table, BlockPos cellPos) =>
-        table?.GetValueOrDefault(Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main
-    // thread). The loaded tables add the casting's box, cut into the cells it crosses.
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
+        if (Rig is not { } rig)
             return;
-        Cuboidf World(Box b)
+        var side = Side;
+        var cells = new Dictionary<Int3, Cuboidf[]>();
+        var collision = new Dictionary<Int3, Cuboidf[]>();
+        foreach (var (cell, box) in rig.CastingByCell())
         {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
+            var w = Footprint.ToWorld(box, side);
+            var cast = new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
+            var at = CellPos(cell);
+            cells[cell] = [.. base.CellBoxes(at) ?? [], cast];
+            collision[cell] = [.. base.CollisionBoxes(at) ?? [], cast];
         }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
-        foreach (var c in rig.Cells)
-            if (c.LidBox is { } lid)
-                collision[c.Pos] = [.. cells[c.Pos], World(lid)];
-        var casting = rig.CastingByCell();
-        var cellsLoaded = new Dictionary<Int3, Cuboidf[]>(cells);
-        var collisionLoaded = new Dictionary<Int3, Cuboidf[]>(collision);
-        foreach (var (cell, box) in casting)
-        {
-            cellsLoaded[cell] = [.. cells[cell], World(box)];
-            collisionLoaded[cell] = [.. collision[cell], World(box)];
-        }
-        _cells = cells;
-        _collision = collision;
-        _cellsLoaded = cellsLoaded;
-        _collisionLoaded = collisionLoaded;
-    }
-
-    private Block? GhostBlock(bool power) =>
-        Api.World.GetBlock(new AssetLocation(CylinderBorerSystem.Domain, power ? "cylinderborer-ghostpower-" + Side.Code() : "cylinderborer-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        foreach (var (pos, power) in GhostCells())
-            if (GhostBlock(power) is { } ghost)
-                StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BECylinderBorerGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, power) in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null || GhostBlock(power) is not { } expected)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BECylinderBorerGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockCylinderBorerGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, _) in GhostCells())
-            if (ba.GetBlock(pos) is BlockCylinderBorerGhost && ba.GetBlockEntity(pos) is BECylinderBorerGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
+        _cellsLoaded = cells;
+        _collisionLoaded = collision;
     }
 
     // ---- Interaction ----
 
-    /// <summary>
-    /// Right-click on the borer or any ghost. Holding oil, it pours (MachineOil). In creative mode,
-    /// Ctrl on an incomplete borer fits its next stage with nothing taken. Ctrl takes back the cutter
-    /// head, unworn by it, else the casting in the cradle. A part in hand is fitted if it is the next
-    /// stage's; an iron or steel cylinder casting goes in the cradle (a bored cylinder, what comes off,
-    /// never does). Anything else held is the item's own business. Decided and done on the server;
-    /// the client only says whether the click is the borer's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    /// <summary>Ctrl + right-click takes back the cutter head, unworn by it, else the casting in the cradle (the
+    /// creative shortcut comes first while a stage or the head is missing).</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
-            return oiled;
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
-        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
-        bool part = CylinderBorerParts.IsPart(code);
-        bool blank = Boring.ClassOfBlank(code) != 0;
-        if (!take && !part && !blank)
-            return false;
-        if (Api.Side != EnumAppSide.Server)
-            return true;
-        if (CreativeShortcutApplies(byPlayer))
-            FitNextPart(byPlayer);
-        else if (take)
+        if (!controls.CtrlKey || controls.ShiftKey || CreativeShortcut(byPlayer))
+            return null;
+        if (Api.Side == EnumAppSide.Server)
             TakeBack(byPlayer);
-        else if (part)
-            TryFitPart(slot!, byPlayer);
-        else
-            TryLoadBlank(slot!, byPlayer);
         return true;
     }
 
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a borer with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
+    /// <summary>An iron or steel cylinder casting goes in the cradle (a bored cylinder, what comes off, never does).</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fills the next stage with what it still takes (a
-    /// new cutter head last), nothing taken from the player.</summary>
-    public bool FitNextPart(IPlayer? byPlayer)
-    {
-        if (_parts.Next is not { } next)
+        if (Boring.ClassOfBlank(slot.Itemstack?.Collectible?.Code?.ToString()) == 0)
             return false;
-        int capacity = 1;
-        if (next == CylinderBorerStage.CutterHead)
-        {
-            if (HeadStack(int.MaxValue) is not { } head)
-            {
-                Api.Logger.Warning("[seraphhorizons] Cylinder borer: no {0} for the creative shortcut", CylinderBorerParts.HeadCode);
-                return false;
-            }
-            capacity = head.Collectible.GetMaxDurability(head);
-        }
-        if (!_parts.FillNext(capacity))
-            return false;
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        PullFromInfeed();
+        if (Api.Side == EnumAppSide.Server)
+            TryLoadBlank(slot, byPlayer);
         return true;
     }
 
-    /// <summary>Puts what the slot holds into the next stage if it takes it (server side): all the
-    /// stage still needs of that material, or a whole full stack, as the ore machines' stages take
-    /// theirs; false, with an error to the player, when the rules say no. What goes in is taken from
-    /// the slot unless the player is in creative mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        var stack = slot.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack == null)
-            return false;
-        int left = 0, capacity = 0;
-        if (CylinderBorerParts.StagesOf(code).Contains(CylinderBorerStage.CutterHead))
-        {
-            capacity = Math.Max(1, stack.Collectible.GetMaxDurability(stack));
-            left = stack.Collectible.GetRemainingDurability(stack);
-        }
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
-        int held = consumes ? stack.StackSize : int.MaxValue / 2;
-        int maxStack = stack.Collectible.MaxStackSize;
-        var fit = _parts.CanFit(code, held, maxStack, capacity > 0 ? left : 1);
-        if (fit.Verdict != CylinderBorerFitVerdict.Fits)
-        {
-            switch (fit.Verdict)
-            {
-                case CylinderBorerFitVerdict.OutOfOrder:
-                    Error(byPlayer, "error-order", StageName(_parts.Next), Needs());
-                    break;
-                case CylinderBorerFitVerdict.TooFew:
-                    Error(byPlayer, "error-toofew", StageName(_parts.Next), Needs());
-                    break;
-                case CylinderBorerFitVerdict.AlreadyFitted:
-                    Error(byPlayer, "error-part-fitted");
-                    break;
-                case CylinderBorerFitVerdict.HeadSpent:
-                    Error(byPlayer, "error-head-spent");
-                    break;
-                default:
-                    Error(byPlayer, "error-not-a-part");
-                    break;
-            }
-            return false;
-        }
-        _parts.Fit(code, held, maxStack, left, capacity);
-        if (consumes)
-        {
-            slot.TakeOut(fit.Count);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        PullFromInfeed();
-        return true;
-    }
-
-    /// <summary>A stage's name as the block info and the errors show it.</summary>
-    public static string StageName(CylinderBorerStage? stage) =>
-        stage is { } s ? Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-info-stage-" + CylinderBorerRequires.Name(s)) : "";
-
-    /// <summary>The next stage's needs as the ore machines word theirs ("3 × Iron rod or …, 1 × Metal
-    /// parts"), a material of several items by each of their names.</summary>
-    public string Needs() =>
-        string.Join(", ", _parts.NextNeeds().Select(n => $"{n.Missing} × {MaterialName(Api.World, n.Material)}"));
-
-    /// <summary>A material's items by name ("Iron rod or Meteoric iron rod or Steel rod"), those the
-    /// game has; its first code when it has none.</summary>
-    public static string MaterialName(IWorldAccessor world, BuildMaterial material) =>
-        string.Join(Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-material-or"),
-            material.Codes.Where(c => PartStack(world, c) != null)
-                .Select(c => MachineText.MaterialName(world, new BuildMaterial([c], 1)))
-                .DefaultIfEmpty(material.Codes[0]).Distinct());
-
-    /// <summary>The next stage's materials as stacks of what it still needs, those the game has (help icons).</summary>
-    public ItemStack[] NeedStacks() =>
-        _parts.NextNeeds().SelectMany(n => n.Material.Codes.Select(c => PartStack(Api.World, c, n.Missing))).OfType<ItemStack>().ToArray();
+    /// <summary>A stage fitted or the head renewed: the infeed may have a casting for it.</summary>
+    protected override void OnAssemblyChanged() => PullFromInfeed();
 
     /// <summary>Ctrl + right-click (server side): the cutter head, with the durability it has left
     /// (taking it back wears it no further), else the casting in the cradle, its bore lost.</summary>
     public bool TakeBack(IPlayer byPlayer)
     {
-        switch (_parts.TakeBack(BlankOn))
+        if (Assembly is not { } assembly)
+            return false;
+        switch (CylinderBorerBuild.TakeBack(assembly, BlankOn))
         {
             case CylinderBorerTakeBack.Head:
-                if (_parts.RemoveHead() is not { } head || HeadStack(head.Left) is not { } stack)
+                if (assembly.Take(CylinderBorerBuild.HeadPart) is not { } head || StackOf(new StageDrop(head.Code, 1, head.Left)) is not { } stack)
                     return false;
                 Give(byPlayer, stack);
                 break;
@@ -398,17 +189,6 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
         return true;
     }
 
-    /// <summary>A cutter head with <paramref name="left"/> durability.</summary>
-    private ItemStack? HeadStack(int left)
-    {
-        if (Api.World.GetItem(new AssetLocation(CylinderBorerParts.HeadCode)) is not { } item)
-            return null;
-        var stack = new ItemStack(item);
-        if (left < item.GetMaxDurability(stack))
-            stack.Attributes.SetInt("durability", Math.Max(1, left));
-        return stack;
-    }
-
     /// <summary>The bored cylinder a casting of class <paramref name="k"/> becomes, or null when it
     /// does not exist in this game.</summary>
     private Item? CylinderItem(int k) =>
@@ -418,20 +198,19 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     public bool TryLoadBlank(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        switch (Boring.CanLoad(code, _parts.Complete, BlankOn))
+        switch (Boring.CanLoad(code, Ready, BlankOn))
         {
             case BoreLoadVerdict.Loads:
                 break;
             case BoreLoadVerdict.Incomplete:
-                return Error(byPlayer, _parts.Next == CylinderBorerStage.CutterHead && _parts.Has(CylinderBorerStage.Feed)
-                    ? "error-no-head" : "error-incomplete");
+                return Say(byPlayer, Built ? "error-no-head" : "error-incomplete");
             case BoreLoadVerdict.Occupied:
-                return Error(byPlayer, "error-occupied");
+                return Say(byPlayer, "error-occupied");
             default:
                 return false;
         }
         if (CylinderItem(Boring.ClassOfBlank(code)) == null)
-            return Error(byPlayer, "error-no-cylinder");
+            return Say(byPlayer, "error-no-cylinder");
         Load(slot.TakeOut(1));
         slot.MarkDirty();
         return true;
@@ -457,28 +236,42 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
     }
 
-    private bool Error(IPlayer? byPlayer, string key, params object[] args)
+    /// <summary>The borer's own message (<c>seraphhorizons:cylinderborer-{key}</c>) to the player; false.</summary>
+    private bool Say(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
             sp.SendIngameError("cylinderborer-" + key, Lang.GetL(sp.LanguageCode, CylinderBorerSystem.Domain + ":cylinderborer-" + key, args));
         return false;
     }
 
+    /// <summary>The help once built: a casting in an empty cradle, and what Ctrl takes back.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => CylinderBorerSystem.Domain + ":blockhelp-cylinderborer-" + action;
+        if (Ready && !BlankOn)
+        {
+            var blanks = Stacks(Api.World, [Boring.BlankIron, Boring.BlankSteel], 1);
+            if (blanks.Length > 0)
+                help.Add(new WorldInteraction { ActionLangCode = Key("loadblank"), MouseButton = EnumMouseButton.Right, Itemstacks = blanks });
+        }
+        string? take = Assembly is { } a ? CylinderBorerBuild.TakeBack(a, BlankOn) switch
+        {
+            CylinderBorerTakeBack.Head => "takehead",
+            CylinderBorerTakeBack.Blank => "takeblank",
+            _ => null,
+        } : null;
+        bool creative = forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
+        if (take != null && !(creative && CreativeFills))
+            help.Add(new WorldInteraction { ActionLangCode = Key(take), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
     // ---- The bore ----
 
-    private void OnTick(float dt)
+    // The bore syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool Work(double radians)
     {
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = Math.Abs(power?.TrueSpeed ?? 0);
-        if (!Boring.Running(_parts.Complete, BlankOn, speed, Config.MinSpeed) || !_angleSeeded)
-        {
-            _lastAngle = angle;
-            _angleSeeded = true;
-            return;
-        }
-        float advance = ShaftClock.AngleAdvance(_lastAngle, angle, speed, dt);
-        _lastAngle = angle;
-        Bore(advance);
+        Bore(radians);
+        return false;
     }
 
     /// <summary>Bores by <paramref name="radians"/> of shaft rotation (server side; call only while
@@ -487,7 +280,7 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     /// was finished.</summary>
     public bool Bore(double radians)
     {
-        if (!BlankOn || !_parts.Complete)
+        if (!BlankOn || !Ready)
             return false;
         var before = _job;
         (_job, bool finished) = _job.Advance(radians, Config.TurnsPerBlock(_job.Class));
@@ -508,9 +301,9 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     private void Finish()
     {
         int k = _job.Class;
-        int wear = CutterHeadWear.WearFor(Config.HeadWearPerCylinder, OilFill, _parts.HeadLeft);
-        Oil.Drain(_oil, Oil.DrainPerJob(Api, OilMachine.CylinderBorer));
-        if (_parts.WearHead(wear))
+        int wear = CutterHeadWear.WearFor(Config.HeadWearPerCylinder, OilFill, HeadLeft);
+        DrainOil(1);
+        if (Assembly!.Wearing.Wear(CylinderBorerBuild.HeadPart, wear))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         ClearJob();
         if (CylinderItem(k) is { } cylinder)
@@ -550,7 +343,7 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     /// went in.</summary>
     public bool PullFromInfeed()
     {
-        if (Api.Side != EnumAppSide.Server || BlankOn || !_parts.Complete || ShaftSpeed < MinSpeed || Rig is not { } rig)
+        if (Api.Side != EnumAppSide.Server || BlankOn || !Ready || Math.Abs(ShaftSpeed) < MinSpeed || Rig is not { } rig)
             return false;
         if (Api.World.ElapsedMilliseconds - _finishedAt < ClearMs)
             return false;
@@ -566,41 +359,17 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
                 Load(slot.TakeOut(1));
                 slot.MarkDirty();
                 container.MarkDirty(true);
+                RefreshState();
                 return true;
             }
         }
         return false;
     }
 
-    // Once a second: the ghosts, and the infeed.
-    private void OnSlowTick(float dt)
+    // A boring borer is heard.
+    protected override void OnClientTick(float dt)
     {
-        // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
-        EnsureGhosts();
-        PullFromInfeed();
-    }
-
-    // The client's own: the client removes a broken borer at once, and an update the server sent
-    // before it heard of the break then brings the block entity back over air: drop it. A dry borer
-    // smokes at the bore while it cuts, and a boring borer is heard.
-    private void OnClientTick(float dt)
-    {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockCylinderBorer)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
-        if (Api is not ICoreClientAPI capi || Rig is not { } rig)
-            return;
-        bool running = Running;
-        if ((_smokeSeconds += dt) >= 0.4f)
-        {
-            _smokeSeconds = 0;
-            if (_oil is { Dry: true } && running)
-                Oil.Smoke(capi, WorldPoint(rig.Chips));
-        }
-        if (!running)
+        if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Running)
         {
             _soundSeconds = 0;
             return;
@@ -613,53 +382,68 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
         }
     }
 
+    // ---- The renderer's ----
+
+    /// <summary>The castings (<c>blankiron</c>, <c>blanksteel</c>) as the clock shows them; every other part as
+    /// its stage (and the cutter head, its part) is fitted.</summary>
+    public override bool ShowsPart(string? requires) =>
+        requires is CylinderBorerRequires.BlankIron or CylinderBorerRequires.BlankSteel ? _clock.ShowsBlank(requires) : base.ShowsPart(requires);
+
+    /// <summary>θ and ψ the shaft's (about the entry shaft's native z axis), W, k and p from the clock, and the
+    /// oil's fill for the oil cups' level; while the borer cuts, metal chips at the bore's drive end and, with oil
+    /// in the tank, drips from the far bushing's oil cup.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var (theta, psi) = AdvanceShaft();
+        double turned = Math.Max(0, psi - _lastPsi);
+        _lastPsi = psi;
+        int k = BlankOn ? _job.Class : 0;
+        bool running = Running;
+        _clock.Advance(dt, turned, k, _job.Work, running, TurnsPerBlock(k));
+        if (!far && running && Rig is { } rig)
+        {
+            if ((_chipTimer += dt) >= ChipInterval)
+            {
+                _chipTimer = 0;
+                SpawnChips(rig, k);
+            }
+            if (OilFill > 0 && (_dripTimer += dt) >= DripInterval)
+            {
+                _dripTimer = 0;
+                SpawnDrip(rig);
+            }
+        }
+        return _clock.Input(theta, psi, OilFill);
+    }
+
+    private void SpawnChips(CylinderBorerRig rig, int k)
+    {
+        var at = WorldPoint(rig.Chips);
+        // turnings curling out of the bore's mouth: iron dark grey, steel bluish
+        int colour = k == 2 ? ColorUtil.ToRgba(230, 150, 145, 130) : ColorUtil.ToRgba(230, 95, 100, 105);
+        Api.World.SpawnParticles(2, colour,
+            at.AddCopy(-0.08, -0.08, -0.03), at.AddCopy(0.08, 0.08, 0.03),
+            new Vec3f(-0.4f, 0f, -0.4f), new Vec3f(0.4f, 0.4f, 0.4f), 0.8f, 1f, 0.2f, EnumParticleModel.Cube, null);
+    }
+
+    private void SpawnDrip(CylinderBorerRig rig)
+    {
+        var at = WorldPoint(rig.Drip);
+        Api.World.SpawnParticles(1, ColorUtil.ToRgba(190, 40, 140, 190),
+            at.AddCopy(-0.01, -0.02, -0.01), at.AddCopy(0.01, 0, 0.01),
+            new Vec3f(0, -0.4f, 0), new Vec3f(0, -0.2f, 0), 0.6f, 1f, 0.12f, EnumParticleModel.Quad, null);
+    }
+
     // ---- Breaking ----
 
     /// <summary>What breaking the frame gives besides the frame: every fitted part (the cutter head
     /// with its durability) and the casting in the cradle, its bore lost.</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        foreach (var drop in _parts.Returns())
-        {
-            if (drop.Durability is { } left)
-            {
-                if (HeadStack(left) is { } head)
-                    yield return head;
-            }
-            else if (PartStack(Api.World, drop.Code, drop.Count) is { } stack)
-                yield return stack;
-        }
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (BlankOn)
             yield return _blank!.Clone();
-    }
-
-    /// <summary><paramref name="count"/> of a material, by its code: an item, or a block (the metal
-    /// parts are one); null when the game has neither.</summary>
-    public static ItemStack? PartStack(IWorldAccessor world, string code, int count = 1)
-    {
-        var loc = new AssetLocation(code);
-        if (world.GetItem(loc) is { Id: > 0, IsMissing: false } item)
-            return new ItemStack(item, Math.Max(1, count));
-        return world.GetBlock(loc) is { Id: > 0, IsMissing: false } block ? new ItemStack(block, Math.Max(1, count)) : null;
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -667,14 +451,6 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var stage in CylinderBorerRequires.Stages)
-            tree.RemoveAttribute(LegacyPartKeyPrefix + CylinderBorerRequires.Name(stage));
-        var fitted = new TreeAttribute();
-        foreach (var (key, count) in _parts.Snapshot())
-            fitted.SetInt(key, count);
-        tree[FittedKey] = fitted;
-        tree.SetInt("headLeft", _parts.HeadLeft);
-        tree.SetInt("headCapacity", _parts.HeadCapacity);
         if (BlankOn)
             tree.SetItemstack("blank", _blank);
         else
@@ -683,45 +459,23 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
         tree.SetDouble("work", _job.Work);
         if (Api?.Side == EnumAppSide.Server)
         {
-            tree.SetFloat("minSpeed", Config.MinSpeed);
             tree.SetFloat("turnsPerBlockIron", Config.TurnsPerBlockIron);
             tree.SetFloat("turnsPerBlockSteel", Config.TurnsPerBlockSteel);
             tree.SetInt("wearPerCylinder", Config.HeadWearPerCylinder);
         }
-        if (_oil != null)
-            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        if (tree[FittedKey] is ITreeAttribute saved)
-        {
-            var fitted = new Dictionary<string, int>(StringComparer.Ordinal);
-            foreach (var (key, value) in saved)
-                if (value is IntAttribute i)
-                    fitted[key] = i.value;
-            _parts = CylinderBorerParts.Restore(fitted, tree.GetInt("headLeft"), tree.GetInt("headCapacity"));
-        }
-        else
-        {
-            // saved when each stage held one item (the bar's and the feed's own, #639)
-            var legacy = new Dictionary<string, string>();
-            foreach (var stage in CylinderBorerRequires.Stages)
-                if (tree.GetString(LegacyPartKeyPrefix + CylinderBorerRequires.Name(stage)) is { Length: > 0 } code)
-                    legacy[CylinderBorerRequires.Name(stage)] = code;
-            _parts = CylinderBorerParts.RestoreLegacy(legacy, tree.GetInt("headLeft"), tree.GetInt("headCapacity"));
-        }
         _blank = tree.GetItemstack("blank");
         if (_blank != null && !_blank.ResolveBlockOrItem(worldForResolving))
             _blank = null;
         _job = _blank == null ? BoreJob.None : BoreJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
             _blank = null;
-        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.CylinderBorer);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
-            _serverMinSpeed = tree.TryGetFloat("minSpeed");
             _serverTurnsIron = tree.TryGetFloat("turnsPerBlockIron");
             _serverTurnsSteel = tree.TryGetFloat("turnsPerBlockSteel");
             _serverWearPerCylinder = tree.TryGetInt("wearPerCylinder");
@@ -743,31 +497,29 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The cylinders the head has left at this oil level (and, dry, that the next breaks it), and the
+    /// casting in the cradle.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
         string L(string key, params object[] args) => Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-" + key, args);
-        if (_parts.Next is { } next)
-        {
-            dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-stage", (int)next + 1, CylinderBorerRequires.Stages.Count, StageName(next)));
-            dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-needs", Needs()));
-        }
-        double fill = OilFill;
-        if (_parts.Has(CylinderBorerStage.CutterHead))
-            dsc.AppendLine(L("info-head", _parts.HeadLeft, _parts.HeadCapacity,
-                CutterHeadWear.CylindersLeft(WearPerCylinder, fill, _parts.HeadLeft)));
+        if (Head != null)
+            dsc.AppendLine(Oiling != null && OilFill <= 0
+                ? L("info-wear-dry")
+                : L("info-head", CutterHeadWear.CylindersLeft(WearPerCylinder, OilFill, HeadLeft)));
         if (BlankOn)
-        {
-            string metal = L("metal-" + Boring.MetalOf(_job.Class));
-            string done = (100 * _job.Work / Boring.Travel).ToString("0");
-            dsc.AppendLine(Running ? L("info-boring", metal, done) : L("info-stopped", metal, done));
-        }
-        else if (_parts.Complete)
-            dsc.AppendLine(L("info-empty"));
-        Oil.Info(_oil, dsc, dryLoad: false);
-        if (_oil != null)
-            dsc.AppendLine(fill <= 0 ? L("info-wear-dry") : L("info-wear", CutterHeadWear.Multiplier(fill).ToString("0.#")));
-        float speed = ShaftSpeed;
-        dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
+            dsc.AppendLine(L("info-blank", L("metal-" + Boring.MetalOf(_job.Class))));
+    }
+
+    /// <summary>For a wrench: the head's wear a cylinder over the oil's fill, the bore's W exactly, and the shaft
+    /// turns a block of travel takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        string L(string key, params object[] args) => Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-" + key, args);
+        if (Oiling != null && Head != null && OilFill > 0)
+            dsc.AppendLine(L("info-wear", CutterHeadWear.Multiplier(OilFill).ToString("0.#", CultureInfo.InvariantCulture)));
+        if (BlankOn)
+            dsc.AppendLine(L("info-bore", _job.Work.ToString("0.000", CultureInfo.InvariantCulture),
+                Boring.Travel.ToString("0.###", CultureInfo.InvariantCulture),
+                TurnsPerBlock(_job.Class).ToString("0.###", CultureInfo.InvariantCulture)));
     }
 }

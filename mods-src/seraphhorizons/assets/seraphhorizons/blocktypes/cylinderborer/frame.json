@@ -3,9 +3,9 @@
 // placed it. The server disables it with CylinderBorer off.
 {
 	code: "cylinderborer",
-	class: "seraphhorizons.CylinderBorer",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.CylinderBorer",
-	// No HorizontalOrientable: BlockCylinderBorer.TryPlaceBlock picks the side so the borer extends
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the borer extends
 	// away from the player, as the draw bench does.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },
