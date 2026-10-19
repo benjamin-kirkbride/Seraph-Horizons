@@ -260,4 +260,78 @@ public static class MineDispatch
 
     /// <summary>How many may work a covered band's face at once: one a lane.</summary>
     public static int FaceCap(MineTunnel tunnel) => tunnel.Lanes.Count;
+
+    /// <summary>
+    /// The first station of the plan (in its order) that could be worked with <paramref name="others"/> where
+    /// they stand (none: the others out of the way), or null for none (README "Eidolon", working together,
+    /// *When none may work*): with cells it may dig now (its band's turn come) that pass the guard against the
+    /// live state (<see cref="Executable"/>), its stand in no other's box. What the board and the routes hold
+    /// (claims, turns at a face or on a route) is never asked: it clears by itself. With none, what the plan
+    /// and the world hold (the way out, another station's stand, a stand found bad) keeps every station from
+    /// any member for good.
+    /// </summary>
+    public static MineStation? Workable(MinePlan plan, MineState live, IReadOnlyList<MineWorkerAt>? others = null)
+    {
+        others ??= [];
+        var alive = Alive(plan, live, null);
+        foreach (var s in alive)
+            if (!others.Any(o => OnStand(o, s.Stand)) && Executable(live, s, others, out _, alive))
+                return s;
+        return null;
+    }
+
+    // Whether another's box is over a stand (dispatch never makes for one another stands at).
+    private static bool OnStand(MineWorkerAt o, PathCell stand) =>
+        Math.Abs(o.X - stand.X) < 2 * EidolonMining.HalfWidth && Math.Abs(o.Z - stand.Z) < 2 * EidolonMining.HalfWidth && Math.Abs(o.Feet - stand.Y) < 4;
+
+    /// <summary>Why each of <paramref name="cells"/> (targets still to dig) is left, by the guard as
+    /// <see cref="Workable"/> asks it: a cell of a station that passes it with the others out of the way is
+    /// <see cref="MineLeftWhy.UnderEidolon"/> when it fails it with <paramref name="at"/> (every eidolon where it
+    /// stood) and <see cref="MineLeftWhy.Untaken"/> when it passes both; one of none still to work
+    /// <see cref="MineLeftWhy.NoStation"/>, one whose band's turn has not come <see cref="MineLeftWhy.NotTheirTurn"/>,
+    /// else its first station's refusal.</summary>
+    public static Dictionary<MineLeftWhy, int> WhyLeft(MinePlan plan, MineState live, IEnumerable<MarkPos> cells,
+        IReadOnlyList<MineWorkerAt>? at = null)
+    {
+        at ??= [];
+        var alive = Alive(plan, live, null);
+        var why = new Dictionary<MarkPos, MineLeftWhy>();
+        foreach (var s in alive)
+        {
+            var refusal = Executable(live, s, [], out var r, alive) ? MineRefusal.None : r;
+            var reason = refusal switch
+            {
+                MineRefusal.None => at.Any(o => OnStand(o, s.Stand)) || !Executable(live, s, at, out _, alive)
+                    ? MineLeftWhy.UnderEidolon : MineLeftWhy.Untaken,
+                MineRefusal.NotStandable => MineLeftWhy.NoStand,
+                MineRefusal.NotOut => MineLeftWhy.NoWay,
+                MineRefusal.CutsOff => MineLeftWhy.CutsOff,
+                MineRefusal.Starves => MineLeftWhy.Starves,
+                MineRefusal.CutsOffStation => MineLeftWhy.UnderStand,
+                _ => MineLeftWhy.NotTheirTurn,
+            };
+            foreach (var c in s.Cells)
+                if (live.Remaining.Contains(c) && (!why.TryGetValue(c, out var had) || Rank(reason) < Rank(had)))
+                    why[c] = reason;
+        }
+        var counts = new Dictionary<MineLeftWhy, int>();
+        foreach (var c in cells)
+        {
+            var w = !why.TryGetValue(c, out var found) ? MineLeftWhy.NoStation
+                : Rank(found) > 1 && live.Bands?.Eligible(c) == false ? MineLeftWhy.NotTheirTurn : found;
+            counts[w] = counts.GetValueOrDefault(w) + 1;
+        }
+        return counts;
+    }
+
+    // A cell of several stations is said to be left for the most workable of them.
+    private static int Rank(MineLeftWhy why) => why switch { MineLeftWhy.Untaken => 0, MineLeftWhy.UnderEidolon => 1, _ => 2 };
 }
+
+/// <summary>Why a target was left when its job finished (<see cref="MineDispatch.WhyLeft"/>, the report's
+/// reasons): a station that could have been worked but none took it (the job's backstop gave up on it);
+/// one that only an eidolon standing on its cells or its stand kept from any member;
+/// in no station still to work; its band's turn never came (blocks before it were left); no place to
+/// stand for it; no way out from its stand; digging it would cut off its stand's way out, leave other
+/// blocks with nowhere to stand, or take a stand other blocks are worked from.</summary>
+public enum MineLeftWhy { Untaken, UnderEidolon, NoStation, NotTheirTurn, NoStand, NoWay, CutsOff, Starves, UnderStand }

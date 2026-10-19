@@ -5,6 +5,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Eidolon;
@@ -98,9 +99,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>How often a waiting eidolon looks for a station come free.</summary>
     private const double WaitCheckSeconds = 1;
 
-    /// <summary>With blocks left that no member may work, none working, the plan made again and no other
-    /// eidolon over the area, it waits this long before it calls the job done and reports them left.</summary>
+    /// <summary>With blocks left that no member could work even with the others out of its way
+    /// (<see cref="MineDispatch.Workable"/>), none working and the plan made again, it waits this long before it
+    /// calls the job done and reports them left.</summary>
     private const double StuckSeconds = 30;
+
+    /// <summary>With a station the guard lets be worked but no member at work nor any strike for this long,
+    /// the job is done all the same, the rest reported left (logged as a warning): a backstop against
+    /// waiting for good on one that dispatch never gives anyone.</summary>
+    private const double HangSeconds = 300;
 
     /// <summary>How far round a group (or itself) it looks for eidolons it must not dig under or over: its
     /// reach and their box's half width, with room.</summary>
@@ -144,6 +151,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private int _planVersion = -1;
     private double? _waitingSince;
     private double? _stuckSince;
+    private double? _idleSince;
     private bool _stalled;
     private int _maxTier = EidolonMining.SteelPickTier;
     private string[] _mineThrough = EidolonMining.GroundBlockEntities;
@@ -321,6 +329,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>The report it made to its owner, in the server's language, if it made its job's (the
     /// last of its job to finish makes it; the others none).</summary>
     public string? Reported { get; private set; }
+
+    /// <summary>Why the blocks still to dig in its report were left, if any were (README "Eidolon", working
+    /// together, *When none may work*); null with none.</summary>
+    public string? ReportedWhy { get; private set; }
 
     /// <summary>What it told its owner of the blocks out of its reach, in the server's language, if it was
     /// the one of its job that told them (the last time).</summary>
@@ -1319,10 +1331,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>
     /// Nothing it may take now. Only the stair's way out (or nothing) left: done (<see cref="Finish"/>), or it
-    /// makes for a part not loaded (<see cref="Travel"/>). Blocks left that no member may work, none at work:
-    /// the plan is made again at once, once (<see cref="EidolonMinePlans.Replan"/>), and then, with nothing
-    /// changed for <see cref="StuckSeconds"/> and no other eidolon over the area, done with them left; with
-    /// another at work or parked over the area, it waits at the rim.
+    /// makes for a part not loaded (<see cref="Travel"/>). With another at work, or a station it could work
+    /// with the others where they stand (<see cref="WorkableHere"/>:
+    /// waiting for a turn, the face, the stair, a claim), it waits at the rim. None at work and none it could
+    /// work: the plan is made again at once, once (<see cref="EidolonMinePlans.Replan"/>), and then, still so
+    /// for <see cref="StuckSeconds"/> and no eidolon of no member's parked on them, done with them left (the
+    /// report says why, <see cref="MineDispatch.WhyLeft"/>);
+    /// none at work nor a strike for <see cref="HangSeconds"/> with a station workable, done all the same.
     /// </summary>
     private bool Idle(EntityLaborEidolon eidolon, MineState live, List<MineWorker> workers, double now)
     {
@@ -1381,9 +1396,27 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         if (!left)
             return unloaded ? Travel(eidolon, now) : Finish(eidolon, now);
-        if (!working)
+        if (!working && cells.Plan is { } stuckPlan && !cells.Planning)
         {
-            if (!cells.StuckReplanned)
+            // Waiting for a turn (a route's, a lane's at the face, the stair's) or for a claim to come free is
+            // never stuck: only a plan of which no station passes the guard for it with the others where they
+            // stand is (MineDispatch.Workable), whether nothing is left any member could work or they are in one
+            // another's way, each on the other's cells or stand and boxed in (a trench of three).
+            if (WorkableHere(stuckPlan, live, workers) is { } open)
+            {
+                _stuckSince = null;
+                _idleSince ??= now;
+                // the backstop: the guard lets a station be worked that dispatch never gives anyone (a
+                // disagreement between them, a bug), so that the job never waits on it for good
+                if (now - Math.Max(cells.LastStrikeAt, _idleSince.Value) >= HangSeconds)
+                {
+                    eidolon.World.Logger.Warning($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: none at work "
+                        + $"for {HangSeconds:0} s with {live.Remaining.Count} left, though station {open.Id} at ({open.Stand.X},{open.Stand.Y},{open.Stand.Z}) "
+                        + $"may be worked: done with them left ({DebugState})");
+                    return Finish(eidolon, now);
+                }
+            }
+            else if (!cells.StuckReplanned)
             {
                 cells.StuckReplanned = true;
                 Plans?.Replan(cells, true);
@@ -1394,21 +1427,37 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (unloaded)
                     return Travel(eidolon, now);
                 _stuckSince ??= now;
-                if (now - _stuckSince >= StuckSeconds && !workers.Any(w => OverArea(w.X, w.Z)))
+                // not while an eidolon of no member's stands on blocks it would dig (planned round, Parked)
+                if (now - _stuckSince >= StuckSeconds && cells.Parked.Count == 0)
+                {
+                    eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: no station it could "
+                        + $"work with the others where they stand, with {live.Remaining.Count} left: done");
                     return Finish(eidolon, now);
+                }
             }
         }
-        else
-            _stuckSince = null;
+        else if (working)
+            _stuckSince = _idleSince = null;
         Unfinish(eidolon);
         return Wait(eidolon, now);
     }
 
-    private bool OverArea(double x, double z)
+    /// <summary>The first station it could work with the others where they stand (<see cref="MineDispatch.Workable"/>),
+    /// null for none; found again only when the plan, the live state, the stands found bad or where the others
+    /// stand (to a quarter block) change.</summary>
+    private MineStation? WorkableHere(MinePlan plan, MineState live, List<MineWorker> workers)
     {
-        var f = EidolonMining.Footprint(x, z);
-        return f.MaxX >= area.Min.X && f.MinX <= area.Max.X && f.MaxZ >= area.Min.Z && f.MinZ <= area.Max.Z;
+        var at = At(workers);
+        var spots = string.Join(";", at.Select(w => $"{Math.Round(w.X * 4)},{w.Feet},{Math.Round(w.Z * 4)}"));
+        if (_workableHere is { } w && ReferenceEquals(w.Plan, plan) && ReferenceEquals(w.Live, live) && w.Version == live.Version
+            && w.Bad == Cells.BadStands.Count && w.Spots == spots)
+            return w.Station;
+        var station = MineDispatch.Workable(plan, live, at);
+        _workableHere = (plan, live, live.Version, Cells.BadStands.Count, spots, station);
+        return station;
     }
+
+    private (MinePlan Plan, MineState Live, int Version, int Bad, string Spots, MineStation? Station)? _workableHere;
 
     /// <summary>Whether it stands at <paramref name="stand"/>: the node its feet are nearest, at its height.</summary>
     private static bool AtStand(EntityLaborEidolon eidolon, PathCell stand) => WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z) == stand;
@@ -2238,6 +2287,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var pos = new BlockPos(eidolon.Pos.Dimension);
         var plan = Cells.Plan;
         int left = 0, unreachable = 0, held = 0, wayOut = 0;
+        var live = Cells.Live;
+        // the targets still to dig among those left: the report says why each was
+        var still = new List<MarkPos>();
         for (int y = Math.Max(EidolonMining.BottomY, area.Min.Y); y <= area.Max.Y; y++)
         for (int x = area.Min.X; x <= area.Max.X; x++)
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
@@ -2255,7 +2307,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             else if (plan?.Held.Contains(cell) == true)
                 held++;
             else
+            {
                 left++;
+                if (live?.Remaining.Contains(cell) == true)
+                    still.Add(cell);
+            }
         }
         var shares = _job?.Shares ?? [];
         if (shares.Count > 1)
@@ -2268,9 +2324,31 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             Reported = Lang.Get("seraphhorizons:eidolon-mine-done", Mined, left, unreachable, held, wayOut);
             FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-mine-done", Mined, left, unreachable, held, wayOut);
         }
+        if (still.Count > 0 && plan != null && live != null)
+        {
+            var at = At(Workers(eidolon));
+            at.Add(new MineWorkerAt(eidolon.EntityId, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, []));
+            var why = MineDispatch.WhyLeft(plan, live, still, at);
+            ReportedWhy = WhyText(null, still.Count, why);
+            eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {still.Count} still to dig left: "
+                + string.Join(", ", why.Select(w => $"{w.Value} {w.Key}")));
+            if (eidolon.OwnerUid is { } uid && eidolon.World.PlayerByUid(uid) is IServerPlayer { ConnectionState: EnumClientState.Playing } owner)
+                owner.SendMessage(GlobalConstants.GeneralChatGroup, WhyText(owner.LanguageCode, still.Count, why), EnumChatType.Notification);
+        }
         Plans?.Close(Cells);
         Told(eidolon);
         return GoHome(eidolon);
+    }
+
+    /// <summary>Why the targets still to dig were left (<see cref="MineDispatch.WhyLeft"/>), in
+    /// <paramref name="language"/> (null: the server's): <c>eidolon-mine-leftwhy</c> with a part for each
+    /// reason (<c>eidolon-mine-leftwhy-*</c>), the most first.</summary>
+    private static string WhyText(string? language, int count, Dictionary<MineLeftWhy, int> why)
+    {
+        string Get(string key, params object[] args) => language == null ? Lang.Get(key, args) : Lang.GetL(language, key, args);
+        var parts = why.Where(w => w.Value > 0).OrderByDescending(w => w.Value).ThenBy(w => w.Key)
+            .Select(w => Get("seraphhorizons:eidolon-mine-leftwhy-" + w.Key.ToString().ToLowerInvariant(), w.Value));
+        return Get("seraphhorizons:eidolon-mine-leftwhy", count, string.Join("; ", parts));
     }
 
     /// <summary>The job's report for more than one: how many, all they mined, each one's share
