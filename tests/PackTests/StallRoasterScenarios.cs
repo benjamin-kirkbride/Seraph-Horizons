@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // chimney (aged rather than waited on), its sulfur taken and its stall-roasted rock raked out, then capped and broken
 // back into everything that went in. Built on granite floors 40 above spawn at x 720 to 740, z 660; the gear cutter's
 // player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string StallFrame = "seraphhorizons:stallroaster-";
 

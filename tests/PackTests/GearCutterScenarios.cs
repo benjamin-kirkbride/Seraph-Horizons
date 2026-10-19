@@ -27,96 +27,6 @@ public partial class SharedWorldScenarios
     private GearCutterSystem CutterMod => GearCutterSystem.Of(World.Api);
     private GearCutterRig CutterRig => CutterMod.Rig ?? throw new Xunit.Sdk.XunitException("the gear cutter's rig did not load");
 
-    private static ITestPlayer? _cutterHand;
-    private static object? _cutterWorld;
-
-    /// <summary>The gear cutter scenarios' player, in survival with empty hands and inventory and its
-    /// keys up. The trunk tool scenarios work with it too (<see cref="TrunkToolSetup"/>): the server
-    /// takes 16 players at most, and the other scenarios use the rest.</summary>
-    private async Task<ITestPlayer> CutterHand()
-    {
-        if (_cutterHand == null || !ReferenceEquals(_cutterWorld, World.Api))
-        {
-            _cutterHand = await World.JoinRetrying("gearcutterhand");
-            _cutterWorld = World.Api;
-        }
-        var player = _cutterHand.Player;
-        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
-            foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            {
-                slot.Itemstack = null;
-                slot.MarkDirty();
-            }
-        player.Entity.LeftHandItemSlot.Itemstack = null;
-        player.Entity.LeftHandItemSlot.MarkDirty();
-        player.Entity.Controls.CtrlKey = player.Entity.Controls.ShiftKey = false;
-        return _cutterHand;
-    }
-
-    private async Task<IPlayer> CutterPlayer() => (await CutterHand()).Player;
-
-    private ItemStack CutterItem(string code, int size = 1) =>
-        W.GetItem(new AssetLocation(code)) is { } item ? new ItemStack(item, size)
-        : W.GetBlock(new AssetLocation(code)) is { Id: > 0 } block ? new ItemStack(block, size)   // metal parts are a block
-        : throw new Xunit.Sdk.XunitException($"no item {code}");
-
-    /// <summary>The longest <see cref="CutterSite"/> waits for its columns: 30 s of real time, against the
-    /// half a second they take (often none: a neighbouring site loaded them) and a 60 s watchdog.</summary>
-    private const int CutterSiteLoadTicks = 900;
-
-    /// <summary>A spot 40 above spawn, its chunk columns loaded, cleared around on a granite floor.</summary>
-    private async Task<BlockPos> CutterSite(int dx, int dz, int reach = 5)
-    {
-        var origin = World.Spawn.AddCopy(dx, 40, dz);
-        int size = GlobalConstants.ChunkSize;
-        var columns = new List<BlockPos>();
-        for (int cx = (origin.X - reach) / size; cx <= (origin.X + reach) / size; cx++)
-            for (int cz = (origin.Z - reach) / size; cz <= (origin.Z + reach) / size; cz++)
-                columns.Add(new BlockPos(cx * size, origin.Y, cz * size));
-        // The sites lie hundreds of blocks from every player, where the server unloads a column it does not
-        // keep loaded about 12 s after it was last fresh, and nothing asks for one again: a request taken
-        // while the column was still loaded, and the column unloaded after, would leave the wait to run on.
-        // So a column still missing is asked for again every second, and the wait is bounded well inside a
-        // scenario's watchdog: a hang here abandons the whole shared world and fails every scenario after it
-        // (#1169), where a failure fails one. This runs before any virtual clock, in real time.
-        var sapi = World.Api as ICoreServerAPI;
-        void Request()
-        {
-            if (sapi != null)
-                foreach (var c in columns.Where(c => W.BlockAccessor.GetChunkAtBlockPos(c) == null))
-                    sapi.WorldManager.LoadChunkColumnPriority(c.X / size, c.Z / size);
-        }
-        Request();
-        int polls = 0;
-        try
-        {
-            await World.Until(() =>
-            {
-                if (columns.All(c => W.BlockAccessor.GetChunkAtBlockPos(c) != null))
-                    return true;
-                if (++polls % 30 == 0)
-                    Request();
-                return false;
-            }, CutterSiteLoadTicks);
-        }
-        catch (Atlas.Api.ScenarioTimeoutException)
-        {
-            var missing = columns.Where(c => W.BlockAccessor.GetChunkAtBlockPos(c) == null).Select(c => $"{c.X / size},{c.Z / size}");
-            throw new Xunit.Sdk.XunitException($"the site at {origin}: chunk columns {string.Join("; ", missing)} did not load in {CutterSiteLoadTicks} ticks");
-        }
-        int floor = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
-        for (int x = -reach; x <= reach; x++)
-        for (int z = -reach; z <= reach; z++)
-        {
-            W.BlockAccessor.SetBlock(floor, origin.AddCopy(x, -1, z));
-            for (int y = 0; y <= 4; y++)
-                W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
-        }
-        CutterKillItems(origin);
-        return origin;
-    }
-
     private async Task<BEGearCutter> PlaceCutter(BlockPos pos, string side = "north")
     {
         World.SetBlock($"seraphhorizons:gearcutter-frame-{side}", pos);
@@ -124,31 +34,6 @@ public partial class SharedWorldScenarios
         var be = W.BlockAccessor.GetBlockEntity(pos) as BEGearCutter ?? throw new Xunit.Sdk.XunitException($"no gear cutter at {pos}");
         be.PlaceGhosts();
         return be;
-    }
-
-    // Whether the last CutterClick was taken by the block.
-    private bool _cutterHandled;
-
-    /// <summary>Right-clicks <paramref name="at"/> holding <paramref name="held"/>; returns what is left in the hand.</summary>
-    private ItemStack? CutterClick(IPlayer player, BlockPos at, ItemStack? held, bool ctrl = false, bool creative = false)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = held;
-        slot.MarkDirty();
-        player.Entity.Controls.CtrlKey = ctrl;
-        if (creative)
-            player.WorldData.CurrentGameMode = EnumGameMode.Creative;
-        try
-        {
-            var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
-            _cutterHandled = W.BlockAccessor.GetBlock(at).OnBlockInteractStart(W, player, sel);
-        }
-        finally
-        {
-            player.Entity.Controls.CtrlKey = false;
-            player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        }
-        return slot.Itemstack;
     }
 
     private static string CutterInfo(BEGearCutter cutter, IPlayer player)
@@ -209,21 +94,6 @@ public partial class SharedWorldScenarios
     /// <summary>Radians that finish the gear on the arbor from where it is.</summary>
     private static double RestOfGear(BEGearCutter cutter) =>
         (cutter.Job.End - cutter.Job.Work) * 2 * Math.PI * cutter.TurnsPerTooth + 1e-6;
-
-    private Dictionary<string, int> CutterItemsNear(BlockPos around, int radius = 6)
-    {
-        var box = new Cuboidi(around.X - radius, around.Y - 3, around.Z - radius, around.X + radius, around.Y + 6, around.Z + radius);
-        return World.EntitiesIn(box).OfType<EntityItem>().Where(e => e.Alive)
-            .GroupBy(e => e.Itemstack.Collectible.Code.ToString())
-            .ToDictionary(g => g.Key, g => g.Sum(e => e.Itemstack.StackSize));
-    }
-
-    private void CutterKillItems(BlockPos around, int radius = 6)
-    {
-        var box = new Cuboidi(around.X - radius, around.Y - 3, around.Z - radius, around.X + radius, around.Y + 6, around.Z + radius);
-        foreach (var e in World.EntitiesIn(box).OfType<EntityItem>())
-            e.Die(EnumDespawnReason.Removed);
-    }
 
     // ---- Loading ----
 

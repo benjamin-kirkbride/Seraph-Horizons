@@ -94,8 +94,9 @@ stayed 1, and older exports simply have none; [schema.md](schema.md#multiblocks)
 - **parts**: one per code pattern. `block` is the block a cell is drawn with: a north-facing
   variant if there is one, else the first in registry order, preferring a block another cell of
   the structure is already drawn with (the smoke stack's "any brick" cells take its refractory
-  bricks). `accepts` lists up to 24 blocks that fit, `acceptsMore` counts the rest. `air` marks a
-  cell that may be empty; without `block`, it must be.
+  bricks), and the checking block's own cell taking the record's `code`, the variant that checks
+  the layout unturned (Limits, Facing). `accepts` lists up to 24 blocks that fit, `acceptsMore`
+  counts the rest. `air` marks a cell that may be empty; without `block`, it must be.
 - **shapes**: `cube` for a block drawn as a full cube, `none` for one with nothing to draw (the
   invisible top half of a two-block door, exlib's structure filler), `shape` with the block's
   shape and overlays: their elements as the shape file has them (voxels, children relative to
@@ -107,9 +108,14 @@ The whole section is about 190 kB in the pack's export.
 ### Limits
 
 - **Facing.** A layout is written facing one way and turned by the game as it is placed; which
-  facing a mod writes it in is the mod's own code (smex's cowper stove adds 180° to its intake's
-  side, its converter control 180° to its own). The viewer draws the layout as written, each block
-  in its north variant where it has one (or the facing the pattern names, such as
+  facing a mod writes it in is the mod's own code (ppex's boilers and smex's cowper stove and
+  Bessemer control turn it 180° more than their side, so their north variant checks it facing
+  south). The viewer draws the layout as written, so the checking block's own cell is drawn with
+  the variant that checks it unturned: the exporter asks each variant's block entity for the angle
+  it turns the layout to (exlib's `LayoutAngle`, read by name) and takes one at 0°, else the north
+  variant (the game's kiln and stone coffin turn theirs by their side, 0° for north). Drawn north,
+  a boiler's shape ran out of the structure the opposite way from its filler cells. Every other
+  block is drawn in its north variant where it has one (or the facing the pattern names, such as
   `smex:blastfurnacetap-*-west`), so a block whose facing the structure checks may be drawn facing
   another way. The legend names the exact pattern each cell wants.
 - **Connectors.** exlib's `multiblockConnectors` (which faces of a pipe cell must connect) and

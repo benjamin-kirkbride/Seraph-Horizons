@@ -21,7 +21,7 @@ namespace SeraphHorizons.PackTests;
 // stirred by a vanilla creative rotor on its power face (its load following the charge), stirred through, its crust
 // skimmed and its lead ladled out, then capped and broken back into everything that went in. Built on granite floors
 // 40 above spawn at x -900, z 920; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string KettleFrame = "seraphhorizons:parkeskettle-";
     private const string GalenaBullion = "seraphhorizons:bullion-galena-lead";

@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // chest at its output face, stopped dry and started again with water, the shaking table's middlings freed, and
 // broken back into everything that went in. Built on granite floors 40 above spawn at x 660 to 700, z 660 to
 // 680; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string MillFrame = "seraphhorizons:ballmill-";
 

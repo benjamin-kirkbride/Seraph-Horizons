@@ -5700,8 +5700,10 @@ wrong with the file (`Problems`, for the server log; a missing figure reads as 0
   sluice, jig and table) the vanner takes all the rest for oxides, placer and silver quartz; for a
   sulfide it marks its concentrate whole and the reverberatory roaster makes it 100 %
   (`Roasting(ore, roaster, whole)`); for a by-product ore the final parting does (`Smelted(ore,
-  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena, the
-  cupellation furnace for tetrahedrite and freibergite, the liquation furnace for teallite and
+  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena (the
+  bullion the kettle takes, leaner than its rich lead: `Bullion.TakenBy`), the cupellation furnace
+  for argentiferous galena (richer than the kettle's crust, cupelled directly), tetrahedrite and
+  freibergite, the liquation furnace for teallite and
   franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver).
   `WholeRestore` is 1 / the chain's share.
 - **Amalgamation** (`Amalgamate`): the plates catch 65 % of the catchable free metal as amalgam,
@@ -8751,7 +8753,9 @@ more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check
 
 For the same reason the other scenario files above are not classes of their own but parts of a
 few partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
-feature that needs only the plain world; `TradingScenarios` (`TradingScenarios.cs`), the trading
+feature that needs only the plain world, but for `MillWorldScenarios` (`MillWorldScenarios.cs`), the
+ore machines' (the mill's) on a plain world of their own, a class apart only so that neither class's CI
+shard is too long (the two share their build helpers through `PlainWorldScenarioBase.cs`); `TradingScenarios` (`TradingScenarios.cs`), the trading
 features on the plain world, sharing its players; `WoodworkingScenarios`
 (`WoodworkingScenarios.cs`), the woodworking chain with the machines' fixture
 (`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
@@ -8783,7 +8787,7 @@ a world created with them off to have none of it.
 
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
-of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
+of `SharedWorldScenarios` (`MillWorldScenarios` for an ore machine, `WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
 the rosser, `WoodworkingEidolonScenarios` for the eidolon's work at the machines, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A

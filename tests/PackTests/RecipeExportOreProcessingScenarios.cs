@@ -34,6 +34,20 @@ public partial class RecipeExportScenarios
         Assert.Contains(tetrahedrite["ingredients"]!, i => (string)i["code"]! == "game:metalbit-lead" && (double)i["quantity"]! == 20);
     }
 
+    // The ore routes page's figures carry rich lead's silver share, which keeps argentiferous galena (38 % silver,
+    // richer than rich lead) off the Parkes kettle, as the mod's final step does.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Ore_processing_section_carries_rich_leads_silver()
+    {
+        var section = (JObject)Doc["oreProcessing"]!;
+        Assert.Equal(0.1, (double)section["richLeadSilver"]!, 9);
+        var argentiferous = section["ores"]!.Single(o => (string)o["ore"]! == "galena_nativesilver");
+        Assert.Equal(0.38, (double)argentiferous["byProducts"]![0]!["share"]!, 9);
+        var recovery = OreProcessingSystem.RecoveryFor(World.Api);
+        Assert.Equal(OreMachine.CupellationFurnace, recovery.FinalStep(recovery.Ore("galena_nativesilver")));
+        Assert.Equal(OreMachine.ParkesKettle, recovery.FinalStep(recovery.Ore("galena")));
+    }
+
     // The recipe browser's record per ore the pan takes, and the guide page.
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Liquation_is_exported()
