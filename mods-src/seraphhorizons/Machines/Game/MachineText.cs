@@ -85,7 +85,12 @@ public static class MachineText
         {
             string name = WearingName(machine, part);
             if (assembly.Wearing.Fitted(part.Id) is not { } fitted)
-                info.Add(Lang.Get(P + "info-worn", name, part.Count, MaterialName(world, new BuildMaterial(part.Codes, part.Count))));
+            {
+                // a machine says it its own way where it has one (the draw bench's die, also taken out by hand)
+                string own = $"seraphhorizons:{machine}-info-worn";
+                info.Add(Lang.Get(Lang.HasTranslation(own) ? own : P + "info-worn", name, part.Count,
+                    MaterialName(world, new BuildMaterial(part.Codes, part.Count))));
+            }
             else
             {
                 info.Add(Lang.Get(P + "info-wearing", name,

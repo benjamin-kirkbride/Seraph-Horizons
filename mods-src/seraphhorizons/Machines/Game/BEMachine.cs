@@ -73,7 +73,10 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     public virtual bool Complete => Built;
 
     public MachineState State => _state;
-    public bool Running => _state == MachineState.Working;
+
+    /// <summary>The machine works now: its state is <see cref="MachineState.Working"/>, and a hand machine is
+    /// also held (<see cref="Held"/>: let go, it stops at once, before its next tick).</summary>
+    public bool Running => _state == MachineState.Working && (!HandWorked || Held);
 
     public override InventoryBase Inventory => _inventory;
     public override string InventoryClassName => "machine";
@@ -559,6 +562,15 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
     /// </summary>
     public bool OnInteract(IPlayer byPlayer, BlockSelection blockSel)
     {
+        bool handled = Interact(byPlayer, blockSel);
+        // what the click changed (a stage, the work) shows in the state at once, not a tick later
+        if (handled && Api.Side == EnumAppSide.Server)
+            RefreshState();
+        return handled;
+    }
+
+    private bool Interact(IPlayer byPlayer, BlockSelection blockSel)
+    {
         if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
             return oiled;
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
@@ -689,8 +701,7 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
         bool dirty = Tick(dt);
         FillFromPipe(dt);
 
-        var state = MachineRun.StateOf(new MachineCheck(Built, _assembly.Wearing.AllFitted, Powered, speed,
-            Wet, HasWork, OutputRoom, HandWorked ? _held : null), ConfigMinSpeed);
+        var state = StateNow(speed);
         if (MachineRun.Works(state))
             dirty |= Powered ? advance > 0 && Work(advance) : WorkUnpowered(dt);
         if (state != _state)
@@ -707,6 +718,23 @@ public abstract class BEMachine : BlockEntityContainer, IMachinePower
             _progressSync = _progressSync.Sent(percent, now);
             MarkDirty(true);
         }
+    }
+
+    private MachineState StateNow(float speed) =>
+        MachineRun.StateOf(new MachineCheck(Built, _assembly!.Wearing.AllFitted, Powered, speed,
+            Wet, HasWork, OutputRoom, HandWorked ? _held : null), ConfigMinSpeed);
+
+    /// <summary>Takes the state the running rules give now (server side), syncing it when it changed: after
+    /// something that changes it between ticks (a click; the work taken off).</summary>
+    protected void RefreshState()
+    {
+        if (_assembly == null || Api?.Side != EnumAppSide.Server)
+            return;
+        var state = StateNow(Power?.TrueSpeed ?? 0);
+        if (state == _state)
+            return;
+        _state = state;
+        MarkDirty(true);
     }
 
     /// <summary>The machine's own business each tick before the running rules (server side): moving what

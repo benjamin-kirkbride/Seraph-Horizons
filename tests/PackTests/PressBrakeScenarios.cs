@@ -1,4 +1,5 @@
 using Atlas.XUnit;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.PressBrake;
 using SeraphHorizons.Mod.PressBrake.Core;
@@ -33,12 +34,15 @@ public partial class SharedWorldScenarios
         World.SetBlock($"seraphhorizons:pressbrake-frame-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BEPressBrake ?? throw new Xunit.Sdk.XunitException($"no press brake at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
 
-    /// <summary>The far cell, the ghost.</summary>
-    private static BlockPos BrakeGhost(BEPressBrake brake) => brake.GhostCells().Single();
+    /// <summary>The far cell, the shared machine cell.</summary>
+    private static BlockPos BrakeGhost(BEPressBrake brake) => brake.CellBlocks().Single().Pos;
+
+    /// <summary>The codes fitted, in stage order, as breaking gives them back.</summary>
+    private static IEnumerable<string> BrakeFitted(BEPressBrake brake) => brake.Assembly!.Returns().Select(d => d.Code);
 
     /// <summary>Both stages by right-clicks with real items, the screws on the frame and the edges on the ghost.</summary>
     private void AssembleBrake(BEPressBrake brake, IPlayer player, string screws = "game:metal-parts", string edge = "game:metalplate-iron")
@@ -102,17 +106,17 @@ public partial class SharedWorldScenarios
     {
         Assert.True(PressBrakeSystem.Applies(World.Api));
         Assert.NotNull(BrakeMod.Rig);
+        // its frame is the shared machine block, its far cell the shared cell, its build the shared build's
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockPressBrake>(W.GetBlock(new AssetLocation($"seraphhorizons:pressbrake-frame-{side}")));
-        Assert.IsType<BlockPressBrakeGhost>(W.GetBlock(new AssetLocation("seraphhorizons:pressbrake-ghost")));
-        // every part the stages take exists here: the game's metal parts (a block) and plates, and the
-        // rods a brake saved before the screws were metal parts may hold
-        foreach (var stage in PressBrakeRequires.Stages)
-            foreach (var code in PressBrakeParts.CodesFor(stage))
-                Assert.True(BEPressBrake.PartStack(W, code) is { }, $"no {code} for {stage}");
-        Assert.True(W.GetBlock(new AssetLocation(PressBrakeParts.ScrewCode)) is { Id: > 0, IsMissing: false });
-        foreach (var code in PressBrakeParts.LegacyScrewCodes)
-            Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false }, $"no {code}");
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:pressbrake-frame-{side}")));
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:pressbrake-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(BrakeRig, ((BlockMachine)W.GetBlock(new AssetLocation(BrakeFrame))).Rig);
+        // every part the stages take exists here: the game's metal parts (a block) and plates
+        var build = MachinesSystem.Of(World.Api).Build(PressBrakeSystem.MachineId)!;
+        Assert.Equal(["screws", "edge"], build.Stages.Select(s => s.Id));
+        foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
+            Assert.True(BEMachine.Stacks(W, [code], 1).Length > 0, $"no {code}");
+        Assert.True(W.GetBlock(new AssetLocation("game:metal-parts")) is { Id: > 0, IsMissing: false });
         // what it folds, the squaring shear's lead and copper half plates, and what comes off: UnifiedPipes' angles
         foreach (var k in new[] { 1, 2 })
         {
@@ -124,7 +128,7 @@ public partial class SharedWorldScenarios
         // the brake is the only maker of angles: no anvil recipe, no grid recipe
         Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("angle-"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("angle-"));
-        Assert.Equal("Press brake frame", new ItemStack(W.GetBlock(BlockPressBrake.ItemCode)).GetName());
+        Assert.Equal("Press brake frame", new ItemStack(W.GetBlock(new AssetLocation(BrakeFrame))).GetName());
 
         // the grid: the frame, of oak and iron fittings, with a hammer
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == BrakeFrame && r.Enabled);
@@ -155,7 +159,7 @@ public partial class SharedWorldScenarios
             var ghost = BrakeGhost(brake);
             var n = side.Normal();
             Assert.Equal(pos.AddCopy(n.X, 0, n.Z), ghost);
-            Assert.Equal(pos, Assert.IsType<BEPressBrakeGhost>(W.BlockAccessor.GetBlockEntity(ghost)).Principal);
+            Assert.Equal(pos, Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(ghost)).Principal);
             foreach (var cell in new[] { pos, ghost })
             {
                 var block = W.BlockAccessor.GetBlock(cell);
@@ -188,14 +192,14 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var brake = await PlaceBrake(pos, "east");
         var ghost = BrakeGhost(brake);
-        Assert.Contains("Next part: screws", BrakeInfo(brake, player));
-        Assert.Contains("Then: edges", BrakeInfo(brake, player));
+        Assert.Contains("Build: stage 1 of 2, screws (metal parts)", BrakeInfo(brake, player));
+        Assert.Contains("Still takes: 1 × Metal parts", BrakeInfo(brake, player));
 
         // the edges before the screws are refused and stay in hand, from the frame or the ghost
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalplate-iron"))?.StackSize);
         Assert.True(_cutterHandled);
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:metalplate-steel"))?.StackSize);
-        Assert.False(brake.Parts.Has(PressBrakeStage.Edge));
+        Assert.Equal(0, brake.Assembly!.Build.Next);
         // no half plate before the brake is built, and an empty hand works no lever on a bare frame
         Assert.Equal(1, CutterClick(player, pos, CutterItem(Folding.LeadHalfPlate))?.StackSize);
         Assert.False(brake.PlateOn);
@@ -206,13 +210,13 @@ public partial class SharedWorldScenarios
         Assert.False(_cutterHandled);
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:rod-iron"))?.StackSize);
         Assert.False(_cutterHandled);
-        Assert.False(brake.Parts.Has(PressBrakeStage.Screws));
+        Assert.Empty(BrakeFitted(brake));
 
         // the screws, one lot of metal parts from a stack of two; a second has nowhere to go
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metal-parts", 2))?.StackSize);
-        Assert.Equal("game:metal-parts", brake.Parts.FittedIn(PressBrakeStage.Screws));
+        Assert.Equal("game:metal-parts", brake.Assembly!.Build.CodeIn(0, 0));
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:metal-parts"))?.StackSize);
-        Assert.Contains("Next part: edges", BrakeInfo(brake, player));
+        Assert.Contains("Build: stage 2 of 2, edges (an iron or steel plate)", BrakeInfo(brake, player));
         Assert.False(brake.Complete);
         Assert.Equal("Press brake frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         // the edges, from the ghost
@@ -221,13 +225,16 @@ public partial class SharedWorldScenarios
         Assert.Equal("steel", brake.EdgeMetal);
         Assert.Equal("Press brake", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         Assert.Contains("Bed empty", BrakeInfo(brake, player));
+        // more for a wrench: the facing; without one, a line says so
+        Assert.Contains("Hold a wrench to see more", BrakeInfo(brake, player));
+        Assert.DoesNotContain("Faces east", BrakeInfo(brake, player));
 
         // a save keeps every fitted code
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         brake.ToTreeAttributes(tree);
         brake.FromTreeAttributes(tree, W);
         Assert.True(brake.Complete);
-        Assert.Equal(["game:metal-parts", "game:metalplate-steel"], brake.Parts.Returns());
+        Assert.Equal(["game:metal-parts", "game:metalplate-steel"], BrakeFitted(brake));
 
         // fitted parts never come back out: Ctrl on the frame or the ghost takes nothing
         CutterClick(player, pos, null, ctrl: true);
@@ -235,7 +242,7 @@ public partial class SharedWorldScenarios
         Assert.True(brake.Complete);
         Assert.Equal(0, BrakeHeld(player, "game:metalplate-steel"));
         Assert.Equal(0, BrakeHeld(player, "game:metal-parts"));
-        Assert.Equal(["game:metal-parts", "game:metalplate-steel"], brake.Parts.Returns());
+        Assert.Equal(["game:metal-parts", "game:metalplate-steel"], BrakeFitted(brake));
 
         // only breaking gives them back
         CutterKillItems(pos);
@@ -247,36 +254,12 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, drops.GetValueOrDefault("game:metalplate-steel"));
         CutterKillItems(pos);
 
-        // a brake saved when the screws were a rod loads complete with its rod, works, and gives the
-        // rod back when broken
-        brake = await PlaceBrake(pos, "east");
-        var old = new Vintagestory.API.Datastructures.TreeAttribute();
-        brake.ToTreeAttributes(old);
-        old.SetString("part-screws", "game:rod-meteoriciron");
-        old.SetString("part-edge", "game:metalplate-iron");
-        brake.FromTreeAttributes(old, W);
-        Assert.True(brake.Complete);
-        Assert.Equal(["game:rod-meteoriciron", "game:metalplate-iron"], brake.Parts.Returns());
-        Assert.Equal("iron", brake.EdgeMetal);
-        Assert.Null(CutterClick(player, pos, CutterItem(Folding.LeadHalfPlate)));
-        Assert.True(brake.PlateOn);
-        CutterClick(player, pos, null, ctrl: true);
-        Assert.False(brake.PlateOn);
-        CutterKillItems(pos);
-        W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
-        await World.Ticks(3);
-        drops = CutterItemsNear(pos);
-        Assert.Equal(1, drops.GetValueOrDefault("game:rod-meteoriciron"));
-        Assert.Equal(1, drops.GetValueOrDefault("game:metalplate-iron"));
-        Assert.Equal(0, drops.GetValueOrDefault("game:metal-parts"));
-        CutterKillItems(pos);
-
         // the creative shortcut fits each stage's first code, free
         brake = await PlaceBrake(pos, "east");
         Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
         Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
         Assert.True(brake.Complete);
-        Assert.Equal(["game:metal-parts", "game:metalplate-iron"], brake.Parts.Returns());
+        Assert.Equal(["game:metal-parts", "game:metalplate-iron"], BrakeFitted(brake));
     }
 
     // ---- Folding ----
@@ -308,7 +291,8 @@ public partial class SharedWorldScenarios
         Assert.True(brake.PlateOn);
         Assert.Equal(1, brake.Job.Class);
         Assert.Equal(Folding.LeadHalfPlate, brake.Plate?.Collectible.Code.ToString());
-        Assert.Contains("A lead half plate on the bed, 0% folded", BrakeInfo(brake, player));
+        Assert.Contains("On the bed: a lead half plate, 0% folded", BrakeInfo(brake, player));
+        Assert.Contains("Ready: hold right mouse on it to work it", BrakeInfo(brake, player));
 
         // nothing moves until the lever is worked; held from the ghost, it folds; let go, it stops
         await World.Ticks(10);

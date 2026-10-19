@@ -3,39 +3,8 @@ using SeraphHorizons.Mod.Machines.Core;
 namespace SeraphHorizons.Mod.PressBrake.Core;
 
 /// <summary>
-/// What the press brake's renderer reads of the brake, and nothing else: its facing, the parts
-/// fitted and the edges' metal, the plate on the bed (class k and the server's W), and whether someone
-/// works the lever. The block entity implements it; the renderer turns it into the rig's inputs
-/// through <see cref="PressBrakeClock"/>.
-/// </summary>
-public interface IPressBrakeView
-{
-    Side Side { get; }
-
-    /// <summary>Whether a part needing a stage's <c>requires</c> (or null) is drawn. The plates are
-    /// the clock's (<see cref="PressBrakeClock.ShowsPlate"/>).</summary>
-    bool PartFitted(string? requires);
-
-    /// <summary>The fitted edges' metal (<c>iron</c>, <c>steel</c>), or null.</summary>
-    string? EdgeMetal { get; }
-
-    /// <summary>The plate on the bed: 1 lead, 2 copper, 0 none.</summary>
-    int PlateClass { get; }
-
-    /// <summary>The server's W: the plate's fold cycle, synced in steps.</summary>
-    double FoldWork { get; }
-
-    /// <summary>Someone works the lever (the server's word, or this client's own player holding
-    /// right-click on it).</summary>
-    bool Held { get; }
-
-    /// <summary>Lever turns a plate of class k takes, as the server runs.</summary>
-    double LeverTurnsPerPlate(int k);
-}
-
-/// <summary>
-/// The renderer's own lever clock θ, W, presence and class, from the view each frame (the model's
-/// contract, "The work"). While the lever is worked with a plate on, θ turns at
+/// The renderer's own lever clock θ, W, presence and class, from the brake each frame (the model's
+/// contract, "The work"; <c>BEPressBrake.FrameInput</c>). While the lever is worked with a plate on, θ turns at
 /// <see cref="Folding.LeverRadiansPerSecond"/>, and W is predicted at the plate's pace and eased
 /// toward the server's (<see cref="HeldWorkFollower"/>), so the model moves at frame rate rather
 /// than in the server's synced steps; with no plate on, W is held at the end, 1, while p eases out and k is held; a new

@@ -33,7 +33,7 @@ public static class PressBrakeExport
     public static readonly AssetLocation RigAsset = new(GearChain.Mod, "config/pressbrake-rig.json");
     public const string FrameCode = "seraphhorizons:pressbrake-frame-north";
 
-    // PressBrake/Core/PressBrakeParts.cs: what each kept stage takes (the screws are metal parts, a block).
+    // config/builds/pressbrake.json (the shared staged build): what each kept stage takes (the screws are metal parts, a block).
     public static readonly (string Template, string Kind, string[] Codes)[] KeptStages =
     [
         ("game:metal-parts", "block", ["game:metal-parts"]),

@@ -4,76 +4,85 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.PressBrake;
 
-/// <summary>PressBrake/Core: the build order, what each stage takes and that nothing takes a part
-/// back out; the half plates by metal; the fold's arithmetic (W only while the lever is worked, one
-/// angle at W = 1); who holds the lever; the renderer's clock; and the settings.</summary>
+/// <summary>PressBrake: its build (config/builds/pressbrake.json on the shared staged build): the order,
+/// what each stage takes and that nothing takes a part back out; the half plates by metal; the fold's
+/// arithmetic (W only while the lever is worked, one angle at W = 1); who holds the lever; the
+/// renderer's clock; and the settings.</summary>
 public class PressBrakeGameplayTests
 {
-    private static PressBrakeParts Complete(string screws = "game:metal-parts", string edge = "game:metalplate-iron")
+    private static MachineBuild Build() =>
+        MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "pressbrake.json")));
+
+    private static MachineAssembly Complete(string screws = "game:metal-parts", string edge = "game:metalplate-iron")
     {
-        var parts = new PressBrakeParts();
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit(screws));
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit(edge));
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit(screws, 1).Verdict);
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit(edge, 1).Verdict);
         return parts;
     }
 
-    // ---- Parts ----
+    // ---- The build ----
 
     [Fact]
     public void The_stages_go_in_in_the_contracts_order()
     {
-        Assert.Equal(["screws", "edge"], PressBrakeRequires.Stages.Select(PressBrakeRequires.Name));
-        var parts = new PressBrakeParts();
-        Assert.Equal(PressBrakeStage.Screws, parts.Next);
-        Assert.Equal("game:metal-parts", parts.NextPart);
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("game:metal-parts"));
-        Assert.Equal(PressBrakeStage.Edge, parts.Next);
-        Assert.Equal("game:metalplate-iron", parts.NextPart);
-        Assert.False(parts.Complete);
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("game:metalplate-steel"));
-        Assert.True(parts.Complete);
-        Assert.Null(parts.NextPart);
+        var build = Build();
+        Assert.Equal(["screws", "edge"], build.Stages.Select(s => s.Id));
+        Assert.Equal(["screws", "edge"], build.Stages.Select(s => Assert.Single(s.Adds)));
+        Assert.All(build.Stages, s => Assert.Equal(1, Assert.Single(s.Materials).Quantity));
+        Assert.Null(build.Block);   // its construction record is its own in the export
+        var parts = new MachineAssembly(build);
+        Assert.Equal(0, parts.Build.Next);
+        // the creative shortcut fits each stage's first code: metal parts, then an iron plate
+        Assert.True(parts.FillNext());
+        Assert.Equal("game:metal-parts", parts.Build.CodeIn(0, 0));
+        Assert.Equal(1, parts.Build.Next);
+        Assert.False(parts.Built);
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit("game:metalplate-steel", 1).Verdict);
+        Assert.True(parts.Built);
+        Assert.Null(parts.Build.Next);
         // only the edges have a metal of their own: the screws are always cupronickel
-        Assert.Null(PressBrakeParts.MetalOf(parts.FittedIn(PressBrakeStage.Screws)));
-        Assert.Equal("steel", PressBrakeParts.MetalOf(parts.FittedIn(PressBrakeStage.Edge)));
-        Assert.Null(PressBrakeParts.MetalOf("game:rod-steel"));
+        Assert.Null(PressBrakeRequires.EdgeMetal(parts.Build.CodeIn(0, 0)));
+        Assert.Equal("steel", PressBrakeRequires.EdgeMetal(parts.Build.CodeIn(1, 0)));
+        Assert.Null(PressBrakeRequires.EdgeMetal("game:rod-steel"));
     }
 
     [Fact]
     public void Only_the_next_stage_is_accepted()
     {
-        var parts = new PressBrakeParts();
-        Assert.Equal(PressBrakeFitVerdict.OutOfOrder, parts.Fit("game:metalplate-iron"));
-        Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:rod-copper"));
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.OutOfOrder, parts.Fit("game:metalplate-iron", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:rod-copper", 1).Verdict);
         // the screws were once a rod: none fits now
-        foreach (var rod in PressBrakeParts.LegacyScrewCodes)
-            Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit(rod));
-        Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:metal-scraps"));
-        Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:metalplate-meteoriciron"));
-        Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:metalplate-lead"));   // the work, not a part
-        Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit(null));
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("metal-parts"));   // a code with no domain is the game's
-        Assert.Equal(PressBrakeFitVerdict.AlreadyFitted, parts.Fit("game:metal-parts"));
-        Assert.Equal(PressBrakeStage.Edge, parts.Next);
+        foreach (var rod in new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" })
+            Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit(rod, 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:metal-scraps", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:metalplate-meteoriciron", 1).Verdict);
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit("game:metalplate-lead", 1).Verdict);   // the work, not a part
+        Assert.Equal(AssemblyVerdict.NotAPart, parts.Fit(null, 1).Verdict);
+        var fit = parts.Fit("metal-parts", 2);   // a code with no domain is the game's; one of a stack of two
+        Assert.Equal((AssemblyVerdict.Fitted, 1), (fit.Verdict, fit.Take));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, parts.Fit("game:metal-parts", 1).Verdict);
+        Assert.Equal(1, parts.Build.Next);
     }
 
     [Theory]
     [InlineData("game:metalplate-iron")]
     [InlineData("game:metalplate-steel")]
-    public void Metal_parts_and_each_edge_plate_fit(string plate) => Assert.True(Complete(edge: plate).Complete);
+    public void Metal_parts_and_each_edge_plate_fit(string plate) => Assert.True(Complete(edge: plate).Built);
 
     [Fact]
-    public void Fitted_draws_each_stage_once_it_is_in_and_never_the_plates()
+    public void Each_stage_is_drawn_once_it_is_in_and_the_plates_are_not_the_builds()
     {
-        var parts = new PressBrakeParts();
-        Assert.True(parts.Fitted(null));
-        Assert.False(parts.Fitted("screws"));
-        parts.Fit("game:metal-parts");
-        Assert.True(parts.Fitted("screws"));
-        Assert.False(parts.Fitted("edge"));
-        Assert.True(Complete().Fitted("edge"));
-        Assert.False(Complete().Fitted("platelead"));
-        Assert.False(Complete().Fitted("platecopper"));
+        var parts = new MachineAssembly(Build());
+        Assert.True(parts.Shows(null));
+        Assert.False(parts.Shows("screws"));
+        parts.Fit("game:metal-parts", 1);
+        Assert.True(parts.Shows("screws"));
+        Assert.False(parts.Shows("edge"));
+        Assert.True(Complete().Shows("edge"));
+        // the plates are the work's: no stage adds them (BEPressBrake.ShowsPart draws them by its clock)
+        Assert.DoesNotContain(Build().Stages, s => s.Adds.Contains("platelead") || s.Adds.Contains("platecopper"));
         Assert.True(PressBrakeRequires.KnownRequires.SetEquals(["screws", "edge", "platelead", "platecopper"]));
         Assert.Equal("platelead", PressBrakeRequires.Plate(1));
         Assert.Equal("platecopper", PressBrakeRequires.Plate(2));
@@ -83,41 +92,31 @@ public class PressBrakeGameplayTests
     [Fact]
     public void Fitted_parts_never_come_back_out()
     {
-        // only a consumable may come out of a built machine, and this one has none: breaking is the
-        // only way back to the parts (Returns), so the rules offer no way to take one out
-        var takeOut = typeof(PressBrakeParts).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-            .Where(mi => mi.Name.StartsWith("Remove") || mi.Name.StartsWith("Take"))
-            .Select(mi => mi.Name);
-        Assert.Empty(takeOut);
+        // only a wearing part may come out of a built machine, and this one has none: breaking is the
+        // only way back to the parts (Returns)
+        var parts = Complete();
+        Assert.Empty(parts.Wearing.Parts);
+        Assert.Null(parts.Take("edge"));
+        Assert.True(parts.Built);
     }
 
     [Fact]
     public void Breaking_returns_every_fitted_item_and_a_save_keeps_them()
     {
         var parts = Complete(edge: "game:metalplate-steel");
-        Assert.Equal(["game:metal-parts", "game:metalplate-steel"], parts.Returns());
-        var restored = PressBrakeParts.Restore(parts.Snapshot());
-        Assert.True(restored.Complete);
+        Assert.Equal([new StageDrop("game:metal-parts", 1), new StageDrop("game:metalplate-steel", 1)], parts.Returns());
+        var (build, wearing) = parts.Snapshot();
+        var restored = MachineAssembly.Restore(Build(), build, wearing, out var dropped);
+        Assert.True(restored.Built);
+        Assert.Empty(dropped);
         Assert.Equal(parts.Returns(), restored.Returns());
-        // a gap or a code that is not its stage's part ends the run
-        Assert.False(PressBrakeParts.Restore(new Dictionary<string, string> { ["edge"] = "game:metalplate-iron" }).Has(PressBrakeStage.Edge));
-        var wrong = PressBrakeParts.Restore(new Dictionary<string, string> { ["screws"] = "game:rod-copper", ["edge"] = "game:metalplate-iron" });
+        // a gap ends the run, and a code that is not its stage's part is given back
+        var gap = MachineAssembly.Restore(Build(), new Dictionary<string, int> { ["1/0/game:metalplate-iron"] = 1 }, wearing, out dropped);
+        Assert.False(gap.Build.StageComplete(1));
+        Assert.Equal([new StageDrop("game:metalplate-iron", 1)], dropped);
+        var wrong = MachineAssembly.Restore(Build(), new Dictionary<string, int> { ["0/0/game:rod-copper"] = 1 }, wearing, out dropped);
         Assert.Empty(wrong.Returns());
-    }
-
-    [Theory]
-    [InlineData("game:rod-iron")]
-    [InlineData("game:rod-meteoriciron")]
-    [InlineData("rod-steel")]
-    public void A_brake_saved_with_rod_screws_keeps_them_and_breaking_gives_the_rod_back(string rod)
-    {
-        // the screws took a rod before they took metal parts: such a save loads complete, its rod
-        // drawn in cupronickel like metal parts (no metal of its own), and is given back on breaking
-        var restored = PressBrakeParts.Restore(new Dictionary<string, string> { ["screws"] = rod, ["edge"] = "game:metalplate-iron" });
-        Assert.True(restored.Complete);
-        Assert.Equal([PressBrakeParts.Normalise(rod)!, "game:metalplate-iron"], restored.Returns());
-        Assert.Null(PressBrakeParts.MetalOf(restored.FittedIn(PressBrakeStage.Screws)));
-        Assert.Equal(PressBrakeParts.Normalise(rod), PressBrakeParts.Restore(restored.Snapshot()).FittedIn(PressBrakeStage.Screws));
+        Assert.Equal([new StageDrop("game:rod-copper", 1)], dropped);
     }
 
     // ---- Half plates ----
@@ -165,21 +164,22 @@ public class PressBrakeGameplayTests
     [InlineData(2, 2.25)]
     public void W_advances_with_the_lever_and_the_plate_is_done_at_1(int k, double turns)
     {
-        var job = new FoldJob(k, 0);
+        var job = Folding.Start(k);
         Assert.True(job.Untouched);
-        (job, bool finished) = job.Advance(2 * Math.PI * turns / 2, turns);
+        (job, bool finished) = Folding.Advance(job, 2 * Math.PI * turns / 2, turns);
         Assert.Equal(0.5, job.Work, 9);
         Assert.False(finished);
         Assert.False(job.Untouched);
-        (job, finished) = job.Advance(2 * Math.PI * turns * 0.49, turns);
+        (job, finished) = Folding.Advance(job, 2 * Math.PI * turns * 0.49, turns);
         Assert.False(finished);
-        (job, finished) = job.Advance(2 * Math.PI * turns, turns);   // more than enough: held at 1
+        (job, finished) = Folding.Advance(job, 2 * Math.PI * turns, turns);   // more than enough: held at 1
         Assert.True(finished);
         Assert.Equal(1.0, job.Work);
         // done, it goes no further and does not finish twice
-        (job, finished) = job.Advance(100, turns);
+        (job, finished) = Folding.Advance(job, 100, turns);
         Assert.False(finished);
-        Assert.Equal(FoldJob.None, FoldJob.None.Advance(100, turns).Job);
+        Assert.Equal(MachineJob.None, Folding.Advance(MachineJob.None, 100, turns).Job);
+        Assert.Equal(MachineJob.None, Folding.Start(3));
     }
 
     [Fact]
@@ -202,29 +202,30 @@ public class PressBrakeGameplayTests
     public void The_folds_crossed_in_a_step_are_counted()
     {
         double[] moments = [0.25, 0.75];
-        Assert.Equal(0, FoldJob.Crossed(moments, 0, 0.2));
-        Assert.Equal(1, FoldJob.Crossed(moments, 0.2, 0.25));
-        Assert.Equal(0, FoldJob.Crossed(moments, 0.25, 0.3));
-        Assert.Equal(2, FoldJob.Crossed(moments, 0, 1));
+        Assert.Equal(0, MachineJob.Crossed(moments, 0, 0.2));
+        Assert.Equal(1, MachineJob.Crossed(moments, 0.2, 0.25));
+        Assert.Equal(0, MachineJob.Crossed(moments, 0.25, 0.3));
+        Assert.Equal(2, MachineJob.Crossed(moments, 0, 1));
     }
 
     [Fact]
     public void A_saved_fold_is_clamped_and_a_bad_class_is_none()
     {
-        Assert.Equal(new FoldJob(2, 1), FoldJob.Restore(2, 7));
-        Assert.Equal(new FoldJob(1, 0), FoldJob.Restore(1, double.NaN));
-        Assert.Equal(FoldJob.None, FoldJob.Restore(3, 0.5));
+        Assert.Equal(new MachineJob(2, 1, 1), Folding.Restore(2, 7));
+        Assert.Equal(new MachineJob(1, 0, 1), Folding.Restore(1, double.NaN));
+        Assert.Equal(MachineJob.None, Folding.Restore(3, 0.5));
     }
 
     [Fact]
     public void A_player_holds_the_lever_until_they_let_go_or_go_quiet()
     {
-        var holds = new LeverHolds();
+        // the shared hand holds (BEMachine.HandWorked), at the quern's 600 ms
+        var holds = new HandHolds();
         Assert.False(holds.Any(0));
         holds.Hold("a", 1000);
-        Assert.True(holds.Any(1000 + Folding.HoldTimeoutMs));
+        Assert.True(holds.Any(1000 + HandHolds.DefaultTimeoutMs));
         holds.Hold("b", 1500);
-        Assert.True(holds.Any(1000 + Folding.HoldTimeoutMs + 1));   // a went quiet, b holds
+        Assert.True(holds.Any(1000 + HandHolds.DefaultTimeoutMs + 1));   // a went quiet, b holds
         holds.Release("b");
         Assert.False(holds.Any(1600));
         holds.Hold("c", 2000);

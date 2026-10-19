@@ -5,7 +5,6 @@ using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
-using SeraphHorizons.Mod.PressBrake.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -47,7 +46,7 @@ public class BEAmalgamPan : BlockEntity, IMachinePower
     private ItemStack? _charge;
     private ItemStack? _amalgam;
     private readonly UnitCarry _carry = new();
-    private readonly LeverHolds _holds = new();
+    private readonly HandHolds _holds = new();
     private bool _held;
     private long _localHeldAt = long.MinValue / 2;
     private float _lastAngle = float.NaN;
