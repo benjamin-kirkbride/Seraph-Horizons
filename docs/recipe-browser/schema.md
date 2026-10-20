@@ -626,8 +626,10 @@ wildcard over the host rock, every rock's block an alternative in the variant); 
 second's water from a pipe tapping it: Hydrate or Diedrate's `waterportion-fresh-well-clean` (the
 game's `waterportion` without Hydrate, whatever the spring fills a container with) in portions,
 with its `litres`. Nothing is consumed: a spring never runs dry. `extra` has the `kind`, the
-`litresPerSecond` (the server's `SpringsSettings`) and the feed `pressure` in atm; `requirements`
-says where springs are found, that a pipe taps one, and that it fills containers and is drunk from.
+`litresPerSecond` (the server's `SpringsSettings`), the feed `pressure` in atm and, when it is above 0,
+`pumpBoostPerTurn` (what a mechanical pump drawing on the spring's run adds per turn a second of its
+shaft, as a share of the rate); `requirements` says where springs are found, that a pipe taps one,
+that it fills containers and is drunk from, and, with the boost, what a pump makes it give.
 
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a

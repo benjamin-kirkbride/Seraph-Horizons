@@ -5,14 +5,15 @@ namespace SeraphHorizons.RecipeExport.Recipes;
 
 /// <summary>One kind of spring as a source of water: its blocks (one per rock), the portion it gives
 /// (Hydrate or Diedrate's fresh well water, or the game's water without it, as the spring block's
-/// <c>waterTightContainerProps.whenFilled</c> says), the portion's items per litre, and the litres a
-/// second it feeds a pipe tapping it.</summary>
-public sealed record SpringSource(string Kind, List<Block> Blocks, Item Water, double ItemsPerLitre, double LitresPerSecond);
+/// <c>waterTightContainerProps.whenFilled</c> says), the portion's items per litre, the litres a
+/// second it feeds a pipe tapping it, and what a mechanical pump drawing on it adds per turn a second
+/// of its shaft, as a share of that rate (SpringsSettings.PumpBoostPerTurn).</summary>
+public sealed record SpringSource(string Kind, List<Block> Blocks, Item Water, double ItemsPerLitre, double LitresPerSecond, double PumpBoostPerTurn);
 
 /// <summary>
 /// Springs (seraphhorizons, Springs/): the spring blocks the rivulet generator places, read from the
 /// loaded blocks (<c>seraphhorizons:waterspring-{kind}-{rock}</c>), with the rates live from the
-/// server's SpringsSettings (NormalLitresPerSecond, RapidLitresPerSecond). Empty when the mod is not
+/// server's SpringsSettings (NormalLitresPerSecond, RapidLitresPerSecond, PumpBoostPerTurn). Empty when the mod is not
 /// loaded or its Springs switch is off.
 /// </summary>
 public static class SpringExport
@@ -45,7 +46,8 @@ public static class SpringExport
             double rate = GearChain.Prop(settings, rateKey) is { } v ? Convert.ToDouble(v) : 0;
             if (!(rate > 0))
                 continue;
-            found.Add(new SpringSource(kind, blocks, water, perLitre, rate));
+            double boost = GearChain.Prop(settings, "PumpBoostPerTurn") is { } b ? Convert.ToDouble(b) : 0;
+            found.Add(new SpringSource(kind, blocks, water, perLitre, rate, boost));
         }
         return found;
     }

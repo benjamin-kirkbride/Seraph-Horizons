@@ -126,9 +126,14 @@ public class BlockWaterSpring : Block
         {
             if (text.Length > 0 && text[^1] != '\n')
                 text.AppendLine();
+            float rate = SpringsSystem.Settings.LitresPerSecond(Kind);
             text.Append(spring.Tapped
-                ? Lang.Get("seraphhorizons:springs-info-tapped", SpringsConfig.Format(SpringsSystem.Settings.LitresPerSecond(Kind)))
+                ? Lang.Get("seraphhorizons:springs-info-tapped", SpringsConfig.Format(rate))
                 : Lang.Get("seraphhorizons:springs-info-pouring"));
+            float extra = SpringPumps.Extra(rate, SpringsSystem.Settings.PumpBoostPerTurn, spring.PumpTurns);
+            if (spring.Tapped && extra > 0)
+                text.AppendLine().Append(Lang.Get("seraphhorizons:springs-info-pumped",
+                    spring.PumpTurns.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture), SpringsConfig.Format(extra)));
         }
         return text.ToString();
     }
