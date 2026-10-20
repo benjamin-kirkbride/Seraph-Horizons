@@ -100,6 +100,13 @@ section alone without the cost of a full export.
    `CraftingRecipeIngredient.SatisfiesAsIngredient`. Disabled definitions are records with
    `enabled: false` (or `extra.disabledButRegistered` if a loader registered them anyway). Definitions none of whose forms resolved are records with no variants
    and `extra.resolved: false`. A definition that does not parse is logged and left out.
+7. **Stack names.** Last, `Items/StackNames.cs` gives each variant stack (and an
+   ingredient's `returned` stack) that carries attributes the name the game shows for
+   that exact stack (`GetHeldItemName` with the attributes), when it differs from the
+   bare collectible's and is translated. Clutter is the case it is for: a
+   `game:clutter` block is only a `type` attribute away from being a large crate or an
+   anchor, and the bare code's name is the untranslated `game:clutter-`. The site shows a
+   stack's `name` in place of its item's.
 
 ## Blocks built in place
 
