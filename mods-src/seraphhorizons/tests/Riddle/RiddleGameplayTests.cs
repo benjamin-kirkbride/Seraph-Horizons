@@ -29,6 +29,23 @@ public class RiddleGameplayTests
     }
 
     [Fact]
+    public void Crushed_ore_in_hand_goes_round_again_once_the_charge_is_riddled()
+    {
+        // riddled, its oversize or its fines waiting, and a whole charge in hand: out, and the next on
+        Assert.True(Riddling.CanReload(Crushed, false, 3, 3, true, false, true));
+        Assert.True(Riddling.CanReload(Crushed, false, 16, 3, true, false, true));
+        // nothing waiting is a plain load, not a round; a charge being riddled goes on being riddled
+        Assert.False(Riddling.CanReload(Crushed, false, 3, 3, true, false, false));
+        Assert.False(Riddling.CanReload(Crushed, false, 3, 3, true, true, true));
+        // what would not go on as a charge leaves the riddle as it is
+        Assert.False(Riddling.CanReload(Crushed, false, 2, 3, true, false, true));
+        Assert.False(Riddling.CanReload(Crushed, true, 3, 3, true, false, true));
+        Assert.False(Riddling.CanReload(Crushed, false, 3, 3, false, false, true));
+        foreach (var other in new[] { "game:ore-medium-hematite-granite", "seraphhorizons:groundore-hematite-medium", null })
+            Assert.False(Riddling.CanReload(other, false, 3, 3, true, false, true));
+    }
+
+    [Fact]
     public void Every_item_of_a_charge_comes_back_as_fines_or_oversize()
     {
         Assert.Equal((2, 1), Riddling.Split(3, 1));

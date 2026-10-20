@@ -381,6 +381,11 @@ shakes a charge takes.
   lost. Its rock is the charge's own `rock` attribute if it carries one, else the rock the station stands on, else
   granite; with no such raw ore, the crushed ore itself, unclassified.
 - **Taking out.** An empty-handed right-click takes the oversize first, then the fines. Then the next charge.
+  With crushed ore in hand (a whole charge of it, unclassified) both come out at once, to the inventory or dropped
+  beside the station when it is full, and the next charge goes on from the hand: by a click, or while right-click is
+  still held when a charge finishes, so holding right-click with crushed ore riddles charge after charge without
+  letting go or emptying the hand (`BERiddle.TryCycle` and `OnInteractStep`, `Riddling.CanReload`). With too few
+  in hand the hold stops at the riddled charge, which waits as before.
 - **Drawn.** The renderer reads the anchors, `contents`, `work` and `requires`, never element names; the block's
   boxes are the rig's cell's; `ore` is set to the crushed ore's texture and `rock` to the oversize's host rock (the
   rock under the station before there is one).

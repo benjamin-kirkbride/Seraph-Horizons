@@ -20,7 +20,9 @@ namespace SeraphHorizons.Mod.Riddle;
 /// (<see cref="RiddleOre"/>), and its oversize on the mesh as raw ore, back to spalling. It keeps the charge
 /// on the mesh as its item stack and the riddling (<see cref="MachineJob"/>: W, 0..1), the fines in the box
 /// and the oversize left on the mesh. Both stay until the player takes them out by hand: no automated input
-/// or output (it has no inventory a hopper or chute can reach). The client poses the rig from its own clock
+/// or output (it has no inventory a hopper or chute can reach). Crushed ore in hand takes them out and puts
+/// the next charge on, by a click or while right-click is held, so a held click riddles charge after charge
+/// (<see cref="TryCycle"/>). The client poses the rig from its own clock
 /// (<see cref="RiddleClock"/>). The rules are Riddle/Core's.
 /// </summary>
 public class BERiddle : BEMachine
@@ -104,9 +106,10 @@ public class BERiddle : BEMachine
 
     /// <summary>
     /// The riddle's own right-click, after its build's. Crushed ore in hand, with the riddle empty and the box
-    /// too, goes on as a charge (a whole charge, of one kind), else is refused saying why. An empty hand takes
+    /// too, goes on as a charge (a whole charge, of one kind), else is refused saying why; with the last
+    /// charge riddled, it takes out its oversize and fines first (<see cref="TryCycle"/>). An empty hand takes
     /// out the oversize first, then the fines; with a charge on, the click starts riddling, held as on the
-    /// quern (<see cref="BEMachine.OnInteractStep"/>).
+    /// quern (<see cref="OnInteractStep"/>).
     /// </summary>
     protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
@@ -115,7 +118,7 @@ public class BERiddle : BEMachine
         bool server = Api.Side == EnumAppSide.Server;
         // crushed ore in hand goes on as a charge (or is refused, saying why), unless a charge is being riddled
         if (Core.Riddling.IsCrushedOre(code) && !Riddling)
-            return !server || TryLoad(slot, byPlayer);
+            return !server || TryCycle(slot, byPlayer);
         // what it holds comes out to an empty hand
         if (held == null && _oversize != null)
             return !server || TakeOversize(byPlayer);
@@ -128,6 +131,48 @@ public class BERiddle : BEMachine
         if (!Riddling)
             return Error(byPlayer, _oversize != null || _fines != null ? "error-empty-hand" : "error-no-charge");
         return StartHold(byPlayer);
+    }
+
+    /// <summary>Whether crushed ore in <paramref name="slot"/> goes round again now: the last charge riddled, its
+    /// oversize or fines still to come out, and the slot a whole new charge (<see cref="Core.Riddling.CanReload"/>).
+    /// Both sides.</summary>
+    public bool CanReload(ItemSlot? slot)
+    {
+        var stack = slot?.Itemstack;
+        return Core.Riddling.CanReload(stack?.Collectible?.Code?.ToString(), stack != null && RiddleOre.IsClassified(stack),
+            stack?.StackSize ?? 0, Config.LumpsPerCharge, Built, Riddling, _oversize != null || _fines != null);
+    }
+
+    /// <summary>Crushed ore in <paramref name="slot"/> on the riddle (server side): when it goes round again
+    /// (<see cref="CanReload"/>) the oversize and the fines go to the player first, as an empty hand takes
+    /// them; then the charge goes on (<see cref="TryLoad"/>, refused saying why).</summary>
+    public bool TryCycle(ItemSlot slot, IPlayer byPlayer)
+    {
+        if (CanReload(slot))
+        {
+            TakeOversize(byPlayer);
+            TakeFines(byPlayer);
+        }
+        return TryLoad(slot, byPlayer);
+    }
+
+    /// <summary>
+    /// Right-click still held (both sides). With crushed ore in hand, the charge riddled and its oversize or
+    /// fines waiting, the server takes them out to the player and puts the next charge on from the hand
+    /// (<see cref="TryCycle"/>), and the riddling goes on without a fresh click; the client keeps holding
+    /// meanwhile, its own charge synced after. Else as every hand machine.
+    /// </summary>
+    public override bool OnInteractStep(IPlayer byPlayer, float secondsUsed)
+    {
+        var slot = byPlayer.InventoryManager?.ActiveHotbarSlot;
+        if (slot == null || !CanReload(slot))
+            return base.OnInteractStep(byPlayer, secondsUsed);
+        if (Api.Side == EnumAppSide.Client)
+        {
+            base.OnInteractStep(byPlayer, secondsUsed);
+            return true;
+        }
+        return TryCycle(slot, byPlayer) && base.OnInteractStep(byPlayer, secondsUsed);
     }
 
     /// <summary>Puts a charge from <paramref name="slot"/> on the riddle (server side), if it takes one now:
@@ -231,6 +276,9 @@ public class BERiddle : BEMachine
     protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
     {
         string Key(string action) => RiddleSystem.Domain + ":blockhelp-riddle-" + action;
+        if (!Riddling && (_oversize != null || _fines != null)
+            && Stacks(Api.World, ["seraphhorizons:crushedore-*-medium"], Config.LumpsPerCharge) is { Length: > 0 } next)
+            help.Add(new WorldInteraction { ActionLangCode = Key("next"), MouseButton = EnumMouseButton.Right, Itemstacks = next });
         if (_oversize != null)
             help.Add(new WorldInteraction { ActionLangCode = Key("takeoversize"), MouseButton = EnumMouseButton.Right });
         else if (Riddling)
