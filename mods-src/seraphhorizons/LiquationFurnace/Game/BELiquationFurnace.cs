@@ -81,9 +81,10 @@ public class BELiquationFurnace : BEFiredOreMachine
     public int Bars => ChargeSlots.Sum(s => s.StackSize);
 
     public IEnumerable<LiquationBars> Charge => ChargeSlots
-        .Select(s => (Ore: s.Itemstack is { } st ? LiquationFurnacing.OreOf(Recovery, st.Collectible.Code.ToString()) : null, s.StackSize))
+        .Select(s => (Ore: s.Itemstack is { } st ? LiquationFurnacing.OreOf(Recovery, st.Collectible.Code.ToString()) : null, s.StackSize,
+            Whole: s.Itemstack is { } bar ? OreStreamAttributes.WholeShareOf(bar) : 0))
         .Where(b => b.Ore != null)
-        .Select(b => new LiquationBars(b.Ore!, b.StackSize));
+        .Select(b => new LiquationBars(b.Ore!, b.StackSize, b.Whole));
 
     public double ChargeUnits => LiquationFurnacing.ChargeUnits(Charge);
 
@@ -343,7 +344,7 @@ public class BELiquationFurnace : BEFiredOreMachine
         {
             if (moved >= count || from.Empty)
                 break;
-            if (!target.Empty && !target.Itemstack.Equals(Api.World, from.Itemstack, GlobalConstants.IgnoredStackAttributes))
+            if (!target.Empty && !OreStreamAttributes.SameBar(Api.World, target.Itemstack, from.Itemstack!))
                 continue;
             int before = from.StackSize;
             MoveInto(from, target, count - moved);

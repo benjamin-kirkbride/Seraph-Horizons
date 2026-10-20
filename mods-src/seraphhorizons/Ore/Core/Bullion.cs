@@ -23,6 +23,11 @@ namespace SeraphHorizons.Mod.Ore.Core;
 /// </list>
 /// What a parting machine gets from a charge of bars is <see cref="OreRecovery.Smelted"/> on
 /// <see cref="UnitsPerItem"/> units a bar at that machine's <see cref="PartingStation"/>.
+/// <para>The whole route survives the crucible: a bar carries the share of its units smelted from
+/// concentrate (or roasted concentrate) marked off the ore's whole ideal route (<see cref="WholeShareAttribute"/>,
+/// <see cref="WholeShare"/>), bars of one ore merging at their weighted share (<see cref="MergeWhole"/>), and the
+/// parting machine that is the ore's final step makes that share whole
+/// (<see cref="OreRecovery.Smelted(OreSpec, double, PartingStation?, double)"/>).</para>
 /// </summary>
 public static class Bullion
 {
@@ -33,6 +38,40 @@ public static class Bullion
     public const string RichLeadCode = OreProducts.Domain + ":richlead";
 
     private const string Prefix = OreProducts.Domain + ":bullion-";
+
+    /// <summary>The bar's stack attribute holding the share of its units that came off the whole route (0 to 1;
+    /// absent for none).</summary>
+    public const string WholeShareAttribute = "oreWholeShare";
+
+    /// <summary>
+    /// The share of a smelt's units that came off the whole route: the units of the marked parts over all the parts'
+    /// (each part a stack in the crucible, its units what it smelts to). 0 with nothing marked or nothing in it.
+    /// </summary>
+    public static double WholeShare(IEnumerable<(double Units, bool Whole)> parts)
+    {
+        double all = 0, whole = 0;
+        foreach (var (units, marked) in parts)
+        {
+            if (!(units > 0)) continue;
+            all += units;
+            if (marked) whole += units;
+        }
+        return all > 0 ? Clamp(whole / all) : 0;
+    }
+
+    /// <summary>The share of a stack of <paramref name="count"/> bars at <paramref name="share"/> with
+    /// <paramref name="otherCount"/> more at <paramref name="otherShare"/> merged in: weighted by bars.</summary>
+    public static double MergeWhole(double share, double count, double otherShare, double otherCount)
+    {
+        count = Math.Max(0, count);
+        otherCount = Math.Max(0, otherCount);
+        return count + otherCount > 0 ? Clamp((Clamp(share) * count + Clamp(otherShare) * otherCount) / (count + otherCount)) : 0;
+    }
+
+    /// <summary>A share held to 0 to 1, float noise at either end shaved off (so a bar of all-marked units stacks
+    /// with another).</summary>
+    public static double Clamp(double share) =>
+        !(share > 1e-9) ? 0 : share > 1 - 1e-9 ? 1 : share;
 
     /// <summary>Whether an ore smelts to bullion: it has a by-product, won only by parting.</summary>
     public static bool Makes(OreSpec ore) => ore.ByProducts.Count > 0;

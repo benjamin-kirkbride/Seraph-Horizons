@@ -206,4 +206,101 @@ public partial class MillWorldScenarios
             W.BlockAccessor.SetBlock(0, b.AddCopy(0, y, 0));
         W.BlockAccessor.BreakBlock(pos, null);
     }
+
+    /// <summary>Bars of an ore's bullion cast from a crucible of its roasted concentrate the vanner marked off the whole
+    /// route (the reverberatory carrying the mark): smelted as the firepit smelts it, the molten bar's attributes cast
+    /// into <paramref name="bars"/> bars as the ingot mold casts them (it keeps the poured stack).</summary>
+    private ItemStack WholeRouteBars(string ore, int bars)
+    {
+        var crucible = (BlockSmeltingContainer)W.GetBlock(new AssetLocation("game:crucible-blue-fired"));
+        var charge = CutterItem(OreProducts.RoastedCode(ore), 20);
+        OreStreamAttributes.MarkWhole(charge, true);
+        var slots = new LooseSlotProvider([new DummySlot(charge)]);
+        var output = new DummySlot();
+        crucible.DoSmelt(W, slots, new DummySlot(new ItemStack(crucible)), output);
+        var smelted = (BlockSmeltedContainer)output.Itemstack!.Collectible;
+        var (metal, units) = smelted.GetContents(W, output.Itemstack);
+        Assert.Equal(100, units);
+        Assert.Equal($"seraphhorizons:bullion-{ore}-{OreProcessingSystem.RecoveryFor(World.Api).Ore(ore).Metal}", metal.Collectible.Code.ToString());
+        Assert.Equal(1.0, OreStreamAttributes.WholeShareOf(metal), 9);
+        var cast = metal.Clone();
+        cast.Attributes.RemoveAttribute("temperature");
+        cast.StackSize = bars;
+        return cast;
+    }
+
+    private sealed class LooseSlotProvider(ItemSlot[] slots) : ISlotProvider
+    {
+        public ItemSlot[] Slots => slots;
+    }
+
+    // The whole route ends whole (OreRecovery.FinalStep): argentiferous galena's whole-route concentrate, roasted in the
+    // reverberatory (which carries the vanner's mark), smelts in the crucible to silver-lead carrying the mark; the
+    // cupellation furnace, its final step, gives all of the bars' lead and silver made whole (#765), not the 95 % it
+    // gives unmarked bars.
+    [AtlasScenario(TimeoutMs = 240_000)]
+    public async Task Cupellation_furnace_makes_whole_route_bullion_whole()
+    {
+        var hand = await CutterHand();
+        var player = hand.Player;
+        var pos = await CutterSite(960, 760, reach: 6);
+        var sapi = (ICoreServerAPI)World.Api;
+        int size = GlobalConstants.ChunkSize;
+        for (int cx = (pos.X - 6) / size; cx <= (pos.X + 6) / size; cx++)
+            for (int cz = (pos.Z - 6) / size; cz <= (pos.Z + 6) / size; cz++)
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
+        var recovery = OreProcessingSystem.RecoveryFor(World.Api);
+        var spec = recovery.Ore("galena_nativesilver");
+        Assert.Equal(OreMachine.CupellationFurnace, recovery.FinalStep(spec));
+        double restore = recovery.WholeRestore(spec);
+        Assert.InRange(restore, 1.01, 1.012);
+
+        var furnace = await PlaceCupellationFurnace(pos);
+        var rig = furnace.FurnaceRig!;
+        var cell = furnace.CellPos(new Int3(1, 0, 0));
+        // built with real items, the brickwork all red; its test beaten in; coal lit; a chimney on the row
+        FurnaceClick(player, cell, CutterItem("game:burnedbrick-red", 64));
+        int i = 0;
+        while (furnace.Assembly!.Build.Next is { } _)
+        {
+            var (material, missing) = furnace.Assembly.Build.NextNeeds().First();
+            Assert.True(FurnaceClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(material.Codes[0], missing)) == null, $"{material.Codes[0]} x{missing} was not fitted");
+        }
+        Assert.True(furnace.Built);
+        Assert.Null(FurnaceClick(player, pos, CutterItem("game:bonemeal", 48)));
+        Assert.True(furnace.TestIn);
+        Assert.Null(FurnaceClick(player, pos, CutterItem("game:ore-bituminouscoal", 16)));
+        var handling = EnumHandling.PassThrough;
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        Assert.True(furnace.Lit);
+        var b = furnace.CellPos(rig.ChimneyBase);
+        for (int y = 0; y < 8; y++)
+            World.SetBlock(y < 6 ? "game:claybricks-good-fire" : y == 6 ? "game:claybrickchimney-four-red-ns" : "game:air", b.AddCopy(0, y, 0));
+        await World.Until(() => furnace.Row.Works, 5000);
+
+        // two whole-route bars from the crucible fill a charge; the dish reads their mark
+        Assert.Null(FurnaceClick(player, pos, WholeRouteBars("galena_nativesilver", 2)));
+        Assert.Equal(200, furnace.ChargeUnits);
+        var charge = Assert.Single(furnace.ChargeOf());
+        Assert.Equal(1.0, charge.Whole, 9);
+        var yield = Cupelling.Yield(recovery, furnace.ChargeOf());
+        // all the lead and silver the 200 units stood for before the concentrators: 202.2 lead, 76.8 silver
+        Assert.Equal(200 * restore, yield.LeadUnits, 6);
+        Assert.Equal(200 * restore * 0.38, yield.UnitsOf("silver"), 6);
+        Assert.Equal(CupellingRefusal.None, furnace.ChargeRefusal());
+
+        furnace.TestBlast = 1;
+        furnace.Age(4);
+        await World.Until(() => !furnace.SilverCake.Empty, 5000);
+        Assert.Equal(0, furnace.ChargeUnits);
+        // 76.8 silver: 15 bits and a 37 % chance of another (unmarked bars' 72.2 give 14 or 15)
+        Assert.InRange(furnace.SilverCake.StackSize, 15, 16);
+        // 202.2 lead: 40 litharge and a 44 % chance of another
+        Assert.InRange(furnace.Litharge, 40, 41);
+
+        furnace.TestBlast = null;
+        for (int y = 0; y < 8; y++)
+            W.BlockAccessor.SetBlock(0, b.AddCopy(0, y, 0));
+        W.BlockAccessor.BreakBlock(pos, null);
+    }
 }
