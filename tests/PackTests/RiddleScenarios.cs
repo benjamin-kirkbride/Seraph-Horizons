@@ -70,6 +70,63 @@ public partial class MillWorldScenarios
         Assert.Equal(rig.ShakesPerCharge, RiddleMod.Config.ShakesPerCharge, 3);
     }
 
+    // Holding right-click with crushed ore goes round: a charge finished while held gives its oversize and fines to
+    // the player and the next charge goes on from the hand, riddled without letting go; a click with crushed ore on
+    // a riddled charge does the same; and with too few left in hand the hold stops at the riddled charge.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Riddle_held_with_crushed_ore_riddles_charge_after_charge()
+    {
+        var pos = await CutterSite(852, -840);
+        var player = await CutterPlayer();
+        RiddleClearInventory(player);
+        var riddle = await PlaceRiddle(pos);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(RiddleMesh, 3))?.StackSize);
+        Assert.True(riddle.Complete);
+        double shakes = RiddleMod.Config.ShakesPerCharge;
+
+        // a charge half a shake from riddled, held with two charges' worth in hand: it finishes while held, and the
+        // next goes on and is riddled, the hold never broken
+        Assert.Null(CutterClick(player, pos, CutterItem(RiddleCrushed, 3)));
+        Assert.False(riddle.Shake(2 * Math.PI * (shakes - 0.5)));
+        Assert.True(riddle.Riddling);
+        var (started, steps) = await Hold(player, pos, 30, CutterItem(RiddleCrushed, 6));
+        Assert.True(started);
+        Assert.Equal(30, steps);
+        Assert.True(riddle.Riddling);
+        Assert.InRange(riddle.Job.Work, 0.01, 0.3);
+        Assert.Equal(3, player.InventoryManager.ActiveHotbarSlot.StackSize);
+        Assert.Equal([(1, false)], RiddleHeld(player, "game:ore-medium-hematite-granite"));
+        Assert.Contains((2, true), RiddleHeld(player, RiddleCrushed));
+        Assert.Contains((3, false), RiddleHeld(player, RiddleCrushed));
+
+        // a click with crushed ore on a riddled charge takes it out and puts the next on
+        Assert.True(riddle.Shake(2 * Math.PI * shakes));
+        Assert.NotNull(riddle.Oversize);
+        Assert.Null(CutterClick(player, pos, CutterItem(RiddleCrushed, 3)));
+        Assert.True(riddle.Riddling);
+        Assert.True(riddle.Job.Untouched);
+        Assert.Null(riddle.Oversize);
+        Assert.Null(riddle.Fines);
+        Assert.Equal([(2, false)], RiddleHeld(player, "game:ore-medium-hematite-granite"));
+
+        // too few for a charge: the hold stops at the riddled charge, which waits for an empty hand
+        Assert.True(riddle.Shake(2 * Math.PI * shakes));
+        (_, steps) = await Hold(player, pos, 10, CutterItem(RiddleCrushed, 2));
+        Assert.Equal(0, steps);
+        Assert.False(riddle.Riddling);
+        Assert.NotNull(riddle.Oversize);
+        Assert.NotNull(riddle.Fines);
+        CutterClick(player, pos, null);
+        CutterClick(player, pos, null);
+        Assert.Null(riddle.Oversize);
+        Assert.Null(riddle.Fines);
+        CutterKillItems(pos);
+        W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
+        await World.Ticks(2);
+        CutterKillItems(pos);
+        RiddleClearInventory(player);
+    }
+
     // The whole round: no charge before the mesh, the mesh fitted with two nails and strips, a charge of three
     // crushed ore riddled by holding right-click (W moves only while held), then finished: two classified crushed
     // ore in the box and one raw ore of the granite under it on the mesh. The next charge waits for both to come
@@ -120,12 +177,10 @@ public partial class MillWorldScenarios
         Assert.True(riddle.ChargeOn);
         Assert.Equal(1, riddle.RiddleWork);
 
-        // the next charge waits: the oversize first, then the fines
-        Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);
+        // an empty hand takes them out: the oversize first, then the fines
         CutterClick(player, pos, null);
         Assert.Null(riddle.Oversize);
         Assert.Equal([(1, false)], RiddleHeld(player, "game:ore-medium-hematite-granite"));
-        Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);
         Assert.NotNull(riddle.Fines);
         CutterClick(player, pos, null);
         Assert.Null(riddle.Fines);
