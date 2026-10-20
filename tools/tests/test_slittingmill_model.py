@@ -34,8 +34,9 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "slittingmill-r
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "slittingmill.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "slittingmill_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "SlittingMill" / "rig-reference.json").read_text())
-# the fitted parts: the slitters, the pinions, the drive, the cut-off shear, the push bar; the work is a plate
-REQUIRES = {"rolls", "pinions", "drive", "shear", "pusher", "plate", None}
+# the build's stages: the slitters, the pinions and great wheel, the drive, the cut-off shear (its knife the wearing
+# part, a requires of its own), the push bar; the work is a plate
+REQUIRES = {"rolls", "pinions", "drive", "shear", "knife", "pusher", "plate", None}
 WORK_PARTS = {"plate", "rodsl", "rodsu", "nail1l", "nail1u", "nail2l", "nail2u"}
 STEPPED = (("rollbottom", 1), ("pinionbottom", 1), ("rolltop", -1), ("piniontop", -1), ("wheel", -1))
 

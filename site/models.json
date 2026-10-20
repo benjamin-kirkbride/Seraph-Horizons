@@ -269,14 +269,32 @@
           "presence": { "label": "Plate presence", "hint": "Eases in as a plate goes on the table (the fork throws the cone into the cup), and out after the nails and strips are taken (the clutch out)" }
         },
         "requires": {
-          "rolls": "Slitters: two arbors of steel cutters and spacers",
-          "pinions": "Pinions: the pair of equal spur gears",
-          "drive": "Drive: rectifier, cone clutch, crankshaft with its mutilated gear, great wheel",
-          "shear": "Cut-off shear: crank, yoke, knife and bed knife",
-          "pusher": "Push bar (the operator's follower)",
+          "rolls": "Slitter rolls: two arbors of steel cutters (ten slitter cutters, two rods)",
+          "pinions": "Pinions and great wheel (Jonas gears, metal parts)",
+          "drive": "Drive: rectifier, cone clutch, crankshaft with its mutilated gear (Jonas gearbox, two rods)",
+          "shear": "Cut-off shear: crank, yoke and bed knife (heavy bracket, plate)",
+          "knife": "Knife (a cleaver: the wearing part)",
+          "pusher": "Push bar, the operator's follower (two rods, an oak plank)",
           "plate": "The plate, its rods, nails and strips"
         },
         "requiresClass": { "plate": "thin" },
+        "states": [
+          {
+            "id": "build",
+            "label": "Build stage",
+            "default": "pusher",
+            "values": ["rolls", "pinions", "drive", "shear", "knife", "pusher"],
+            "options": [
+              { "id": "frame", "label": "The frame", "fitted": [], "hint": "Crafted and placed: the oak sills, the cast-iron housings with their brass chocks and screws, the pedestals, the entry's post and standard, the feed table with its guides, the nail box and the entry shaft." },
+              { "id": "rolls", "label": "1. Slitter rolls (ten slitter cutters, two rods)", "fitted": ["rolls"], "hint": "The two arbors in the housings' chocks, each with five steel cutters forged on the anvil and five spacers, the top arbor's cutters running in the bottom one's gaps." },
+              { "id": "pinions", "label": "2. Pinions and great wheel (Jonas gears, metal parts)", "fitted": ["rolls", "pinions"], "hint": "The two equal spur gears pairing the arbors on their west necks, and the great wheel on the top arbor that the mutilated gear steps." },
+              { "id": "drive", "label": "3. Drive (a Jonas gearbox, two rods)", "fitted": ["rolls", "pinions", "drive"], "hint": "The rectifier on the entry shaft, the rectified shaft and its gear, the clutch gear and cup, the cone and its fork, and the crankshaft with its mutilated gear." },
+              { "id": "shear", "label": "4. Shear (a heavy bracket, a plate, and the knife)", "fitted": ["rolls", "pinions", "drive", "shear", "knife"], "hint": "The crank disc and pin on the crankshaft, the bed knife, and last the knife in its crosshead, ram and yoke: a cleaver of iron, meteoric iron or steel, the wearing part, which Ctrl takes back out." },
+              { "id": "pusher", "label": "5. Push bar: the mill finished (two rods, an oak plank)", "fitted": ["rolls", "pinions", "drive", "shear", "knife", "pusher"], "hint": "The operator's push bar on the feed table: its head between the guides, its eight fingers and its handle." },
+              { "id": "noknife", "label": "Built, the knife taken out", "fitted": ["rolls", "pinions", "drive", "shear", "pusher"], "hint": "Worn out, or taken back out with Ctrl: the mill stands until another cleaver goes in." }
+            ]
+          }
+        ],
         "textures": [
           {
             "label": "Plate's metal", "code": "metal", "default": "iron",
@@ -289,9 +307,10 @@
               {"id": "meteoriciron", "label": "Meteoric iron", "path": "game:block/metal/ingot/meteoriciron", "colour": "#d7c9a7"},
               {"id": "steel", "label": "Steel", "path": "game:block/metal/ingot/steel", "colour": "#6b6a67"},
               {"id": "brass", "label": "Brass", "path": "game:block/metal/ingot/brass", "colour": "#7d6229"},
-              {"id": "cupronickel", "label": "Cupronickel", "path": "game:block/metal/ingot/cupronickel", "colour": "#a98367"},
               {"id": "gold", "label": "Gold", "path": "game:block/metal/ingot/gold", "colour": "#e8af2c"},
-              {"id": "silver", "label": "Silver", "path": "game:block/metal/ingot/silver", "colour": "#b7b799"}
+              {"id": "silver", "label": "Silver", "path": "game:block/metal/ingot/silver", "colour": "#b7b799"},
+              {"id": "molybdochalkos", "label": "Molybdochalkos", "path": "game:block/metal/ingot/molybdochalkos", "colour": "#52524d"},
+              {"id": "electrum", "label": "Electrum", "path": "game:block/metal/ingot/electrum", "colour": "#cbb949"}
             ]
           }
         ],

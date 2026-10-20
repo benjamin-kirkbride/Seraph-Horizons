@@ -326,7 +326,8 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   takes `names`: a name for none and each class up to the rig's last (three for none, thin and thick; the
   mandrel station's four: none, the two hollows and the steel rod; the riddle's and the slitting mill's two: none and its one charge or plate), for
   the select. Without names the select
-  offers None, Thin, Thick and "Class k" for each further class the rig's work has.
+  offers None, Thin, Thick and "Class k" for each further class the rig's work has, or None and Thin
+  for a work of one class (`topClass`).
 - `requires`: a label for each `requires` value, e.g. `{ "sash1": "Sash 1" }`. Unlabelled values show as they are.
 - `requiresClass`: `{ "<requires value>": "thin" | "thick" | "3" .. "9" }`, parts that belong to one class's
   set-up (the gear cutter's master and blank for each size; the mandrel station's hollow by its metal and

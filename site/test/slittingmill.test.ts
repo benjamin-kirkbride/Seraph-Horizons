@@ -52,9 +52,9 @@ describe("the slitting mill's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("fits the slitters, the pinions, the drive and the shear, and draws the work in the plate's metal", () => {
+  it("fits the slitters, the pinions and great wheel, the drive, the shear and its knife, and draws the work in the plate's metal", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
-    expect(req).toEqual(new Set([null, "rolls", "pinions", "drive", "shear", "pusher", "plate"]));
+    expect(req).toEqual(new Set([null, "rolls", "pinions", "drive", "shear", "knife", "pusher", "plate"]));
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);

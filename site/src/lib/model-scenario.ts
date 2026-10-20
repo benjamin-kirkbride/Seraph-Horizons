@@ -539,12 +539,21 @@ export function progressClasses(path: Work | null): number[] {
 }
 
 /**
- * The size select's names: the scenario's (none, then each class in order), else `defaults` (none, thin, thick)
- * with "Class k" for each further class the rig's work has.
+ * The last class the size select offers: the rig's work's last, at least thick, except for a work of one
+ * class (the slitting mill's plate), which offers that class alone.
+ */
+export function topClass(path: Work | null): number {
+  const classes = progressClasses(path);
+  return classes.length === 1 && classes[0] === 1 ? 1 : Math.max(2, ...classes);
+}
+
+/**
+ * The size select's names: the scenario's (none, then each class in order), else `defaults` (none, thin, thick,
+ * or none and thin for a work of one class) with "Class k" for each further class the rig's work has.
  */
 export function sizeNames(names: readonly string[] | undefined, defaults: readonly string[], path: Work | null): string[] {
   if (names) return [...names];
-  const top = Math.max(2, ...progressClasses(path));
+  const top = topClass(path);
   return Array.from({ length: top + 1 }, (_, k) => defaults[k] ?? `Class ${k}`);
 }
 
