@@ -231,9 +231,10 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
 
     /// <summary>The owner's tunnel under a hill (two reported done with some 2500 blocks they could reach left,
     /// after both had waited their turns, holding no station, for 30 seconds): every column round the area held
-    /// on the job board by another for 75 seconds, so that neither member may take a station nor strike, as while
-    /// both wait their turns, the job waits and mines the whole area once the hold is let go.</summary>
-    [AtlasScenario(TimeoutMs = 120_000)]
+    /// on the job board by another for 310 seconds, so that neither member may take a station nor strike, as while
+    /// both wait their turns, the job waits, its owner told once after 5 minutes that it looks stalled, and mines
+    /// the whole area once the hold is let go.</summary>
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task Two_holding_no_station_for_over_30_seconds_while_work_is_left_never_end_the_job()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2600), reach: 15);
@@ -266,11 +267,14 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
             Jobs.Mining.Struck(Holder, EidolonJobSystem.Now(W));
             if (++ticks % 300 == 0)
                 Log($"held {EidolonJobSystem.Now(W) - from:0} s: {State(e1)} || {State(e2)}");
-            return EidolonJobSystem.Now(W) - from >= 75 || o1.Reported != null || o2.Reported != null;
-        }, 6000);
-        Log($"after the hold: {o1.Mined} + {o2.Mined}; reports: " + string.Join(" | ", Reports(o1, o2)));
+            return EidolonJobSystem.Now(W) - from >= 310 || o1.Reported != null || o2.Reported != null;
+        }, 12000);
+        Log($"after the hold: {o1.Mined} + {o2.Mined}; told: {o1.ToldStalled ?? o2.ToldStalled}; reports: " + string.Join(" | ", Reports(o1, o2)));
         Assert.Equal(0, o1.Mined + o2.Mined);
         Assert.Empty(Reports(o1, o2));
+        // told once, by one of them, where they could work from
+        Assert.Single(new[] { o1.ToldStalled, o2.ToldStalled }.OfType<string>());
+        Assert.Contains("looks stalled", o1.ToldStalled ?? o2.ToldStalled);
         Assert.Equal(MineOrder.OrderCode, e1.Orders.OrderCode);
         Assert.Equal(MineOrder.OrderCode, e2.Orders.OrderCode);
 

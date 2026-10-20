@@ -104,9 +104,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// calls the job done and reports them left.</summary>
     private const double StuckSeconds = 30;
 
-    /// <summary>With a station the guard lets be worked but no member at work nor any strike for this long,
-    /// the job is done all the same, the rest reported left (logged as a warning): a backstop against
-    /// waiting for good on one that dispatch never gives anyone.</summary>
+    /// <summary>With a station the guard lets be worked but no member at work nor any strike for this long, its
+    /// owner is told the job looks stalled, and where (logged as a warning), once until the next strike; the
+    /// job goes on waiting, never ended while a station is workable.</summary>
     private const double HangSeconds = 300;
 
     /// <summary>How far round a group (or itself) it looks for eidolons it must not dig under or over: its
@@ -333,6 +333,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>Why the blocks still to dig in its report were left, if any were (README "Eidolon", working
     /// together, *When none may work*); null with none.</summary>
     public string? ReportedWhy { get; private set; }
+
+    /// <summary>What it last told its owner of the job looking stalled (<see cref="HangSeconds"/>), in the
+    /// server's language, if it was the one of its job that told them.</summary>
+    public string? ToldStalled { get; private set; }
 
     /// <summary>What it told its owner of the blocks out of its reach, in the server's language, if it was
     /// the one of its job that told them (the last time).</summary>
@@ -1364,7 +1368,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// work: the plan is made again at once, once (<see cref="EidolonMinePlans.Replan"/>), and then, still so
     /// for <see cref="StuckSeconds"/> and no eidolon of no member's parked on them, done with them left (the
     /// report says why, <see cref="MineDispatch.WhyLeft"/>);
-    /// none at work nor a strike for <see cref="HangSeconds"/> with a station workable, done all the same.
+    /// none at work nor a strike for <see cref="HangSeconds"/> with a station workable, its owner is told it
+    /// looks stalled, and it waits on.
     /// </summary>
     private bool Idle(EntityLaborEidolon eidolon, MineState live, List<MineWorker> workers, double now)
     {
@@ -1433,14 +1438,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             {
                 _stuckSince = null;
                 _idleSince ??= now;
-                // the backstop: the guard lets a station be worked that dispatch never gives anyone (a
-                // disagreement between them, a bug), so that the job never waits on it for good
-                if (now - Math.Max(cells.LastStrikeAt, _idleSince.Value) >= HangSeconds)
+                // the guard lets a station be worked that dispatch never gives anyone (a disagreement between them,
+                // a bug): it never ends the job for it, but tells its owner once that the job looks stalled, and
+                // where, and again only after a strike and as long again with none
+                if (now - Math.Max(cells.LastStrikeAt, _idleSince.Value) >= HangSeconds && cells.StallToldStrike != cells.LastStrikeAt)
                 {
+                    cells.StallToldStrike = cells.LastStrikeAt;
                     eidolon.World.Logger.Warning($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: none at work "
                         + $"for {HangSeconds:0} s with {live.Remaining.Count} left, though station {open.Id} at ({open.Stand.X},{open.Stand.Y},{open.Stand.Z}) "
-                        + $"may be worked: done with them left ({DebugState})");
-                    return Finish(eidolon, now);
+                        + $"may be worked: stalled, still waiting ({DebugState})");
+                    var stalled = new object[] { live.Remaining.Count, open.Stand.X, open.Stand.Y, open.Stand.Z };
+                    ToldStalled = Lang.Get("seraphhorizons:eidolon-mine-stalled", stalled);
+                    FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-mine-stalled", stalled);
                 }
             }
             else if (!cells.StuckReplanned)

@@ -382,7 +382,7 @@ public static class MineDispatch
 }
 
 /// <summary>Why a target was left when its job finished (<see cref="MineDispatch.WhyLeft"/>, the report's
-/// reasons): a station that could have been worked but none took it (the job's backstop gave up on it);
+/// reasons): a station that could have been worked but none took it;
 /// one that only an eidolon standing on its cells or its stand kept from any member;
 /// in no station still to work; its band's turn never came (blocks before it were left); no place to
 /// stand for it; no way out from its stand; digging it would cut off its stand's way out, leave other
