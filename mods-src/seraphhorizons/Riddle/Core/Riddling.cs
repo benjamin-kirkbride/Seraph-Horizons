@@ -75,6 +75,16 @@ public static class Riddling
         return held < lumps ? RiddleLoadVerdict.TooFew : RiddleLoadVerdict.Loads;
     }
 
+    /// <summary>
+    /// Whether a right-click with crushed ore in hand goes round again (the owner's ask, 2026-10-20): the charge on the riddle
+    /// riddled (<paramref name="riddling"/> false), something of it waiting to come out (<paramref name="waiting"/>:
+    /// its oversize on the mesh or its fines in the box), and the held ore a whole charge that goes on once
+    /// they are out. Then the oversize and the fines go to the player and the next charge goes on, so
+    /// holding right-click riddles charge after charge without letting go or emptying the hand.
+    /// </summary>
+    public static bool CanReload(string? code, bool classified, int held, int lumps, bool complete, bool riddling, bool waiting) =>
+        !riddling && waiting && CanLoad(code, classified, held, lumps, complete, false, false) == RiddleLoadVerdict.Loads;
+
     /// <summary>Whether the riddling runs: complete, a charge on not yet riddled, and someone holding.</summary>
     public static bool Running(bool complete, bool chargeOn, bool done, bool held) => complete && chargeOn && !done && held;
 

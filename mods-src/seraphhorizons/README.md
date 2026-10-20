@@ -2297,7 +2297,8 @@ or explodes its boiler.
 | `SteelBurstPressure` | 10 | ppex's |
 | `BronzeBurstPressure` | 10 | the bronze pressure valve's highest gate |
 
-A value that is not a number, 0 or less, or above 1000 falls back to its default with a warning.
+A rate that is not a number, 0 or less, or above 1000, or a pump boost below 0 or above 100, falls
+back to its default with a warning.
 
 **Lead is for water only.** A run holding steam or exhaust bursts one of its lead pipes every second,
 at any pressure, until it has none, with ppex's own effects; air (blast air) and water are safe in it.
@@ -2541,16 +2542,38 @@ lines), shared evenly, what a full network cannot take offered to the others and
 (`Springs/Core/SpringFlow.cs`). It fills a network with `PipeNetwork.ProduceLiquidMeasured` at 20 °C
 and 1 atm (ppex's pump temperature and its hand pump's delivery head), as an intake fills its line for
 a pump. ppex's network carries water as one medium, `Water`, with no kinds, so well water goes in as
-that. A pump draws only from a fluid intake (`FindIntake`), so a spring's run feeds a boiler, an
-outlet or anything else on it directly, with no pump. The tap state is kept with the block entity
-and shown on it ("Tapped: feeding its pipes up to 4 L/s", or "Pouring").
+that. A spring's run feeds a boiler, an outlet or anything else on it directly, with no pump. The tap
+state is kept with the block entity and shown on it ("Tapped: feeding its pipes up to 4 L/s", or
+"Pouring").
+
+**Pumped** (`SpringPumpBridge.cs`, `Springs/Core/SpringPumps.cs`, on ppex by name). ppex's pumps draw
+only from a run with a fluid intake on it (`FindIntake`), so a mechanical pump with a spring at the head
+of its source run moved nothing. A Harmony prefix on `BlockEntityMpFluidPump.DoWork(speed, dt)` (the
+walking-beam pump, on the server) records its source run's network and its axle speed each time it
+works; with no intake on that run but a spring feeding it in the last 2.5 s, it does the pump's work as
+ppex does it, without the intake's refill: its rate at that speed (`OutputAt`, 20 L/s per unit of speed)
+for the seconds, at most what the delivery run has room for, taken from the source run and put into the
+delivery run at the pump's delivery pressure (1.5 atm), spilling from its port with no delivery run.
+With an intake on the run, ppex's own work runs. The spring, as it feeds, gives the run of the fastest
+pump that worked on one of its runs in the last 2.5 s its rate times `PumpBoostPerTurn` times that
+pump's shaft turns a second (axle speed × 5 / 2π: speed 1 is 5 rad/s) on top, so its output is
+rate × (1 + `PumpBoostPerTurn` × turns), the owner's base × (turns + 1) at the default 1: a spring of
+4 L/s gives 8 at one turn a second, 12 at two. Only the fastest pump counts, and only its run gets the
+extra (its other runs keep their share of the rate); what the pump moves on is still its own rate at
+most, so a slow pump on a rapids spring is the limit (below about 0.7 turns a second at the defaults).
+The block entity keeps the turns while it gives the extra (`pumpTurns`, synced) and shows a second line,
+"Pumped at 1.59 turns a second: up to 6.37 L/s more into the pump's run". The hand-cranked and engine
+pumps still draw only from an intake. With `DoWork` or a member it works with not as expected, one
+warning, and a pump on a spring's run moves nothing, as before.
 
 | Setting (`SpringsSettings`) | Default | |
 |---|---|---|
 | `NormalLitresPerSecond` | 4 | about a fluid intake under a waterwheel pump: ppex's intake has no rate of its own, its pump sets it (the hand pump 2 L/s, the mechanical pump 20 per unit of axle speed, about 3.6 on the waterwheel it is sized for, the engine pump 20 to 80) |
 | `RapidLitresPerSecond` | 10 | 2.5 times a spring |
+| `PumpBoostPerTurn` | 1 | what a mechanical pump drawing on a spring adds per turn a second of its shaft, as a share of the spring's rate (0 to 100; 0 adds nothing) |
 
-A value that is not a number, 0 or less, or above 1000 falls back to its default with a warning.
+A rate that is not a number, 0 or less, or above 1000, or a pump boost below 0 or above 100, falls
+back to its default with a warning.
 
 **Water for players** (`SpringWater.cs`, Hydrate or Diedrate by name: its licence forbids
 redistributing it). The block's `waterTightContainerProps` (`containable`, `whenFilled`
@@ -5959,6 +5982,10 @@ Edit the template, never those keys in en.json; `--check` (run by `tools/tests/t
 fails on drift, and wording that holds for one value only ("smelts whole", one parting share) stops the
 script until reworded. The cupel bead's,
 the liquation pan residue's and the melting pot's lines keep their contents and drop the prose.
+The pack's machines and process items follow the same split: a machine frame's description (its
+tooltip, and the top of its handbook page) is a one-line identity, what it is and what it does, and
+what it is built from, in what order, its size and how it is worked are in its handbook sections; the
+cupel, the liquation pan, the crude liquors and the eidolon torso's how-to likewise.
 
 Each rock form is one handbook group per ore (its grades together, `groupBy` in its type file), which
 Tidy Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused,
@@ -6120,7 +6147,9 @@ and recipe do not exist). How it plays, builds and draws is in `Riddle/README.md
   stays on the mesh as raw ore of its ore and grade (in its rock, the rock under the station, or granite), back to
   spalling, and the rest falls into the box as the same crushed ore with ore-core's classified flag (`oreState` 1,
   #765). Nothing is lost. An empty hand takes the oversize out, then the fines; the next charge waits until both are
-  out. The block info is the shared layout (the build, the state, what it holds; a wrench adds W and the shakes a
+  out. Crushed ore in hand takes both out at once (to the inventory, or dropped when it is full) and puts the next
+  charge on, by a click or while right-click is still held, so holding right-click with crushed ore riddles charge
+  after charge without letting go (`BERiddle.TryCycle`, `Riddling.CanReload`). The block info is the shared layout (the build, the state, what it holds; a wrench adds W and the shakes a
   charge takes).
 - **Recipe browser.** A `riddle` record per crushed ore (power `hand`, `work` in shakes).
 
