@@ -5982,6 +5982,10 @@ Edit the template, never those keys in en.json; `--check` (run by `tools/tests/t
 fails on drift, and wording that holds for one value only ("smelts whole", one parting share) stops the
 script until reworded. The cupel bead's,
 the liquation pan residue's and the melting pot's lines keep their contents and drop the prose.
+The pack's machines and process items follow the same split: a machine frame's description (its
+tooltip, and the top of its handbook page) is a one-line identity, what it is and what it does, and
+what it is built from, in what order, its size and how it is worked are in its handbook sections; the
+cupel, the liquation pan, the crude liquors and the eidolon torso's how-to likewise.
 
 Each rock form is one handbook group per ore (its grades together, `groupBy` in its type file), which
 Tidy Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused,
