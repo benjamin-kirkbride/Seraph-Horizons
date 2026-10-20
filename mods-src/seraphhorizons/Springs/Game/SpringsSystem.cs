@@ -32,7 +32,9 @@ namespace SeraphHorizons.Mod.Springs;
 /// what it poured stays (<see cref="SpringPour.Feed"/>), a rapids spring only for the cell on the
 /// one face it pours out of;</item>
 /// <item>a postfix on ExpandedLib's <c>BlockNetworkNode.IsValidNonNetworkConnection</c>: a pipe end
-/// against a spring is sealed, not an open end leaking its run.</item>
+/// against a spring is sealed, not an open end leaking its run;</item>
+/// <item>a prefix on ppex's <c>BlockEntityMpFluidPump.DoWork</c>: a mechanical pump draws on a spring's
+/// run with no intake on it, and makes the spring give more (<see cref="SpringPumpBridge"/>).</item>
 /// </list>
 /// Off: nothing is patched, rivulets are the game's, and every spring turns back into the source it
 /// replaced as it loads (<see cref="BlockEntityWaterSpring"/>, <see cref="Revert"/>). The blocks are
@@ -151,11 +153,13 @@ public class SpringsSystem : ModSystem
             _harmony = null;
             _hooked = 0;
             SpringTaps.Unbind();
+            SpringPumpBridge.Unbind();
         }
     }
 
-    /// <summary>The guide's rates, from this side's settings, in place of its <c>{normal}</c> and
-    /// <c>{rapid}</c> (every language this mod has text in).</summary>
+    /// <summary>The guide's rates, from this side's settings, in place of its <c>{normal}</c>,
+    /// <c>{rapid}</c>, <c>{pumpnormal}</c> and <c>{pumprapid}</c> (the extra at one turn a second;
+    /// every language this mod has text in).</summary>
     public static void FillRates(SpringsConfig settings)
     {
         foreach (var translations in Lang.AvailableLanguages.Values)
@@ -165,7 +169,9 @@ public class SpringsSystem : ModSystem
                 if (entries.TryGetValue(key, out var text) && text.Contains('{'))
                     entries[key] = text
                         .Replace("{normal}", SpringsConfig.Format(settings.NormalLitresPerSecond))
-                        .Replace("{rapid}", SpringsConfig.Format(settings.RapidLitresPerSecond));
+                        .Replace("{rapid}", SpringsConfig.Format(settings.RapidLitresPerSecond))
+                        .Replace("{pumpnormal}", SpringsConfig.Format(settings.NormalLitresPerSecond * settings.PumpBoostPerTurn))
+                        .Replace("{pumprapid}", SpringsConfig.Format(settings.RapidLitresPerSecond * settings.PumpBoostPerTurn));
         }
     }
 
@@ -195,6 +201,8 @@ public class SpringsSystem : ModSystem
             harmony.Patch(seal, postfix: new HarmonyMethod(typeof(SpringsSystem), nameof(SealPostfix)));
         else if (nodeType != null)
             logger.Warning("[seraphhorizons] Springs: ExpandedLib's BlockNetworkNode.IsValidNonNetworkConnection is not as expected, so a pipe end against a spring is an open end");
+
+        SpringPumpBridge.Patch(harmony, logger);
     }
 
     // GenRivulets.tryGenRivulet / tryGenMountainSideRivers: their one ScheduleBlockUpdate(pos), right

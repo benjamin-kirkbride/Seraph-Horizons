@@ -22,14 +22,15 @@ public static partial class RecipeSection
     /// <summary>
     /// One kind of spring: the spring (role <c>station</c>, never used up; any rock, its code with the
     /// rock as <c>*</c> and every rock's block among its stacks); out, a second's water from a pipe
-    /// tapping it, in portions and litres. Nothing is consumed: a spring never runs dry.
+    /// tapping it, in portions and litres. Nothing is consumed: a spring never runs dry. With a pump
+    /// boost set, a requirement line and <c>extra.pumpBoostPerTurn</c> say what a mechanical pump adds.
     /// </summary>
     private static JObject SpringRecord(Context ctx, SpringSource s)
     {
         double litres = s.LitresPerSecond;
         double portions = litres * s.ItemsPerLitre;
         string station = $"{GearChain.Mod}:{SpringExport.BlockBase}-{s.Kind}-*";
-        return new JObject
+        var record = new JObject
         {
             ["id"] = $"{SpringType}|{station}|0",
             ["type"] = SpringType,
@@ -53,5 +54,13 @@ public static partial class RecipeSection
                 ["pressure"] = Num(1),
             },
         };
+        if (s.PumpBoostPerTurn > 0)
+        {
+            ((JArray)record["requirements"]!).Add(
+                $"A Pipes and Power Expanded mechanical pump drawing on its run makes it give {Num(litres * s.PumpBoostPerTurn)} litres a second more"
+                + " for each turn a second of the pump's shaft, into that pump's run (the fastest pump on it only), up to what the pump moves");
+            ((JObject)record["extra"]!)["pumpBoostPerTurn"] = Num(s.PumpBoostPerTurn);
+        }
+        return record;
     }
 }
