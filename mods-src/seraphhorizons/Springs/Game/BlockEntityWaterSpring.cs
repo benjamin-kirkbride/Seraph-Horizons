@@ -9,8 +9,10 @@ namespace SeraphHorizons.Mod.Springs;
 /// A spring's state (README "Springs"), on the server: whether a pipe couples to it
 /// (<see cref="SpringTaps"/>), looked at as it loads and whenever a neighbour changes. Untapped, it
 /// pours (<see cref="SpringPouring"/>); tapped, it pours nothing and, once a second, offers its rate's
-/// water to the pipe networks coupled to it (<see cref="SpringFlow"/>). A rapids spring keeps the
-/// one face it pours out of (<see cref="PourFace"/>), and when it turns to another, tells the water
+/// water to the pipe networks coupled to it (<see cref="SpringFlow"/>), and the extra a pump drawing
+/// on one of them makes it give to that one (<see cref="SpringPumps"/>, <see cref="SpringPumpBridge"/>).
+/// A rapids spring keeps the one face it pours out of (<see cref="PourFace"/>), and when it turns to
+/// another, tells the water
 /// round it to look again, so what it poured on the old face drains. No tick runs while it is
 /// untapped. A side whose cell beyond is in a chunk not loaded (a spring at its column's edge loads
 /// before the pipe in the next) can not be read: with no pipe seen on the others it keeps the state
@@ -43,6 +45,10 @@ public class BlockEntityWaterSpring : BlockEntity
 
     /// <summary>The litres it put into its pipes on its last feed.</summary>
     public float LastFed { get; private set; }
+
+    /// <summary>Shaft turns a second of the fastest pump drawing on it, while it gives that pump's run
+    /// its extra (<see cref="SpringPumps"/>), or 0 (synced, for the look-at text).</summary>
+    public float PumpTurns { get; private set; }
 
     public BlockWaterSpring? Spring => Block as BlockWaterSpring;
 
@@ -98,6 +104,7 @@ public class BlockEntityWaterSpring : BlockEntity
                 Tapped = false;
                 StopFeeding();
                 LastFed = 0;
+                PumpTurns = 0;
                 MarkDirty();
                 break;
         }
@@ -143,9 +150,24 @@ public class BlockEntityWaterSpring : BlockEntity
         long now = Api.World.ElapsedMilliseconds;
         float seconds = (now - _lastFeedMs) / 1000f;
         _lastFeedMs = now;
-        float budget = SpringFlow.Budget(SpringsSystem.Settings.LitresPerSecond(spring.Kind), seconds);
+        var settings = SpringsSystem.Settings;
+        float rate = settings.LitresPerSecond(spring.Kind);
         var networks = SpringTaps.Networks(Api, Pos);
-        LastFed = SpringFlow.Share(budget, networks.Count, (i, litres) => SpringTaps.Produce(Api, networks[i], litres));
+        LastFed = SpringFlow.Share(SpringFlow.Budget(rate, seconds), networks.Count, (i, litres) => SpringTaps.Produce(Api, networks[i], litres));
+        foreach (var network in networks)
+            SpringPumpBridge.Fed(network, now);
+        // Pumped: the run of the fastest pump drawing on it takes the extra.
+        var (run, speed) = SpringPumps.Fastest(networks.Select(n => SpringPumpBridge.FastestPump(n, now)).ToList());
+        float turns = SpringPumps.TurnsPerSecond(speed);
+        float extra = SpringPumps.Extra(rate, settings.PumpBoostPerTurn, turns);
+        if (run >= 0 && extra > 0)
+            LastFed += SpringTaps.Produce(Api, networks[run], SpringFlow.Budget(extra, seconds));
+        float shown = run >= 0 && extra > 0 ? turns : 0;
+        if (Math.Abs(shown - PumpTurns) > 0.005f || (shown == 0) != (PumpTurns == 0))
+        {
+            PumpTurns = shown;
+            MarkDirty();
+        }
     }
 
     public override void OnBlockRemoved()
@@ -164,6 +186,7 @@ public class BlockEntityWaterSpring : BlockEntity
     {
         base.ToTreeAttributes(tree);
         tree.SetBool("tapped", Tapped);
+        tree.SetFloat("pumpTurns", PumpTurns);
         if (PourFace is { } face)
             tree.SetInt("pourFace", face);
         else
@@ -174,6 +197,7 @@ public class BlockEntityWaterSpring : BlockEntity
     {
         base.FromTreeAttributes(tree, worldAccessForResolve);
         Tapped = tree.GetBool("tapped");
+        PumpTurns = tree.GetFloat("pumpTurns");
         PourFace = tree.HasAttribute("pourFace") ? tree.GetInt("pourFace") : null;
     }
 }
