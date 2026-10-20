@@ -130,6 +130,10 @@ public sealed class MineJobCells
     /// cells were left (README "Eidolon", working together, *Dispatch*): once, until a block is broken.</summary>
     public bool StuckReplanned { get; set; }
 
+    /// <summary>The job's last strike (<see cref="LastStrikeAt"/>) when its owner was last told it looks stalled
+    /// (README "Eidolon", working together, *When none may work*), null never: told again only after another.</summary>
+    public double? StallToldStrike { get; set; }
+
     /// <summary>The job's route plan (README "Eidolon", working together, *Routes*), main thread only; null
     /// before the first, and while today's dispatch is used instead.</summary>
     public MineRoutes? Routes { get; set; }

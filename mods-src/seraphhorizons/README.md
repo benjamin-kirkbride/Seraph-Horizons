@@ -3777,9 +3777,10 @@ ground clear to step aside onto (three at the end of a trench 5 wide). The repor
 still to dig were left in a second line (`MineDispatch.WhyLeft`, `eidolon-mine-leftwhy`: under or beside
 an eidolon that could not move, in no station left, their band's turn never came, no place to stand, no
 way to or out of the stand, or digging them would cut off the stand's way out, leave other blocks with
-nowhere to stand, or take a stand other blocks are worked from). A backstop: none at work and no strike for
-5 minutes (`MineOrder.HangSeconds`) with a station the guard allows, which dispatch then never gives
-anyone, ends the job all the same, logged as a warning and those blocks reported as never given to any. No member waits on another for good: one that finds no way to a stand (or arrives short
+nowhere to stand, or take a stand other blocks are worked from). A job never ends while a station is workable: none at work and no strike for 5 minutes
+(`MineOrder.HangSeconds`) with a station the guard allows, which dispatch then never gives anyone, its owner
+is told the job looks stalled and where it could work from (`eidolon-mine-stalled`, logged as a warning),
+once, and again only after a strike and 5 minutes more with none; it goes on waiting. No member waits on another for good: one that finds no way to a stand (or arrives short
 of it) with another eidolon within 3 blocks of it lets the station go and waits, but only 3 times at that
 stand, by any member, since the job's last strike (`MineJobCells.BlockedStands`); the 4th the stand is bad
 all the same and the plan made again (three once waited by a stand none could get onto, each taking it,
@@ -3836,8 +3837,8 @@ the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamwo
 in another's columns, everyone out after every dig), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
 never holding the same column, the floors within a climb, one report with both shares,
 each back to its place; one ordered later joining the job running; one whose part is mined out
-taking stations in the other's, never pushing into it; two kept from any station for 75 seconds, every column held by
-another on the job board, waiting and then mining the whole area), `tests/Eidolon/MineSiteWindowTests.cs` (the window
+taking stations in the other's, never pushing into it; two kept from any station for 310 seconds, every column held by
+another on the job board, waiting, told once that the job looks stalled, and then mining the whole area), `tests/Eidolon/MineSiteWindowTests.cs` (the window
 grown round a member 10 columns off the area, routed on the first solve, none past 32) and
 `tests/PackTests/EidolonMineWindowScenarios.cs` (Atlas, on a player's hillside, `fixtures/eidolon-hillside`:
 one 10 columns outside the area routed on the first solve and both mining, ordered with the other or joining
