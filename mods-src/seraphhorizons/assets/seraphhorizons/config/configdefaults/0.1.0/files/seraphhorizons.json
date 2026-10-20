@@ -531,7 +531,8 @@
   "Springs": true,
   "SpringsSettings": {
     "NormalLitresPerSecond": 4.0,
-    "RapidLitresPerSecond": 10.0
+    "RapidLitresPerSecond": 10.0,
+    "PumpBoostPerTurn": 1.0
   },
   "OreMachinesSettings": {
     "MinSpeed": 0.05,

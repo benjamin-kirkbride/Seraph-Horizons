@@ -276,6 +276,53 @@ public class SpringsTests
         Assert.Equal("1.5", SpringsConfig.Format(ok.NormalLitresPerSecond));
     }
 
+    [Fact]
+    public void The_pump_boost_may_be_off_but_not_negative_or_huge()
+    {
+        Assert.Empty(new SpringsConfig { PumpBoostPerTurn = 0 }.Sanitise());
+        Assert.Empty(new SpringsConfig { PumpBoostPerTurn = 100 }.Sanitise());
+        foreach (float bad in new[] { -1f, 100.5f, float.NaN })
+        {
+            var s = new SpringsConfig { PumpBoostPerTurn = bad };
+            Assert.Single(s.Sanitise());
+            Assert.Equal(SpringsConfig.Defaults.PumpBoostPerTurn, s.PumpBoostPerTurn);
+        }
+    }
+
+    // ---- pumped ----
+
+    [Fact]
+    public void Axle_speed_1_is_5_radians_a_second()
+    {
+        Assert.Equal(5f / (2 * MathF.PI), SpringPumps.TurnsPerSecond(1f), 5);
+        Assert.Equal(1f, SpringPumps.TurnsPerSecond(2 * MathF.PI / 5f), 5);
+        Assert.Equal(0f, SpringPumps.TurnsPerSecond(0));
+        Assert.Equal(0f, SpringPumps.TurnsPerSecond(-1));
+        Assert.Equal(0f, SpringPumps.TurnsPerSecond(float.NaN));
+    }
+
+    [Theory]
+    // The owner's rule: base × (turns + 1) in all, so the extra is base × turns at the default 1.
+    [InlineData(4f, 1f, 1f, 4f)]
+    [InlineData(4f, 1f, 2.5f, 10f)]
+    [InlineData(10f, 1f, 0.5f, 5f)]
+    [InlineData(4f, 0.5f, 2f, 4f)]
+    [InlineData(4f, 0f, 2f, 0f)]
+    [InlineData(4f, 1f, 0f, 0f)]
+    [InlineData(4f, 1f, float.NaN, 0f)]
+    public void A_pumped_spring_gives_its_rate_more_per_turn_a_second(float rate, float boost, float turns, float extra) =>
+        Assert.Equal(extra, SpringPumps.Extra(rate, boost, turns), 5);
+
+    [Fact]
+    public void Only_the_fastest_pump_counts()
+    {
+        Assert.Equal((-1, 0f), SpringPumps.Fastest([]));
+        Assert.Equal((-1, 0f), SpringPumps.Fastest([0f, 0f]));
+        Assert.Equal((1, 0.6f), SpringPumps.Fastest([0.2f, 0.6f, 0.4f]));
+        Assert.Equal((0, 0.5f), SpringPumps.Fastest([0.5f, 0.5f]));
+        Assert.Equal((2, 0.1f), SpringPumps.Fastest([float.NaN, -1f, 0.1f]));
+    }
+
     // ---- the shipped block type ----
 
     private static JsonObject BlockType()
