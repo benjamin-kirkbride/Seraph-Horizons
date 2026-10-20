@@ -17,8 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// the rest open ground. Only one fits at the face at a time; the other quarries the open ground away from
 /// the face's approach, works ahead in the band below, and opens a second face only with neither (README
 /// "Eidolon", working together, *Spare work*). Over 8 minutes on the virtual clock (<see cref="VirtualClock"/>)
-/// both keep mining (neither goes long without a strike) and they mine at least 40 % more than they did taking
-/// turns at the face (738 blocks then). In the sky (<see cref="Felling.Sky"/>), the export placed whole.
+/// both keep mining (neither goes over <see cref="LongestGap"/> without a strike), and they mine at least
+/// <see cref="Faster"/> times what main did here before (<see cref="Before"/>: a regression guard). In the sky (<see cref="Felling.Sky"/>), the export placed whole.
 /// </summary>
 [AtlasWorld]
 public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -32,7 +32,12 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
     private static readonly BlockPos[] Starts = [new(511891, 124, 512236), new(511884, 122, 512233)];
 
     private const double Minutes = 8;
-    private const int Before = 738;
+    /// <summary>What main mined here before the work it guards (the mean of 914, 1037 and 990 blocks, three runs
+    /// of this scenario on main at 6ccd75e, when two took turns at the face), and the share more it must mine.</summary>
+    private const int Before = 980;
+    private const double Faster = 1.1;
+
+    /// <summary>The longest either may go with no block broken (the owner's bar).</summary>
     private const double LongestGap = 25;
 
     private void Log(string what)
@@ -141,14 +146,14 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
         }, 400_000);
 
         int total = orders.Sum(o => o.Mined);
-        Log($"mined {string.Join(" + ", orders.Select(o => o.Mined))} = {total} in {Minutes} minutes (before: {Before}); longest with none: "
+        Log($"mined {string.Join(" + ", orders.Select(o => o.Mined))} = {total} in {Minutes} minutes (at least {Before * Faster:0}: {Faster} x main's {Before}); longest with none: "
             + string.Join(", ", longest.Select((l, i) => $"{eidolons[i].EntityId} {l.Seconds:0.0} s to {l.At:0} s")));
         for (int i = 0; i < orders.Count; i++)
             Log($"{eidolons[i].EntityId}'s longest: {longest[i].Doing}");
         foreach (var e in eidolons)
             e.Die(EnumDespawnReason.Removed);
         Assert.NotNull(planned);
-        Assert.True(total >= Before * 1.4, $"{total} mined, under 1.4 x {Before}");
+        Assert.True(total >= Before * Faster, $"{total} mined, under {Faster} x {Before}");
         Assert.All(longest, l => Assert.True(l.Seconds <= LongestGap, $"{l.Seconds:0.0} s with no block broken, to {l.At:0} s: {l.Doing}"));
     }
 }
