@@ -71,6 +71,35 @@ public class ItemOreProduct : Item
         outputSlot.MarkDirty();
     }
 
+    // ---- A bar's whole-route share (Bullion.WholeShareAttribute) ----
+
+    /// <summary>Bars of one ore stack whatever their whole-route shares: the share is not a different bar, only how
+    /// much of it the final parting makes whole.</summary>
+    public override int GetMergableQuantity(ItemStack sinkStack, ItemStack sourceStack, EnumMergePriority priority)
+    {
+        int n = base.GetMergableQuantity(sinkStack, sourceStack, priority);
+        if (n > 0 || Form != "bullion" || sinkStack.StackSize >= MaxStackSize
+            || !Equals(sinkStack, sourceStack, [.. Vintagestory.API.Config.GlobalConstants.IgnoredStackAttributes, OreStreamAttributes.WholeShare]))
+            return n;
+        return Math.Min(MaxStackSize - sinkStack.StackSize, sourceStack.StackSize);
+    }
+
+    /// <summary>The game's merge, the sink's whole-route share made the bars' weighted one (as the game weights
+    /// their heat).</summary>
+    public override void TryMergeStacks(ItemStackMergeOperation op)
+    {
+        if (Form != "bullion" || op.SinkSlot.Itemstack is not { } sink || op.SourceSlot.Itemstack is not { } source)
+        {
+            base.TryMergeStacks(op);
+            return;
+        }
+        int before = sink.StackSize;
+        double sinkShare = OreStreamAttributes.WholeShareOf(sink), sourceShare = OreStreamAttributes.WholeShareOf(source);
+        base.TryMergeStacks(op);
+        if (op.MovedQuantity > 0 && op.SinkSlot.Itemstack is { } merged && Math.Abs(sinkShare - sourceShare) > 1e-12)
+            OreStreamAttributes.SetWholeShare(merged, Bullion.MergeWhole(sinkShare, before, sourceShare, op.MovedQuantity));
+    }
+
     /// <summary>The metal the item holds: the ore's metal group, lead for litharge.</summary>
     public string? Metal => Form is "litharge" or "richlead" ? "lead" : Form == "bullion" ? Variant["metal"] : Ore is { } ore ? OreMetals.MetalOf(ore) : null;
 
@@ -111,6 +140,14 @@ public class ItemOreProduct : Item
             dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-units", units.ToString("0.#"), Lang.Get("material-" + metal)));
         if (StatusText() is { } status)
             dsc.AppendLine(status);
+        // Off the whole route: a concentrate's mark, a bar's share of it.
+        if (inSlot?.Itemstack is { } stack)
+        {
+            if (Form == "bullion" && OreStreamAttributes.WholeShareOf(stack) is > 0 and var share)
+                dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-wholeshare", (share * 100).ToString("0.#")));
+            else if (Form is "concentrate" or "roastedconcentrate" && OreStreamAttributes.IsWhole(stack))
+                dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-whole"));
+        }
     }
 
     /// <summary>The form's status line; null for an item with no form.</summary>

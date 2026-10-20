@@ -68,12 +68,13 @@ public class CupellationFurnaceConfig
 
 /// <summary>One stack of the furnace's charge: a bar of an ore's base bullion (<see cref="Ore"/> set), a bar of the
 /// Parkes kettle's rich lead (<see cref="RichLead"/>), lead added (a lead ingot: neither), or anything else
-/// (<see cref="Foreign"/>), with the metal units it holds.</summary>
-public readonly record struct FurnaceCharge(string? Ore, double Units, bool RichLead = false, bool Foreign = false)
+/// (<see cref="Foreign"/>), with the metal units it holds. <see cref="Whole"/>: the share of a bar's units off the
+/// whole route (<see cref="Bullion.WholeShareAttribute"/>), made whole here when the furnace is the ore's final step.</summary>
+public readonly record struct FurnaceCharge(string? Ore, double Units, bool RichLead = false, bool Foreign = false, double Whole = 0)
 {
     public static FurnaceCharge Lead(double units) => new(null, units);
     public static FurnaceCharge Rich(double units) => new(null, units, RichLead: true);
-    public static FurnaceCharge Bar(string ore, double units) => new(ore, units);
+    public static FurnaceCharge Bar(string ore, double units, double whole = 0) => new(ore, units, Whole: whole);
     public static FurnaceCharge Other => new(null, 0, Foreign: true);
 }
 
@@ -119,7 +120,9 @@ public sealed record CupellingYield(double LeadUnits, IReadOnlyList<MetalUnits> 
 /// <list type="bullet">
 /// <item>the lead burns to litharge (5 units an item, as the cupel's) and runs into the pot;</item>
 /// <item>each bar's by-product comes out at the furnace's 95 % (<see cref="OreRecovery.Smelted"/> at
-/// <see cref="PartingStation.CupellationFurnace"/>), rich lead's silver whole (the Parkes kettle's 100 %): silver stays
+/// <see cref="PartingStation.CupellationFurnace"/>), and for an ore whose final step the furnace is (argentiferous
+/// galena, tetrahedrite, freibergite) the share of a bar off the whole route made whole, its main metal and
+/// by-product both (<see cref="FurnaceCharge.Whole"/>); rich lead's silver whole (the Parkes kettle's 100 %): silver stays
 /// on the test as the cake, copper (which oxidises with the lead) comes back beside it, both as metal bits, as the
 /// bone-ash cupel gives them (#722);</item>
 /// <item>the pace is the blast's share (air arriving ÷ the blast's rate, at most 1) times the damper's draught;
@@ -184,7 +187,7 @@ public static class Cupelling
                 lead += c.Units;
                 continue;
             }
-            foreach (var m in r.Smelted(r.Ore(ore), c.Units, PartingStation.CupellationFurnace))
+            foreach (var m in r.Smelted(r.Ore(ore), c.Units, PartingStation.CupellationFurnace, wholeShare: c.Whole))
             {
                 if (m.Metal == "lead") lead += m.Units;
                 else Add(m.Metal, m.Units);
