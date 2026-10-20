@@ -3659,7 +3659,8 @@ logs (`[eidolon-mine]`, debug) a member it gave no stops because it could not pl
 window, beyond the 32, or no out node near it: `MineCosts.Unplaced`). The solver simulates the crew working forward with the same guard
 as live: each station's work timed strike by strike at its blocks' pace (the quicker of the steel pick and
 shovel), the walk on the walk graph, a way crossing another's claim only after waiting 4 seconds for it (as
-the game goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots
+the game goes through), but never into another's box at a stand in the covered part while it works there (no room
+to pass in a heading: it waits for that one to be done, or takes the way round the claims) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots
 (the slots set only when each sets off: in the game no one holds a narrow way, the stair keeping its own turn
 as under *Dispatch*); a member that would otherwise wait 10 seconds takes a station of the next band where
 nothing still to dig is above it (spare work, at most one open band deeper, so the floors may be two climbs

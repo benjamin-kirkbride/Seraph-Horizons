@@ -109,6 +109,42 @@ public class MineRoutesTests(ITestOutputHelper output)
         }
     }
 
+    // No way walks into another's box at a stand in the covered part while that one works there (in a heading there is
+    // no room to pass, the game's walker stopping short of it and parting from it): it waits for it to be done, or
+    // goes round.
+    [Fact]
+    public void A_member_s_way_never_passes_by_another_s_stand_while_it_works_there()
+    {
+        foreach (string g in Geometries)
+        foreach (int crew in new[] { 2, 3 })
+        {
+            var start = Begin(MineCases.ByName(g, crew));
+            var routes = MineRoutePlanner.Solve(start.Input());
+            int legs = 0;
+            foreach (var r in routes.Routes.Values)
+            foreach (var leg in r.Stops.Where(s => s.Kind == MineStopKind.Station && s.Leg.Count > 2))
+            {
+                legs++;
+                var columns = Columns(leg.Leg);
+                foreach (var o in routes.Routes.Values.Where(o => o.Member != r.Member))
+                foreach (var stop in o.Stops.Where(s => s.Kind == MineStopKind.Station && s.Arrive < leg.Arrive && leg.Depart < s.Finish))
+                {
+                    bool by = false, covered = false;
+                    for (int x = stop.At.X - 1; x <= stop.At.X; x++)
+                    for (int z = stop.At.Z - 1; z <= stop.At.Z; z++)
+                    {
+                        by |= columns.Contains((x, z));
+                        covered |= start.Plan.Tunnel?.Covered.Contains((x, z)) == true;
+                    }
+                    if (!covered)
+                        continue;
+                    Assert.False(by, $"{g} x{crew}: {r.Member}'s way to {leg.At} ({leg.Depart:0.0}..{leg.Arrive:0.0}) walks into {o.Member}'s box at {stop.At} (#{stop.Station}, {stop.Arrive:0.0}..{stop.Finish:0.0})");
+                }
+            }
+            output.WriteLine($"{g} x{crew}: {legs} ways");
+        }
+    }
+
     [Fact]
     public void Narrow_way_slots_never_overlap()
     {
