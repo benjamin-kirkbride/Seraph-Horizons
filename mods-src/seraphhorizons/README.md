@@ -6124,7 +6124,9 @@ and recipe do not exist). How it plays, builds and draws is in `Riddle/README.md
   stays on the mesh as raw ore of its ore and grade (in its rock, the rock under the station, or granite), back to
   spalling, and the rest falls into the box as the same crushed ore with ore-core's classified flag (`oreState` 1,
   #765). Nothing is lost. An empty hand takes the oversize out, then the fines; the next charge waits until both are
-  out. The block info is the shared layout (the build, the state, what it holds; a wrench adds W and the shakes a
+  out. Crushed ore in hand takes both out at once (to the inventory, or dropped when it is full) and puts the next
+  charge on, by a click or while right-click is still held, so holding right-click with crushed ore riddles charge
+  after charge without letting go (`BERiddle.TryCycle`, `Riddling.CanReload`). The block info is the shared layout (the build, the state, what it holds; a wrench adds W and the shakes a
   charge takes).
 - **Recipe browser.** A `riddle` record per crushed ore (power `hand`, `work` in shakes).
 
