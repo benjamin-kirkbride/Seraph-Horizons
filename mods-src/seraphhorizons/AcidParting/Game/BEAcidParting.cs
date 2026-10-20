@@ -44,6 +44,9 @@ public class BEAcidParting : BEFiredOreMachine
     private Damper _damper;
     private bool _lit, _started;
     private double _fireLeft, _chargeUnits, _parted, _acid;
+    /// <summary>The share of the charge's dore off the whole route (<see cref="Bullion.WholeShareAttribute"/>), made
+    /// whole here, gold quartz's final step.</summary>
+    private double _wholeShare;
     private double _lastHours = double.NaN;
     private string? _ore;
     private readonly UnitCarry _carry = new();
@@ -182,6 +185,7 @@ public class BEAcidParting : BEFiredOreMachine
                 return false;
             _ore = ore;
             _chargeUnits = Bars * Bullion.UnitsPerItem;
+            _wholeShare = OreStreamAttributes.WholeShareOf(DoreSlotItem.Itemstack!);
             _parted = 0;
             _started = true;
             DoreSlotItem.Itemstack = null;
@@ -192,7 +196,7 @@ public class BEAcidParting : BEFiredOreMachine
             return changed;
         var recovery = OreProcessingSystem.RecoveryFor(Api);
         var spec2 = recovery.Ore(_ore);
-        var yields = recovery.Smelted(spec2, 1, PartingStation.AcidParting);
+        var yields = recovery.Smelted(spec2, 1, PartingStation.AcidParting, wholeShare: _wholeShare);
         double mainPerUnit = yields.Where(m => m.Metal == spec2.Metal).Sum(m => m.Units);
         var byProducts = yields.Where(m => m.Metal != spec2.Metal).ToList();
         double silverPerUnit = byProducts.Sum(m => m.Units);
@@ -344,6 +348,7 @@ public class BEAcidParting : BEFiredOreMachine
                 _parted = 0;
                 _syncedParted = 0;
                 _ore = null;
+                _wholeShare = 0;
                 MarkDirty(true);
             }
             return true;
@@ -354,7 +359,7 @@ public class BEAcidParting : BEFiredOreMachine
             return Cap(byPlayer, slot!);
         if (IsDore(stack))
         {
-            if (DoreSlotItem.Itemstack is { } inside && !inside.Equals(Api.World, stack, GlobalConstants.IgnoredStackAttributes))
+            if (DoreSlotItem.Itemstack is { } inside && !OreStreamAttributes.SameBar(Api.World, inside, stack))
                 return Refuse(byPlayer, VesselRefusal.Full, c.ChargeBars);
             var (take, why) = AcidPartingRules.Charge(Phase, Bars, stack.StackSize, c);
             if (why != VesselRefusal.None)
@@ -529,6 +534,7 @@ public class BEAcidParting : BEFiredOreMachine
         tree.SetDouble("chargeUnits", _chargeUnits);
         tree.SetDouble("parted", _parted);
         tree.SetDouble("acid", _acid);
+        tree.SetDouble("wholeShare", _wholeShare);
         tree.SetDouble("lastHours", _lastHours);
         if (_ore != null)
             tree.SetString("ore", _ore);
@@ -548,6 +554,7 @@ public class BEAcidParting : BEFiredOreMachine
         _chargeUnits = Math.Max(0, tree.GetDouble("chargeUnits"));
         _parted = Math.Clamp(tree.GetDouble("parted"), 0, _chargeUnits);
         _acid = Math.Max(0, tree.GetDouble("acid"));
+        _wholeShare = Bullion.Clamp(tree.GetDouble("wholeShare"));
         _lastHours = tree.GetDouble("lastHours", double.NaN);
         _ore = tree.GetString("ore");
         _carry.Restore([new(GoldKey, tree.GetDouble("carryGold")), new(SilverKey, tree.GetDouble("carrySilver"))]);

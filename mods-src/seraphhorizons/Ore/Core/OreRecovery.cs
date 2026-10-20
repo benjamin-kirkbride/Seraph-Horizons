@@ -487,6 +487,26 @@ public sealed class OreRecovery
         return parted;
     }
 
+    /// <summary>
+    /// <see cref="Smelted(OreSpec, double, PartingStation?, bool)"/> on units of which <paramref name="wholeShare"/>
+    /// came off the whole route (a bar's <see cref="Bullion.WholeShareAttribute"/>): that share as whole units, the rest
+    /// not, each metal summed. At a station that is not the ore's final step it is the same as none.
+    /// </summary>
+    public IReadOnlyList<MetalUnits> Smelted(OreSpec ore, double mainUnits, PartingStation? station, double wholeShare)
+    {
+        double share = Bullion.Clamp(wholeShare);
+        if (share <= 0) return Smelted(ore, mainUnits, station);
+        if (share >= 1) return Smelted(ore, mainUnits, station, whole: true);
+        var sum = new List<MetalUnits>();
+        foreach (var m in Smelted(ore, mainUnits * (1 - share), station).Concat(Smelted(ore, mainUnits * share, station, whole: true)))
+        {
+            int i = sum.FindIndex(x => x.Metal == m.Metal);
+            if (i < 0) sum.Add(m);
+            else sum[i] = sum[i] with { Units = sum[i].Units + m.Units };
+        }
+        return sum;
+    }
+
     /// <summary>The config key of an enum value: its name in lower case (<c>stampbattery</c>).</summary>
     public static string Key<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
