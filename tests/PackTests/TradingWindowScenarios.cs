@@ -615,11 +615,9 @@ public partial class TradingScenarios
             TradeWindowModel.PlaceholderRow(null, false, MapOfferStatus.SoldOut),
             TradeWindowModel.ShelfLeadRow("camp", "cook", 10, TradeWindowModel.Direction(1, 1), 1, MapOfferStatus.Available),
             TradeWindowModel.ShelfLeadRow("settlement", "", 10, TradeWindowModel.Direction(-1, 0), 6, MapOfferStatus.Locked, TradeWindowModel.TierName("trusted")),
-            // Camp leads (off the shelf), and the first map (pity map): to a prospector, or failing one to any camp.
+            // Camp leads (off the shelf).
             TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = 1, Price = 3 }),
             TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "prospector", Distance = 2000, Dz = -1, Price = 3, Prospector = true }),
-            TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "prospector", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Prospector = true, Pity = true }),
-            TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Pity = true }),
         };
         foreach (var row in rows)
         {
@@ -645,7 +643,8 @@ public partial class TradingScenarios
             texts.Add(TradeWindowModel.LeadOffersNote(new TradeWindowState { LeadsWhy = why })!);
         foreach (string key in new[] { "trading-window-buy", "trading-maps-lead-bought", "trading-maps-error-drawing", "trading-maps-error-gears",
                      "trading-maps-checking-lead", "trading-admin-leads-noplayer", "trading-admin-leads-head", "trading-admin-leads-group",
-                     "trading-admin-leads-trader", "trading-admin-leads-pity-used", "trading-admin-leads-pity-unused" })
+                     "trading-admin-leads-trader", "trading-admin-leads-spawnmark-given", "trading-admin-leads-spawnmark-notyet",
+                     "trading-maps-spawnmark" })
             texts.Add(new Text(key));
         foreach (string key in new[] { "trading-maps-error-gone",
                      "oremap-tier-1", "oremap-tier-2", "oremap-tier-3", "trading-maps-error-marked", "trading-maps-error-held", "trading-maps-met-marked",

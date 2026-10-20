@@ -6,7 +6,7 @@ namespace SeraphHorizons.Mod.Tests.Trading.Maps;
 
 /// <summary>Leads to other trader camps: distance in rings of grid cells, which a buyer is offered
 /// by standing (count, reach in rings, prospector first, the stranger's one map chained from camp to
-/// camp), what they cost, and a player's very first map (the pity map).</summary>
+/// camp) and what they cost.</summary>
 public class CampLeadsTests
 {
     private static readonly JsonSerializerOptions Options = new()
@@ -84,8 +84,6 @@ public class CampLeadsTests
         Assert.Equal(12, r.Base);
         Assert.Equal(1.5, r.DistanceCurve);
         Assert.Equal(3, r.RepeatCurve);
-        Assert.Equal(10, r.Pity.Price);
-        Assert.Equal(10, r.Pity.Reach);
         Assert.Equal([(1, 1, 1.0, 1.0), (2, 1, 0.85, 0.85), (3, 2, 0.7, 0.7), (5, 3, 0.6, 0.55), (8, 5, 0.5, 0.4)],
             TierCodes.Select(c => r.TierFor(c)).Select(t => (t.Maps, t.Reach, t.Ease, t.Discount)));
         Assert.True(r.IsStranger("stranger"));
@@ -154,15 +152,13 @@ public class CampLeadsTests
     {
         var r = new CampLeadRules
         {
-            Base = 0, DistanceCurve = -1, RepeatCurve = -1, Pity = new() { Price = 0, Reach = 0 },
+            Base = 0, DistanceCurve = -1, RepeatCurve = -1,
             Tiers = { ["known"] = new() { Maps = 0, Reach = 0, Ease = 0, Discount = 1.5 } },
         };
         var problems = r.Problems();
         Assert.Contains(problems, p => p.Contains("base"));
         Assert.Contains(problems, p => p.Contains("distanceCurve"));
         Assert.Contains(problems, p => p.Contains("repeatCurve"));
-        Assert.Contains(problems, p => p.Contains("pity.price"));
-        Assert.Contains(problems, p => p.Contains("pity.reach"));
         Assert.Contains(problems, p => p.Contains("no 'stranger' tier"));
         Assert.Contains(problems, p => p.Contains("'known' has no maps"));
         Assert.Contains(problems, p => p.Contains("'known' reaches"));
@@ -294,22 +290,6 @@ public class CampLeadsTests
     }
 
     [Fact]
-    public void AStrangerIsOfferedThePityMapEvenWhenTheirGroupHadItsMapHere()
-    {
-        // The first map is the player's own: a stranger gets it whatever their group has had here,
-        // and it is their only offer.
-        var pity = Camp(1, 1, TraderTypes.Prospector);
-        foreach (string tier in new[] { CampLeadRules.Stranger, "nobody" })
-        {
-            var (offers, why) = CampLeads.Pick(Shipped(), Own, Line(), new LeadBuyer { Tier = tier, StrangerUsed = true, Pity = pity });
-            Assert.Equal(CampLeadsWhy.None, why);
-            var only = Assert.Single(offers);
-            Assert.True(only.Pity);
-            Assert.Equal(10, only.Price);
-        }
-    }
-
-    [Fact]
     public void AStrangerChainsFromCampToCamp()
     {
         var rules = Shipped();
@@ -333,105 +313,5 @@ public class CampLeadsTests
             at = next;
         }
         Assert.Equal([new CellKey(1, 0), new CellKey(2, 0), new CellKey(3, 0)], path);
-    }
-
-    // ---- The pity map ----
-
-    [Fact]
-    public void ToAStrangerThePityMapIsTheOnlyOfferAtItsFlatPrice()
-    {
-        var rules = Shipped();
-        var pity = Camp(2, -1, TraderTypes.Prospector);
-        var (offers, why) = CampLeads.Pick(rules, Own, Line(), new LeadBuyer { Pity = pity });
-        Assert.Equal(CampLeadsWhy.None, why);
-        var only = Assert.Single(offers);
-        Assert.True(only.Pity);
-        Assert.True(only.Prospector);
-        Assert.Equal(new CellKey(2, -1), only.Cell);
-        Assert.Equal(2, only.Ring);
-        Assert.Equal(10, only.Price);
-        // Whatever the count bought here.
-        Assert.Equal(10, CampLeads.Pick(rules, Own, Line(), new LeadBuyer { Pity = pity, Bought = 9 }).Offers.Single().Price);
-    }
-
-    [Fact]
-    public void FromKnownUpThePityMapComesFirstAndTheTiersOffersFollow()
-    {
-        var rules = Shipped();
-        var pity = Camp(1, 1, TraderTypes.Prospector);
-        var camps = Line();
-        camps.Add(pity);
-        var (offers, _) = CampLeads.Pick(rules, Own, camps, new LeadBuyer { Tier = "known", Pity = pity });
-        Assert.True(offers[0].Pity);
-        Assert.Equal(10, offers[0].Price);
-        // The pity's camp is not offered again below it; the tier's two follow.
-        Assert.Equal([new CellKey(1, 1), new CellKey(1, 0), new CellKey(-1, 0)], Cells(offers));
-        Assert.All(offers.Skip(1), o => Assert.False(o.Pity));
-    }
-
-    [Fact]
-    public void AFallbackPityMapToAnotherTypeSaysSo()
-    {
-        var (offers, _) = CampLeads.Pick(Shipped(), Own, Line(), new LeadBuyer { Pity = Camp(-1, -1, TraderTypes.Cook) });
-        var only = Assert.Single(offers);
-        Assert.True(only.Pity);
-        Assert.False(only.Prospector);
-    }
-
-    /// <summary>A grid of cells for <see cref="PityMap.Target"/>: which cells are seeded prospectors,
-    /// which can take no camp, and every cell's site at its centre.</summary>
-    private static CampOption? Target(HashSet<CellKey> prospectors, HashSet<CellKey> noCamp, HashSet<CellKey>? have = null, int reach = 10) =>
-        PityMap.Target(Own, reach, prospectors.Contains,
-            c => noCamp.Contains(c) ? null : Camp(c.X, c.Z, prospectors.Contains(c) ? TraderTypes.Prospector : TraderTypes.Smith),
-            have ?? new HashSet<CellKey>());
-
-    [Fact]
-    public void ThePityMapLeadsToTheNearestSeededProspectorCell()
-    {
-        var prospectors = new HashSet<CellKey> { new(2, 1), new(-1, 1), new(4, 4) };
-        var t = Target(prospectors, []);
-        Assert.Equal(new CellKey(-1, 1), t!.Value.Cell);
-        Assert.Equal(TraderTypes.Prospector, t.Value.Type);
-        Assert.Equal(1, t.Value.Ring);
-    }
-
-    [Fact]
-    public void ACellThatCanTakeNoCampPassesThePityMapToTheNextNearestProspector()
-    {
-        var prospectors = new HashSet<CellKey> { new(-1, 1), new(2, 1), new(-2, -2), new(4, 4) };
-        // Ring 1's prospector failed: ring 2's nearest (2,1) at √5 cells before (-2,-2) at √8.
-        Assert.Equal(new CellKey(2, 1), Target(prospectors, [new(-1, 1)])!.Value.Cell);
-        Assert.Equal(new CellKey(-2, -2), Target(prospectors, [new(-1, 1), new(2, 1)])!.Value.Cell);
-        Assert.Equal(new CellKey(4, 4), Target(prospectors, [new(-1, 1), new(2, 1), new(-2, -2)])!.Value.Cell);
-        // One the buyer has is passed over too.
-        Assert.Equal(new CellKey(2, 1), Target(prospectors, [], have: [new(-1, 1)])!.Value.Cell);
-    }
-
-    [Fact]
-    public void ThePityMapSearchesOutToRingTenThenTakesTheNearestCampOfAnyType()
-    {
-        var far = new HashSet<CellKey> { new(10, -3) };
-        Assert.Equal(new CellKey(10, -3), Target(far, [])!.Value.Cell);
-        // Beyond ring 10 a prospector does not count: the nearest camp of any type in reach.
-        var beyond = new HashSet<CellKey> { new(11, 0) };
-        var any = Target(beyond, [new(1, 0), new(-1, 0), new(0, 1), new(0, -1)])!.Value;
-        Assert.Equal(1, any.Ring);
-        Assert.Equal(TraderTypes.Smith, any.Type);
-        // Every prospector in reach failed: the nearest of any type, never a type changed.
-        var failed = new HashSet<CellKey> { new(1, 1), new(-2, 0) };
-        var fallback = Target(failed, failed)!.Value;
-        Assert.Equal(TraderTypes.Smith, fallback.Type);
-        Assert.Equal(1, fallback.Ring);
-        Assert.DoesNotContain(fallback.Cell, failed);
-        // Nothing at all can take a camp: no pity map.
-        var none = CampLeads.CellsAround(Own, 3).ToHashSet();
-        Assert.Null(Target([new(2, 2)], none, reach: 3));
-    }
-
-    [Fact]
-    public void ThePityMapNeverLeadsToTheTradersOwnCell()
-    {
-        var t = Target([Own, new(0, 2)], []);
-        Assert.Equal(new CellKey(0, 2), t!.Value.Cell);
     }
 }

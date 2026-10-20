@@ -75,7 +75,7 @@ public class LeadBookTests
         var book = new LeadBook();
         book.RecordBought(LeadBook.KeysOf("u1", 7), Trader, asStranger: true);
         book.RecordVisit(LeadBook.KeysOf("u1", null), "camp:3,3");
-        book.RecordPity("u1");
+        book.RecordSpawnMark("u1");
         string json = book.ToJson();
         Assert.Contains("\"version\":2", json);
         var back = LeadBook.FromJson(json, out var problem);
@@ -83,8 +83,8 @@ public class LeadBookTests
         Assert.Equal(1, back.Bought(LeadBook.KeysOf("u1", 7), Trader));
         Assert.True(back.StrangerUsed(LeadBook.KeysOf("u1", null), Trader));
         Assert.Contains("camp:3,3", back.Visited(LeadBook.KeysOf("u1", null)));
-        Assert.True(back.PityUsed("u1"));
-        Assert.False(back.PityUsed("u2"));
+        Assert.True(back.SpawnMarkGiven("u1"));
+        Assert.False(back.SpawnMarkGiven("u2"));
 
         Assert.Empty(LeadBook.FromJson(null, out problem).Groups);
         Assert.Null(problem);
@@ -94,23 +94,7 @@ public class LeadBookTests
     }
 
     [Fact]
-    public void ThePityMapIsEachPlayersOwnNotTheCompanys()
-    {
-        var book = new LeadBook();
-        Assert.False(book.PityUsed("u1"));
-        book.RecordPity("u1");
-        Assert.True(book.PityUsed("u1"));
-        // u1 bought it in company 7; u2 joining the company still has theirs.
-        book.RecordBought(LeadBook.KeysOf("u1", 7), Trader, asStranger: true);
-        Assert.False(book.PityUsed("u2"));
-        Assert.False(book.Groups["company:7"].PityMap);
-        // The company's count and stranger map are pooled as ever.
-        Assert.Equal(1, book.Bought(LeadBook.KeysOf("u2", 7), Trader));
-        Assert.True(book.StrangerUsed(LeadBook.KeysOf("u2", 7), Trader));
-    }
-
-    [Fact]
-    public void AVersionOneBookMigratesWithEveryPlayerYetToHaveTheirFirstMap()
+    public void AVersionOneBookMigratesAsItWas()
     {
         const string v1 = "{\"version\":1,\"groups\":{"
                           + "\"player:u1\":{\"bought\":{\"camp:1,2\":3},\"strangerMaps\":[\"camp:1,2\"],\"visited\":[\"camp:3,3\"]},"
@@ -119,12 +103,36 @@ public class LeadBookTests
         Assert.Null(problem);
         Assert.Equal(LeadBook.Version, book.SavedVersion);
         Assert.Equal(2, LeadBook.Version);
-        Assert.False(book.PityUsed("u1"));
-        Assert.All(book.Groups.Values, g => Assert.False(g.PityMap));
-        // The rest reads as it was.
+        Assert.False(book.SpawnMarkGiven("u1"));
         Assert.Equal(4, book.Bought(LeadBook.KeysOf("u1", 7), Trader));
         Assert.True(book.StrangerUsed(LeadBook.KeysOf("u1", null), Trader));
         Assert.Contains("camp:3,3", book.Visited(LeadBook.KeysOf("u1", null)));
         Assert.Contains("\"version\":2", book.ToJson());
+    }
+
+    [Fact]
+    public void TheSpawnMarkIsThePlayersOwnAndABookFromBeforeItLoadsWithoutIt()
+    {
+        var book = new LeadBook();
+        Assert.False(book.SpawnMarkGiven("u1"));
+        book.RecordBought(LeadBook.KeysOf("u1", 7), Trader, asStranger: false);
+        book.RecordSpawnMark("u1");
+        Assert.True(book.SpawnMarkGiven("u1"));
+        // On their own key only: a company member has their own.
+        Assert.False(book.Groups["company:7"].SpawnMarked);
+        Assert.False(book.SpawnMarkGiven("u2"));
+        var back = LeadBook.FromJson(book.ToJson(), out var problem);
+        Assert.Null(problem);
+        Assert.True(back.SpawnMarkGiven("u1"));
+        Assert.Contains("\"spawnMark\":true", book.ToJson());
+
+        // Saved before the flag (version 2, no key, the pity map's flag still in it): nobody has had
+        // it, the pity map's flag is dropped, the rest reads as it was.
+        const string before = "{\"version\":2,\"groups\":{\"player:u1\":{\"bought\":{\"camp:1,2\":3},\"strangerMaps\":[],\"visited\":[],\"pityMap\":true}}}";
+        var old = LeadBook.FromJson(before, out problem);
+        Assert.Null(problem);
+        Assert.False(old.SpawnMarkGiven("u1"));
+        Assert.DoesNotContain("pityMap", old.ToJson());
+        Assert.Equal(3, old.Bought(LeadBook.KeysOf("u1", null), Trader));
     }
 }

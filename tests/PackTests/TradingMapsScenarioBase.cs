@@ -148,34 +148,44 @@ public abstract class TradingMapsScenarioBase(ITestOutputHelper testOutput) : At
     {
         var view = Maps.CampLeadsFor(player, trader) ?? throw new Xunit.Sdk.XunitException("no camp leads (maps or the grid off)");
         output.WriteLine($"{player.PlayerName} at {view.TraderId} as {view.Buyer.Tier} ({view.Buyer.Bought} bought, reach {view.Reach},"
-                         + $" first map {(view.PityUsed ? "had" : "not yet")}, {view.Why}): "
-                         + string.Join(", ", view.Offers.Select(o => $"{(o.Pity ? "first map " : "")}{o.Cell} ring {o.Ring} {o.Type} {o.Distance:0} m {o.Price} g{(o.Prospector ? " *" : "")}")));
+                         + $" {view.Why}): "
+                         + string.Join(", ", view.Offers.Select(o => $"{o.Cell} ring {o.Ring} {o.Type} {o.Distance:0} m {o.Price} g{(o.Prospector ? " *" : "")}")));
         return view;
     }
-
-    protected static List<CampLeadOffer> Plain(MapsSystem.CampLeadView view) => view.Offers.Where(o => !o.Pity).ToList();
 
     protected TradeResult BuyLead(IServerPlayer player, EntitySeraphTrader trader, CampLeadOffer offer)
     {
         var result = TradeWindowSystem.Of(Api)!.Handle(player, trader,
-            new TradeRequest { Action = TradeAction.BuyLead, Code = offer.Pity ? MapsSystem.PityCode : offer.Cell.ToString(), Price = offer.Price });
-        output.WriteLine($"buy {(offer.Pity ? "first map" : "lead")} to {offer.Cell}: {(result.Ok ? "ok" : "refused")} {result.Key} {string.Join(",", result.Args)}");
+            new TradeRequest { Action = TradeAction.BuyLead, Code = offer.Cell.ToString(), Price = offer.Price });
+        output.WriteLine($"buy lead to {offer.Cell}: {(result.Ok ? "ok" : "refused")} {result.Key} {string.Join(",", result.Args)}");
         return result;
     }
 
     protected static bool LeadTo(ItemStack stack, Mod.Trading.Core.CellKey cell) =>
         ItemTraderLead.IsDrawn(stack) && stack.Attributes.GetString(MapOfferAttrs.Cell) == cell.ToString();
 
-    /// <summary>Waits for the player's first map to be drawn (to its offer's cell, or the next its
-    /// chain settled); returns its slot and cell.</summary>
-    protected async Task<(ItemSlot Slot, Mod.Trading.Core.CellKey Cell)> DrawnPity(IServerPlayer player, EntitySeraphTrader? trader = null)
+    /// <summary>
+    /// Buys the lead <paramref name="pick"/> chooses from the trader's offers to the player, until one
+    /// is drawn: a cell that places no camp refunds the gears and is skipped from then on, so the
+    /// next offer takes its place.
+    /// Returns the drawn lead's slot, its cell and the price paid; the player is the trader's
+    /// trading player again after.
+    /// </summary>
+    protected async Task<(ItemSlot Slot, Mod.Trading.Core.CellKey Cell, int Price)> BuyDrawn(IServerPlayer player, EntitySeraphTrader trader,
+        System.Func<MapsSystem.CampLeadView, CampLeadOffer> pick, int tries = 6)
     {
-        static bool Drawn(ItemStack s) => ItemTraderLead.IsDrawn(s) && !string.IsNullOrEmpty(s.Attributes.GetString(MapOfferAttrs.Cell));
-        await World.Until(() => Holding(player, ItemTraderLead.LeadCode, Drawn) != null, 600_000);
-        var slot = Holding(player, ItemTraderLead.LeadCode, Drawn)!;
-        Assert.True(Mod.Trading.Core.CellKey.TryParse(slot.Itemstack.Attributes.GetString(MapOfferAttrs.Cell), out var cell));
-        if (trader != null) await BackAt(trader, player);
-        return (slot, cell);
+        for (int i = 0; i < tries; i++)
+        {
+            var offer = pick(LeadsAt(player, trader));
+            int gears = InventoryTrader.GetPlayerAssets(player.Entity);
+            Assert.True(BuyLead(player, trader, offer).Ok);
+            await World.Until(() => Holding(player, ItemTraderLead.LeadCode, s => LeadTo(s, offer.Cell)) != null
+                                    || InventoryTrader.GetPlayerAssets(player.Entity) == gears, 600_000);
+            await BackAt(trader, player);
+            if (Holding(player, ItemTraderLead.LeadCode, s => LeadTo(s, offer.Cell)) is { } slot) return (slot, offer.Cell, offer.Price);
+            output.WriteLine($"{offer.Cell} placed no camp: refunded, and skipped from now on");
+        }
+        throw new Xunit.Sdk.XunitException($"no lead drawn in {tries} tries");
     }
 
     /// <summary>Waits for the lead to the cell to be drawn; with <paramref name="trader"/>, the player

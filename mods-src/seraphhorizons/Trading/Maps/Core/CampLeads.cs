@@ -15,14 +15,6 @@ public sealed class CampLeadTier
     public double Discount { get; set; } = 1;
 }
 
-/// <summary>A player's very first map (the "pity map"): a flat price, to the nearest prospector
-/// within <see cref="Reach"/> rings, else the nearest camp of any type there.</summary>
-public sealed class PityMapRules
-{
-    public double Price { get; set; } = 10;
-    public int Reach { get; set; } = 10;
-}
-
 /// <summary>
 /// The <c>campLeads</c> part of <c>config/trading/map-prices.json</c>: leads to other trader camps
 /// (the user's goal: "you can always buy a map to a trader within some radius that you don't
@@ -43,8 +35,6 @@ public sealed class CampLeadRules
     public double DistanceCurve { get; set; } = 1.5;
     /// <summary>The repeat curve's strength: R = 1 + this × ease × ln(1 + leads bought here).</summary>
     public double RepeatCurve { get; set; } = 3;
-    /// <summary>A player's very first map.</summary>
-    public PityMapRules Pity { get; set; } = new();
     /// <summary>By tier code, the stranger's included. A tier not listed gets the stranger's rule.</summary>
     public Dictionary<string, CampLeadTier> Tiers { get; set; } = new();
 
@@ -76,16 +66,12 @@ public sealed class CampLeadRules
         return gears >= int.MaxValue ? int.MaxValue : MapPriceTable.Round(gears);
     }
 
-    public int PityPrice() => MapPriceTable.Round(Pity.Price);
-
     public List<string> Problems()
     {
         var problems = new List<string>();
         if (Base <= 0) problems.Add("campLeads.base is 0 or less");
         if (DistanceCurve < 0) problems.Add("campLeads.distanceCurve is under 0");
         if (RepeatCurve < 0) problems.Add("campLeads.repeatCurve is under 0");
-        if (Pity.Price <= 0) problems.Add("campLeads.pity.price is 0 or less");
-        if (Pity.Reach < 1) problems.Add("campLeads.pity.reach is under 1 ring");
         if (!Tiers.ContainsKey(Stranger)) problems.Add($"campLeads has no '{Stranger}' tier");
         foreach (var (code, t) in Tiers)
         {
@@ -102,10 +88,9 @@ public sealed class CampLeadRules
 /// camp, or the spot it waits for), the ring of its cell around the trader's and the distance.</summary>
 public readonly record struct CampOption(CellKey Cell, string Type, int X, int Z, int Ring, double Distance);
 
-/// <summary>A lead on offer to one buyer: the camp, its ring and distance, its price, whether it is
-/// the prospector the first slot is kept for, and whether it is the buyer's very first map (the
-/// pity map: a flat price, its camp settled by the nearest-prospector chain when bought).</summary>
-public readonly record struct CampLeadOffer(CellKey Cell, string Type, int X, int Z, int Ring, double Distance, int Price, bool Prospector, bool Pity = false);
+/// <summary>A lead on offer to one buyer: the camp, its ring and distance, its price, and whether it
+/// is the prospector the first slot is kept for.</summary>
+public readonly record struct CampLeadOffer(CellKey Cell, string Type, int X, int Z, int Ring, double Distance, int Price, bool Prospector);
 
 /// <summary>Why a buyer has no camp lead on offer.</summary>
 public enum CampLeadsWhy
@@ -131,18 +116,12 @@ public sealed class LeadBuyer
     public int Bought { get; init; }
     /// <summary>Whether their group has had its stranger's map from this trader.</summary>
     public bool StrangerUsed { get; init; }
-    /// <summary>Their very first map's camp, when this trader offers it to them (<see cref="PityMap"/>);
-    /// null when they have had it, the trader is a prospector, or no camp is in its reach.</summary>
-    public CampOption? Pity { get; init; }
 }
 
 /// <summary>
 /// Which camp leads a trader offers one buyer, and at what price. Distances are rings of grid cells
 /// (<see cref="Ring"/>): ring 1 is the eight cells around the trader's own.
 /// <list type="bullet">
-/// <item>The pity map (<see cref="LeadBuyer.Pity"/>) first, at its flat price, at any standing (a
-/// stranger's too, even one whose group has had its stranger's map here). It is that trader's one
-/// stranger map: to a stranger it is the only offer.</item>
 /// <item>From "known" up: the tier's number of the nearest camps within its reach that the buyer
 /// lacks (<see cref="LeadBuyer.Have"/>); if no prospector they have is within the reach, the first
 /// slot is the nearest prospector they lack there. Buying one makes it theirs, so the next-nearest
@@ -171,16 +150,6 @@ public static class CampLeads
             new(c.Cell, c.Type, c.X, c.Z, c.Ring, c.Distance, rules.Price(c.Ring, buyer.Bought, buyer.Tier), prospector);
         bool stranger = rules.IsStranger(buyer.Tier);
         var taken = new HashSet<CellKey>();
-        // The pity map is offered at any standing, a stranger's included, even when their group has
-        // had its stranger's map here: it is the player's own, not the group's.
-        if (buyer.Pity is { } pity && pity.Cell != own)
-        {
-            offers.Add(new CampLeadOffer(pity.Cell, pity.Type, pity.X, pity.Z, pity.Ring, pity.Distance, rules.PityPrice(),
-                pity.Type == TraderTypes.Prospector, Pity: true));
-            // A stranger's one map from this trader.
-            if (stranger) return (offers, CampLeadsWhy.None);
-            taken.Add(pity.Cell);
-        }
         if (stranger && buyer.StrangerUsed) return (offers, CampLeadsWhy.StrangerUsed);
         if (stranger)
         {
@@ -189,7 +158,7 @@ public static class CampLeads
             offers.Add(Offer(first, false));
             return (offers, CampLeadsWhy.None);
         }
-        int max = tier.Maps + offers.Count;
+        int max = tier.Maps;
         var inReach = sorted.Where(c => c.Ring <= tier.Reach).ToList();
         var lacking = inReach.Where(c => !buyer.Have.Contains(c.Cell) && !taken.Contains(c.Cell)).ToList();
         bool hasProspector = inReach.Any(c => c.Type == TraderTypes.Prospector && buyer.Have.Contains(c.Cell));
@@ -237,38 +206,4 @@ public static class CampLeads
     }
 
     public static double Distance(int ax, int az, double bx, double bz) => Math.Sqrt((ax - bx) * (ax - bx) + (az - bz) * (az - bz));
-}
-
-/// <summary>
-/// A player's very first map (the pity map): its camp is the nearest seeded prospector cell to the
-/// selling trader that can still take a camp (or has one) and the buyer lacks, ring by ring out to
-/// the pity's reach; with none there, the nearest camp of any type that exists or can be placed. A
-/// cell's seeded type is never changed: the search only picks among the cells as seeded.
-/// </summary>
-public static class PityMap
-{
-    /// <param name="own">The selling trader's cell (never a target).</param>
-    /// <param name="isProspector">Whether a cell is seeded a prospector (<c>TraderGrid.IsProspector</c>).</param>
-    /// <param name="site">A cell's camp as the picker sees it (placed, or the spot it waits for), or
-    /// null if it can take none (every spot missed, open without luck, failed, or a sale found none).</param>
-    /// <param name="have">The camps the buyer has.</param>
-    public static CampOption? Target(CellKey own, int reach, Func<CellKey, bool> isProspector, Func<CellKey, CampOption?> site, ISet<CellKey> have) =>
-        Nearest(own, reach, isProspector, site, have) ?? Nearest(own, reach, _ => true, site, have);
-
-    private static CampOption? Nearest(CellKey own, int reach, Func<CellKey, bool> filter, Func<CellKey, CampOption?> site, ISet<CellKey> have)
-    {
-        for (int r = 1; r <= reach; r++)
-        {
-            CampOption? best = null;
-            foreach (var cell in CampLeads.RingCells(own, r))
-            {
-                if (!filter(cell) || have.Contains(cell) || site(cell) is not { } s) continue;
-                if (best is not { } b || s.Distance < b.Distance
-                    || (s.Distance == b.Distance && (s.Cell.X, s.Cell.Z).CompareTo((b.Cell.X, b.Cell.Z)) < 0))
-                    best = s;
-            }
-            if (best != null) return best;
-        }
-        return null;
-    }
 }

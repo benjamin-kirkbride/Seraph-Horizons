@@ -316,8 +316,8 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     {
         int gears = InventoryTrader.GetPlayerAssets(capi.World.Player.Entity);
         var rows = new List<(OfferRow Row, string Key, int Id)>();
-        // Camp leads: this player's own, off the shelf; the first map first, then the shelf's leads.
-        foreach (var (row, i) in _state.LeadOffers.Select((row, i) => (row, i)).OrderBy(p => p.row.Pity ? 0 : 1))
+        // Camp leads: this player's own, off the shelf; then the shelf's leads.
+        foreach (var (row, i) in _state.LeadOffers.Select((row, i) => (row, i)))
             rows.Add((TradeWindowModel.CampLeadRow(row), "lead-" + i, i));
         foreach (int id in MapIds()) rows.Add((MapRow(id), "buymap-" + id, id));
 
@@ -481,7 +481,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (key.StartsWith("buymap-", StringComparison.Ordinal)) return () => BuyMap(id);
         if (key.StartsWith("lead-", StringComparison.Ordinal) && _state.LeadOffers.ElementAtOrDefault(id) is { } lead)
         {
-            string cell = lead.Pity ? MapsSystem.PityCode : lead.Cell;
+            string cell = lead.Cell;
             int price = lead.Price;
             return () => RequestLead(cell, price);
         }
