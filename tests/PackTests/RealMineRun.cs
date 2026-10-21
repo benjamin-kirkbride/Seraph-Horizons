@@ -140,6 +140,7 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
             return string.Join(", ", parts.Where(s => !s.StartsWith("nav") && !s.EndsWith(" -")).Select(s => s.Split(" at PathCell")[0]));
         }
         double? reportedAt = null;
+        Dictionary<MarkPos, string>? atReport = null;
         // a job that stops: none breaks a block for this long (game time) while the job runs
         double lastBreak = start;
         string? stuck = null;
@@ -218,7 +219,13 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
                     longest[i] = (now - idleSince[i]!.Value, now - start, string.Join("; ", gap[i].TakeLast(12)));
             }
             if (reportedAt == null && orders.Any(o => o.Reported != null))
+            {
                 reportedAt = now;
+                // the area as the report counted it: what comes into it after (a vine growing down onto the dug floor)
+                // is no work left undone
+                atReport = Cells(area).Where(c => blocks.GetBlock(c) is { Id: not 0 } b && !b.IsLiquid())
+                    .ToDictionary(c => new MarkPos(c.X, c.Y, c.Z), c => blocks.GetBlock(c).Code.ToShortString());
+            }
             if (orders.Sum(o => o.Mined) != lastMined)
                 (lastMined, lastBreak) = (orders.Sum(o => o.Mined), now);
             else if (reportedAt == null && now - lastBreak > StuckSeconds)
@@ -279,7 +286,7 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
             if (!ended && stuck == null)
                 faults.Add($"the job had not ended after {seconds:0} s ({maxTicks} ticks)");
             else
-                Finished(area, reader, step, job!, orders, toMine, total, report, faults);
+                Finished(area, reader, step, job!, orders, atReport, total, report, faults);
         }
         else if (ended)
             faults.Add($"the job ended at {seconds:0} s, before its {minutes} minutes: {report}");
@@ -290,8 +297,8 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
     }
 
     // Done means done: the world scanned after the job, against what it keeps and what it reported.
-    private void Finished(MarkArea area, GameMineWorld reader, int step, SharedJob<MineJobCells> job, MineOrder[] orders, List<BlockPos> toMine,
-        int total, string? report, List<string> faults)
+    private void Finished(MarkArea area, GameMineWorld reader, int step, SharedJob<MineJobCells> job, MineOrder[] orders,
+        Dictionary<MarkPos, string>? atReport, int total, string? report, List<string> faults)
     {
         var blocks = W.BlockAccessor;
         var shared = job.Shared;
@@ -299,12 +306,18 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
         var kept = orders[0].Kept;
         int left = 0, unreachable = 0, held = 0, wayOut = 0;
         var stillOut = new List<MarkPos>();
+        var since = new List<string>();
         foreach (var c in Cells(area))
         {
             var block = blocks.GetBlock(c);
             if (block.Id == 0 || block.IsLiquid())
                 continue;
             var cell = new MarkPos(c.X, c.Y, c.Z);
+            if (atReport != null && !atReport.ContainsKey(cell))
+            {
+                since.Add($"({c.X},{c.Y},{c.Z}) {block.Code.ToShortString()}");
+                continue;
+            }
             if (shared.Stair.Contains(cell))
                 wayOut++;
             else if (plan.OutOfReach.Contains(cell))
@@ -322,7 +335,9 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
         var site = new MineSite(area, step, shared.Live?.Site.Window);
         foreach (var _ in site.Load(reader)) { }
         var now = EidolonMining.Targets(area, site, shared.Skip.Contains, plan.OutOfReach);
-        var notDone = now.Dig.Where(c => !kept.Contains(c)).ToList();
+        var notDone = now.Dig.Where(c => !kept.Contains(c) && atReport?.ContainsKey(c) != false).ToList();
+        if (since.Count > 0)
+            log($"{since.Count} in the area since the report, none counted: {string.Join(" ", since)}");
         log($"after: {left} left as they were ({now.Left.Count} of those it leaves or held up under one), {unreachable} out of reach, {held} kept under those, "
             + $"{wayOut} way out; {notDone.Count} it would dig still standing");
         if (notDone.Count > 0)
