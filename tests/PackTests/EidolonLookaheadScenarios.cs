@@ -32,9 +32,9 @@ namespace SeraphHorizons.PackTests;
 public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     /// <summary>How much later than today's baseline a crew by routes may finish here: set from the most any
-    /// run has come to over its baseline, with room, not from the mean (#1000). On the virtual clock a case
-    /// repeats closely but not exactly (the engine's physics and chunk threads are not on it, and a CI runner
-    /// is slower and busier than a desk), and the routes' tail is long: the pit of three by routes is bimodal,
+    /// run has come to over its baseline, with room, not from the mean (#1000). The virtual clock now plays each case
+    /// alike every run (tests/PackTests/README.md, *Every run alike*), but a seed is one outcome of many and the
+    /// routes' tail is long: the pit of three by routes is bimodal,
     /// most runs 129 to 143 s and a few 175 to 177 s locally (a member's walks stopped short and waiting
     /// behind another), and 194.6 s once in CI, 21 % over its baseline, which failed the 20 % this was. So
     /// this catches only a crew gone wrong, not that spread; the makespan held strictly to today's ("no worse
