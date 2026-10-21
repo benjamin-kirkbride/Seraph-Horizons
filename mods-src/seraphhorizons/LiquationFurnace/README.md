@@ -242,6 +242,9 @@ gameplay's state.
 | The cap (`outletcap`) | fitted on every furnace in a row but the one carrying the chimney | closes the outlet |
 | The draught (no part) | the chimney on the outlet, natural draught only | the fire's: in at the ash mouth, up through the grate, under the plate to its high end, into the throat; the chamber's: in at the opening, over the plate, under the hanging wall into the throat; both up the stack |
 
+**Particles.** Lit, the fired machines' flames at `fireDoor` and the row's chimney smoke. While the charge sweats
+(`tinrun`), the tin drips off the `spout` into the pot in its own colour, not glowing.
+
 ### Regenerating
 
 ```sh
