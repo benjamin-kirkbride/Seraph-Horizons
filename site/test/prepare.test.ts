@@ -454,6 +454,37 @@ describe("entities, from the item sources that name them", () => {
   });
 });
 
+describe("the pack's own traders", () => {
+  // As PackTradeSources.cs writes them: one variant per type stands for its six.
+  const exp = exportWith(["game:firewood", "seraphhorizons:schematic-sawmill"], []);
+  const pack = (extra: Record<string, unknown>) => ({
+    from: "seraphhorizons:trader-male-carpenter-temperate",
+    fromName: "Carpenter",
+    extra: { entityType: "seraphhorizons:trader-carpenter", traderType: "carpenter", ...extra },
+  });
+  exp.items["game:firewood"]!.sources = [
+    { type: "traderSells", ...pack({ list: "core", priceMin: 3, priceMax: 6 }), quantity: { avg: 16 }, price: 4 },
+  ];
+  exp.items["seraphhorizons:schematic-sawmill"]!.sources = [
+    { type: "traderSells", ...pack({ catalog: "schematics", priceMin: 60, priceMax: 60, standingTier: 2, standingTierName: "regular" }), quantity: { avg: 1 }, price: 60 },
+  ];
+  const { files } = prepareData(exp);
+  const index = files.get("entities.json") as EntityIndex;
+
+  it("are one entity per trader type, named for it, with every trade", () => {
+    expect(index.codes).toEqual(["seraphhorizons:trader-carpenter"]);
+    expect(index.names).toEqual(["Carpenter"]);
+    expect(index.trades).toEqual([2]);
+    const chunk = [...files.entries()].find(([p]) => p.startsWith("entities/"))![1] as EntityChunk;
+    const [variant] = chunk.entities[0]!;
+    expect(variant!.code).toBe("seraphhorizons:trader-male-carpenter-temperate");
+    expect(variant!.sources.map((s) => s.extra)).toEqual([
+      { traderType: "carpenter", list: "core", priceMin: 3, priceMax: 6 },
+      { traderType: "carpenter", catalog: "schematics", priceMin: 60, priceMax: 60, standingTier: 2, standingTierName: "regular" },
+    ]);
+  });
+});
+
 describe("ModDB asset ids", () => {
   it("reads them from a lock, and nothing from an old or broken one", () => {
     const lock = { lockVersion: 1, mods: [{ id: "examplemod", assetId: 42 }, { id: "old" }, { id: "bad", assetId: "7" }, null] };

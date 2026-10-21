@@ -14,15 +14,7 @@
 			{"code": "coke", "stacksize": 8, "stock": {"avg": 8, "var": 2}},
 			{"code": "ore-bituminouscoal", "stacksize": 8, "stock": {"avg": 10, "var": 3}},
 			{"code": "ingot-copper", "stacksize": 1, "stock": {"avg": 6, "var": 2}, "playerSupplied": true},
-			{"code": "ingot-iron", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "playerSupplied": true},
-			{"code": "betterruins:br-schematic-mechanical", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 26, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-pipes", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 24, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-jonaspart", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 28, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-jonasassembly", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 32, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-gaslamp", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 22, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-jonaslamp", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 24, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "seraphhorizons:schematic-gearbox", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 45, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-centeredspurgear", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 35, "priceReason": "schematic: a hand-set gate", "standingTier": 2}
+			{"code": "ingot-iron", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "playerSupplied": true}
 		],
 		"rotating": { "maxItems": 9,
 			"list": [

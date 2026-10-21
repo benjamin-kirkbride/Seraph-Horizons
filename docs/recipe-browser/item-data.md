@@ -157,12 +157,60 @@ storage or an `itemPile`, and says so on every item page.
 | `other`, note `Panned` | The pan's `panningDrops` table, one source per pannable block and drop. See [Panning](#panning). |
 | `entityDrop` | `EntityProperties.Drops`, and the `drops` array of any server behavior (the vanilla `harvestable` behavior, note `Harvested`; others get note `Behavior <code>`). Mod patches such as Good Hunting's are applied. For creatures the Butchering mod handles, `Harvested` quantities carry its field-harvesting cut, given in `extra.multiplier`; what its hook and table give is in the `butchery` recipes ([exporter.md](exporter.md#butchery-the-butchering-mod)). |
 | `traderSells`, `traderBuys` | The trade list of every entity type that has `tradePropsFile` or `tradeProps`, read the way the game's `TradeHandbookInfo` reads it. `quantity.avg` is the stack size per trade, `price` the average price in gears. `extra.priceVar` and `extra.stock` hold the rest. `extra.replaced` is true for a trader seraphhorizons' trader grid replaces (the codes its server lists in the world config's `seraphhorizons:handbookHiddenTraders`): never met in the pack's worlds and left out of its handbook, so the site leaves it out; the item values still read its prices. |
+| `traderSells`, `traderBuys` (the pack's traders) | The pack's own traders, from the lists its server loaded and the schematic catalog: see [The pack's traders](#the-packs-traders). |
 
 Every `entityDrop`, `traderSells` and `traderBuys` source has `extra.entityType`: the code
 of the entity type file it is a variant of, which is the entity's code without the states
 of its variant groups (`EntityProperties.Variant`). `game:wolf-eurasian-adult-male` is a
 `game:wolf`; every vanilla trader is a `game:trader`. The site shows a type's variants on
 one page.
+
+#### The pack's traders
+
+seraphhorizons' traders (`seraphhorizons:trader-{gender}-{type}-{climate}`, the visitors
+`visitor-...` and the treasure hunter) have no vanilla-format list, so the reader above does
+not see them. `Items/PackTradeSources.cs` reads what the mod loaded instead, by reflection
+(`TradingSystem.Lists`, after the switched-off features' entries are taken out), and prices
+each entry with the mod's own `Pricing.ListBase` and `Pricing.Listed`:
+
+```json
+{ "type": "traderSells", "from": "seraphhorizons:trader-male-carpenter-temperate", "fromName": "Carpenter",
+  "quantity": { "avg": 32 }, "price": 12,
+  "extra": { "entityType": "seraphhorizons:trader-carpenter", "traderType": "carpenter", "list": "rotating",
+             "priceMin": 2, "priceMax": 15, "stock": { "avg": 4, "var": 1 } } }
+```
+
+- **One entity per type.** Every variant of a type stocks from the same list, so `from` is
+  one of them (temperate and male where there is one), `extra.entityType` is
+  `seraphhorizons:trader-{type}` (or `visitor-{type}`) and `fromName` the type's name: the
+  site shows one page per type ("Carpenter") with no variant chips.
+- **Price.** `price` is what a stranger pays (or is paid) on an average roll in a region
+  with no glut: the item value table's value × the stack × `list-prices.json`'s `sell` or
+  `buy` factor, or the entry's override. `extra.priceMin` and `extra.priceMax` are the whole
+  span: the list's roll either way (none for an override), regional supply down to the
+  price curve's floor (with RegionalSupply on) and the buy or sell price factor of every
+  standing tier that sees the entry (with TraderStanding on). A buying entry worth under a
+  gear a stack is bought by a bigger unit, as in the game: `quantity.avg` is that unit and
+  the prices are per it.
+- **Where it is.** `extra.list` is `core` or `rotating`; `extra.region` the climate band or
+  rock group key of a regional table. An entry in the list's own core is listed once, as
+  the game stocks it once.
+- **Gates.** `extra.standingTier` (1 known ... 4 partner) and `extra.standingTierName`
+  (English, lower case) when a tier above stranger is needed; a rare entry (`extra.rare`)
+  needs the first tier with rare stock. With standing off, gated and rare entries are left
+  out (never shelved). A player-supplied selling entry (`extra.playerSupplied`) is shelved
+  only by regional supply and is left out without it.
+- **Left out.** Special entries (`kind`: maps, leads), which the maps system makes up and
+  prices at each restock.
+- **Schematics** come from the catalog, `config/schematic-gates.json` "sales": one
+  `traderSells` per seller with `extra.catalog` `"schematics"`, the sale's flat `price`
+  (min and max alike) and its `tier`. A machine schematic is left out with MachineSchematics
+  off or with its gate's `switch` off; a sale without `price` (lists from before the
+  catalog) takes its seller's list price. A list entry for a code the catalog sells is
+  skipped on both sides, so nothing is counted twice.
+
+`tools/item-values` ignores sources with `extra.traderType` in its trader fallback: these
+prices come from the value table itself.
 
 #### Panning
 

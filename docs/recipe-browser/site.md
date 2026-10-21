@@ -229,6 +229,11 @@ counts them; its page says how many items rot into it and that each one's page s
 Perishing into anything else, wine into vinegar or a bush cutting into sticks, is indexed
 on both sides (`listedOnSourceOnly` in `prepare.ts`).
 
+A grid ingredient the recipe keeps (`extra.consumed` false and no tool: the game's
+`consume: false`, the machines' schematics) has a "K" mark in its slot's corner, opposite a
+tool's "T", and a line under the grid ("kept, not consumed"); the generic card marks its slot
+the same way (`isKept` in `recipe-view.ts`).
+
 A transition card (`TransitionRecipe.svelte`) shows what turns, any station it needs
 (marked "station": the smoking rack, whose page then lists it under "Used in"), and when it
 turns:
@@ -481,6 +486,16 @@ an entity, and each such source becomes a row of that entity, with `from` and `f
 replaced by `item`, the item's index. An entity that gives nothing the export lists is
 therefore missing, and so is what it gives that is not an item of the export.
 
+The pack's own traders are written as one entity per type (`extra.entityType`
+`seraphhorizons:trader-{type}`, one `from`), so each type has one page with no chips. Their
+trades carry `extra.priceMin` and `extra.priceMax` ([item-data.md](item-data.md#the-packs-traders)):
+`site/src/lib/trades.ts` shows the range ("2–15", one number when they agree) in the price
+column, a Notes column with what limits each row (`tradeNotes`: "schematic catalog, flat
+price", "from standing Regular", "cold regions only", "in rotating stock", "rare stock",
+"once players have sold enough in the region"), and under the table a line saying the price
+varies with the roll, standing and regional supply. The merged view widens its range with
+both ends.
+
 A trade marked `extra.replaced` is left out everywhere (`shownSources` in `prepare.ts`), on
 the item's page and as a row of its trader: a trader the pack's trader grid replaces, never
 met in its worlds, which the pack's handbook leaves out too (seraphhorizons README,
@@ -556,6 +571,10 @@ block type (the code up to the first `-` of its path, so `game:richgravel-granit
 `game:richgravel`) into one row. The row names the first block and lists the others under
 "and N more". Block drops are not folded, so flint still has a row for each rock's flint
 ore.
+
+A pack trader's trade shows its range with the unit ("2–15 rusty gears") and its notes in
+the last column, and the table ends with the same line on why prices vary. Two of an item's
+trades at one trader that differ only in `extra` (a region, a catalog) stay two rows.
 
 A source of type `other` with a note the site knows (`Panned`, `Harvested`, in
 `t.sourceNotes`) shows the note as its kind ("Panning", "Harvested") instead of "Other".

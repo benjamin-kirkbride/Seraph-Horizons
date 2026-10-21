@@ -12,16 +12,7 @@
 			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": 1, "priceReason": "priced by the maps system at each restock"},
 			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": 1, "priceReason": "priced by the maps system at each restock"},
 			{"type": "block", "code": "woodenaxle-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}},
-			{"type": "block", "code": "angledgears-s", "stacksize": 2, "stock": {"avg": 4, "var": 1}},
-			{"code": "betterruins:br-schematic-cartwright", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 45, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "betterruins:br-schematic-shipwright", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 55, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "cartwrightscaravan:cartschematics-carts", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 60, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-transmission", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 45, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-helvehammer", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 60, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-pulverizer", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 50, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-buckingmill", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 80, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-rosser", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 80, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-biplane", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 250, "priceReason": "schematic: a hand-set gate", "standingTier": 4}
+			{"type": "block", "code": "angledgears-s", "stacksize": 2, "stock": {"avg": 4, "var": 1}}
 		],
 		"rotating": { "maxItems": 10,
 			"list": [

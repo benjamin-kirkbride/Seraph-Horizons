@@ -16,10 +16,11 @@
     tick,
     data,
     tool = false,
+    kept = false,
     showName = false,
     mark,
     children,
-  }: { stacks: Stack[]; tick: number; data: VersionData; tool?: boolean; showName?: boolean; mark?: string; children?: Snippet } = $props();
+  }: { stacks: Stack[]; tick: number; data: VersionData; tool?: boolean; kept?: boolean; showName?: boolean; mark?: string; children?: Snippet } = $props();
 
   const stack = $derived(cycleAt(stacks, tick));
   const name = $derived(stack ? (stack.name ?? data.nameOf(stack.code)) : "");
@@ -33,7 +34,7 @@
   );
   const amount = $derived(stack ? stackAmount(stack) : "");
   const label = $derived(
-    stack ? [name, amount, tool ? t.tool.toLowerCase() : "", stacks.length > 1 ? `1 of ${stacks.length} accepted` : ""].filter(Boolean).join(", ") : t.nothingMatches,
+    stack ? [name, amount, tool ? t.tool.toLowerCase() : "", kept ? t.keptIngredient : "", stacks.length > 1 ? `1 of ${stacks.length} accepted` : ""].filter(Boolean).join(", ") : t.nothingMatches,
   );
 </script>
 
@@ -54,6 +55,7 @@
       <Icon code={stack.code} label={mark ?? initials} bare />
       {#if amount}<span class="amount" aria-hidden="true">{amount}</span>{/if}
       {#if tool}<span class="toolmark" aria-hidden="true" title={t.tool}>T</span>{/if}
+      {#if kept}<span class="keptmark" aria-hidden="true" title={t.keptIngredient} data-kept>{t.keptMark}</span>{/if}
     </span>
     {#if showName}<span class="name">{name}</span>{/if}
   </a>
@@ -113,6 +115,19 @@
   .toolmark {
     position: absolute;
     left: 1px;
+    top: 1px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 3px;
+    border-radius: 3px;
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+  /* A kept ingredient (not consumed, no tool): a mark like the tool's, in the other corner. */
+  .keptmark {
+    position: absolute;
+    right: 1px;
     top: 1px;
     font-size: 0.65rem;
     font-weight: 700;

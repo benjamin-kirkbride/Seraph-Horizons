@@ -15,8 +15,9 @@ public sealed class NatSpec
 /// <c>stacksize</c>, <c>stock</c>), so an entry turns into the game's TradeItem as it is, but no
 /// price: a listed good is priced from the item value table at every restock
 /// (<see cref="SeraphHorizons.Mod.Trading.Economy.Core.Pricing.ListBase"/>). <c>price</c> is an
-/// override, gears per the entry's stack, that must say why in <c>priceReason</c>: schematics (hand-set
-/// gates) and the special entries the maps system prices. Plus <c>playerSupplied</c>: goods that exist at traders only because players sold them
+/// override, gears per the entry's stack, that must say why in <c>priceReason</c>: the special
+/// entries the maps system prices, and goods with no value of their own (schematics are on no list:
+/// the catalogs of <c>config/schematic-gates.json</c> sell them). Plus <c>playerSupplied</c>: goods that exist at traders only because players sold them
 /// (metal and metal goods, glass and fired goods, leather and fine cloth, machine parts). A
 /// player-supplied entry on the selling side is never stocked from the list; it is shelved only when
 /// the <see cref="ISupplyGate"/> says so, with the stock it gives. On the buying side the flag is
@@ -39,7 +40,7 @@ public sealed class TradeEntry
     public string? PriceReason { get; set; }
     public bool PlayerSupplied { get; set; }
     /// <summary>The buyer's standing tier from which the entry is in the core (#452, #468): 0, the
-    /// default, for everyone. Schematics carry it; their price is the rest of the gate.</summary>
+    /// default, for everyone (the pump head is gated so).</summary>
     public int StandingTier { get; set; }
     /// <summary>Rare stock (#452): shelved only when the trader stocks for a tier whose
     /// <c>rareStock</c> unlock is on (the best recent customer's, as the wallet).</summary>

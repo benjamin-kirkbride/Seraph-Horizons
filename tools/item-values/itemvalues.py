@@ -635,6 +635,9 @@ def trader_value(item: dict, rules: Rules) -> float | None:
     for s in item.get("sources") or []:
         if s.get("type") not in ("traderSells", "traderBuys") or s.get("price") is None:
             continue
+        # The pack's own traders (extra.traderType) price from this very table: not evidence of a value.
+        if (s.get("extra") or {}).get("traderType"):
+            continue
         qty = float((s.get("quantity") or {}).get("avg") or 1)
         factor = float(tf["sells"] if s["type"] == "traderSells" else tf["buys"])
         vals.append(float(s["price"]) / max(qty, 1.0) * factor)
