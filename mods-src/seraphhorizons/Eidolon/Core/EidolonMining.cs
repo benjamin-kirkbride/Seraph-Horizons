@@ -81,6 +81,10 @@ public sealed class MineJobCells
     /// plan is swapped in (the live state built with it shares it).</summary>
     public HashSet<PathCell> BadStands { get; set; } = new();
 
+    /// <summary>How many times a member found a stand bad over the job's life (each one the plan made again;
+    /// <see cref="BadStands"/> forgets one tried again), for the log and the tests.</summary>
+    public int BadStandsFound { get; set; }
+
     /// <summary>The stands a member found no way to with another eidolon by them since the job's last strike,
     /// and how many times each, by any member (README "Eidolon", working together, *When none may work*):
     /// main thread only; one counted often enough is bad all the same.</summary>
