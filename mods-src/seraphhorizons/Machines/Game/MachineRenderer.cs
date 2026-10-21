@@ -98,9 +98,7 @@ public class MachineRenderer : IRenderer
         IStandardShaderProgram? prog = null;
         if (stage == EnumRenderStage.Opaque)
         {
-            // .sh machinelight cell off: the cell above the controller, as the ore machines' renderer once lit them
-            var light = MachineShading.Cell ? _be.CellPos(_lightCell) : _be.Pos.UpCopy();
-            prog = MachineShading.Prepare(_capi, light);
+            prog = MachineShading.Prepare(_capi, _be.CellPos(_lightCell));
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
