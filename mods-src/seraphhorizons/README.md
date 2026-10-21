@@ -7042,18 +7042,16 @@ and its rig, and calls `MachinesSystem.Disable` with its switch off.
   axis) and ψ. A machine may draw its parts in textures of its own (`PartTextures`); the meshes are built
   again when its `TextureKey` changes (the stall roaster's brick type).
 - **Shading** (`Machines/Game/MachineShading.cs`): every machine renderer (the shared one, the rosser's, the
-  mill's and the crucible furnace's) takes its opaque-pass shader from `MachineShading.Prepare`. A diagnostic
-  for machines drawn darker than the blocks around them, with shadow acne flickering on them as they move:
-  the client's `.sh machinelight` shows three switches, `.sh machinelight <shadow|boost|cell> [on|off]` sets or
-  toggles one and `.sh machinelight all|none` all three, each on every machine at once and none saved.
-  `shadow` and `boost` draw the parts with the mod's copy of the game's `standard` shader
-  (`assets/seraphhorizons/shaders/seraphhorizons-machine.*`, from game 1.22.7, its changed lines marked
-  `SH:`): `shadow` takes the smaller of the shadow map and the normal shading, with the chunk shader's floor,
-  where `standard` multiplies them (so faces turned from the sun come out about twice as dark as a block's);
-  `boost` adds the chunk shader's daylight gain (up to about 1.23×), which `standard` lacks. Both off (the
-  default) is the game's `PreparedStandardShader`. `cell` (on by default) lights the shared renderer's parts
-  from the rig's `LightCell`; off, from the cell above the controller, as the ore machines once were. Once
-  it is known which matters, that one is made permanent and the switches go.
+  mill's and the crucible furnace's) takes its opaque-pass shader from `MachineShading.Prepare`, the mod's
+  copy of the game's `standard` shader (`assets/seraphhorizons/shaders/seraphhorizons-machine.*`, from game
+  1.22.7, its changed lines marked `SH:`) shading the parts as the chunk shader shades placed blocks, so they
+  match the blocks around them. It takes the smaller of the shadow map and the normal shading, with the chunk
+  shader's floor, where `standard` multiplies them (so a part in the shadow passes shadows itself: faces turned
+  from the sun about twice as dark as a block's, with shadow acne flickering on them as they move), and adds
+  the chunk shader's daylight gain (up to about 1.23×), which `standard` lacks. Tested in game with a switch
+  for each (#1412), the shadow combine made the big difference and the gain a slight one. If the program fails
+  to compile the game's `PreparedStandardShader` is used, with an error in the log; it is registered again on
+  every shader reload. The shared renderer lights its parts from the rig's `LightCell`, outside the model.
 - **Fire** (`MachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
   is, a firestarter or a torch held 1.5 s on any of its cells (the frame block and the cells are `IIgnitable`);
   it says why not (`CannotIgnite`) and lights (`Ignite`), and a torch is lit from it while it `Burning`.
