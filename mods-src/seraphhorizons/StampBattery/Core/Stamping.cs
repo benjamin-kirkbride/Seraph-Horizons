@@ -94,4 +94,30 @@ public static class Stamping
                 return null;
         }
     }
+
+    // ---- The drops, as the rig draws them (stamps in stampbattery-rig.json) ----
+
+    /// <summary>Axle turns (of its travel) a camshaft turn: the rig's <c>stamps.turnsPerRev</c>.</summary>
+    public const double TurnsPerRev = 2;
+
+    /// <summary>Radians of the camshaft from a stamp's pick-up to its landing on its die: the rig's <c>stamps.landsAt</c>.</summary>
+    public const double LandsAt = 2.093872;
+
+    /// <summary>The stamps in the order they drop, ten drops a camshaft turn a fifth of π apart: the rig's
+    /// <c>stamps.firingOrder</c>.</summary>
+    public static readonly IReadOnlyList<int> FiringOrder = [1, 3, 5, 2, 4];
+
+    /// <summary>The stamp (1 to 5) that landed on its die as the axle's travel went from <paramref name="before"/> to
+    /// <paramref name="now"/> (radians), the last if more than one did; 0, none.</summary>
+    public static int Landed(double before, double now)
+    {
+        double a = DropSlot(before), b = DropSlot(now);
+        if (Math.Floor(a) == Math.Floor(b))
+            return 0;
+        int n = (int)(((long)Math.Floor(Math.Max(a, b)) % 5 + 5) % 5);
+        return FiringOrder[n];
+    }
+
+    // the drops counted from the first stamp's first landing, one a whole number
+    private static double DropSlot(double travel) => (travel / TurnsPerRev - LandsAt) / (Math.PI / 5);
 }
