@@ -33,9 +33,11 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
     private static readonly BlockPos[] Starts = [new(511891, 124, 512236), new(511884, 122, 512233)];
 
     private const double Minutes = 8;
-    /// <summary>What main mined here before the work it guards (the mean of 914, 1037 and 990 blocks, three runs
-    /// of this scenario on main at 6ccd75e, when two took turns at the face), and the share more it must mine.</summary>
-    private const int Before = 980;
+    /// <summary>What main mined here before the work it guards, and the share more it must mine: the mean of 1005,
+    /// 1149, 979, 889, 1046 and 994 blocks, this scenario on main at 6ccd75e (when two took turns at the face) on the
+    /// virtual clock with SH_CLOCK_SEED 1 to 6 (each seed plays the same every run; this branch, the same seeds:
+    /// 1169, 1153, 1147, 1120, 1090, 1225, a mean of 1151). The scenario runs seed 1.</summary>
+    private const int Before = 1010;
     private const double Faster = 1.1;
 
     /// <summary>The longest either may spend at a time neither striking nor walking to its own station (its route's
