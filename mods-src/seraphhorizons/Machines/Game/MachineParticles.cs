@@ -103,24 +103,22 @@ public sealed record Puff(int Count, int Colour, Vec3f MinVelocity, Vec3f MaxVel
 /// strokes this way (<c>MillMotion.StrokesBetween</c>). Spawn once on the edge, with a bigger count than a steady
 /// effect's tick; keep the remembered value updated even while <c>far</c>, so coming near does not fire a stale edge.</item>
 /// </list>
-/// Colours are <see cref="ColorUtil.ToRgba"/> values as the existing particles write them: the machines' metals give
-/// blue before red (the draw bench's copper is <c>ToRgba(a, 70, 120, 190)</c>), so a colour for a particle is
-/// written <see cref="Rgb"/>.
+/// Colours are <see cref="ColorUtil.ToRgba"/>'s <c>(a, r, g, b)</c> as they read: the game's particle pool takes the
+/// low byte as red and writes the bytes back to the vertex reversed, so the two swaps cancel (vanilla's rain is
+/// <c>ToRgba(230, 128, 178, 255)</c>, its burning coal <c>ToRgba(255, 255, 150, 0)</c>). <see cref="Rgb"/> is the same.
+/// A texture's colour (<c>GetRandomColor</c>) is in that order already: vanilla's cube particles spawn it as it is.
 /// </summary>
 public static class MachineParticles
 {
     // ---- Colours ----
 
-    /// <summary>A particle colour from red, green and blue as one means them: <c>ToRgba(a, b, g, r)</c>, the order the
-    /// machines' metal colours (copper red, steel bluish) are written in.</summary>
-    public static int Rgb(int alpha, int r, int g, int b) => ColorUtil.ToRgba(alpha, b, g, r);
+    /// <summary>A particle colour from alpha, red, green and blue: <see cref="ColorUtil.ToRgba"/>, which particles show as it reads.</summary>
+    public static int Rgb(int alpha, int r, int g, int b) => ColorUtil.ToRgba(alpha, r, g, b);
 
     /// <summary>Lubricating oil, the gear cutter's spray and the oilers' drips.</summary>
-    public static readonly int Oil = ColorUtil.ToRgba(190, 40, 140, 190);
+    public static readonly int Oil = Rgb(190, 190, 140, 40);
     /// <summary>Clear water, a little blue.</summary>
     public static readonly int Water = Rgb(150, 150, 185, 215);
-    /// <summary>Muddy water off the gravel, the rocker's.</summary>
-    public static readonly int MuddyWater = ColorUtil.ToRgba(140, 160, 190, 220);
     /// <summary>Molten metal, bright orange (spawn it glowing, <see cref="Puff.VertexFlags"/>).</summary>
     public static readonly int Molten = Rgb(255, 255, 150, 40);
     /// <summary>A grey slurry of crushed rock and water.</summary>
@@ -141,10 +139,10 @@ public static class MachineParticles
     /// for a metal it does not know (or none). Lead, copper, iron and steel are the draw bench's and borer's.</summary>
     public static int MetalColour(string? metal, int alpha, int fallback) => metal switch
     {
-        "lead" => ColorUtil.ToRgba(alpha, 120, 110, 105),
-        "copper" => ColorUtil.ToRgba(alpha, 70, 120, 190),
-        "iron" or "meteoriciron" => ColorUtil.ToRgba(alpha, 95, 100, 105),
-        "steel" => ColorUtil.ToRgba(alpha, 150, 145, 130),
+        "lead" => Rgb(alpha, 105, 110, 120),
+        "copper" => Rgb(alpha, 190, 120, 70),
+        "iron" or "meteoriciron" => Rgb(alpha, 105, 100, 95),
+        "steel" => Rgb(alpha, 130, 145, 150),
         "stainlesssteel" => Rgb(alpha, 175, 178, 182),
         "tin" => Rgb(alpha, 200, 200, 195),
         "zinc" => Rgb(alpha, 165, 175, 180),

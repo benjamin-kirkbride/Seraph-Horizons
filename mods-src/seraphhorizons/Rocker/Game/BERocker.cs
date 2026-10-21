@@ -401,7 +401,7 @@ public class BERocker : BEMachine
         if (!far && worked && Rig is { } rig && _splash.Due(dt))
         {
             var at = WorldPoint(rig.Posed(rig.Outflow, _clock.Theta));
-            (MachineParticles.Splash(MachineParticles.MuddyWater) with { MinVelocity = new Vec3f(-0.6f, -0.2f, -0.2f), MaxVelocity = new Vec3f(-0.2f, 0.3f, 0.2f) })
+            (MachineParticles.Splash(ColorUtil.ToRgba(140, 160, 190, 220)) with { MinVelocity = new Vec3f(-0.6f, -0.2f, -0.2f), MaxVelocity = new Vec3f(-0.2f, 0.3f, 0.2f) })
                 .Spawn(Api.World, at, MachineParticles.Around(0.05, 0.02, 0.15));
         }
         return new RigInput(_clock.Theta);

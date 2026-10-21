@@ -337,7 +337,7 @@ public sealed class RosserRenderer : IRenderer
             : new Float3(tips, o.Y + up, o.Z + across);
         var lo = WorldPoint(At(-r, -r));
         var hi = WorldPoint(At(r, r));
-        (MachineParticles.Chips(ColorUtil.ToRgba(255, 70, 92, 120)) with
+        (MachineParticles.Chips(ColorUtil.ToRgba(255, 120, 92, 70)) with
         {
             Count = 4, MinVelocity = new Vec3f(-0.6f, -0.2f, -0.6f), MaxVelocity = new Vec3f(0.6f, 0.4f, 0.6f), Life = 1.4f, Size = 0.5f,
         }).SpawnBetween(_capi.World, lo, hi);
@@ -352,7 +352,7 @@ public sealed class RosserRenderer : IRenderer
             : new Float3(drip, o.Y + r + 0.15f, o.Z + across);
         var lo = WorldPoint(At(-r * 0.6f));
         var hi = WorldPoint(At(r * 0.6f));
-        (MachineParticles.Drip(ColorUtil.ToRgba(180, 190, 160, 70)) with { MinVelocity = new Vec3f(0, -0.2f, 0), MaxVelocity = new Vec3f(0, -0.1f, 0), Size = 0.25f })
+        (MachineParticles.Drip(ColorUtil.ToRgba(180, 70, 160, 190)) with { MinVelocity = new Vec3f(0, -0.2f, 0), MaxVelocity = new Vec3f(0, -0.1f, 0), Size = 0.25f })
             .SpawnBetween(_capi.World, lo, hi);
     }
 

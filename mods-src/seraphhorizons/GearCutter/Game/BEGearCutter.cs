@@ -317,14 +317,14 @@ public class BEGearCutter : BEMachine
         // steel chips, and now and then a spark
         MachineParticles.Chips(ColorUtil.ToRgba(255, 150, 150, 160)).Spawn(Api.World, at, MachineParticles.Around(0.04));
         if (Api.World.Rand.NextDouble() < 0.3)
-            new Puff(1, ColorUtil.ToRgba(255, 60, 190, 255), new Vec3f(-1.5f, 0.2f, -1.5f), new Vec3f(1.5f, 1.2f, 1.5f), 0.3f, 1f, 0.15f)
+            new Puff(1, ColorUtil.ToRgba(255, 255, 190, 60), new Vec3f(-1.5f, 0.2f, -1.5f), new Vec3f(1.5f, 1.2f, 1.5f), 0.3f, 1f, 0.15f)
                 .SpawnBetween(Api.World, at, at.AddCopy(0.02, 0.02, 0.02));
     }
 
     private void SpawnSpray(GearCutterRig rig)
     {
         var at = WorldPoint(rig.Drip);
-        (MachineParticles.Drip(ColorUtil.ToRgba(170, 40, 140, 190)) with
+        (MachineParticles.Drip(ColorUtil.ToRgba(170, 190, 140, 40)) with
         {
             Count = 2, MinVelocity = new Vec3f(-0.15f, -0.6f, -0.15f), MaxVelocity = new Vec3f(0.15f, -0.3f, 0.15f), Life = 0.5f, Size = 0.2f,
         }).SpawnBetween(Api.World, at.AddCopy(-0.02, -0.05, -0.02), at.AddCopy(0.02, 0, 0.02));
