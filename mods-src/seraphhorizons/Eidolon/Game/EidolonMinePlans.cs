@@ -280,6 +280,8 @@ public class EidolonMinePlans : ModSystem
         else
         {
             bool stale = (voxel.Solid && !was) || (voxel.Rule == MineRule.Mine && rule != MineRule.Mine) || EidolonMining.Holds(voxel.Rule);
+            if (voxel.Rule == MineRule.Mine && rule != MineRule.Mine && area.Contains(cell.X, cell.Y, cell.Z))
+                cells.Appeared++;
             Take(cells, s => s.Changed(cell, voxel, stale));
         }
         if (_work.FirstOrDefault(w => w.Cells == cells) is { } work)

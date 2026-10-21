@@ -271,15 +271,17 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
             if (o.ToldStalled is { } stalled)
                 faults.Add($"told stalled: {stalled}");
         // The shares are the blocks gone but what the game took by itself, which the job counts (MineJobCells.Gone: a
-        // plant or vine whose footing a strike broke, rock left hanging that caved in, sand and gravel that fell); and
-        // sand or gravel that fell into a dug cell is mined again there. So the two are at most that count apart.
+        // plant or vine whose footing a strike broke, rock left hanging that caved in, sand and gravel that fell), and
+        // what came to be mined in the area meanwhile, which it counts too (MineJobCells.Appeared: grass grown on dug
+        // ground, sand or gravel fallen into a dug cell, mined there again).
         var gone = toMine.Where(c => blocks.GetBlock(c).Id == 0).ToList();
         var others = gone.Except(watch.Broke.Values.SelectMany(b => b)).ToList();
-        int byGame = job!.Shared.Gone;
-        log($"{gone.Count} gone, {total} mined, {byGame} gone by the game's own rules (the job's count); {others.Count} with no strike seen: "
+        int byGame = job!.Shared.Gone, appeared = job.Shared.Appeared;
+        log($"{gone.Count} gone, {total} mined, {byGame} gone by the game's own rules and {appeared} come to be mined (the job's counts); {others.Count} with no strike seen: "
             + string.Join(" ", others.Take(20).Select(c => $"{c} ({codes[c]}{(solid[c] ? "" : ", not solid")})")));
-        if (Math.Abs(gone.Count - total) > byGame)
-            faults.Add($"{total} mined by the shares, {gone.Count} of the area's blocks gone: more apart than the {byGame} the job counts gone by the game");
+        if (gone.Count - total > byGame || total - gone.Count > byGame + appeared)
+            faults.Add($"{total} mined by the shares, {gone.Count} of the area's blocks gone: more apart than the {byGame} the job counts gone by the game"
+                + $" (and {appeared} come to be mined)");
 
         if (minutes == null)
         {

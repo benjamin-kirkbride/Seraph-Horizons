@@ -138,6 +138,11 @@ public sealed class MineJobCells
     /// left it hanging, granite breaking into its drops, or a player): what it mined and these are all that went.</summary>
     public int Gone { get; set; }
 
+    /// <summary>How many blocks came to be ones it mines in the area with no doing of its own (grass grown on dug
+    /// ground, sand or gravel fallen into a dug cell, a block placed): what it mined is the area's blocks gone,
+    /// less <see cref="Gone"/>, and at most these more.</summary>
+    public int Appeared { get; set; }
+
     /// <summary>The job's last strike (<see cref="LastStrikeAt"/>) when its owner was last told it looks stalled
     /// (README "Eidolon", working together, *When none may work*), null never: told again only after another.</summary>
     public double? StallToldStrike { get; set; }
