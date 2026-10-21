@@ -2910,8 +2910,8 @@ dust at the nip and the gears' sound at the knife.
 
 With the switch off the server marks the frame's block type, the slitter cutter's item type and the grid and
 smithing recipe files disabled before the game loads them, so none of it exists and mills already placed are lost;
-the machine oil page and the mod's own text no longer name it. Not yet: a schematic for the frame
-(`MachineSchematics`).
+the machine oil page and the mod's own text no longer name it. The frame takes the slitting mill
+schematic ("Schematics").
 
 ### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
 
@@ -7873,7 +7873,7 @@ machine's first-stage grid recipe, kept on crafting:
 | `stampbattery`, `vanner`, `cylinderborer` | this mod's stamp battery, vanner frame and cylinder borer frame (switches `StampBattery`, `Vanner`, `CylinderBorer`) | mechanic, 3 |
 | `stallroaster` | this mod's stall roaster frame (switch `StallRoaster`) | smith, 1 |
 | `amalgamationplates`, `reverberatory`, `parkeskettle`, `liquationfurnace`, `cupellationfurnace`, `acidparting` | this mod's amalgamation plates and the frames of its reverberatory roaster, Parkes kettle, liquation and cupellation furnaces and acid parting vessel (switches `AmalgamationPlates`, `ReverberatoryRoaster`, `ParkesKettle`, `LiquationFurnace`, `CupellationFurnace`, `AcidParting`) | smith, 2 |
-| `cruciblefurnace`, `drawbench` | this mod's crucible furnace frame and draw bench frame (switches `StainlessSteel`, `DrawBench`) | smith, 2 |
+| `cruciblefurnace`, `drawbench`, `slittingmill` | this mod's crucible furnace, draw bench and slitting mill frames (switches `StainlessSteel`, `DrawBench`, `SlittingMill`) | smith, 2 |
 | `gearcutter` | this mod's gear cutter frame (switch `GearCutter`) | smith, 3 |
 | `steampower` | Pipes and Power Expanded's Cornish boiler and Watt engine | mechanic, 2 |
 | `highpressuresteam` | Pipes and Power Expanded's Lancashire boiler and Cornish engine | mechanic, 3 |
@@ -7887,9 +7887,9 @@ machine's first-stage grid recipe, kept on crafting:
 | `alchemycauldron` | Alchemy's potion cauldron (its first stage) | curio dealer, 1 |
 
 Not gated: the hand ore tools (amalgam pan, rocker, riddle, cupel, liquation pan, spalling), the
-squaring shear, the press brake, the mandrel forging station, the pickling tub and the slitting mill.
-Each of the pack's own machines names its switch; the ore machines also need `OreProcessing`, which
-the gate does not check, so with only that off their schematics are still sold.
+squaring shear, the press brake, the mandrel forging station and the pickling tub. Each of the pack's
+own machines names its switch, and the ore machines (all the ore-processing rows above: their systems
+apply only with `OreProcessing` on too) name `OreProcessing` as well.
 
 The hand crank needs no schematic (its own schematic, and the centred spur gear's, which the
 transmission's took over, are gone, items and all).
@@ -7897,12 +7897,14 @@ transmission's took over, are gone, items and all).
 The schematic takes the recipe's first empty slot. A narrow or short recipe gets a column or a row.
 In a full 3×3 grid, two slots of the ingredient filling the most slots become one at double quantity
 (the large gear, the pulverizer frame, the metal rotor, the sawmill and rosser frames, the panning
-machine, the cylinder borer's logs, the draw bench's rods, the gear cutter's planks, ppex's Cornish
+machine, the cylinder borer's logs, the draw bench's rods, the slitting mill's plates, the gear cutter's planks, ppex's Cornish
 engine's steel plates, smex's twin-tub blower's planks, the Cowper stove intake's bricks, the temporal stabilizer's
 bronze ingots and Yang's advanced engine's copper rods). MadMechanics' vertical clutch and transmission are conversions of the game's and stay as
 they are. Off, the recipes are as their mods ship them and no catalog sells the machine schematics.
-A gate may name the switch its machine needs (`switch`, a `SeraphHorizonsConfig` bool: the bucking
-sawmill's, the rosser's, the eidolon's): with that switch off, its schematic is for sale nowhere.
+A gate may name the switches its machine needs (`switch`, a `SeraphHorizonsConfig` bool's name or a
+list of them, all needed: the bucking sawmill's, the rosser's, the eidolon's, each of this mod's
+machines', an ore machine's with `OreProcessing`): with any of them off, its schematic is for sale
+nowhere.
 
 **The catalogs**: schematics are never on a shelf. Each trader type sells its own (the table's
 `sales`: `sellers`, `tier`, `price`) on the trade window's **Schematics** tab, a row each as on the

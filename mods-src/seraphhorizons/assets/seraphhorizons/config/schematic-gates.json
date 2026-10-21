@@ -10,7 +10,8 @@
 //   output's mod loaded, and not a one-slot conversion) takes seraphhorizons:schematic-{machine},
 //   kept on crafting. A machine built in stages is gated at its first stage.
 //   A gate's optional "switch" names the pack's ModConfig switch (SeraphHorizonsConfig) its machine
-//   needs: with it off, its schematic is for sale nowhere.
+//   needs, or lists several (the ore machines need OreProcessing too): with any off, its schematic
+//   is for sale nowhere.
 // "rolledCopies": Scrolled's rolled schematics, never bought by a trader, as the schematics in
 //   "sold" are not ("Traders don't buy schematics").
 // "sales": each trader type's schematic catalog (the trade window's Schematics tab), never on a
@@ -66,23 +67,24 @@
 		] },
 		// The pack's own machines (#469): each gated at the grid recipe that makes its frame or first
 		// stage, and for sale only with its switch on.
-		{ "machine": "jawbreaker", "switch": "JawBreaker", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:jawbreaker-*" } ] },
-		{ "machine": "ballmill", "switch": "BallMill", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:ballmill-*" } ] },
-		{ "machine": "stampbattery", "switch": "StampBattery", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:stampbattery-*" } ] },
-		{ "machine": "arrastra", "switch": "Arrastra", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:arrastra-*" } ] },
-		{ "machine": "sluice", "switch": "Sluice", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:sluice-*" } ] },
-		{ "machine": "jig", "switch": "Jig", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:jig-*" } ] },
-		{ "machine": "shakingtable", "switch": "ShakingTable", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:shakingtable-*" } ] },
-		{ "machine": "vanner", "switch": "Vanner", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:vanner-*" } ] },
+		{ "machine": "jawbreaker", "switch": ["JawBreaker", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:jawbreaker-*" } ] },
+		{ "machine": "ballmill", "switch": ["BallMill", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:ballmill-*" } ] },
+		{ "machine": "stampbattery", "switch": ["StampBattery", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:stampbattery-*" } ] },
+		{ "machine": "arrastra", "switch": ["Arrastra", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:arrastra-*" } ] },
+		{ "machine": "sluice", "switch": ["Sluice", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:sluice-*" } ] },
+		{ "machine": "jig", "switch": ["Jig", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:jig-*" } ] },
+		{ "machine": "shakingtable", "switch": ["ShakingTable", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:shakingtable-*" } ] },
+		{ "machine": "vanner", "switch": ["Vanner", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:vanner-*" } ] },
 		{ "machine": "cylinderborer", "switch": "CylinderBorer", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cylinderborer-frame-*" } ] },
+		{ "machine": "slittingmill", "switch": "SlittingMill", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:slittingmill-frame-*" } ] },
 		{ "machine": "handcar", "switch": "Handcar", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:handcar" } ] },
-		{ "machine": "amalgamationplates", "switch": "AmalgamationPlates", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:amalgamationplates-*" } ] },
-		{ "machine": "reverberatory", "switch": "ReverberatoryRoaster", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:reverberatory-*" } ] },
-		{ "machine": "parkeskettle", "switch": "ParkesKettle", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:parkeskettle-*" } ] },
-		{ "machine": "stallroaster", "switch": "StallRoaster", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:stallroaster-*" } ] },
-		{ "machine": "liquationfurnace", "switch": "LiquationFurnace", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:liquationfurnace-*" } ] },
-		{ "machine": "cupellationfurnace", "switch": "CupellationFurnace", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cupellationfurnace-*" } ] },
-		{ "machine": "acidparting", "switch": "AcidParting", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:acidparting-*" } ] },
+		{ "machine": "amalgamationplates", "switch": ["AmalgamationPlates", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:amalgamationplates-*" } ] },
+		{ "machine": "reverberatory", "switch": ["ReverberatoryRoaster", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:reverberatory-*" } ] },
+		{ "machine": "parkeskettle", "switch": ["ParkesKettle", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:parkeskettle-*" } ] },
+		{ "machine": "stallroaster", "switch": ["StallRoaster", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:stallroaster-*" } ] },
+		{ "machine": "liquationfurnace", "switch": ["LiquationFurnace", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:liquationfurnace-*" } ] },
+		{ "machine": "cupellationfurnace", "switch": ["CupellationFurnace", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cupellationfurnace-*" } ] },
+		{ "machine": "acidparting", "switch": ["AcidParting", "OreProcessing"], "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:acidparting-*" } ] },
 		{ "machine": "cruciblefurnace", "switch": "StainlessSteel", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cruciblefurnace-frame-*" } ] },
 		{ "machine": "drawbench", "switch": "DrawBench", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:drawbench-frame-*" } ] },
 		{ "machine": "gearcutter", "switch": "GearCutter", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:gearcutter-frame-*" } ] },
@@ -199,6 +201,7 @@
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-vanner", "sellers": ["mechanic"], "tier": 3, "price": 35 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-cylinderborer", "sellers": ["mechanic"], "tier": 3, "price": 50 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-handcar", "sellers": ["mechanic"], "tier": 2, "price": 20 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-slittingmill", "sellers": ["smith"], "tier": 2, "price": 30 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-amalgamationplates", "sellers": ["smith"], "tier": 2, "price": 23 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-reverberatory", "sellers": ["smith"], "tier": 2, "price": 35 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-parkeskettle", "sellers": ["smith"], "tier": 2, "price": 30 },

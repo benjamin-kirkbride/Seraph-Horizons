@@ -13,7 +13,7 @@
 			"windmill", "waterwheel", "transmission", "helvehammer", "pulverizer",
 			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "biplane", "eidolon",
 			"jawbreaker", "ballmill", "stampbattery", "arrastra", "sluice", "jig", "shakingtable", "vanner",
-			"cylinderborer", "handcar", "amalgamationplates", "reverberatory", "parkeskettle", "stallroaster",
+			"cylinderborer", "slittingmill", "handcar", "amalgamationplates", "reverberatory", "parkeskettle", "stallroaster",
 			"liquationfurnace", "cupellationfurnace", "acidparting", "cruciblefurnace", "drawbench", "gearcutter",
 			"steampower", "highpressuresteam", "blastfurnace", "bessemer", "steamengine", "locomotive",
 			"temporalstabilizer", "sprinkler", "spinningwheel", "alchemycauldron"
@@ -38,6 +38,7 @@
 		"*-ballmill": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-stampbattery": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-cylinderborer": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-slittingmill": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-amalgamationplates": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-reverberatory": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-parkeskettle": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },

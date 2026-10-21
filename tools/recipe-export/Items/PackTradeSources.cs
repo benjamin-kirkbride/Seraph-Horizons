@@ -314,10 +314,10 @@ internal static class PackTradeSources
 
     // ---- The schematic catalog ----
 
-    private sealed record Sale(string Code, string Mod, List<string> Sellers, int Tier, double? Price, string? Switch);
+    private sealed record Sale(string Code, string Mod, List<string> Sellers, int Tier, double? Price, IReadOnlyList<string> Switches);
 
     /// <summary>The table's "sales", read from the asset (comments allowed), with each machine
-    /// schematic's gate switch. A sale's <c>price</c> may be absent (lists that still carry the
+    /// schematic's gate switches (<c>switch</c>: a name or a list, all needed). A sale's <c>price</c> may be absent (lists that still carry the
     /// schematics): the seller's list entry's price is used then.</summary>
     private static List<Sale> Sales(ICoreServerAPI api)
     {
@@ -333,17 +333,22 @@ internal static class PackTradeSources
             api.Logger.Warning("[seraphexport] {0} does not parse ({1}); no schematic sale is exported", GatesAsset, e.Message);
             return sales;
         }
-        var switches = new Dictionary<string, string>(StringComparer.Ordinal);
+        var switches = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var gate in table["gates"] as JArray ?? [])
-            if ((string?)gate["machine"] is { } machine && (string?)gate["switch"] is { } sw)
-                switches[MachineSchematicPrefix + machine] = sw;
+            if ((string?)gate["machine"] is { } machine)
+                switches[MachineSchematicPrefix + machine] = gate["switch"] switch
+                {
+                    JArray list => list.Select(x => (string?)x).OfType<string>().ToList(),
+                    JValue { Type: JTokenType.String } one => [(string)one!],
+                    _ => [],
+                };
         foreach (var sale in table["sales"] as JArray ?? [])
         {
             if ((string?)sale["code"] is not { } code) continue;
             code = Normalise(code);
             var sellers = (sale["sellers"] as JArray ?? []).Select(x => (string?)x).OfType<string>().ToList();
             sales.Add(new Sale(code, (string?)sale["mod"] ?? "game", sellers, (int?)sale["tier"] ?? 0, (double?)sale["price"],
-                switches.GetValueOrDefault(code)));
+                switches.GetValueOrDefault(code) ?? []));
         }
         return sales;
     }
@@ -362,7 +367,7 @@ internal static class PackTradeSources
         if (sale.Code.StartsWith(MachineSchematicPrefix, StringComparison.Ordinal))
         {
             if (!ConfigSwitch(api, "MachineSchematics")) return 0;
-            if (sale.Switch != null && !ConfigSwitch(api, sale.Switch)) return 0;
+            if (sale.Switches.Any(sw => !ConfigSwitch(api, sw))) return 0;
         }
         var loc = new AssetLocation(sale.Code);
         CollectibleObject? collectible = api.World.GetItem(loc) is { IsMissing: false, Code: not null } i ? i

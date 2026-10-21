@@ -43,17 +43,72 @@ public class SchematicTests
         var table = Table.Value;
         Assert.Contains("MachineSchematics", Switches.Value);
         Assert.Empty(table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier, Switches.Value));
-        Assert.Equal(42, table.Gates.Count);
+        Assert.Equal(43, table.Gates.Count);
         Assert.Equal("game:paper-parchment", table.Replacement);
         Assert.All(table.Gates, g => Assert.True(table.IsSold(g.Schematic), g.Schematic));
         // The switches named are the machines' own: every one of the pack's own machines names its
-        // switch (the crucible furnace's is stainless steel's), and no other mod's machine does.
+        // switch first (the crucible furnace's is stainless steel's), and no other mod's machine does.
         Assert.Equal(["AcidParting", "AmalgamationPlates", "Arrastra", "BallMill", "BuckingSawmill", "CupellationFurnace",
                       "CylinderBorer", "DrawBench", "Eidolon", "GearCutter", "Handcar", "JawBreaker", "Jig", "LiquationFurnace",
-                      "ParkesKettle", "ReverberatoryRoaster", "Rosser", "ShakingTable", "Sluice", "StainlessSteel", "StallRoaster",
-                      "StampBattery", "Vanner"],
-            table.Gates.Where(g => g.Switch != null).Select(g => g.Switch!).Order(StringComparer.Ordinal));
-        Assert.All(table.Gates.Where(g => g.Outputs.Any(o => o.Mod == "seraphhorizons")), g => Assert.NotNull(g.Switch));
+                      "ParkesKettle", "ReverberatoryRoaster", "Rosser", "ShakingTable", "SlittingMill", "Sluice", "StainlessSteel",
+                      "StallRoaster", "StampBattery", "Vanner"],
+            table.Gates.Where(g => g.Switches.Count > 0).Select(g => g.Switches[0]).Order(StringComparer.Ordinal));
+        Assert.All(table.Gates.Where(g => g.Outputs.Any(o => o.Code.StartsWith("seraphhorizons:"))), g => Assert.NotEmpty(g.Switches));
+        Assert.All(table.Gates.Where(g => !g.Outputs.Any(o => o.Code.StartsWith("seraphhorizons:"))), g => Assert.Empty(g.Switches));
+    }
+
+    // The ore machines' systems apply only with OreProcessing on too (their Applies, e.g.
+    // JawBreakerSystem's "config.JawBreaker && config.OreProcessing"): their gates name both.
+    [Theory]
+    [InlineData("jawbreaker", "JawBreaker")]
+    [InlineData("ballmill", "BallMill")]
+    [InlineData("stampbattery", "StampBattery")]
+    [InlineData("arrastra", "Arrastra")]
+    [InlineData("sluice", "Sluice")]
+    [InlineData("jig", "Jig")]
+    [InlineData("shakingtable", "ShakingTable")]
+    [InlineData("vanner", "Vanner")]
+    [InlineData("amalgamationplates", "AmalgamationPlates")]
+    [InlineData("reverberatory", "ReverberatoryRoaster")]
+    [InlineData("parkeskettle", "ParkesKettle")]
+    [InlineData("stallroaster", "StallRoaster")]
+    [InlineData("liquationfurnace", "LiquationFurnace")]
+    [InlineData("cupellationfurnace", "CupellationFurnace")]
+    [InlineData("acidparting", "AcidParting")]
+    public void OreMachinesNeedOreProcessingToo(string machine, string own)
+    {
+        var gate = Table.Value.Gates.Single(g => g.Machine == machine);
+        Assert.Equal([own, "OreProcessing"], gate.Switches);
+        string code = gate.Schematic;
+        Assert.NotNull(SchematicCatalog.Sellers(Table.Value, code, AllOn));
+        Assert.Null(SchematicCatalog.Sellers(Table.Value, code, s => s == "OreProcessing"));
+        Assert.Null(SchematicCatalog.Sellers(Table.Value, code, s => s == own));
+    }
+
+    [Fact]
+    public void ASwitchIsANameOrAList()
+    {
+        var table = SchematicTable.Parse("""
+            { "sold": [ { "code": "seraphhorizons:schematic-*" } ],
+              "gates": [ { "machine": "a", "switch": "A", "outputs": [ { "code": "game:a" } ] },
+                         { "machine": "b", "switch": ["A", "B"], "outputs": [ { "code": "game:b" } ] },
+                         { "machine": "c", "outputs": [ { "code": "game:c" } ] },
+                         { "machine": "d", "switch": ["D", "D", "X"], "outputs": [ { "code": "game:d" } ] } ],
+              "sales": [ { "code": "seraphhorizons:schematic-a", "sellers": ["smith"], "tier": 1, "price": 5 },
+                         { "code": "seraphhorizons:schematic-b", "sellers": ["smith"], "tier": 1, "price": 5 },
+                         { "code": "seraphhorizons:schematic-c", "sellers": ["smith"], "tier": 1, "price": 5 },
+                         { "code": "seraphhorizons:schematic-d", "sellers": ["smith"], "tier": 1, "price": 5 } ] }
+            """);
+        Assert.Equal(["A"], table.Gates[0].Switches);
+        Assert.Equal(["A", "B"], table.Gates[1].Switches);
+        Assert.Empty(table.Gates[2].Switches);
+        var problems = table.Problems(["smith"], 4, ["A", "B", "D"]);
+        Assert.Equal(2, problems.Count);
+        Assert.Contains(problems, p => p.Contains("switch 'D' twice"));
+        Assert.Contains(problems, p => p.Contains("no switch 'X'"));
+        Assert.Equal(["seraphhorizons:schematic-a", "seraphhorizons:schematic-c", "seraphhorizons:schematic-d"],
+            SchematicCatalog.For(table, "smith", s => s == "B", null).Select(r => r.Code));
+        Assert.Equal(["seraphhorizons:schematic-c"], SchematicCatalog.For(table, "smith", s => s == "A" || s == "X", null).Select(r => r.Code));
     }
 
     [Fact]

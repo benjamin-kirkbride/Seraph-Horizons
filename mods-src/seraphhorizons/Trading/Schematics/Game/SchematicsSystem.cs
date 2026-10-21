@@ -25,7 +25,7 @@ namespace SeraphHorizons.Mod.Trading.Schematics;
 /// <item>The catalogs (<see cref="Catalog"/>, <see cref="BuySchematic"/>): each trader type sells its
 /// schematics ("sales") off the shelf, on the trade window's Schematics tab, at a flat price, never
 /// sold out, each unlocked from its standing tier by the best tier among the player and their group
-/// mates (<see cref="StandingSystem.GroupTierFor"/>). A gate whose <see cref="SchematicGate.Switch"/>
+/// mates (<see cref="StandingSystem.GroupTierFor"/>). A gate with any of its <see cref="SchematicGate.Switches"/>
 /// is off sells nowhere.</item>
 /// <item>No trader buys a schematic or a rolled copy of one (<see cref="SchematicTable.NeverBoughtBack"/>,
 /// asked by the economy on both sides; the table loads on the client for that).</item>

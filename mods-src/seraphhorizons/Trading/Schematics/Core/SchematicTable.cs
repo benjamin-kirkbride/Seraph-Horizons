@@ -24,9 +24,12 @@ public sealed class SchematicGate
     /// <summary>The recipe outputs gated: the machine's first stage where it is built in stages.</summary>
     public List<ModCode> Outputs { get; set; } = [];
 
-    /// <summary>The pack's ModConfig switch (a <c>SeraphHorizonsConfig</c> bool) the machine needs,
-    /// or null: with it off, the schematic is for sale nowhere (<see cref="SchematicCatalog"/>).</summary>
-    public string? Switch { get; set; }
+    /// <summary>The pack's ModConfig switches (<c>SeraphHorizonsConfig</c> bools) the machine needs,
+    /// none, one or several: with any off, the schematic is for sale nowhere
+    /// (<see cref="SchematicCatalog"/>). In the JSON, <c>switch</c> is a name or a list of names.</summary>
+    [JsonPropertyName("switch")]
+    [JsonConverter(typeof(OneOrManyConverter))]
+    public List<string> Switches { get; set; } = [];
 
     public string Schematic => SchematicTable.MachineSchematicPrefix + Machine;
 }
@@ -105,8 +108,10 @@ public sealed class SchematicTable
             if (string.IsNullOrWhiteSpace(g.Machine) || g.Machine.Contains(' ')) problems.Add($"gate '{g.Machine}' has no usable name");
             if (g.Outputs.Count == 0) problems.Add($"{g.Schematic} gates nothing");
             if (!Sales.Any(s => CodePattern.Normalise(s.Code) == g.Schematic)) problems.Add($"{g.Schematic} is sold by no one");
-            if (g.Switch is { } sw && (sw.Length == 0 || switches != null && !switches.Contains(sw)))
+            foreach (string sw in g.Switches.Where(sw => sw.Length == 0 || switches != null && !switches.Contains(sw)))
                 problems.Add($"{g.Schematic}: no switch '{sw}'");
+            foreach (var dup in g.Switches.GroupBy(sw => sw).Where(d => d.Count() > 1))
+                problems.Add($"{g.Schematic}: switch '{dup.Key}' twice");
         }
         foreach (var dup in Gates.SelectMany(g => g.Outputs.Select(o => (o.Code, g.Machine))).GroupBy(x => x.Code).Where(x => x.Count() > 1))
             problems.Add($"output {dup.Key} is in gates {string.Join(", ", dup.Select(x => x.Machine))}");
@@ -123,6 +128,35 @@ public sealed class SchematicTable
         foreach (var dup in Sales.GroupBy(s => CodePattern.Normalise(s.Code)).Where(g => g.Count() > 1))
             problems.Add($"{dup.Key} is in 'sales' {dup.Count()} times");
         return problems;
+    }
+}
+
+/// <summary>A string or an array of strings, read as a list (a gate's <c>switch</c>).</summary>
+public sealed class OneOrManyConverter : JsonConverter<List<string>>
+{
+    public override List<string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        switch (reader.TokenType)
+        {
+            case JsonTokenType.Null: return [];
+            case JsonTokenType.String: return [reader.GetString()!];
+            case JsonTokenType.StartArray:
+                var list = new List<string>();
+                while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                {
+                    if (reader.TokenType != JsonTokenType.String) throw new JsonException("a switch is a name");
+                    list.Add(reader.GetString()!);
+                }
+                return list;
+            default: throw new JsonException("switch is a name or a list of names");
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)
+    {
+        writer.WriteStartArray();
+        foreach (string s in value) writer.WriteStringValue(s);
+        writer.WriteEndArray();
     }
 }
 
