@@ -10,7 +10,8 @@ namespace SeraphHorizons.RecipeExport.Items;
 
 /// <summary>
 /// Ways to get an item other than a recipe, as far as the data declares them: block drops,
-/// block harvests, panning, entity drops and harvests, and trader lists. Drops decided in code
+/// block harvests, panning, entity drops and harvests, and trader lists (vanilla-format ones
+/// here, the pack's own in <see cref="PackTradeSources"/>). Drops decided in code
 /// (Block.GetDrops overrides, loot vessels, fishing, ...) are not seen; see item-data.md.
 /// </summary>
 internal sealed class SourceIndex
@@ -24,6 +25,8 @@ internal sealed class SourceIndex
         AddBlocks();
         AddPanning();
         AddEntities();
+        // The pack's own traders: their lists are not in the vanilla format AddTrader reads.
+        foreach (var (code, source) in PackTradeSources.Read(api)) Add(code, source);
     }
 
     public int Count => _byItem.Values.Sum(l => l.Count);

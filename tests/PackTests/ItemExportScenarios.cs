@@ -354,6 +354,72 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Equal("game:trader", (string?)trade["extra"]?["entityType"]);
     }
 
+    // seraphhorizons Trading: the pack's own traders (Items/PackTradeSources.cs), one entity per type.
+    private const string Carpenter = "seraphhorizons:trader-male-carpenter-temperate";
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Pack_carpenter_sells_oak_planks_with_a_price_range()
+    {
+        // config/tradelists/trader-carpenter.json selling.rotating: planks-oak-ud, stacksize 32,
+        // priced from the item value table × list-prices.json's sell (1.0), rolled ±0.25, times
+        // regional supply and standing.
+        var item = Item(Items, "game:planks-oak-ud");
+        var trade = Sources(item, "traderSells").SingleOrDefault(s => (string?)s["extra"]?["traderType"] == "carpenter");
+        Assert.NotNull(trade);
+        Assert.Equal(Carpenter, (string?)trade!["from"]);
+        Assert.Equal("Carpenter", (string?)trade["fromName"]);
+        Assert.Equal("seraphhorizons:trader-carpenter", (string?)trade["extra"]?["entityType"]);
+        Assert.Equal("rotating", (string?)trade["extra"]?["list"]);
+        Assert.Equal(32.0, (double?)trade["quantity"]?["avg"]);
+        Assert.Equal(4.0, (double?)trade["extra"]?["stock"]?["avg"]);
+        double price = (double)trade["price"]!, min = (double)trade["extra"]!["priceMin"]!, max = (double)trade["extra"]!["priceMax"]!;
+        Assert.True(min < price && price < max, $"expected {min} < {price} < {max}");
+        // A stranger's price on an average roll: the value of the stack.
+        double value = (double?)item["value"] ?? 0;
+        Assert.True(Math.Abs(price - value * 32) <= 1, $"price {price} is not the value of 32 planks ({value} each)");
+        Assert.Null(trade["extra"]?["standingTier"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Pack_schematic_is_sold_from_its_catalog_at_its_price_and_tier()
+    {
+        // config/schematic-gates.json "sales": seraphhorizons:schematic-sawmill, sellers carpenter,
+        // tier 2 (regular); price 60 (the catalog's, or the carpenter list's override before it).
+        var item = Item(Items, "seraphhorizons:schematic-sawmill");
+        var trades = Sources(item, "traderSells").Where(s => (string?)s["extra"]?["traderType"] == "carpenter").ToList();
+        // Once: a list that still carries the schematic is not counted beside the catalog.
+        var trade = Assert.Single(trades);
+        Assert.Equal(Carpenter, (string?)trade["from"]);
+        Assert.Equal("schematics", (string?)trade["extra"]?["catalog"]);
+        Assert.Equal(60.0, (double?)trade["price"]);
+        Assert.Equal(60.0, (double?)trade["extra"]?["priceMin"]);
+        Assert.Equal(60.0, (double?)trade["extra"]?["priceMax"]);
+        Assert.Equal(2, (int?)trade["extra"]?["standingTier"]);
+        Assert.Equal("regular", (string?)trade["extra"]?["standingTierName"]);
+        Assert.Empty(Sources(item, "traderBuys").Where(s => s["extra"]?["traderType"] != null));
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Pack_traders_are_one_entity_per_type()
+    {
+        var byType = new Dictionary<string, HashSet<string>>();
+        foreach (var (_, token) in Items)
+            foreach (var s in (token?["sources"] as JArray ?? new JArray()).OfType<JObject>())
+            {
+                if ((string?)s["extra"]?["traderType"] is not { } type) continue;
+                var entityType = (string)s["extra"]!["entityType"]!;
+                Assert.True(entityType == $"seraphhorizons:trader-{type}" || entityType == $"seraphhorizons:visitor-{type}", entityType);
+                if (!byType.TryGetValue(entityType, out var froms)) byType[entityType] = froms = new();
+                froms.Add((string)s["from"]!);
+                Assert.True((double?)s["extra"]!["priceMin"] <= (double?)s["extra"]!["priceMax"], s.ToString());
+            }
+        // The eleven camp types, the two visitors and the treasure hunter (Trading/Core/TraderTypes.cs).
+        Assert.Equal(14, byType.Count);
+        foreach (var (type, froms) in byType) Assert.True(froms.Count == 1, $"{type} is exported as {string.Join(", ", froms)}");
+        Assert.Contains("seraphhorizons:visitor-travellingmerchant", byType.Keys);
+        Assert.Contains("seraphhorizons:trader-treasurehunter", byType.Keys);
+    }
+
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Knapping_guide_is_exported_with_its_english_title()
     {

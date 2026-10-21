@@ -97,6 +97,34 @@ export interface Source {
   extra?: Record<string, unknown>;
 }
 
+/**
+ * `extra` of a `traderSells` or `traderBuys` source from one of the pack's own traders
+ * (`traderType` set; the exporter's Items/PackTradeSources.cs). `price` is what a stranger
+ * pays or is paid on an average roll; `priceMin` and `priceMax` the whole span over the
+ * list's price roll, regional supply and the standing tiers that see the entry.
+ */
+export interface PackTradeExtra {
+  entityType: string;
+  /** The pack trader type, "carpenter". */
+  traderType: string;
+  priceMin: number;
+  priceMax: number;
+  /** Where in the list: always stocked (`core`) or one of the rotating slots. Absent for a catalog sale. */
+  list?: "core" | "rotating";
+  /** A climate band or rock group key: only traders of such a region carry it. */
+  region?: string;
+  /** The standing tier index (1 known ... 4 partner) from which a player sees it, and its name. */
+  standingTier?: number;
+  standingTierName?: string;
+  /** Stocked only for a tier whose rare stock is unlocked. */
+  rare?: boolean;
+  /** Sold only once players have sold enough of it in the region. */
+  playerSupplied?: boolean;
+  /** A sale from a catalog rather than the shelves ("schematics"): a flat price. */
+  catalog?: string;
+  stock?: { avg: number; var?: number };
+}
+
 export interface Item {
   kind: Kind;
   name: string;

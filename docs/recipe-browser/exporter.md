@@ -478,6 +478,10 @@ details and the limits (facing, connectors).
   `recipeGroup`, cooking `typeName`, `portionSizeLitres`, `cookedStack` and `isFood`, the
   recipe's own `name` and `attributes`, and the machine values of mod recipes are all in
   `extra`.
+- The pack's own traders' trades (`Items/PackTradeSources.cs`) keep their price range,
+  standing tier, list, region and catalog in the source's `extra`
+  ([item-data.md](item-data.md#the-packs-traders)); `price` stays the typical price, so a
+  reader that knows only the schema's fields still reads a sensible number.
 - Size: every variant lists its accepted stacks in full. With this pack that is about 80 MB
   (80 000 grid variants; doorvariants alone has 10 080 variants per door recipe). A shared
   table of accepted-stack lists, referenced from variants, would shrink it a lot.

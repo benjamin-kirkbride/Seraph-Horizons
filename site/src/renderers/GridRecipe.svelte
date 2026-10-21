@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { cycleAt, gridCells, slotStacks } from "../lib/recipe-view.ts";
+  import { cycleAt, gridCells, isKept, slotStacks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -9,7 +9,7 @@
 
   const cells = $derived(gridCells(recipe));
   const width = $derived(recipe.grid?.width ?? 3);
-  const notes = $derived(recipe.ingredients.map((ing, i) => ({ ing, i })).filter(({ ing }) => ing.isTool || ing.returned));
+  const notes = $derived(recipe.ingredients.map((ing, i) => ({ ing, i })).filter(({ ing }) => ing.isTool || ing.returned || isKept(ing)));
 </script>
 
 <div class="grid" style:grid-template-columns="repeat({width}, var(--slot))" role="group" aria-label={t.ingredients}>
@@ -22,6 +22,7 @@
             {tick}
             {data}
             tool={recipe.ingredients[slot]?.isTool ?? false}
+            kept={isKept(recipe.ingredients[slot])}
           />
         {:else}
           <span class="visually-hidden">{t.row(r + 1, c + 1)}: {t.empty}</span>
@@ -33,11 +34,11 @@
 {#if recipe.grid?.shapeless}
   <p class="note" data-shapeless>{t.shapeless}</p>
 {/if}
-<!-- Tool wear and returned items don't show on the grid, so only those ingredients get a note. -->
+<!-- Tool wear, kept ingredients and returned items don't show on the grid in full, so only those ingredients get a note. -->
 {#each notes as { ing, i } (i)}
   {@const shown = cycleAt(slotStacks(recipe, variant, i), tick)}
   <p class="note" data-ingredient={i}>
-    {shown ? (shown.name ?? data.nameOf(shown.code)) : ing.code}{#if ing.isTool}, {t.toolNote(ing.toolDurabilityCost)}{/if}{#if ing.returned}, {t.returns(
+    {shown ? (shown.name ?? data.nameOf(shown.code)) : ing.code}{#if ing.isTool}, {t.toolNote(ing.toolDurabilityCost)}{/if}{#if isKept(ing)}, {t.keptIngredient}{/if}{#if ing.returned}, {t.returns(
         ing.returned.name ?? data.nameOf(ing.returned.code),
       )}{/if}
   </p>

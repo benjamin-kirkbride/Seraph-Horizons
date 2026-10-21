@@ -389,6 +389,13 @@ class ItemValuesTest(unittest.TestCase):
         self.assertAlmostEqual(val.value["game:lamp"], 4 / 2 * 0.5)
         self.assertNotIn("game:mystery", val.value)
 
+    def test_pack_trader_prices_are_not_evidence(self):
+        # The pack's own traders (extra.traderType) price from the value table itself.
+        source = {"type": "traderSells", "from": "seraphhorizons:trader-male-smith-temperate", "price": 4,
+                  "quantity": {"avg": 1}, "extra": {"traderType": "smith"}}
+        val, _ = self.solve(export({"game:lamp": {**item(), "sources": [source]}}, []))
+        self.assertNotIn("game:lamp", val.value)
+
     def test_sibling_variant_takes_its_family_average(self):
         # Only the blue and red fired molds are made; the black one is a leaf of the same family.
         items = {c: item() for c in ("game:gem", "game:mold-blue-fired-axe", "game:mold-red-fired-axe",

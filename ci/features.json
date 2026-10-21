@@ -17,6 +17,7 @@
       "codes": ["trading", "tradingwindow", "trader", "traderlead", "tradelists", "visitor", "schematic",
                 "standing", "dialogue", "package", "inn", "innflag", "innsign", "map", "item-values",
                 "itemvalues"],
+      "export": ["Items/PackTradeSources.cs"],
       "switches": ["TraderGrid", "TraderStanding", "TraderStandingSpilloverKm", "EverythingHasAPrice",
                    "RegionalSupply", "SupplyHalfLifeDays", "SupplySpreadFraction", "TraderSchematics",
                    "MachineSchematics", "TraderOrders", "TraderDeliveries", "TraderMaps",
