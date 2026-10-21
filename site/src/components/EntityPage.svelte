@@ -16,6 +16,7 @@
     type VariantGroup,
   } from "../lib/entity-view.ts";
   import { butcheryVariantsFor, formatNumber, formatQuantity } from "../lib/recipe-view.ts";
+  import { anyPackTrade, tradeNotes, tradePrice } from "../lib/trades.ts";
   import { formatRoute } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
@@ -225,7 +226,10 @@
               <table>
                 <thead>
                   {#if isTrade(section.kind)}
-                    <tr><th scope="col">{t.item}</th><th scope="col">{t.perTrade}</th><th scope="col">{t.priceHeading}</th><th scope="col">{t.stock}</th></tr>
+                    <tr>
+                      <th scope="col">{t.item}</th><th scope="col">{t.perTrade}</th><th scope="col">{t.priceHeading}</th><th scope="col">{t.stock}</th>
+                      {#if section.rows.some((s) => tradeNotes(s).length > 0)}<th scope="col">{t.tradeNotesHeading}</th>{/if}
+                    </tr>
                   {:else}
                     <tr><th scope="col">{t.item}</th><th scope="col">{t.quantity}</th><th scope="col"></th></tr>
                   {/if}
@@ -237,8 +241,9 @@
                       <td>{#if ref}<ItemLink code={ref.code} {data} />{/if}</td>
                       <td>{formatQuantity(s.quantity)}</td>
                       {#if isTrade(section.kind)}
-                        <td>{s.price !== undefined ? formatQuantity({ avg: s.price, var: s.extra?.priceVar as number | undefined }) : ""}</td>
+                        <td>{tradePrice(s)}</td>
                         <td>{stock(s)}</td>
+                        {#if section.rows.some((r) => tradeNotes(r).length > 0)}<td>{tradeNotes(s).join("; ")}</td>{/if}
                       {:else}
                         <td>{details(s)}</td>
                       {/if}
@@ -247,6 +252,7 @@
                 </tbody>
               </table>
             </div>
+            {#if isTrade(section.kind) && anyPackTrade(section.rows)}<p class="muted" data-testid="pack-prices">{t.packPricesVary}</p>{/if}
           {/if}
         </section>
       {/each}

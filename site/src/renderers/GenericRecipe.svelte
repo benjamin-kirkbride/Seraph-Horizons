@@ -2,7 +2,7 @@
   // For recipe types the site has no layout for, mods' own machines above all.
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { slotStacks } from "../lib/recipe-view.ts";
+  import { isKept, slotStacks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -14,9 +14,9 @@
     {#each recipe.ingredients as ing, i (i)}
       <li data-input={i}>
         {#if ing.role}
-          <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} showName><span>({ing.role})</span></Slot>
+          <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} kept={isKept(ing)} showName><span>({ing.role})</span></Slot>
         {:else}
-          <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} showName />
+          <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} kept={isKept(ing)} showName />
         {/if}
       </li>
     {/each}

@@ -978,11 +978,13 @@ goods (× the fit).
 
 ## Open problems
 
-- The handbook's and the recipe browser's "sold by" read vanilla-format lists from entity attributes
-  (`tradePropsFile`/`tradeProps`); our types have none, so neither shows them. In a grid world both
-  leave out the traders the grid replaces (seraphhorizons README, "Traders"), the game's treasure
-  hunter among them, so they list only the villagers (and a mod's story traders, none in the pack). Showing ours needs either a flattened
-  vanilla-format view per type or the exporter learning our format.
+- The handbook's "sold by" reads vanilla-format lists from entity attributes
+  (`tradePropsFile`/`tradeProps`); our types have none, so it does not show them. In a grid world it
+  leaves out the traders the grid replaces (seraphhorizons README, "Traders"), the game's treasure
+  hunter among them, so it lists only the villagers (and a mod's story traders, none in the pack).
+  The recipe browser does show ours: its exporter reads the loaded lists and the schematic catalog
+  (`tools/recipe-export/Items/PackTradeSources.cs`, docs/recipe-browser/item-data.md "The pack's
+  traders"), one page per trader type with price ranges and standing tiers.
 - A camp's spots are decided as chunks generate, so two worlds of the same seed explored in different
   orders can end up with a camp at a different spot of the same cell (or none). `/sh trade camps`
   shows what each world did.
