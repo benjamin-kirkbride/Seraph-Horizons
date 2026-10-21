@@ -2158,8 +2158,8 @@ in the tank a spray from the injection valve's nozzle at `drip.pos`.
 
 With the switch off the server marks the three block types, the five new item types and both
 recipe files disabled before the game loads them, so none of it exists and cutters already placed
-are lost. The stainless gears it makes exist either way. Not yet: the recipe export of the cut (#483),
-and a schematic for the frame (`MachineSchematics`). The five new parts' items are drawn as the parts
+are lost. The stainless gears it makes exist either way. Not yet: the recipe export of the cut (#483).
+The frame takes the gear cutter schematic ("Schematics"). The five new parts' items are drawn as the parts
 are in the machine (`shapes/item/gearcutter/`, generated with the machine's model).
 
 ### Unified pipes (`UnifiedPipes`, `UnifiedPipesSettings`)
@@ -2695,7 +2695,7 @@ drips from the oiler with oil in the tank, and the gears' sound.
 With the switch off the server marks the frame's block type, the die's item type and both recipe files
 disabled before the game loads them, so none of it exists and benches already placed are lost; the
 machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
-way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
+way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. The frame takes the draw bench schematic ("Schematics").
 
 ### Cylinder borer (`CylinderBorer`, `CylinderBorerSettings`)
 
@@ -2813,7 +2813,7 @@ With the switch off the server marks the three block types, the cutter head's, t
 item types, the two mold block types and the grid, smithing and clay forming recipe files disabled before
 the game loads them, and empties the engines' patch, so none of it exists, borers already placed are lost,
 and ppex's engines take their plates and pipes again; the machine oil page and the mod's own text no longer
-name it. Not yet: a schematic for the frame (`MachineSchematics`).
+name it. The frame takes the cylinder borer schematic ("Schematics").
 
 ### Slitting mill (`SlittingMill`, `SlittingMillSettings`)
 
@@ -2910,8 +2910,8 @@ dust at the nip and the gears' sound at the knife.
 
 With the switch off the server marks the frame's block type, the slitter cutter's item type and the grid and
 smithing recipe files disabled before the game loads them, so none of it exists and mills already placed are lost;
-the machine oil page and the mod's own text no longer name it. Not yet: a schematic for the frame
-(`MachineSchematics`).
+the machine oil page and the mod's own text no longer name it. The frame takes the slitting mill
+schematic ("Schematics").
 
 ### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
 
@@ -7867,6 +7867,29 @@ machine's first-stage grid recipe, kept on crafting:
 | `gearbox` | Mechanical Power Expanded's gearboxes | smith, 2 |
 | `biplane` | the biplane's trestles | mechanic, 4 |
 | `eidolon` | the eidolon gantry's frame and the eidolon command tool (switch `Eidolon`) | curio dealer, 3 |
+| `arrastra`, `sluice` | this mod's arrastra and sluice frame (switches `Arrastra`, `Sluice`) | mechanic, 1 |
+| `jawbreaker`, `ballmill`, `jig`, `shakingtable` | this mod's jaw breaker frame, ball mill, jig frame and shaking table frame (switches `JawBreaker`, `BallMill`, `Jig`, `ShakingTable`) | mechanic, 2 |
+| `handcar` | this mod's handcar (switch `Handcar`) | mechanic, 2 |
+| `stampbattery`, `vanner`, `cylinderborer` | this mod's stamp battery, vanner frame and cylinder borer frame (switches `StampBattery`, `Vanner`, `CylinderBorer`) | mechanic, 3 |
+| `stallroaster` | this mod's stall roaster frame (switch `StallRoaster`) | smith, 1 |
+| `amalgamationplates`, `reverberatory`, `parkeskettle`, `liquationfurnace`, `cupellationfurnace`, `acidparting` | this mod's amalgamation plates and the frames of its reverberatory roaster, Parkes kettle, liquation and cupellation furnaces and acid parting vessel (switches `AmalgamationPlates`, `ReverberatoryRoaster`, `ParkesKettle`, `LiquationFurnace`, `CupellationFurnace`, `AcidParting`) | smith, 2 |
+| `cruciblefurnace`, `drawbench`, `slittingmill` | this mod's crucible furnace, draw bench and slitting mill frames (switches `StainlessSteel`, `DrawBench`, `SlittingMill`) | smith, 2 |
+| `gearcutter` | this mod's gear cutter frame (switch `GearCutter`) | smith, 3 |
+| `steampower` | Pipes and Power Expanded's Cornish boiler and Watt engine | mechanic, 2 |
+| `highpressuresteam` | Pipes and Power Expanded's Lancashire boiler and Cornish engine | mechanic, 3 |
+| `blastfurnace` | Steelmaking Expanded's blast furnace door, twin-tub blower frame and Cowper stove intake | smith, 2 |
+| `bessemer` | Steelmaking Expanded's converter control | smith, 3 |
+| `steamengine` | Yang's Transport's primitive and simple steam engines | mechanic, 2 |
+| `locomotive` | Yang's Transport's standard and advanced steam engines (the upgrade from a standard one too) | mechanic, 3 |
+| `temporalstabilizer` | the temporal stabilizer | curio dealer, 3 |
+| `sprinkler` | the tier-one sprinkler, from which the higher tiers are made | farmer, 2 |
+| `spinningwheel` | the spinning wheel's and the fly-shuttle loom's final assemblies (their parts and the drop spindle are free) | tailor, 1 |
+| `alchemycauldron` | Alchemy's potion cauldron (its first stage) | curio dealer, 1 |
+
+Not gated: the hand ore tools (amalgam pan, rocker, riddle, cupel, liquation pan, spalling), the
+squaring shear, the press brake, the mandrel forging station and the pickling tub. Each of the pack's
+own machines names its switch, and the ore machines (all the ore-processing rows above: their systems
+apply only with `OreProcessing` on too) name `OreProcessing` as well.
 
 The hand crank needs no schematic (its own schematic, and the centred spur gear's, which the
 transmission's took over, are gone, items and all).
@@ -7874,10 +7897,14 @@ transmission's took over, are gone, items and all).
 The schematic takes the recipe's first empty slot. A narrow or short recipe gets a column or a row.
 In a full 3×3 grid, two slots of the ingredient filling the most slots become one at double quantity
 (the large gear, the pulverizer frame, the metal rotor, the sawmill and rosser frames, the panning
-machine). MadMechanics' vertical clutch and transmission are conversions of the game's and stay as
+machine, the cylinder borer's logs, the draw bench's rods, the slitting mill's plates, the gear cutter's planks, ppex's Cornish
+engine's steel plates, smex's twin-tub blower's planks, the Cowper stove intake's bricks, the temporal stabilizer's
+bronze ingots and Yang's advanced engine's copper rods). MadMechanics' vertical clutch and transmission are conversions of the game's and stay as
 they are. Off, the recipes are as their mods ship them and no catalog sells the machine schematics.
-A gate may name the switch its machine needs (`switch`, a `SeraphHorizonsConfig` bool: the bucking
-sawmill's, the rosser's, the eidolon's): with that switch off, its schematic is for sale nowhere.
+A gate may name the switches its machine needs (`switch`, a `SeraphHorizonsConfig` bool's name or a
+list of them, all needed: the bucking sawmill's, the rosser's, the eidolon's, each of this mod's
+machines', an ore machine's with `OreProcessing`): with any of them off, its schematic is for sale
+nowhere.
 
 **The catalogs**: schematics are never on a shelf. Each trader type sells its own (the table's
 `sales`: `sellers`, `tier`, `price`) on the trade window's **Schematics** tab, a row each as on the

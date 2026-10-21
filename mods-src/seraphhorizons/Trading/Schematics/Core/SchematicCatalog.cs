@@ -16,7 +16,7 @@ public sealed record CatalogRow(string Code, int Price, int Tier, bool Unlocked)
 /// config's <c>seraphhorizons:switchesOff</c> list does (<c>ValueHandbook.OffKey</c>,
 /// <c>SwitchOwnership.DecodeOff(...).Contains</c>). A machine schematic
 /// (<c>seraphhorizons:schematic-*</c>) needs <see cref="MachineSwitch"/> on and its gate's own
-/// <see cref="SchematicGate.Switch"/> (if any) on.</para>
+/// <see cref="SchematicGate.Switches"/> (if any) all on.</para>
 ///
 /// <para>A row is unlocked when the viewer's tier is at least its tier; the server passes the best
 /// tier with that trader among the player and the members of every player group they belong to
@@ -32,7 +32,7 @@ public static class SchematicCatalog
     {
         if (!table.IsMachineSchematic(sale.Code)) return true;
         if (isOff(MachineSwitch)) return false;
-        return table.GateOf(sale.Code)?.Switch is not { Length: > 0 } sw || !isOff(sw);
+        return table.GateOf(sale.Code) is not { } gate || !gate.Switches.Any(isOff);
     }
 
     /// <summary>

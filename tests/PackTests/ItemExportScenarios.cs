@@ -384,16 +384,16 @@ public class ItemExportScenarios : AtlasScenarioBase
     public void Pack_schematic_is_sold_from_its_catalog_at_its_price_and_tier()
     {
         // config/schematic-gates.json "sales": seraphhorizons:schematic-sawmill, sellers carpenter,
-        // tier 2 (regular); price 60 (the catalog's, or the carpenter list's override before it).
+        // tier 2 (regular), price 30.
         var item = Item(Items, "seraphhorizons:schematic-sawmill");
         var trades = Sources(item, "traderSells").Where(s => (string?)s["extra"]?["traderType"] == "carpenter").ToList();
         // Once: a list that still carries the schematic is not counted beside the catalog.
         var trade = Assert.Single(trades);
         Assert.Equal(Carpenter, (string?)trade["from"]);
         Assert.Equal("schematics", (string?)trade["extra"]?["catalog"]);
-        Assert.Equal(60.0, (double?)trade["price"]);
-        Assert.Equal(60.0, (double?)trade["extra"]?["priceMin"]);
-        Assert.Equal(60.0, (double?)trade["extra"]?["priceMax"]);
+        Assert.Equal(30.0, (double?)trade["price"]);
+        Assert.Equal(30.0, (double?)trade["extra"]?["priceMin"]);
+        Assert.Equal(30.0, (double?)trade["extra"]?["priceMax"]);
         Assert.Equal(2, (int?)trade["extra"]?["standingTier"]);
         Assert.Equal("regular", (string?)trade["extra"]?["standingTierName"]);
         Assert.Empty(Sources(item, "traderBuys").Where(s => s["extra"]?["traderType"] != null));

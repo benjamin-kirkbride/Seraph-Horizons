@@ -110,7 +110,10 @@ public partial class SharedWorldScenarios
         // the grid: the frame, of oak and iron (two plates in one slot, four rods, 12 nails and strips), with a hammer
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:drawbench-frame-north" && r.Enabled);
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("iron") && i.Quantity == 2);
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "rod-*" && i.Quantity == 2));
+        // four rods, counted over the slots: the draw bench's schematic (MachineSchematics) takes a slot of
+        // the full grid by putting two slots of one in one (Trading/Schematics/Core/GridGate.cs)
+        Assert.Equal(4, frame.ResolvedIngredients!.Where(i => i?.Code?.Path == "rod-*").Sum(i => i!.Quantity));
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:schematic-drawbench" && !i.Consume);
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 12);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:log-placed-oak-ud");
         // 2 stainless gears for the gearing the frame carries (the rectifier, the return shaft and barrel gears)

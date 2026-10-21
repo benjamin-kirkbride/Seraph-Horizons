@@ -66,9 +66,20 @@ public partial class TradingScenarios
                      ("game:largegear3", "seraphhorizons:schematic-transmission"),
                      ("game:waterwheel-3m-north", "seraphhorizons:schematic-waterwheel"),
                      ("seraphhorizons:eidoloncommander", "seraphhorizons:schematic-eidolon"),
+                     ("seraphhorizons:jawbreaker-north", "seraphhorizons:schematic-jawbreaker"),
+                     ("seraphhorizons:handcar", "seraphhorizons:schematic-handcar"),
+                     ("seraphhorizons:gearcutter-frame-north", "seraphhorizons:schematic-gearcutter"),
+                     ("seraphhorizons:cruciblefurnace-frame-north", "seraphhorizons:schematic-cruciblefurnace"),
+                     ("ppex:enginecornish-north", "seraphhorizons:schematic-highpressuresteam"),
+                     ("smex:mpblower-north", "seraphhorizons:schematic-blastfurnace"),
+                     ("yangtransport:steamengine-advanced-north", "seraphhorizons:schematic-locomotive"),
+                     ("vcftemporalstabilizer:temporalstabilizer", "seraphhorizons:schematic-temporalstabilizer"),
+                     ("sprinklersmod:t_one_sprinkler-copper", "seraphhorizons:schematic-sprinkler"),
+                     ("alchemy:potioncauldron-oldworld-construct0", "seraphhorizons:schematic-alchemycauldron"),
                  })
         {
-            var recipes = Making(output).ToList();
+            // Not a one-slot conversion (the sprinkler's down-to-up), which no gate takes.
+            var recipes = Making(output).Where(r => r.ResolvedIngredients!.Count(i => i != null) > 1).ToList();
             Assert.True(recipes.Count > 0, $"no recipe makes {output}");
             Assert.All(recipes, r => Assert.True(Takes(r, schematic), $"{r.Name} ({output}) does not take {schematic}: {r.IngredientPattern}"));
         }
