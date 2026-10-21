@@ -218,7 +218,7 @@ public sealed class RosserRenderer : IRenderer
         {
             // light from the cell over the middle of the machine, outside the model
             var light = LightCell();
-            prog = rapi.PreparedStandardShader(light.X, light.Y, light.Z);
+            prog = MachineShading.Prepare(_capi, light);
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
