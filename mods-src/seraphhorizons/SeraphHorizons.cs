@@ -920,6 +920,11 @@ public class SeraphHorizonsConfig
     /// one). Raise it if the checks show as lag on a busy server. Server side.</summary>
     public double DepositCheckPauseSeconds { get; set; } = 5;
 
+    /// <summary>Trader maps: on a player's first join to a world with the camp grid, the nearest
+    /// prospector's camp goes on their map, approximate (±64 m) like a bought lead, and meeting its
+    /// trader makes it exact. Once per player, ever. Needs <c>TraderMaps</c> and the grid. Server side.</summary>
+    public bool SpawnProspectorMark { get; set; } = true;
+
     /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
     /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
     /// logs and the admin map layer. Changes nothing in play. Server side.</summary>

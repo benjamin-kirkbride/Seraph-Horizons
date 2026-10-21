@@ -1652,12 +1652,13 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal("off", World.Api.WorldManager.SaveGame.GetData<string>(SeraphHorizons.Mod.Trading.TradingSystem.GridStateKey));
     }
 
-    /// <summary><c>TraderStanding</c>, <c>TraderOrders</c>, <c>TraderDeliveries</c>, <c>TraderMaps</c>:
-    /// each system stands down, and the traders see no standing (everyone a stranger).</summary>
+    /// <summary><c>TraderStanding</c>, <c>TraderOrders</c>, <c>TraderDeliveries</c>, <c>TraderMaps</c>
+    /// (and with it <c>SpawnProspectorMark</c>): each system stands down, and the traders see no
+    /// standing (everyone a stranger).</summary>
     [AtlasScenario]
     public void Trader_standing_orders_deliveries_and_maps_off_none_of_them_runs()
     {
-        foreach (var key in new[] { "TraderStanding", "TraderOrders", "TraderDeliveries", "TraderMaps" })
+        foreach (var key in new[] { "TraderStanding", "TraderOrders", "TraderDeliveries", "TraderMaps", "SpawnProspectorMark" })
             Assert.True(Off(key), key);
         Assert.False(SeraphHorizons.Mod.Trading.Standing.StandingSystem.Of(World.Api)!.Enabled);
         Assert.False(SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Standing.Enabled);

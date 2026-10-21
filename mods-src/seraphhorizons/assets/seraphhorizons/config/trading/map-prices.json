@@ -41,15 +41,12 @@
 	// Price: base × D × R × the tier's discount (in place of standing's price factor), rounded, at
 	// least 1, where D = 1 + distanceCurve × ease × ln(1 + ring) and R = 1 + repeatCurve × ease ×
 	// ln(1 + maps the group already bought from this trader, never reset).
-	// pity: a player's very first map, from any trader but a prospector, at any standing (a
-	// stranger's too, even with the group's stranger map there spent): a flat price, to the
-	// nearest prospector cell within reach rings that can take a camp (else the nearest camp of any
-	// type there). It is that trader's one stranger map and counts as a map bought there.
+	// A player's first map is not sold: the spawn mark (SpawnProspectorMark) marks the nearest
+	// prospector on their first join (the pity map it replaced was removed).
 	"campLeads": {
 		"base": 12,
 		"distanceCurve": 1.5,
 		"repeatCurve": 3,
-		"pity": {"price": 10, "reach": 10},
 		"tiers": {
 			"stranger": {"maps": 1, "reach": 1, "ease": 1,    "discount": 1},
 			"known":    {"maps": 2, "reach": 1, "ease": 0.85, "discount": 0.85},

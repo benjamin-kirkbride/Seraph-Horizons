@@ -324,7 +324,7 @@ public class TradeWindowSystem : ModSystem
                 state.LeadOffers.Add(new LeadOfferRow
                 {
                     Cell = o.Cell.ToString(), Type = o.Type, Distance = o.Distance, Dx = o.X - trader.Pos.X, Dz = o.Z - trader.Pos.Z,
-                    Price = o.Price, Prospector = o.Prospector, Ring = o.Ring, Pity = o.Pity,
+                    Price = o.Price, Prospector = o.Prospector, Ring = o.Ring,
                 });
             state.LeadsBought = leadView.Buyer.Bought;
             state.LeadsWhy = MapsSystem.WhyKey(leadView.Why);

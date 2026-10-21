@@ -443,15 +443,15 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
                 ["bought"] = new JsonObject(g.Bought.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
                 ["strangerMaps"] = new JsonArray(g.StrangerMaps.Order().Select(t => (JsonNode?)t).ToArray()),
                 ["visited"] = new JsonArray(g.Visited.Order().Select(t => (JsonNode?)t).ToArray()),
-                ["pityMap"] = g.PityMap,
+                ["spawnMark"] = g.SpawnMarked,
             };
         }
-        bool pityUsed = maps.Leads.PityUsed(player.PlayerUID);
+        bool spawnMark = maps.Leads.SpawnMarkGiven(player.PlayerUID);
         output.Data["player"] = player.PlayerName;
         output.Data["groups"] = groups;
-        output.Data["pityUsed"] = pityUsed;
+        output.Data["spawnMark"] = spawnMark;
         output.Summary = L("trading-admin-leads-head", player.PlayerName, string.Join(", ", keys),
-            L(pityUsed ? "trading-admin-leads-pity-used" : "trading-admin-leads-pity-unused"));
+            L(spawnMark ? "trading-admin-leads-spawnmark-given" : "trading-admin-leads-spawnmark-notyet"));
         var trader = TraderLookup.Find(api, args, args[1] as string, out _);
         if (trader != null && maps.CampLeadsFor(player, trader) is { } view)
         {
@@ -459,11 +459,11 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
             var offers = new JsonArray();
             foreach (var o in view.Offers)
             {
-                output.Lines.Add($"  {(o.Pity ? "first map: " : "")}{o.Cell} ring {o.Ring} {L("trading-type-" + o.Type)} {o.Distance:0} m ({o.X}, {o.Z}): {o.Price} g{(o.Prospector ? " *" : "")}");
+                output.Lines.Add($"  {o.Cell} ring {o.Ring} {L("trading-type-" + o.Type)} {o.Distance:0} m ({o.X}, {o.Z}): {o.Price} g{(o.Prospector ? " *" : "")}");
                 offers.Add(new JsonObject
                 {
                     ["cell"] = o.Cell.ToString(), ["ring"] = o.Ring, ["type"] = o.Type, ["x"] = o.X, ["z"] = o.Z, ["distance"] = Math.Round(o.Distance),
-                    ["price"] = o.Price, ["prospector"] = o.Prospector, ["pity"] = o.Pity,
+                    ["price"] = o.Price, ["prospector"] = o.Prospector,
                 });
             }
             output.Data["trader"] = view.TraderId;
