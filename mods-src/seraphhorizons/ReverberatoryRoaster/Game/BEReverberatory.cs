@@ -232,13 +232,7 @@ public class BEReverberatory : BEFiredOreMachine
     }
 
     /// <summary>Its row: itself and the furnace back to back with it, one chimney on either outlet, the other capped.</summary>
-    public override FurnaceRow FindRow()
-    {
-        if (Flue is not { } flue || !Built)
-            return FurnaceRow.Alone;
-        var partner = Partner();
-        return Firing.Find(this, flue, k => k == -1 ? partner : null, flue.RowMax, flue.MinChimney);
-    }
+    protected override BEFiredOreMachine? RowMemberAt(int k) => k == -1 ? Partner() : null;
 
     // ---- Fire ----
 
