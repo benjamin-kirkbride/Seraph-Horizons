@@ -3617,7 +3617,8 @@ may work, nothing but the stair's way out is left and none of the area is unload
 how many it mined, how many it left as they were, how many were out of its reach, how many it kept under
 those as their floor and how many it left as its way out (`eidolon-mine-done`), and of those left any it
 planned to dig, why (`eidolon-mine-leftwhy`, working together, *When none may work*), walks back to where it was ordered (if it finds a way; stopped
-short, stuck or off an edge, it sets off again, up to 3 times) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
+short, stuck or off an edge, or getting no nearer for 20 seconds, pressing against one it cannot pass, it sets off
+again, up to 3 times; stopped short of another standing in its way, up to 10, `MineReturn`) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
 job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` (the rules, what it digs and what
@@ -3705,7 +3706,9 @@ band left under it, any clear of the stair and of the columns others hold: two i
 neither could step away from stood touching for 400 seconds), the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
 out keeps its box over its foot until near the top: stopped and begun again every 0.6 seconds, two walking
 home out of a spiral pit stood so for good, #971), and two still touching after 10 seconds change over, the
-one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
+one that waited stepping away; still touching after 30 seconds they stop parting until they come apart, each going on
+with its order (one walking home into a member already home, which never steps away, found nowhere to step to and tried
+again for ever, its order never ending and nothing told) (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold

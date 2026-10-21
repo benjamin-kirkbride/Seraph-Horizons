@@ -69,9 +69,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>Within this of where it was ordered, it is back.</summary>
     private const double HomeSlack = 1.5;
 
-    /// <summary>Times it sets off back again when its walk back stops short of where it was ordered.</summary>
-    private const int HomeTries = 3;
-
     /// <summary>How near its place counts as there: its box is 1.7 wide on a 2-block node, so off by
     /// more than 0.15 it stands over a third column, which it may not mine under.</summary>
     private const float ArriveWithin = 0.2f;
@@ -180,7 +177,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private double _waitCheckAt;
     private int? _band;
     private MineSector? _sector;
-    private int _homeTries;
+    private readonly MineReturn _homeTries = new();
     private int _toldSaved = toldOutOfReach;
     private bool _stairWait;
     private double? _throughSince;
@@ -510,7 +507,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (_stairWait)
                     return GoHome(eidolon);
                 // a crew by routes: walking at one standing, it stops short and sets off again a little later
-                // (a stop that counts against none of its tries)
+                // (a few times: one that stays in its way for good ends its walk, MineReturn.Bumps)
                 if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
                 {
                     _nav.Stop();
@@ -522,10 +519,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (_bumpedAt > double.NegativeInfinity && !_nav.Active)
                 {
                     _bumpedAt = double.NegativeInfinity;
-                    return GoHome(eidolon);
+                    if (_homeTries.Bumped())
+                        return GoHome(eidolon);
+                    eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: its walk back "
+                        + $"stopped short of one in its way {MineReturn.Bumps} times ({_homeTries}): it stays where it is ({DebugState})");
+                    return false;
+                }
+                // pressing on and getting no nearer (against one it cannot pass, which the game's walk takes for
+                // walking): stopped short
+                if (_nav!.Active && home != null && _homeTries.Stalled(eidolon.Pos.XYZ.DistanceTo(home), now))
+                {
+                    _nav.Stop();
+                    eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: its walk back got no "
+                        + $"nearer for {MineReturn.StallSeconds:0} s ({_homeTries}): stopped short ({DebugState})");
                 }
                 // stopped short (stuck, or off an edge into the pit): it sets off again, a few times
-                return _nav!.Active || ++_homeTries <= HomeTries && GoHome(eidolon);
+                return _nav!.Active || _homeTries.StoppedShort() && GoHome(eidolon);
             case Phase.Travel:
                 if (_nav!.Active)
                     return true;
@@ -1084,6 +1093,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 waiting.MakeRoom(other, now, (x, z) => FromWay(x, z) >= Clear);
     }
 
+    // whether it gave up parting from the ones it touches now (logged once), and since when it has touched none
+    private bool _partingGivenUp;
+    private double? _apartSince;
+
     /// <summary>
     /// A crew by routes (README "Eidolon", working together, *Routes*): two whose boxes have been in each
     /// other's for <see cref="EidolonParting.TouchSeconds"/> part, rather than stand so (the game pushing them
@@ -1093,7 +1106,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// it. Its step away is left to go on while their boxes still touch (<see cref="EidolonParting.StepSeconds"/>
     /// at most: a climb keeps its box over its foot until near the top, and stopped and begun again at every
     /// look it never got there, #971), and two still touching after <see cref="EidolonParting.SwapSeconds"/>
-    /// change over, the one that waited stepping away. Never while it strikes. True when it acted this tick.
+    /// change over, the one that waited stepping away; still touching after <see cref="EidolonParting.GiveUpSeconds"/>,
+    /// they stop parting until they come apart and each goes on with its order. Never while it strikes. True when it
+    /// acted this tick.
     /// </summary>
     private bool Untangle(EntityLaborEidolon eidolon, double now)
     {
@@ -1102,6 +1117,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             _touchSince = null;
             _tangledSince = null;
             _partingSince = null;
+            _partingGivenUp = false;
+            _apartSince = null;
             return false;
         }
         long id = eidolon.EntityId;
@@ -1110,12 +1127,29 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             && Math.Abs(e.Pos.Y - eidolon.Pos.Y) < 3.7).OfType<EntityLaborEidolon>().ToList();
         if (touching.Count == 0)
         {
-            _touchSince = null;
-            _tangledSince = null;
-            _partingSince = null;
+            // parted only once apart a while: a moment clear while one presses against another begins nothing again
+            _apartSince ??= now;
+            if (EidolonParting.Parted(now - _apartSince.Value))
+            {
+                _touchSince = null;
+                _tangledSince = null;
+                _partingSince = null;
+                _partingGivenUp = false;
+            }
             return false;
         }
+        _apartSince = null;
         _tangledSince ??= now;
+        // touching unparted too long (neither finds a way apart, or the other never steps away): parting is given
+        // up until they come apart, and its order goes on (EidolonParting.GiveUpSeconds)
+        if (EidolonParting.GivesUp(now - _tangledSince.Value))
+        {
+            if (!_partingGivenUp)
+                eidolon.World.Logger.Debug($"[eidolon-mine] {id} on {EidolonMinePlans.Describe(area)}: touching "
+                    + $"{string.Join(", ", touching.Select(t => t.EntityId))} unparted for {EidolonParting.GiveUpSeconds:0} s: it stops parting ({DebugState})");
+            _partingGivenUp = true;
+            return false;
+        }
         // stepping away already: the step is left to part them, not stopped and begun again
         if (EidolonParting.KeepsStepping(_partingSince, _nav?.Active == true, now))
             return true;
@@ -2530,6 +2564,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         if (!_nav!.GoTo(home, false, () => { }, () => { }))
             return false;
+        _homeTries.SetOff(eidolon.World.ElapsedMilliseconds / 1000.0);
         eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-returning");
         return true;
     }

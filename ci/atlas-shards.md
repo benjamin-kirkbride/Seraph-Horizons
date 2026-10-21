@@ -69,8 +69,8 @@ a shard (four boots ran past the limit): SwitchesOffScenarios and ConfigDefaults
 (each its own ModConfig), ClearCommandScenarios (a survival world) and HandcarScenarios
 (three players, and the shared world has no slots left).
 
-The eidolon's Eidolon* classes (each its own plain world, a server boot apiece) are ten
-shards. Their jobs run in game time on the virtual clock (tests/PackTests/README.md), a
+The eidolon's Eidolon* classes (each its own plain world, a server boot apiece, but the
+EidolonReal* ones) are thirteen shards. Their jobs run in game time on the virtual clock (tests/PackTests/README.md), a
 minute of digging taking a few seconds, so a shard is mostly its boots: `eidolon` the
 entity and the command tool, `eidolon-fittings` its fittings (EidolonFittedScenarios) and
 docking to strip and refit them (EidolonDockScenarios), `eidolon-mine` mining alone, in
@@ -85,7 +85,14 @@ across the area (EidolonOverhangScenarios, a long dig), `eidolon-fell` felling a
 (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-orders` carrying and guarding
 (EidolonCarryScenarios, EidolonGuardScenarios), `eidolon-hillside` two on a player's hillside
 for 8 minutes of game time (EidolonHillsideScenarios: its export placed, then the longest
-single run of mining in these shards), and `eidolon-jobs` every other Eidolon*
+single run of mining in these shards), the three `eidolon-real-*` mining on ground from the
+game's own world generation (each a seeded standard world, seed 31337, its spots found near
+spawn: tests/PackTests/RealTerrain.cs): `eidolon-real-slopes` a hillside and two cuts into a
+mountain (EidolonRealSlopeScenarios), `eidolon-real-ground` a pit and rough ground
+(EidolonRealGroundScenarios), each small area run to its job's end, and `eidolon-real-large`
+the owner's size of area on a hillside and on rough ground for 8 minutes of game time each
+(EidolonRealLargeScenarios; matched by the `EidolonReal` prefix out of `eidolon-jobs`, so a new
+EidolonReal* class needs a shard of its own), and `eidolon-jobs` every other Eidolon*
 class (chunk loading, the mine window grown round a crew, EidolonMineWindowScenarios), the complement of the others, kept short so a new one can join it
 (with VirtualClockScenarios, a world of its own kept out of `rest`).
 
