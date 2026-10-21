@@ -63,6 +63,7 @@ public class SeraphHorizonsSystem : ModSystem
     private Harmony? _nanMotionHarmony;
     // Client side only, its own id: the info HUD's rounding.
     private Harmony? _wailaRoundingHarmony;
+    private Harmony? _biodiversityWelcomeHarmony;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
     /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
@@ -227,6 +228,8 @@ public class SeraphHorizonsSystem : ModSystem
             api.Logger.Notification("[seraphhorizons] NaN motion diagnostics are switched off; a NaN motion crash (#405) leaves no report");
         if (Config(api).WailaRounding)
             WailaRounding.Patch(_wailaRoundingHarmony = new Harmony(WailaRounding.HarmonyId), api.Logger);
+        if (Config(api).NoBiodiversityWelcome && BiodiversityWelcome.Applies(api))
+            BiodiversityWelcome.Patch(_biodiversityWelcomeHarmony = new Harmony(BiodiversityWelcome.HarmonyId), api.Logger);
     }
 
     private void PatchCartReach(ICoreClientAPI api)
@@ -337,6 +340,8 @@ public class SeraphHorizonsSystem : ModSystem
             _wailaRoundingHarmony = null;
             WailaRounding.Unbind();
         }
+        _biodiversityWelcomeHarmony?.UnpatchAll(BiodiversityWelcome.HarmonyId);
+        _biodiversityWelcomeHarmony = null;
         _barrelRackHarmony?.UnpatchAll(BarrelRackKegs.HarmonyId);
         _barrelRackHarmony = null;
         _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
@@ -437,6 +442,11 @@ public class SeraphHorizonsConfig
     /// whole numbers and every other number to one decimal (client side; off means they show as the
     /// game and the mods format them).</summary>
     public bool WailaRounding { get; set; } = true;
+
+    /// <summary>Biodiversity: its welcome message, with its Discord link, is not shown in chat when a
+    /// player joins (client side; off means it shows until the player turns it off with its
+    /// <c>.nobdwelcome</c> command).</summary>
+    public bool NoBiodiversityWelcome { get; set; } = true;
 
     /// <summary>Hydrate or Diedrate: foods it gives no hydration (vanilla, Biodiversity: Crops,
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
