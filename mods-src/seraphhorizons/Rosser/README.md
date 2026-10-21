@@ -14,15 +14,17 @@ placed in line. Neither mod is referenced at build time.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` or `BuckingSawmill/`, which are this folder's
-neighbours. `Core/` is the game-independent part, `Game/` the blocks, block entities, renderer
+neighbours. `Core/` is the game-independent part, `Game/` the block entity, renderer
 and mod system (`RosserSystem`), and `tools/` the model's generator. `DebarkedTrunks.cs` is the
-debarked trunk (below). The rig maths, footprint, trunk path and trunk box, and the Logging
-Expanded bridge are shared with the bucking mill in `Machines/` (`Machines/Core/`,
-`Machines/Game/`), as is the generic half of the generator (`Machines/tools/machinegen/`).
+debarked trunk (below). The rig maths, footprint, trunk path and trunk box, the staged build, the Logging
+Expanded bridge and the shared machine base (`BEMachine`, the frame and cell blocks, the power behaviour, the
+oil, the reservoir; `../../../docs/modeling/machine-base.md`) are shared with the bucking mill and every other
+machine in `Machines/` (`Machines/Core/`, `Machines/Game/`), as is the generic half of the generator
+(`Machines/tools/machinegen/`).
 
 The rosser needs both mods, and the debarked trunk, which the same switch adds. With the switch
 off, either mod not installed, or the debarked trunk not there (Logging Expanded's trunk not as the
-patch expects), the server marks the rosser's four blocktypes and its recipe disabled before the
+patch expects), the server marks the rosser's frame blocktype and its recipe disabled before the
 game loads them (`RosserSystem.Disable`), so the blocks do not exist at all; rossers already placed
 in a world are then lost, and so are debarked trunks. Pipes and Power Expanded (`ppex`) is
 optional: it waters the drip, and its straight pipe in copper and lead (the metals the `UnifiedPipes`
@@ -66,17 +68,18 @@ variant: `loggingmod:treetrunk-{wood}-{size}-debarked-{side}`, named "<Wood> Tre
 ## The machine
 
 **Blocks.** The controller is `seraphhorizons:rosser-frame-{side}` (item form `-north`), the middle
-of the machine's near end at ground level, which is its outfeed end. **Placing** it is the mill's
-rule (`BlockRosser.TryPlaceBlock`, `Footprint.PlacedFacing`): the rosser extends away from the
+of the machine's near end at ground level, which is its outfeed end. The frame is the shared machine base's
+(`BlockMachine`, `class: "seraphhorizons.Machine"`). **Placing** it is the mill's rule (placed lengthwise,
+its rig's `IMachineRig.PlacedSide`, `Footprint.PlacedFacing`): the rosser extends away from the
 player along their line of sight, so the infeed end is the far one. Placing needs room for every
-cell of the rig and stamps an invisible ghost into each other cell: `rosser-ghost`,
-`rosser-ghostpower-{side}` in the cell that takes the axle and `rosser-ghostwater-{side}` in the cell
-a water pipe connects to. Ghosts store the controller's position (`IMachineGhost.Principal`) and
+cell of the rig and stamps the shared machine cells into each other cell: `seraphhorizons:machine-cell`, and
+`machine-cellpower-{face}` in the cell that takes the axle; the cell a water pipe connects to is a plain cell,
+whose water face is the rig's `water` anchor. Cells store the controller's position (`IMachineGhost.Principal`) and
 pass interaction, breaking, the pick-block stack, name, info and help to it. Every cell's collision
-and selection boxes come from the controller (`BERosser.CellBoxes`): its own from the rig, plus its
-part of the trunk. Its collision boxes (`CollisionBoxes`) add the cell's lid on a station column's top
-cell (below). The controller re-stamps missing ghosts once a second. Breaking the frame or any
-ghost breaks the whole rosser.
+and selection boxes come from the controller (`BERosser.CellBoxes`, the base's overridden): its own from the rig,
+plus its part of the trunk. Its collision boxes (`CollisionBoxes`) add the cell's lid on a station column's top
+cell (below). The controller re-stamps missing cells once a second. Breaking the frame or any
+cell breaks the whole rosser.
 
 **Rig.** The footprint and anchors are data, in `assets/seraphhorizons/config/rosser-rig.json`
 (written by `tools/make_shape.py`; schema under [Rig schema](#rig-schema-rosser-rigjson)). In the
@@ -87,7 +90,7 @@ native, south-facing frame with the controller at `[0,0,0]` the machine box is 1
 - the beds, x −15..−13 (infeed) and −3..0 (outfeed): y 0..2, z −1..1, so the bucking mill's power
   feed cell, `[0,3,0]` here, stays free;
 - 243 cells, 41 of them `hollow`: cells over the trunk's path that no element of the model reaches.
-  A hollow cell is a ghost (nothing can be built in the trunk's way) but has no box of its own: it
+  A hollow cell is a machine cell (nothing can be built in the trunk's way) but has no box of its own: it
   is solid only where the trunk's box is.
 - 45 lids, the mill's (`../BuckingSawmill/README.md`, **Rig**), over the station only: a
   collision-only box 1/16 thick over the whole of each station column's top cell, at y 4, so a
@@ -105,30 +108,33 @@ its pipe on the south face, on the other side. Bark and sticks come out of the c
 side under the ring. Turning to a facing is the mill's (`Machines/Core/Footprint.cs`): the shape
 turns by rotateY north 180, east 90, south 0, west 270. `Core/RosserRig.cs` parses the file.
 
-**Assembly.** Right-click the frame or any ghost holding a part, recognised by full code
-(`Core/RosserParts.cs`). Nine stages, each a `requires` name of the rig but the pipes, whose parts
-are one per metal:
+**Assembly.** Right-click the frame or any cell holding a part, recognised by full code. The build is data on
+the shared staged build, `assets/seraphhorizons/config/builds/rosser.json`: one stage of seven parts in any
+order, each drawing its rig parts once it is all in (`draws`; the rods two at a time, `RosserBuild.Shows`), and
+the scraper heads its wearing part (`heads`), fitted by the rosser's own rule (`Core/RosserBuild.cs`,
+`RosserBuild.FitHeads`) once the ring is in, before or after the rest. The parts, each a `requires` name of the
+rig but the pipes, whose parts are one per metal:
 
 | Stage | `requires` | Items | Draws |
 |---|---|---|---|
 | Drive | `shaft` | 1 `immersivewoodworking:sawmillcrankshaft` | The entry shaft, flywheel and crown disc, the two rectifier pinions, the main shaft with its ring pinion and both worms |
 | Ring | `ring` | 4 `game:largegearsection-wood` | The cutter ring (body, rim teeth, arm pins and springs), its four rollers and the four scraper arms |
 | Tyres | `tyres` | 2 `game:hoop-{metal}` | The ring's two iron tyres. Needs the ring. |
-| Infeed rolls | `rollsin` | 2 `game:rod-{metal}` | The infeed lay shaft and worm wheel, change gears, selector, cross shaft, top-roll arms and top roll, and bottom roll |
-| Outfeed rolls | `rollsout` | 2 `game:rod-{metal}` | The same at the outfeed |
+| Infeed rolls | `rollsin` | the first 2 of 4 `game:rod-{metal}` | The infeed lay shaft and worm wheel, change gears, selector, cross shaft, top-roll arms and top roll, and bottom roll |
+| Outfeed rolls | `rollsout` | the other 2 | The same at the outfeed |
 | Limb breaker | `breaker` | 2 `game:metalplate-{metal}` | The V bars |
 | Levers | `levers` | 1 `immersivewoodworking:sawmilllevers` | The treadle, its lever and the pushrod, the rock shaft, and both selector levers |
-| Pipes | `pipecopper` or `pipelead` (the stage is `pipes`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, soldered pipe in that metal: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its joints, nozzles and soldered end |
-| Heads | `heads` | 4 `immersivewoodworking:barkspudhead-{metal}`, one metal, from one stack | The scraper tips, in that metal. Needs the ring. |
+| Pipes | `pipecopper` or `pipelead` (the part's `picks`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, soldered pipe in that metal: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its joints, nozzles and soldered end |
+| Heads | `heads` (the wearing part) | 4 `immersivewoodworking:barkspudhead-{metal}`, one metal, from one stack | The scraper tips, in that metal. Needs the ring. |
 
-- Any order, except that the tyres and the heads go on the ring (`NeedsRing`).
-- A click takes from the held stack as many as the stage still needs: rods fill the infeed rolls
-  first, then the outfeed rolls, up to four from one stack. The heads and the pipes need a stack of
-  four (`NeedsFullSet`), so they are always one metal.
+- Any order, except that the tyres and the heads go on the ring (`error-needs-ring`).
+- A click takes from the held stack as many as the part still needs, fewer too (`partial`): rods fill the
+  infeed rolls first, then the outfeed rolls, up to four from one stack. The heads and the pipes need a stack of
+  four (`error-needs-full-set`, the shared `machine-error-toofew`), so they are always one metal.
 - Hoops, rods and plates must be iron, meteoric iron or steel while the woodworking machines are
   iron work (`IronWoodworkingMachines` on, as it is by default; `RosserSystem.PartMetals`), and may
-  be any metal with it off. The heads may be any metal. A save keeps every fitted item's code, and
-  is restored with any metal, so turning that switch on never takes a fitted part away.
+  be any metal with it off (the build file's codes widened, `RosserBuild.AnyMetal`). The heads may be any metal.
+  Turning that switch on gives back, on the next load, a fitted part no longer of a metal the rosser takes.
 - **The pipes** are Pipes and Power Expanded's straight pipe (`ppex:pipe-straight-{ns,we,ud}-{metal}`,
   any orientation; it goes back as it came) in copper or lead, the metals `UnifiedPipes` adds to ppex's
   pipes (`patches/unifiedpipes-ppex.json`), whatever `IronWoodworkingMachines` says: iron and steel
@@ -138,19 +144,18 @@ are one per metal:
   metal: the rig has a part per metal, `pipecopper` and `pipelead`, the same elements in
   `game:block/metal/sheet-plain/copper4` and `lead4`, the textures `UnifiedPipes` gives ppex's copper
   and lead pipes, with their joints in `game:block/metal/ingot/leadsolder`, and the renderer draws
-  the fitted metal's (`RosserParts.Fitted`, `PipeMetal`; the block info names it). Until they are in,
+  the fitted metal's (`RosserBuild.Shows`, `PipeMetal`; the block info names it). Until they are in,
   a straight pipe in hand is a part, so a click on the water face fits it (sneak to place one there);
   once they are in, the click is not the rosser's and places the pipe against it as against any
-  block, as a player connects the water face (`RosserParts.TakesClick`). Water comes in only
+  block, as a player connects the water face (`BERosser.InteractContent`). Water comes in only
   through them (**Water**).
 - **Without the pipes.** The pipes are a stage only while ppex's straight pipe exists in copper and
   lead (`RosserSystem.PipesNeeded`, which each side asks of its own world: ppex installed and
-  `UnifiedPipes` on). Without them the stage is left out (`RosserParts.PipesNeeded`): the rosser is
+  `UnifiedPipes` on). Without them the part is left out (`ifExists`, `MachineBuild.Resolve`): the rosser is
   complete without pipes, draws none, refuses none (a pipe in hand is never a part), and takes water
-  from a pipe on the water face as before. A rosser saved before the pipes were a stage has none:
-  it stops, its block info lists them, and it runs again once they are fitted.
-- Parts are used up outside creative mode. In creative mode one item fits all its stages take
-  (a single rod fills both roll sets), and nothing is taken.
+  from a pipe on the water face as before.
+- Parts are used up outside creative mode. In creative mode one item fits all its part takes
+  (a single rod fills both roll sets, a single head the set), and nothing is taken.
 - Ctrl + right-click takes the trunk back if it is waiting or delivered, refuses while it is in the
   rolls, and with no trunk takes the four heads back while they are unused. With trunk entities
   (`../TrunkEntities/README.md`) the trunk goes into the player's Carry On hands, and stays on the
@@ -163,21 +168,20 @@ frame are always drawn: the frame item carries them.
 
 **Creative shortcut.** The woodworking stations' (the mod README's unified woodworking section,
 `Core/CreativeUpgrades.cs`): a player in creative mode who right-clicks an unassembled rosser with
-Ctrl held and not Shift gets its next stage fitted at once, whatever they hold, with nothing
-taken: drive, ring, tyres, infeed rolls, outfeed rolls, limb breaker, levers, four copper pipes
-(while the pipes are a stage), then four steel heads (`AssembledMachines.DefaultMetal`; steel for
-the hoops, rods and plates too; the pipes copper, steel being no pipe metal), one stage per click
-(`RosserParts.NextPart`). On an assembled rosser Ctrl does what it does in survival. It runs while
-`UnifiedWoodworking` does (`BERosser.CreativeShortcut`); the server decides, from its own player
+Ctrl held and not Shift gets every part still missing fitted at once (the build's stage), whatever they hold,
+with nothing taken: steel hoops, rods and plates (each part's first code), four copper pipes (while the pipes are
+a part), then, the next click, four steel heads (`AssembledMachines.DefaultMetal`), the shared base's shortcut
+(`MachineAssembly.FillNext`). On an assembled rosser Ctrl does what it does in survival. It runs while
+`UnifiedWoodworking` does (`BERosser.WoodworkingShortcut`, `CreativeFills`); the server decides, from its own player
 data, and a player in creative sees the help line
 (`seraphhorizons:woodworking-help-creative-upgrade`) while a stage is missing.
 
-**Power.** `BEBehaviorRosserMP`, a mechanical power consumer on the power ghost, connects only
-through the rig's power face, turned to the rosser's facing (`BlockRosserGhostPower`). It loads the
-shaft with the mill's 0.005 until the rosser is complete, then with `Resistance` (times
+**Power.** The shared `BEBehaviorMachineMP`, a mechanical power consumer on the power cell, connects only
+through the rig's power face (the base's `power` anchor), turned to the rosser's facing (`BlockMachineCellPower`). It loads the
+shaft with the machines' 0.005 (`MachineLoad.Unassembled`) until the rosser is complete, then with `Resistance` (times
 `MachineOilSettings.DryResistanceMultiplier` while its oil tank is dry: with `MachineOil` on, the
-rosser keeps an oil tank as the bucking mill does, built empty, filled by a click with oil on any
-cell, drained by `MachineOilSettings.Rosser.DrainPerJob` per stored log of each delivered trunk,
+rosser keeps an oil tank, the shared base's (`MachineOiling`, `OilMachine.Rosser`), built empty, filled by a click
+with oil on any cell, drained by `MachineOilSettings.Rosser.DrainPerJob` per stored log of each delivered trunk,
 rounded up; `../README.md`, "Machines need oil"). The axle comes in
 along native z, on a side face, so the shaft's sign is `MillMotion.NativeShaftAngle(side, angle,
 Axis.Z)`: − facing south or east, + facing north or west, which turns the entry shaft with a vanilla
@@ -261,11 +265,13 @@ rig's chute (`chute.pos`, turned to the facing), pushed out of its side:
   gives what is due beyond them: nothing drops twice across a save, an unload or a restart. A save
   without the counts takes everything due at its T as dropped.
 
-**Water.** Optional, from a Pipes and Power Expanded water pipe on the water ghost's water face
-(`../Machines/Game/PpexWater.cs`, shared with the ore machines), through the drip's own pipes: while they are a stage, the reservoir takes no
-water until they are fitted (`BERosser.DrawWater`). The drip's inlet ends at the water face on the
-middle of the cell's face, in ppex's 6 x 6 section, so a pipe there meets it end to end. Once a
-second the controller asks the pipe's network for what the reservoir
+**Water.** Optional, from a Pipes and Power Expanded water pipe on the water cell's water face
+(`../Machines/Game/PpexWater.cs`, shared with the ore machines), through the drip's own pipes: while they are a part, the reservoir takes no
+water until they are fitted (`BERosser.WaterIntakePerSecond`). The reservoir is the shared machine base's (its
+`water` anchor, `MachineReservoir`; `WaterPerItem` a log's water, `ReservoirCapacity`), but a dry drip never
+stops the rosser (`Wet` is always true for the running rules): it debarks dry. The drip's inlet ends at the water face on the
+middle of the cell's face, in ppex's 6 x 6 section, so a pipe there meets it end to end. Each tick
+the controller asks the pipe's network for what the reservoir
 lacks, at most `WaterIntakeLitresPerSecond` (10) a second up to `ReservoirLitres` (20). Each log
 scraped while the reservoir holds `WaterPerLog` (2) is wet and spends that much, so a full
 reservoir wets ten logs. A wet log's roll uses `WetBarkMultiplier` (1.5, so the special kinds of
@@ -273,8 +279,8 @@ bark come more often) and its count is multiplied by `WetBarkCountMultiplier` (1
 and one more with chance frac(n × 1.5), so 3 pieces become 4 or 5. Only water is drawn (the network's
 `MediumType` is `Water`). The binder tries ppex 0.7.1 / exlib 0.8.4's names, then 0.6.8 / 0.7.2's
 (pinned before), by reflection; it uses the network manager's `GetConnectedNetworkAcross`, which
-finds the pipe beyond the face whose connector points back, so the water ghost has no ppex type of
-its own. It overrides `CanAttachBlockAt` on its water face only, so ppex keeps a pipe's connector
+finds the pipe beyond the face whose connector points back, so the water cell has no ppex type of
+its own. The cell's `CanAttachBlockAt` says yes on its water face only (the base's anchors), so ppex keeps a pipe's connector
 into it and does not break the pipe. Without ppex, or with its members not as expected (one
 warning), the rosser runs dry. Whether it is wet is synced, for the drip's particles.
 
@@ -287,7 +293,7 @@ iron 3600, steel 9000 with the default. Each delivered trunk costs ceil(stored l
 fitted. The trunk that spent them is still delivered, and still leaves: onto a rack at the outfeed
 end while the shaft turns, to a mill in line, or by hand. The next trunk waits until four new heads
 are on. The block info
-shows the heads' metal, their points left and their feed speed.
+shows the heads' share left (their points with a wrench, and their feed speed).
 
 **Racks at both ends.** Once a second, and on delivery:
 
@@ -317,7 +323,7 @@ end, facing the same way, takes the delivered trunk itself. To place them, set t
 then place the rosser on the cell just beyond the mill's far end, in line with the mill's middle,
 looking the same way; the rosser's controller is then the mill's `[-6,0,0]`, its outfeed end fills
 the mill's three infeed cells, and the mill's power feed cell (`[-6,3,0]`) stays free. The rosser
-implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`) and its ghosts `IMachineGhost`:
+implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`) and its cells `IMachineGhost`:
 
 - `HasOutfeedCell` answers only for the controller's cell, the outfeed end's cell on the trunk's
   line. A mill offset one block sideways still finds it (its side infeed cell is the controller);
@@ -333,7 +339,7 @@ implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`) and its ghosts `IMac
 The thick trunk's axis is 1.6875 blocks up in the rosser and 1.44 in the mill (0.97 thin): the
 hand-off is a transfer, not a slide, and the step shows only at that instant.
 
-**Breaking.** Breaking the frame or any ghost drops the frame, every fitted part by its code (the
+**Breaking.** Breaking the frame or any cell drops the frame, every fitted part by its code (the
 heads only while unused), and the trunk as far as it got (`RosserTrip.Broken`; with trunk entities
 it lands as a trunk entity), so breaking and
 running it again never gives its sticks or bark twice:
@@ -344,7 +350,7 @@ running it again never gives its sticks or bark twice:
 | Nose past the breaker, not past the ring | Debranched (`Trunks.Debranch`: the clean trunk, branch count gone; the sticks already dropped are all there are) |
 | Nose past the ring, or delivered | Debarked |
 
-The ghosts are cleared and the renderer disposed.
+The cells are cleared and the renderer disposed.
 
 **Logging Expanded** is read through `Machines/Game/LoggingBridge.cs`, by reflection, as the mill
 reads it: the rack's block entity (`PeekTrunk`, `PopTrunk`, `PushTrunk`, `TrunkCount`), and
@@ -708,8 +714,8 @@ schema (`../BuckingSawmill/README.md`, "Rig schema") with these differences, par
 
 | Field | Meaning |
 |---|---|
-| `cells` | As the mill's (`lid` included), plus `"hollow": true` on a cell with no boxes of its own: a ghost, solid only where the trunk's box is. A hollow cell with `boxes` is an error; any other cell with none is still a full cube. The controller's cell cannot be hollow. A hollow cell may have a `lid`; it counts as 1 high for the deck's height. |
-| `powerCell`, `powerFace` | `[-9,3,-2]`, `north`: a ghost cell, not hollow, whose face looks out of the footprint. |
+| `cells` | As the mill's (`lid` included), plus `"hollow": true` on a cell with no boxes of its own: a machine cell, solid only where the trunk's box is. A hollow cell with `boxes` is an error; any other cell with none is still a full cube. The controller's cell cannot be hollow. A hollow cell may have a `lid`; it counts as 1 high for the deck's height. |
+| `powerCell`, `powerFace` | `[-9,3,-2]`, `north`: a cell other than the controller's, not hollow, whose face looks out of the footprint. |
 | `waterCell`, `waterFace` | `[-8,2,2]`, `south`: the same rules, and not the power cell. |
 | `infeedSide`, `outputSide` | `west` and `east`: they must be the path's ends (for a path along z, `north` and `south`). |
 | `chute` | `{ "pos": [-6.5, 0.1125, 3.05], "side": "south" }`: where bark and sticks spawn, and the face they are pushed out of, which must be opposite `powerFace`. The top-level `chuteSide` is for the site's viewer only. |
@@ -749,8 +755,9 @@ roll or `occupy` gauge in a rig without a `trunkPath`.
 
 ### Rendering
 
-`RosserRenderer` (client only, made by `BERosser` only while its block is the rosser, disposed on
-removal and unload, and by the client tick when the block is gone) draws everything that moves.
+`RosserRenderer` (client only, the rosser's own rather than the shared `MachineRenderer`, made by the shared base
+for `BERosser` only while its block is the frame, disposed on removal and unload, and by the client tick when the
+block is gone) draws everything that moves.
 The static frame is the block's own shape, `rosser_frame.json`, drawn in the chunk mesh; the
 renderer skips parts with no `requires`, ride or drivers.
 
@@ -766,7 +773,7 @@ renderer skips parts with no `requires`, ride or drivers.
   leaves the world; a renderer disposes only its trunk's segments.
 - The opaque pass and both shadow passes; nothing beyond 64 blocks from the ring; light from the cell
   above the highest cell over the ring's station, outside the model.
-- θ from the power ghost's `AngleRad` (`NativeShaftAngle` about z), accumulated; ψ adds up its size;
+- θ from the power cell's `AngleRad` (`NativeShaftAngle` about z), accumulated; ψ adds up its size;
   T is the block entity's per-frame interpolated travel; φ grows with T; p eases; k is held while p
   eases out. Nothing is hard-coded from the shape or the rig.
 - **The trunk** is Logging Expanded's clean and debarked blocks of the shown size and wood,
@@ -803,16 +810,15 @@ regenerating.
   needed) compiles `Core/` and tests: the rig parser (its own fixture,
   `tests/Rosser/fixtures/rosser-rig-test.json`, hollow cells, anchors, both ends' neighbours, 24
   broken rigs, and the shipped `rosser-rig.json`, whose `feed.gear` must match the default pace within
-  3 %); the parts rules (recognition, quantities, the ring first, heads as a set of four, the pipes
-  as four of copper or lead with a pipe's click passing to placement once they are in, the build
-  without them when they do not exist and a save from before them, the metal rule and `WithMetals`,
-  the requires vocabulary and each metal's pipes drawn only with that metal, the creative order, wear
-  and capacity, unworn heads out, breaking returns, save and restore); the pace (class speeds, tiers, settings, the feed ratio, and one rosser keeping
+  3 %); the parts rules on the shipped build file (`RosserBuildTests`: recognition, quantities, the ring
+  first, heads as a set of four, the pipes as four of copper or lead drawn in their metal, the build without
+  them when they do not exist, the metal rule and `AnyMetal`, the requires vocabulary, the creative shortcut,
+  wear and capacity, unworn heads out, breaking returns, save and restore); the pace (class speeds, tiers, settings, the feed ratio, and one rosser keeping
   one mill of the same metal fed at tiers 2 to 5); the trip (every stick and log's bark dropped once
   and delivered once, at several step sizes and trunk shapes; the thresholds; nothing twice across a
   save and reload at several points, and a save without counters; breaking per T; states, load
-  verdicts, rack offers, take-back; every info state's lang line); the water (filling, ten logs per
-  reservoir, wet counts with an injected random source); the visual values (presence easing, the
+  verdicts, rack offers, take-back; every info state's lang line); the water (`RosserBarkTests`: the shared
+  reservoir at the rosser's figures, filling, ten logs per reservoir, wet counts with an injected random source); the visual values (presence easing, the
   held class, the client's estimate, and φ over a whole trip turning the rolls exactly as far as the
   trunk goes); and the config.
 - `tests/Machines/` tests the shared code: `DriverFixtureTests` replays
@@ -838,10 +844,10 @@ regenerating.
   `RevolutionsPerBranch` 0.08, so a trip takes a few turns) loads this build with every locked mod.
   Each scenario builds on a floor of its own high above the ground.
   - Loading and placing: the rosser loads cleanly with its blocks, recipe, part items and ppex
-    binding; a player looking each way places one that extends away, with every ghost; breaking it
+    binding; a player looking each way places one that extends away, with every cell; breaking it
     clears the cells and drops the frame and parts.
-  - Assembly follows the rules, and in creative mode Ctrl + right-click fits the next stage, one per
-    click, in order. The pipes go on as four copper or lead straight pipes from one stack (iron, or
+  - Assembly follows the rules, and in creative mode Ctrl + right-click fits every part still missing,
+    then the heads. The pipes go on as four copper or lead straight pipes from one stack (iron, or
     three, are refused), and once they are in a pipe in hand is not the rosser's.
   - Power, on every facing: the power face alone takes an axle (an axle against any other face turns
     nothing), the shaft turns as the axle beside it is drawn, and the trunk feeds forward with the
@@ -909,7 +915,7 @@ unseen. Before release, play it through the modelling guide's list
 Also not checked: the rosser without Pipes and Power Expanded. The pack always loads it, so Atlas
 never sees the dry fallback's "no ppex" path; it is a few lines (`PpexWater.Bound`) and runs dry.
 Nor the rosser built without pipes (ppex missing, or `UnifiedPipes` off): the unit tests hold the
-parts rule (`RosserParts.PipesNeeded`), and Atlas only ever has the pipes.
+build without its pipes (`RosserBuildTests`), and Atlas only ever has the pipes.
 And water from a real pump: the Atlas pipe is filled through its network directly.
 
 Known compromises in the model and gameplay:

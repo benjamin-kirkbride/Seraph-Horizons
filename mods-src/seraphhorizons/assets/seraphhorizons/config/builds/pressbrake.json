@@ -1,0 +1,18 @@
+{
+	"_comment": "The press brake's build (PressBrake/README.md, 'Build order'): each stage after the frame and its materials, as its rig's parts draw them; read by Machines/Core/MachineBuildJson.cs (its schema) and kept by the shared machine base (docs/modeling/machine-base.md). One item a stage: the clamp screws with their tommy bars are one lot of the game's metal parts (a block; drawn in cupronickel whatever was fitted), the wearing edges an iron or steel plate (drawn in that metal). A hand machine: nothing wears. No block: the brake's construction record is its own in the recipe export, not the ore machines' generic one.",
+	"machine": "pressbrake",
+	"stages": [
+		{
+			"id": "screws", "name": "screws", "adds": ["screws"],
+			"materials": [
+				{ "codes": ["game:metal-parts"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "edge", "name": "edges", "adds": ["edge"],
+			"materials": [
+				{ "codes": ["game:metalplate-iron", "game:metalplate-steel"], "quantity": 1 }
+			]
+		}
+	]
+}

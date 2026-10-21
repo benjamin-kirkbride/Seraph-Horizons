@@ -7,7 +7,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// The eidolon's two builds (mods-src/seraphhorizons/EidolonGantry/): the gantry's winch and the
-/// body on its spine in layers of material, as <c>construction</c> records read from GantryParts,
+/// body on its spine in layers of material, as <c>construction</c> records read from its build file,
 /// BodyBill and EidolonFittings, written down here; the torso's grid recipe; and its handbook guide in
 /// the export's guides.
 /// </summary>

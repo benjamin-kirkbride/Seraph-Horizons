@@ -27,203 +27,46 @@ public partial class SharedWorldScenarios
     private GearCutterSystem CutterMod => GearCutterSystem.Of(World.Api);
     private GearCutterRig CutterRig => CutterMod.Rig ?? throw new Xunit.Sdk.XunitException("the gear cutter's rig did not load");
 
-    private static ITestPlayer? _cutterHand;
-    private static object? _cutterWorld;
-
-    /// <summary>The gear cutter scenarios' player, in survival with empty hands and inventory and its
-    /// keys up. The trunk tool scenarios work with it too (<see cref="TrunkToolSetup"/>): the server
-    /// takes 16 players at most, and the other scenarios use the rest.</summary>
-    private async Task<ITestPlayer> CutterHand()
-    {
-        if (_cutterHand == null || !ReferenceEquals(_cutterWorld, World.Api))
-        {
-            _cutterHand = await World.JoinRetrying("gearcutterhand");
-            _cutterWorld = World.Api;
-        }
-        var player = _cutterHand.Player;
-        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
-            foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            {
-                slot.Itemstack = null;
-                slot.MarkDirty();
-            }
-        player.Entity.LeftHandItemSlot.Itemstack = null;
-        player.Entity.LeftHandItemSlot.MarkDirty();
-        player.Entity.Controls.CtrlKey = player.Entity.Controls.ShiftKey = false;
-        return _cutterHand;
-    }
-
-    private async Task<IPlayer> CutterPlayer() => (await CutterHand()).Player;
-
-    private ItemStack CutterItem(string code, int size = 1) =>
-        W.GetItem(new AssetLocation(code)) is { } item ? new ItemStack(item, size)
-        : W.GetBlock(new AssetLocation(code)) is { Id: > 0 } block ? new ItemStack(block, size)   // metal parts are a block
-        : throw new Xunit.Sdk.XunitException($"no item {code}");
-
-    /// <summary>The longest <see cref="CutterSite"/> waits for its columns: 30 s of real time, against the
-    /// half a second they take (often none: a neighbouring site loaded them) and a 60 s watchdog.</summary>
-    private const int CutterSiteLoadTicks = 900;
-
-    /// <summary>A spot 40 above spawn, its chunk columns loaded, cleared around on a granite floor.</summary>
-    private async Task<BlockPos> CutterSite(int dx, int dz, int reach = 5)
-    {
-        var origin = World.Spawn.AddCopy(dx, 40, dz);
-        int size = GlobalConstants.ChunkSize;
-        var columns = new List<BlockPos>();
-        for (int cx = (origin.X - reach) / size; cx <= (origin.X + reach) / size; cx++)
-            for (int cz = (origin.Z - reach) / size; cz <= (origin.Z + reach) / size; cz++)
-                columns.Add(new BlockPos(cx * size, origin.Y, cz * size));
-        // The sites lie hundreds of blocks from every player, where the server unloads a column it does not
-        // keep loaded about 12 s after it was last fresh, and nothing asks for one again: a request taken
-        // while the column was still loaded, and the column unloaded after, would leave the wait to run on.
-        // So a column still missing is asked for again every second, and the wait is bounded well inside a
-        // scenario's watchdog: a hang here abandons the whole shared world and fails every scenario after it
-        // (#1169), where a failure fails one. This runs before any virtual clock, in real time.
-        var sapi = World.Api as ICoreServerAPI;
-        void Request()
-        {
-            if (sapi != null)
-                foreach (var c in columns.Where(c => W.BlockAccessor.GetChunkAtBlockPos(c) == null))
-                    sapi.WorldManager.LoadChunkColumnPriority(c.X / size, c.Z / size);
-        }
-        Request();
-        int polls = 0;
-        try
-        {
-            await World.Until(() =>
-            {
-                if (columns.All(c => W.BlockAccessor.GetChunkAtBlockPos(c) != null))
-                    return true;
-                if (++polls % 30 == 0)
-                    Request();
-                return false;
-            }, CutterSiteLoadTicks);
-        }
-        catch (Atlas.Api.ScenarioTimeoutException)
-        {
-            var missing = columns.Where(c => W.BlockAccessor.GetChunkAtBlockPos(c) == null).Select(c => $"{c.X / size},{c.Z / size}");
-            throw new Xunit.Sdk.XunitException($"the site at {origin}: chunk columns {string.Join("; ", missing)} did not load in {CutterSiteLoadTicks} ticks");
-        }
-        int floor = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
-        for (int x = -reach; x <= reach; x++)
-        for (int z = -reach; z <= reach; z++)
-        {
-            W.BlockAccessor.SetBlock(floor, origin.AddCopy(x, -1, z));
-            for (int y = 0; y <= 4; y++)
-                W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
-        }
-        CutterKillItems(origin);
-        return origin;
-    }
-
     private async Task<BEGearCutter> PlaceCutter(BlockPos pos, string side = "north")
     {
         World.SetBlock($"seraphhorizons:gearcutter-frame-{side}", pos);
         await World.Ticks(5);
         var be = W.BlockAccessor.GetBlockEntity(pos) as BEGearCutter ?? throw new Xunit.Sdk.XunitException($"no gear cutter at {pos}");
-        be.PlaceGhosts();
+        be.PlaceCells();
         return be;
     }
 
-    // Whether the last CutterClick was taken by the block.
-    private bool _cutterHandled;
-
-    /// <summary>Right-clicks <paramref name="at"/> holding <paramref name="held"/>; returns what is left in the hand.</summary>
-    private ItemStack? CutterClick(IPlayer player, BlockPos at, ItemStack? held, bool ctrl = false, bool creative = false)
-    {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = held;
-        slot.MarkDirty();
-        player.Entity.Controls.CtrlKey = ctrl;
-        if (creative)
-            player.WorldData.CurrentGameMode = EnumGameMode.Creative;
-        try
-        {
-            var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
-            _cutterHandled = W.BlockAccessor.GetBlock(at).OnBlockInteractStart(W, player, sel);
-        }
-        finally
-        {
-            player.Entity.Controls.CtrlKey = false;
-            player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        }
-        return slot.Itemstack;
-    }
-
-    private static string CutterInfo(BEGearCutter cutter, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        cutter.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
+    /// <summary>The gear cutter's stage <paramref name="id"/>'s index in its build.</summary>
+    private int CutterStage(string id) => MachinesSystem.Of(World.Api).Build(GearCutterSystem.MachineId)!.Stages.Select(s => s.Id).ToList().IndexOf(id);
 
     /// <summary>The spindle's and the index's bill, a material a click.</summary>
     private static readonly (string Code, int Count)[] CutterBill =
-        [(GearCutterParts.RodCode, 2), (GearCutterParts.PlateCode, 2), (GearCutterParts.MetalPartsCode, 1)];
+        [(GearCutterBuild.RodCode, 2), (GearCutterBuild.PlateCode, 2), (GearCutterBuild.MetalPartsCode, 1)];
 
     /// <summary>The clicks in order, as stacks: every stage up to the head (the spindle's and the
     /// index's materials one a click), then the kit; the master after.</summary>
     private static readonly (string Code, int Count)[] CutterOrder =
     [
-        .. CutterBill, (GearCutterParts.FeedScrewCode, 1), (GearCutterParts.GearboxCode, 1), (GearCutterParts.GearboxCode, 1),
-        (GearCutterParts.LiftCamCode, 1), .. CutterBill, (GearCutterParts.ValveCode, 1), (GearCutterParts.HeadAltCode, 1),
-        (GearCutterParts.KitCode, 1),
+        .. CutterBill, (GearCutterBuild.FeedScrewCode, 1), (GearCutterBuild.GearboxCode, 1), (GearCutterBuild.GearboxCode, 1),
+        (GearCutterBuild.LiftCamCode, 1), .. CutterBill, (GearCutterBuild.ValveCode, 1), (GearCutterBuild.HeadAltCode, 1),
+        (GearCutterBuild.KitCode, 1),
     ];
 
     /// <summary>Every stage by right-clicks with real items, alternately on the frame and a ghost,
     /// the master last; then a full oil tank.</summary>
-    private void AssembleCutter(BEGearCutter cutter, IPlayer player, string master = GearCutterParts.MasterCode)
+    private void AssembleCutter(BEGearCutter cutter, IPlayer player, string master = GearCutterBuild.MasterCode)
     {
-        var ghost = cutter.GhostCells().First().Pos;
+        var ghost = MachineTest.Cells(cutter).First().Pos;
         int i = 0;
         foreach (var (code, n) in CutterOrder.Append((master, 1)))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? cutter.Pos : ghost, CutterItem(code, n)) == null, $"{code} was not fitted");
         Assert.True(cutter.Complete);
-        FillCutterOil(cutter, 1);
-    }
-
-    private static void FillCutterOil(BEGearCutter cutter, double fill)
-    {
-        Assert.NotNull(cutter.Oiling);
-        var tank = cutter.Oiling.Tank;
-        cutter.Oiling.Tank = tank with { Points = tank.Capacity * fill };
-    }
-
-    /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
-    private async Task<BlockPos> PowerCutter(BEGearCutter cutter)
-    {
-        var ghost = cutter.CellPos(CutterRig.PowerCell);
-        var face = Assert.IsType<BlockGearCutterGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
-        var rotorPos = ghost.AddCopy(face);
-        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
-        await World.Ticks(2);
-        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
-        rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => cutter.ShaftSpeed >= 0.3f, 15000);
-        return rotorPos;
+        MachineTest.FillOil(cutter, 1);
     }
 
     /// <summary>Radians that finish the gear on the arbor from where it is.</summary>
     private static double RestOfGear(BEGearCutter cutter) =>
         (cutter.Job.End - cutter.Job.Work) * 2 * Math.PI * cutter.TurnsPerTooth + 1e-6;
-
-    private Dictionary<string, int> CutterItemsNear(BlockPos around, int radius = 6)
-    {
-        var box = new Cuboidi(around.X - radius, around.Y - 3, around.Z - radius, around.X + radius, around.Y + 6, around.Z + radius);
-        return World.EntitiesIn(box).OfType<EntityItem>().Where(e => e.Alive)
-            .GroupBy(e => e.Itemstack.Collectible.Code.ToString())
-            .ToDictionary(g => g.Key, g => g.Sum(e => e.Itemstack.StackSize));
-    }
-
-    private void CutterKillItems(BlockPos around, int radius = 6)
-    {
-        var box = new Cuboidi(around.X - radius, around.Y - 3, around.Z - radius, around.X + radius, around.Y + 6, around.Z + radius);
-        foreach (var e in World.EntitiesIn(box).OfType<EntityItem>())
-            e.Die(EnumDespawnReason.Removed);
-    }
 
     // ---- Loading ----
 
@@ -232,22 +75,23 @@ public partial class SharedWorldScenarios
     {
         Assert.True(GearCutterSystem.Applies(World.Api));
         Assert.NotNull(CutterMod.Rig);
+        // its frame is the shared machine block (placed as the mills are), its cells and power cell the shared
+        // ones, its build the shared build's
         foreach (var side in new[] { "north", "east", "south", "west" })
-        {
-            Assert.IsType<BlockGearCutter>(W.GetBlock(new AssetLocation($"seraphhorizons:gearcutter-frame-{side}")));
-            Assert.IsType<BlockGearCutterGhostPower>(W.GetBlock(new AssetLocation($"seraphhorizons:gearcutter-ghostpower-{side}")));
-        }
-        Assert.IsType<BlockGearCutterGhost>(W.GetBlock(new AssetLocation("seraphhorizons:gearcutter-ghost")));
+            Assert.Equal(Footprint.PlacedFacing(Side.North), Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:gearcutter-frame-{side}"))).Rig!.PlacedSide(Side.North));   // placed as the mills are
+        Assert.True(W.GetBlock(new AssetLocation("seraphhorizons:gearcutter-ghost")) is null or { IsMissing: true } or { Id: 0 });
+        Assert.Same(CutterRig, ((BlockMachine)W.GetBlock(new AssetLocation("seraphhorizons:gearcutter-frame-north"))).Rig);
         // every part and material the stages take exists here, the Jonas parts, the masters and the
         // metal parts (a block) included; the spindle's and the index's old items are gone
-        foreach (var stage in GearCutterRequires.Stages)
-            foreach (var code in GearCutterParts.CodesFor(stage))
-                Assert.True(W.GetItem(new AssetLocation(code)) != null || W.GetBlock(new AssetLocation(code)) is { Id: > 0 },
-                    $"no {code} for {stage}");
-        Assert.Null(W.GetItem(new AssetLocation(GearCutterParts.LegacySpindleCode)));
-        Assert.Null(W.GetItem(new AssetLocation(GearCutterParts.LegacyIndexCode)));
-        Assert.Equal(500, CutterItem(GearCutterParts.KitCode).Collectible.GetMaxDurability(CutterItem(GearCutterParts.KitCode)));
-        Assert.Equal("Gear cutter frame", new ItemStack(W.GetBlock(BlockGearCutter.ItemCode)).GetName());
+        var build = MachinesSystem.Of(World.Api).Build(GearCutterSystem.MachineId)!;
+        Assert.Equal(GearCutterRequires.Stages, build.Stages.Select(s => s.Adds[0]));
+        foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
+            Assert.True(W.GetItem(new AssetLocation(code)) != null || W.GetBlock(new AssetLocation(code)) is { Id: > 0 }, $"no {code}");
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:gearcutterspindle")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:gearcutterindex")));
+        Assert.Equal(500, CutterItem(GearCutterBuild.KitCode).Collectible.GetMaxDurability(CutterItem(GearCutterBuild.KitCode)));
+        Assert.Equal(500, Assert.Single(build.Wearing).Uses);
+        Assert.Equal("Gear cutter frame", new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:gearcutter-frame-north"))).GetName());
 
         // the grid: the frame only (the spindle and the index are fed at the frame)
         Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString().StartsWith("seraphhorizons:gearcutter") == true);
@@ -261,7 +105,7 @@ public partial class SharedWorldScenarios
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 3);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the anvil: the feed screw, the lift cam and the kit, each from one steel ingot, none for the helve hammer
-        foreach (var output in new[] { GearCutterParts.FeedScrewCode, GearCutterParts.LiftCamCode, GearCutterParts.KitCode })
+        foreach (var output in new[] { GearCutterBuild.FeedScrewCode, GearCutterBuild.LiftCamCode, GearCutterBuild.KitCode })
         {
             var recipe = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == output);
             Assert.True(recipe.Ingredient.SatisfiesAsIngredient(CutterItem("game:ingot-steel")));
@@ -276,7 +120,7 @@ public partial class SharedWorldScenarios
 
     // ---- Placing ----
 
-    // On all four facings: room for every cell, a ghost stamped in each, the power ghost's axle face
+    // On all four facings: room for every cell, a shared cell stamped in each, the power cell's axle face
     // the native west turned to the facing, the output face turned with it; broken
     // through a ghost, every cell is cleared.
     [AtlasScenario(TimeoutMs = 120_000)]
@@ -289,17 +133,17 @@ public partial class SharedWorldScenarios
             var pos = await CutterSite(-140 - 10 * i++, -140);
             var cutter = await PlaceCutter(pos, side.Code());
             Assert.Equal(side, cutter.Side);
-            var cells = cutter.GhostCells().ToList();
+            var cells = MachineTest.Cells(cutter);
             Assert.Equal(7, cells.Count);
             foreach (var (cell, power) in cells)
             {
-                var be = Assert.IsType<BEGearCutterGhost>(W.BlockAccessor.GetBlockEntity(cell));
+                var be = Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(cell));
                 Assert.Equal(pos, be.Principal);
-                Assert.Equal(power, W.BlockAccessor.GetBlock(cell) is BlockGearCutterGhostPower);
+                Assert.Equal(power, W.BlockAccessor.GetBlock(cell) is BlockMachineCellPower);
                 Assert.NotNull(W.BlockAccessor.GetBlock(cell).GetSelectionBoxes(W.BlockAccessor, cell));
             }
             var powerGhost = cells.Single(c => c.Power).Pos;
-            var face = Assert.IsType<BlockGearCutterGhostPower>(W.BlockAccessor.GetBlock(powerGhost)).PowerFace;
+            var face = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(powerGhost)).PowerFace;
             Assert.Equal(Footprint.ToWorld(Side.West, side).Code(), face.Code);
             // the axle's face is outside the machine
             Assert.DoesNotContain(cells, c => c.Pos.Equals(powerGhost.AddCopy(face)));
@@ -322,71 +166,83 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-180, -140);
         var player = await CutterPlayer();
         var cutter = await PlaceCutter(pos);
-        var ghost = cutter.GhostCells().Last().Pos;
-        Assert.Contains("Next part: spindle", CutterInfo(cutter, player));
+        var ghost = MachineTest.Cells(cutter).Last().Pos;
+        var assembly = cutter.Assembly!;
+        Assert.Contains("Build: stage 1 of 10, spindle", MachineTest.Info(cutter, player));
 
         // a later stage's part is refused and stays in hand, from the frame or a ghost
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterParts.FeedScrewCode))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterBuild.FeedScrewCode))?.StackSize);
         Assert.True(_cutterHandled);
-        Assert.Equal(1, CutterClick(player, ghost, CutterItem(GearCutterParts.MasterCode))?.StackSize);
-        Assert.Equal(1, CutterClick(player, ghost, CutterItem(GearCutterParts.KitCode))?.StackSize);
-        Assert.False(cutter.Parts.Has(GearCutterStage.Spindle));
+        Assert.Equal(1, CutterClick(player, ghost, CutterItem(GearCutterBuild.MasterCode))?.StackSize);
+        Assert.Equal(1, CutterClick(player, ghost, CutterItem(GearCutterBuild.KitCode))?.StackSize);
+        Assert.Equal(0, assembly.Build.Next);
+        Assert.Empty(assembly.Returns());
         // an item that is no part of it is the item's own business
         Assert.Equal(3, CutterClick(player, pos, CutterItem("game:gear-rusty", 3))?.StackSize);
         Assert.False(_cutterHandled);
 
         // the spindle's materials: one rod of the two it takes, from a stack that holds more, is refused
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterParts.RodCode))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterBuild.RodCode))?.StackSize);
         Assert.True(_cutterHandled);
-        Assert.Equal(0, cutter.Parts.Count(GearCutterStage.Spindle, 0));
+        Assert.Equal(0, assembly.Build.Count(0, 0));
 
         // the stages in order, from the frame and a ghost by turns: a part one at a time, a material
         // all the stage still needs of it, the rest of the stack left in the hand
         for (int i = 0; i < CutterOrder.Length; i++)
         {
             var (code, n) = CutterOrder[i];
-            var next = cutter.Parts.Next!.Value;
+            int next = assembly.Build.Next!.Value;
             var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(code, n + 1));
             Assert.Equal(1, left?.StackSize ?? 0);
-            if (!GearCutterParts.TakesMaterials(next))
-                Assert.True(cutter.Parts.Has(next), $"{code} did not go in as {next}");
+            if (assembly.Build.Stages[next].Materials.Count == 1)
+                Assert.True(assembly.Build.StageComplete(next), $"{code} did not go in as stage {next}");
             if (i == 0)
             {
                 // part way in: not drawn, the info says what it still takes, the rods again are refused
-                Assert.False(cutter.Parts.Has(GearCutterStage.Spindle));
-                Assert.False(cutter.Fitted("spindle"));
-                Assert.Contains("Still takes: 2 ×", CutterInfo(cutter, player));
-                Assert.Equal(2, CutterClick(player, pos, CutterItem(GearCutterParts.RodCode, 2))?.StackSize);
+                Assert.False(assembly.Build.StageComplete(0));
+                Assert.False(cutter.ShowsPart("spindle"));
+                Assert.Contains("Still takes: 2 ×", MachineTest.Info(cutter, player));
+                Assert.Equal(2, CutterClick(player, pos, CutterItem(GearCutterBuild.RodCode, 2))?.StackSize);
                 // and a save keeps the count
                 var partial = new Vintagestory.API.Datastructures.TreeAttribute();
                 cutter.ToTreeAttributes(partial);
                 cutter.FromTreeAttributes(partial, W);
-                Assert.Equal(2, cutter.Parts.Count(GearCutterStage.Spindle, 0));
-                Assert.Equal(GearCutterStage.Spindle, cutter.Parts.Next);
+                assembly = cutter.Assembly!;
+                Assert.Equal(2, assembly.Build.Count(0, 0));
+                Assert.Equal(0, assembly.Build.Next);
             }
             if (i == 2)
-                Assert.True(cutter.Fitted("spindle"));
+                Assert.True(cutter.ShowsPart("spindle"));
         }
-        Assert.True(cutter.Parts.Has(GearCutterStage.Index));
+        Assert.True(assembly.Build.StageComplete(CutterStage("index")));
         // a third eccentric gearbox has nowhere to go
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterParts.GearboxCode))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterBuild.GearboxCode))?.StackSize);
         Assert.False(cutter.Complete);
-        Assert.Contains("Next part: master", CutterInfo(cutter, player));
+        Assert.Contains("Build: stage 10 of 10, master", MachineTest.Info(cutter, player));
         // no blank before the master
         Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCut.Blank))?.StackSize);
-        Assert.Null(CutterClick(player, ghost, CutterItem(GearCutterParts.MasterCode)));
+        Assert.Null(CutterClick(player, ghost, CutterItem(GearCutterBuild.MasterCode)));
         Assert.True(cutter.Complete);
         Assert.Equal("Gear cutter", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Master: temporal gear", CutterInfo(cutter, player));
-        Assert.Contains("Cutter kit: 500 of 500", CutterInfo(cutter, player));
+        Assert.Contains("Master: temporal gear", MachineTest.Info(cutter, player));
+        Assert.Contains("Cutter kit: 100% left", MachineTest.Info(cutter, player));
+        // unpowered, the shared state's order says so first
+        Assert.Contains("No power: its shaft must turn at 0.05 or faster", MachineTest.Info(cutter, player));
+        // more for a wrench: the kit's uses, the oil's drain, the facing and the axle's face
+        Assert.Contains("Hold a wrench to see more", MachineTest.Info(cutter, player));
+        var detail = MachineTest.WrenchInfo(cutter, player);
+        Assert.Contains("Cutter kit: 500 of 500 uses left", detail);
+        Assert.Contains("Oil a job: 10", detail);
+        Assert.Contains("its axle meets its", detail);
+        Assert.DoesNotContain("Hold a wrench", detail);
 
         // a save keeps every fitted code
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         cutter.ToTreeAttributes(tree);
         cutter.FromTreeAttributes(tree, W);
         Assert.True(cutter.Complete);
-        Assert.Equal(GearCutterParts.HeadAltCode, cutter.Parts.FittedIn(GearCutterStage.Head));
-        Assert.Equal(14, cutter.Parts.Returns().Count);
+        Assert.Equal(GearCutterBuild.HeadAltCode, cutter.Assembly!.Build.CodeIn(CutterStage("head"), 0));
+        Assert.Equal(10, cutter.Assembly.Returns().Count);
     }
 
     [AtlasScenario(TimeoutMs = 60_000)]
@@ -398,17 +254,17 @@ public partial class SharedWorldScenarios
         int stages = 0;
         while (!cutter.Complete && stages < 20)
         {
-            var next = cutter.Parts.Next!.Value;
+            int next = cutter.Assembly!.Build.Next!.Value;
             Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
-            Assert.True(cutter.Parts.Has(next), $"the shortcut did not fit {next}");
+            Assert.True(cutter.Assembly.Build.StageComplete(next), $"the shortcut did not fit stage {next}");
             stages++;
         }
         Assert.Equal(10, stages);
-        Assert.Equal(1, cutter.Parts.Master);
-        Assert.Equal(500, cutter.Parts.KitLeft);
+        Assert.Equal(1, cutter.Master);
+        Assert.Equal(500, cutter.KitLeft);
         // complete, a creative Ctrl click is the take-back again
         CutterClick(player, pos, null, ctrl: true, creative: true);
-        Assert.False(cutter.Parts.Has(GearCutterStage.Cutter));
+        Assert.Null(cutter.Kit);
     }
 
     // ---- Cutting ----
@@ -435,11 +291,13 @@ public partial class SharedWorldScenarios
         // unpowered, nothing moves; powered, the shaft cuts
         await World.Ticks(10);
         Assert.Equal(0, cutter.Job.Work);
-        Assert.Contains("Stopped with a blank on: 0 of 12 teeth", CutterInfo(cutter, player));
-        var rotor = await PowerCutter(cutter);
+        Assert.Contains("No power", MachineTest.Info(cutter, player));
+        Assert.Contains("On the arbor: 0 of 12 teeth cut", MachineTest.Info(cutter, player));
+        var rotor = await PowerMachine(cutter);
         await World.Until(() => cutter.Job.Work > 0.02, 30000);
         Assert.True(cutter.Running);
-        Assert.Contains("Cutting:", CutterInfo(cutter, player));
+        await World.Until(() => cutter.State == MachineState.Working, 5000);
+        Assert.Contains("Cutting (", MachineTest.Info(cutter, player));
         Assert.True(cutter.Cut(RestOfGear(cutter)));
         Assert.False(cutter.BlankOn);
         await World.Ticks(5);
@@ -449,17 +307,19 @@ public partial class SharedWorldScenarios
             .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == GearCut.Gear);
         var local = Footprint.ToLocal(new Float3((float)(gear.Pos.X - pos.X), (float)(gear.Pos.Y - pos.Y), (float)(gear.Pos.Z - pos.Z)), cutter.Side);
         Assert.True(local.Z > 2 - 0.01f, $"the gear is at native {local}");
-        Assert.Equal(490, cutter.Parts.KitLeft);
+        Assert.Equal(490, cutter.KitLeft);
         Assert.Equal(990, cutter.Oiling!.Tank.Points, 6);
         CutterKillItems(pos);
 
-        // changed over to the large master: kit out, master out, master in, kit in
+        // changed over to the large master: kit out, master out, then the master (the last stage) in before the kit
         CutterClick(player, pos, null, ctrl: true);
         CutterClick(player, pos, null, ctrl: true);
-        Assert.Equal(0, cutter.Parts.Master);
-        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterParts.KitCode)));
-        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterParts.LargeMasterCode)));
-        Assert.Equal(2, cutter.Parts.Master);
+        Assert.Equal(0, cutter.Master);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCutterBuild.KitCode))?.StackSize);
+        Assert.True(_cutterHandled);
+        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterBuild.LargeMasterCode)));
+        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterBuild.KitCode)));
+        Assert.Equal(2, cutter.Master);
         Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCut.Blank))?.StackSize);
         Assert.Null(CutterClick(player, pos, CutterItem(GearCut.LargeBlank)));
         Assert.Equal(20, cutter.Job.End);
@@ -471,7 +331,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(GearCut.LargeGear));
         // a large gear drains double and wears 20/12
         Assert.Equal(970, cutter.Oiling!.Tank.Points, 6);
-        Assert.Equal(500 - 17, cutter.Parts.KitLeft);
+        Assert.Equal(500 - 17, cutter.KitLeft);
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -486,35 +346,38 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var cutter = await PlaceCutter(pos);
         AssembleCutter(cutter, player);
-        var mp = W.BlockAccessor.GetBlockEntity(cutter.CellPos(CutterRig.PowerCell))!.GetBehavior<BEBehaviorGearCutterMP>()!;
+        var mp = W.BlockAccessor.GetBlockEntity(cutter.CellPos(CutterRig.PowerCell))!.GetBehavior<BEBehaviorMachineMP>()!;
         float oiledLoad = mp.GetResistance();
         Assert.Equal(CutterMod.Config.Resistance, oiledLoad);
 
         int GearWear(double fill)
         {
-            FillCutterOil(cutter, fill);
-            int before = cutter.Parts.KitLeft;
+            MachineTest.FillOil(cutter, fill);
+            int before = cutter.KitLeft;
             Assert.Null(CutterClick(player, pos, CutterItem(GearCut.Blank)));
             Assert.True(cutter.Cut(RestOfGear(cutter)));
-            return before - cutter.Parts.KitLeft;
+            return before - cutter.KitLeft;
         }
         Assert.Equal(10, GearWear(1));
         Assert.Equal(20, GearWear(0.5));
         Assert.Equal(100, GearWear(0.1));
-        Assert.Equal(370, cutter.Parts.KitLeft);
-        FillCutterOil(cutter, 0.1);   // the gear drained the tank to 0.09
-        Assert.Contains("Cutter wear: 10× per gear", CutterInfo(cutter, player));
-        Assert.Contains("Cutter kit: 370 of 500, about 4 more gears", CutterInfo(cutter, player));
+        Assert.Equal(370, cutter.KitLeft);
+        MachineTest.FillOil(cutter, 0.1);   // the gear drained the tank to 0.09
+        Assert.Contains("Cutter wear: 10× per gear", MachineTest.WrenchInfo(cutter, player));
+        Assert.Contains("Cutter kit: 370 of 500 uses left", MachineTest.WrenchInfo(cutter, player));
+        Assert.Contains("Cutter kit: 74% left", MachineTest.Info(cutter, player));
+        Assert.Contains("About 4 more gears from the cutter kit", MachineTest.Info(cutter, player));
 
         // dry: the same load, and the next gear breaks the kit
-        FillCutterOil(cutter, 0);
+        MachineTest.FillOil(cutter, 0);
         Assert.Equal(oiledLoad, mp.GetResistance());
-        Assert.Contains("No oil: the next gear breaks the cutter kit", CutterInfo(cutter, player));
-        Assert.Contains($"Load: {OilText.Load(oiledLoad)} kN", CutterInfo(cutter, player));
-        Assert.DoesNotContain("Dry:", CutterInfo(cutter, player));
+        Assert.Contains("No oil: the next gear breaks the cutter kit", MachineTest.Info(cutter, player));
+        Assert.Contains("Dry: it wears its cutter fast", MachineTest.Info(cutter, player));
+        Assert.Contains($"load {OilText.Load(oiledLoad)} kN", MachineTest.WrenchInfo(cutter, player));
+        Assert.DoesNotContain("turns harder", MachineTest.Info(cutter, player));
         Assert.Null(CutterClick(player, pos, CutterItem(GearCut.Blank)));
         Assert.True(cutter.Cut(RestOfGear(cutter)));
-        Assert.False(cutter.Parts.Has(GearCutterStage.Cutter));
+        Assert.Null(cutter.Kit);
         Assert.False(cutter.Complete);
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(GearCut.Gear));   // the last gear still came out
@@ -523,8 +386,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCut.Blank))?.StackSize);
 
         // a refit resumes a cut stopped half way by taking the kit out
-        FillCutterOil(cutter, 1);
-        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterParts.KitCode)));
+        MachineTest.FillOil(cutter, 1);
+        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterBuild.KitCode)));
         Assert.Null(CutterClick(player, pos, CutterItem(GearCut.Blank)));
         cutter.Cut(2 * Math.PI * cutter.TurnsPerTooth * 5);
         Assert.Equal(5, cutter.Job.Work, 3);
@@ -532,13 +395,13 @@ public partial class SharedWorldScenarios
         Assert.True(cutter.BlankOn);
         var kit = Assert.Single(player.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)!
             .Concat(player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName)!),
-            s => s.Itemstack?.Collectible.Code.ToString() == GearCutterParts.KitCode).Itemstack!;
+            s => s.Itemstack?.Collectible.Code.ToString() == GearCutterBuild.KitCode).Itemstack!;
         Assert.Equal(500, kit.Collectible.GetRemainingDurability(kit));
         Assert.False(cutter.Cut(2 * Math.PI * cutter.TurnsPerTooth * 20));
         Assert.Equal(5, cutter.Job.Work, 3);
         Assert.Null(CutterClick(player, pos, kit));
         Assert.True(cutter.Cut(RestOfGear(cutter)));
-        Assert.Equal(490, cutter.Parts.KitLeft);
+        Assert.Equal(490, cutter.KitLeft);
         CutterKillItems(pos);
     }
 
@@ -550,59 +413,55 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-180, -160);
         var player = await CutterPlayer();
         var cutter = await PlaceCutter(pos, "west");
-        AssembleCutter(cutter, player, GearCutterParts.LargeMasterCode);
+        AssembleCutter(cutter, player, GearCutterBuild.LargeMasterCode);
         Assert.Null(CutterClick(player, pos, CutterItem(GearCut.LargeBlank)));
         cutter.Cut(2 * Math.PI * cutter.TurnsPerTooth * 3);
-        cutter.Parts.WearKit(123);
+        cutter.Assembly!.Wearing.Wear(GearCutterBuild.KitPart, 123);
 
         int Held(string code) => player.InventoryManager.Inventories.Values
             .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
             .SelectMany(inv => inv).Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-        var ghost = cutter.GhostCells().First().Pos;
+        var ghost = MachineTest.Cells(cutter).First().Pos;
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.Equal(1, Held(GearCutterParts.KitCode));
+        Assert.Equal(1, Held(GearCutterBuild.KitCode));
         CutterClick(player, ghost, null, ctrl: true);
         Assert.Equal(1, Held(GearCut.LargeBlank));
         Assert.False(cutter.BlankOn);
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.Equal(1, Held(GearCutterParts.LargeMasterCode));
-        Assert.Equal(0, cutter.Parts.Master);
+        Assert.Equal(1, Held(GearCutterBuild.LargeMasterCode));
+        Assert.Equal(0, cutter.Master);
         // the rest only come back by breaking
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.True(cutter.Parts.Has(GearCutterStage.Head));
+        Assert.True(cutter.Assembly!.Build.StageComplete(CutterStage("head")));
 
         // refit, wear and load, then break through a ghost: every part, the kit with its wear, and the blank
-        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterParts.KitCode)));
-        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterParts.MasterCode)));
+        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterBuild.MasterCode)));
+        Assert.Null(CutterClick(player, pos, CutterItem(GearCutterBuild.KitCode)));
         Assert.Null(CutterClick(player, pos, CutterItem(GearCut.Blank)));
-        cutter.Parts.WearKit(77);
-        // saved as before the spindle and the index were material stages, with their old items fitted
-        // (no longer registered): it loads with both stages complete, and breaks into their bill
+        cutter.Assembly!.Wearing.Wear(GearCutterBuild.KitPart, 77);
+        // a save keeps it all, the blank and the kit's wear too
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         cutter.ToTreeAttributes(tree);
-        tree.RemoveAttribute("materials");
-        tree.SetString("part-spindle", GearCutterParts.LegacySpindleCode);
-        tree.SetString("part-index", GearCutterParts.LegacyIndexCode);
         cutter.FromTreeAttributes(tree, W);
         Assert.True(cutter.Complete);
-        Assert.True(cutter.Fitted("spindle"));
-        Assert.True(cutter.Fitted("index"));
+        Assert.True(cutter.ShowsPart("spindle"));
+        Assert.True(cutter.ShowsPart("index"));
+        Assert.True(cutter.BlankOn);
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
         await World.Ticks(3);
         Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
         var drops = CutterItemsNear(pos);
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:gearcutter-frame-north"));
-        foreach (var code in new[] { GearCutterParts.FeedScrewCode, GearCutterParts.LiftCamCode,
-                                     GearCutterParts.ValveCode, GearCutterParts.HeadAltCode, GearCutterParts.KitCode, GearCutterParts.MasterCode, GearCut.Blank })
+        foreach (var code in new[] { GearCutterBuild.FeedScrewCode, GearCutterBuild.LiftCamCode,
+                                     GearCutterBuild.ValveCode, GearCutterBuild.HeadAltCode, GearCutterBuild.KitCode, GearCutterBuild.MasterCode, GearCut.Blank })
             Assert.True(drops.GetValueOrDefault(code) == 1, $"{code}: {drops.GetValueOrDefault(code)}");
-        Assert.Equal(2, drops.GetValueOrDefault(GearCutterParts.GearboxCode));
+        Assert.Equal(2, drops.GetValueOrDefault(GearCutterBuild.GearboxCode));
         // the spindle's and the index's bill, twice over
         foreach (var (code, n) in CutterBill)
             Assert.True(drops.GetValueOrDefault(code) == 2 * n, $"{code}: {drops.GetValueOrDefault(code)}");
-        Assert.Equal(0, drops.GetValueOrDefault(GearCutterParts.LegacySpindleCode) + drops.GetValueOrDefault(GearCutterParts.LegacyIndexCode));
         var kit = World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
-            .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == GearCutterParts.KitCode).Itemstack;
+            .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == GearCutterBuild.KitCode).Itemstack;
         Assert.Equal(423, kit.Collectible.GetRemainingDurability(kit));
         CutterKillItems(pos);
     }
@@ -630,7 +489,7 @@ public partial class SharedWorldScenarios
         source.MarkDirty(true);
 
         using var clock = VirtualClock.Start(World);
-        await PowerCutter(cutter);
+        await PowerMachine(cutter);
         await World.Ticks(60);
         Assert.False(cutter.BlankOn);
         Assert.Equal(2, source.Inventory[0].StackSize);

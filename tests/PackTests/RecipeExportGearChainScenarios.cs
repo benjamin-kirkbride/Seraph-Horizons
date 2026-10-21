@@ -34,15 +34,19 @@ public partial class RecipeExportScenarios
 
         JObject Record(string id) => records.SingleOrDefault(r => (string)r["id"]! == id)
                                      ?? throw new Xunit.Sdk.XunitException($"no enabled recipe {id}");
-        void TakesSteel(string id, int perSlot)
+        // A recipe a machine schematic gates (MachineSchematics) is registered again with the schematic
+        // (|r<n>), the asset's own entry left unresolved: found by its output and schematic.
+        JObject Gated(string schematic, string output) => records.Single(r => ((string)r["id"]!).StartsWith("grid|", StringComparison.Ordinal)
+            && r["outputs"]!.Any(o => (string?)o["code"] == output) && r["ingredients"]!.Any(i => (string?)i["code"] == schematic));
+        void TakesSteel(string id, int perSlot) => TakesSteelIn(Record(id), perSlot);
+        void TakesSteelIn(JObject r, int perSlot)
         {
-            var r = Record(id);
             Assert.Contains(r["ingredients"]!, i => (string?)i["code"] == GearConsumers.StainlessGear && (int)i["quantity"]! == perSlot);
             Assert.NotEqual(false, (bool?)r["extra"]?["resolved"]);
             Assert.All(r["variants"]!, v => Assert.Contains(GearConsumers.StainlessGear,
                 v["ingredients"]!.SelectMany(slot => slot).Select(s => (string?)s["code"])));
         }
-        TakesSteel("grid|ppex:recipes/grid/machines.json|4", 4); // Cornish engine
+        TakesSteelIn(Gated("seraphhorizons:schematic-highpressuresteam", "ppex:enginecornish-north"), 4); // Cornish engine, behind its schematic
         TakesSteel("grid|ppex:recipes/grid/machines.json|8", 2); // mechanical power generator
         TakesSteel("grid|smex:recipes/grid/bessemerconverter.json|1", 16); // converter transmission
         TakesSteel("grid|game:recipes/grid/glider.json|0", 1);

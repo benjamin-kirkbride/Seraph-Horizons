@@ -8,10 +8,11 @@ namespace SeraphHorizons.Mod.Tests.Trading.Schematics;
 
 /// <summary>
 /// Schematics (#468, #469): the shipped table (config/schematic-gates.json) is consistent, every
-/// machine has its item variant, name and handbook text, the trade lists sell every schematic from
-/// the table's sellers at its tier, and the pure parts (code patterns, slot placement, the recipe
-/// rules, the standing gate) behave. Whether the game's recipes really take the schematic is checked
-/// in the pack (tests/PackTests/TradingSchematicsScenarios.cs).
+/// machine has its item variant, name and handbook text, no trade list sells or buys a schematic
+/// (the catalogs sell them, <see cref="SchematicCatalog"/>), the catalogs follow the switches and the
+/// standing tiers, and the pure parts (code patterns, slot placement, the recipe rules, the standing
+/// gate) behave. Whether the game's recipes really take the schematic, and a purchase from a
+/// catalog, are checked in the pack (tests/PackTests/TradingSchematicsScenarios.cs).
 /// </summary>
 public class SchematicTests
 {
@@ -29,14 +30,113 @@ public class SchematicTests
     private static TradeListDef List(string type) =>
         JsonSerializer.Deserialize<TradeListDef>(Shipped(Path.Combine("tradelists", $"trader-{type}.json")), Options)!;
 
+    /// <summary>The config class's bool switches, read from its source.</summary>
+    private static readonly Lazy<List<string>> Switches = new(() =>
+        Regex.Matches(Shipped(Path.Combine("schematic-switches", "SeraphHorizons.cs.txt")), @"public bool (\w+) \{ get; set; \}")
+            .Select(m => m.Groups[1].Value).ToList());
+
+    private static readonly Func<string, bool> AllOn = _ => false;
+
     [Fact]
     public void TheShippedTableHasNoProblems()
     {
         var table = Table.Value;
-        Assert.Empty(table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier));
-        Assert.Equal(14, table.Gates.Count);
+        Assert.Contains("MachineSchematics", Switches.Value);
+        Assert.Empty(table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier, Switches.Value));
+        Assert.Equal(42, table.Gates.Count);
         Assert.Equal("game:paper-parchment", table.Replacement);
         Assert.All(table.Gates, g => Assert.True(table.IsSold(g.Schematic), g.Schematic));
+        // The switches named are the machines' own: every one of the pack's own machines names its
+        // switch first (the crucible furnace's is stainless steel's), and no other mod's machine does.
+        Assert.Equal(["AcidParting", "AmalgamationPlates", "Arrastra", "BallMill", "BuckingSawmill", "CupellationFurnace",
+                      "CylinderBorer", "DrawBench", "Eidolon", "GearCutter", "Handcar", "JawBreaker", "Jig", "LiquationFurnace",
+                      "ParkesKettle", "ReverberatoryRoaster", "Rosser", "ShakingTable", "SlittingMill", "Sluice", "StainlessSteel",
+                      "StallRoaster", "StampBattery", "Vanner"],
+            table.Gates.Where(g => g.Switches.Count > 0).Select(g => g.Switches[0]).Order(StringComparer.Ordinal));
+        Assert.All(table.Gates.Where(g => g.Outputs.Any(o => o.Code.StartsWith("seraphhorizons:"))), g => Assert.NotEmpty(g.Switches));
+        Assert.All(table.Gates.Where(g => !g.Outputs.Any(o => o.Code.StartsWith("seraphhorizons:"))), g => Assert.Empty(g.Switches));
+    }
+
+    // The ore machines' systems apply only with OreProcessing on too (their Applies, e.g.
+    // JawBreakerSystem's "config.JawBreaker && config.OreProcessing"): their gates name both.
+    [Theory]
+    [InlineData("jawbreaker", "JawBreaker")]
+    [InlineData("ballmill", "BallMill")]
+    [InlineData("stampbattery", "StampBattery")]
+    [InlineData("arrastra", "Arrastra")]
+    [InlineData("sluice", "Sluice")]
+    [InlineData("jig", "Jig")]
+    [InlineData("shakingtable", "ShakingTable")]
+    [InlineData("vanner", "Vanner")]
+    [InlineData("amalgamationplates", "AmalgamationPlates")]
+    [InlineData("reverberatory", "ReverberatoryRoaster")]
+    [InlineData("parkeskettle", "ParkesKettle")]
+    [InlineData("stallroaster", "StallRoaster")]
+    [InlineData("liquationfurnace", "LiquationFurnace")]
+    [InlineData("cupellationfurnace", "CupellationFurnace")]
+    [InlineData("acidparting", "AcidParting")]
+    public void OreMachinesNeedOreProcessingToo(string machine, string own)
+    {
+        var gate = Table.Value.Gates.Single(g => g.Machine == machine);
+        Assert.Equal([own, "OreProcessing"], gate.Switches);
+        string code = gate.Schematic;
+        Assert.NotNull(SchematicCatalog.Sellers(Table.Value, code, AllOn));
+        Assert.Null(SchematicCatalog.Sellers(Table.Value, code, s => s == "OreProcessing"));
+        Assert.Null(SchematicCatalog.Sellers(Table.Value, code, s => s == own));
+    }
+
+    [Fact]
+    public void ASwitchIsANameOrAList()
+    {
+        var table = SchematicTable.Parse("""
+            { "sold": [ { "code": "seraphhorizons:schematic-*" } ],
+              "gates": [ { "machine": "a", "switch": "A", "outputs": [ { "code": "game:a" } ] },
+                         { "machine": "b", "switch": ["A", "B"], "outputs": [ { "code": "game:b" } ] },
+                         { "machine": "c", "outputs": [ { "code": "game:c" } ] },
+                         { "machine": "d", "switch": ["D", "D", "X"], "outputs": [ { "code": "game:d" } ] } ],
+              "sales": [ { "code": "seraphhorizons:schematic-a", "sellers": ["smith"], "tier": 1, "price": 5 },
+                         { "code": "seraphhorizons:schematic-b", "sellers": ["smith"], "tier": 1, "price": 5 },
+                         { "code": "seraphhorizons:schematic-c", "sellers": ["smith"], "tier": 1, "price": 5 },
+                         { "code": "seraphhorizons:schematic-d", "sellers": ["smith"], "tier": 1, "price": 5 } ] }
+            """);
+        Assert.Equal(["A"], table.Gates[0].Switches);
+        Assert.Equal(["A", "B"], table.Gates[1].Switches);
+        Assert.Empty(table.Gates[2].Switches);
+        var problems = table.Problems(["smith"], 4, ["A", "B", "D"]);
+        Assert.Equal(2, problems.Count);
+        Assert.Contains(problems, p => p.Contains("switch 'D' twice"));
+        Assert.Contains(problems, p => p.Contains("no switch 'X'"));
+        Assert.Equal(["seraphhorizons:schematic-a", "seraphhorizons:schematic-c", "seraphhorizons:schematic-d"],
+            SchematicCatalog.For(table, "smith", s => s == "B", null).Select(r => r.Code));
+        Assert.Equal(["seraphhorizons:schematic-c"], SchematicCatalog.For(table, "smith", s => s == "A" || s == "X", null).Select(r => r.Code));
+    }
+
+    [Fact]
+    public void TheCentredSpurGearIsTheTransmissionsAndTheHandCrankIsUngated()
+    {
+        var table = Table.Value;
+        Assert.Equal("transmission", table.GateFor("mpecenteredspurgear:centeredspurgear-ns", _ => true)?.Machine);
+        Assert.Null(table.GateFor("handcrank:handcrank-north", _ => true));
+        Assert.DoesNotContain(table.Gates, g => g.Machine is "handcrank" or "centeredspurgear");
+        Assert.DoesNotContain(table.Sales, s => s.Code.EndsWith("schematic-handcrank") || s.Code.EndsWith("schematic-centeredspurgear"));
+        // BetterRuins' mechanical blueprint: the mechanic's, for a trusted customer, at 60.
+        var mechanical = Assert.Single(table.Sales, s => s.Code == "betterruins:br-schematic-mechanical");
+        Assert.Equal(["mechanic"], mechanical.Sellers);
+        Assert.Equal((3, 60), (mechanical.Tier, mechanical.Price));
+    }
+
+    [Fact]
+    public void ABadSwitchNameIsAProblem()
+    {
+        var table = SchematicTable.Parse("""
+            { "sold": [ { "code": "seraphhorizons:schematic-*" } ],
+              "gates": [ { "machine": "mill", "switch": "NoSuchSwitch", "outputs": [ { "code": "game:mill" } ] } ],
+              "sales": [ { "code": "seraphhorizons:schematic-mill", "sellers": ["smith"], "tier": 1, "price": 0 } ] }
+            """);
+        var problems = table.Problems(["smith"], 4, ["Mill"]);
+        Assert.Contains(problems, p => p.Contains("no switch 'NoSuchSwitch'"));
+        Assert.Contains(problems, p => p.Contains("has no price"));
+        Assert.DoesNotContain(table.Problems(["smith"], 4), p => p.Contains("switch"));
     }
 
     [Fact]
@@ -51,32 +151,104 @@ public class SchematicTests
         foreach (var gate in Table.Value.Gates)
         {
             Assert.True(lang.ContainsKey($"item-schematic-{gate.Machine}"), gate.Machine);
-            var sale = Table.Value.Sales.Single(s => s.Code == gate.Schematic);
+            Assert.Single(Table.Value.Sales, s => s.Code == gate.Schematic);
             string text = (string)lang[$"itemdesc-schematic-{gate.Machine}"]!;
-            // The handbook says who sells it and from which tier, as the table does.
-            Assert.Contains($"standing tier {sale.Tier} ", text);
-            Assert.Contains(sale.Sellers[0] switch { "generalstore" => "general store", "curiodealer" => "curio dealer", var other => other }, text);
+            // Who sells it and from which tier is the handbook's generated line, not the text's.
+            Assert.DoesNotContain("standing tier", text);
+        }
+        // No item, name or text is left of the schematics that went.
+        foreach (string gone in new[] { "handcrank", "centeredspurgear" })
+        {
+            Assert.DoesNotContain(gone, machines);
+            Assert.False(lang.ContainsKey($"item-schematic-{gone}"), gone);
+            Assert.False(lang.ContainsKey($"itemdesc-schematic-{gone}"), gone);
+            Assert.DoesNotContain("*-" + gone, itemtype);
         }
     }
 
     [Fact]
-    public void EverySchematicIsInItsSellersCoreAtItsTier()
+    public void NoTradeListSellsOrBuysASchematic()
+    {
+        foreach (string type in TraderTypes.All.Concat(TraderTypes.Story))
+        {
+            var def = List(type);
+            var entries = new[] { def.Selling, def.Buying }.SelectMany(s => s.Core.Concat(s.Rotating.List)
+                .Concat(s.Regional.Values.SelectMany(r => r.Core.Concat(r.Rotating))));
+            foreach (var e in entries)
+                Assert.False(Table.Value.NeverBoughtBack(e.Code), $"{type} lists {e.Code}: schematics are the catalogs'");
+        }
+    }
+
+    [Fact]
+    public void EverySaleHasAFlatPriceAtOrAboveTheFloor()
     {
         foreach (var sale in Table.Value.Sales)
-            foreach (string seller in sale.Sellers)
-            {
-                var entry = List(seller).Selling.Core.SingleOrDefault(e => CodePattern.Normalise(e.Code) == sale.Code);
-                Assert.True(entry != null, $"{seller} does not sell {sale.Code}");
-                Assert.Equal(sale.Tier, entry!.StandingTier);
-                // Schematics have no value: their price is a hand-set gate.
-                Assert.True(entry.Price >= 10, $"{sale.Code} at {entry.Price} gears");
-                Assert.False(string.IsNullOrWhiteSpace(entry.PriceReason), sale.Code);
-            }
-        // And nothing is sold as a schematic that the table doesn't know.
-        foreach (string type in TraderTypes.All.Concat(TraderTypes.Story))
-            foreach (var e in List(type).Selling.Core.Where(e => Table.Value.IsSold(e.Code)))
-                Assert.Contains(Table.Value.Sales, s => s.Code == CodePattern.Normalise(e.Code) && s.Sellers.Contains(type));
+        {
+            // Half the shelves' former hand-set gates, rounded up.
+            Assert.True(sale.Price >= 5, $"{sale.Code} at {sale.Price} gears");
+            Assert.True(sale.Sellers.Count > 0, sale.Code);
+        }
+        Assert.Equal(75, Table.Value.Sales.Single(s => s.Code == "game:schematic-glider").Price);
+        Assert.Equal(18, Table.Value.Sales.Single(s => s.Code == "seraphhorizons:schematic-waterwheel").Price);
     }
+
+    [Fact]
+    public void ACatalogIsItsTypesSalesLowestTierFirstEachUnlockedByTheTier()
+    {
+        var table = Table.Value;
+        var all = SchematicCatalog.For(table, "mechanic", AllOn, null);
+        Assert.Equal(table.Sales.Count(s => s.Sellers.Contains("mechanic")), all.Count);
+        Assert.All(all, r => Assert.True(r.Unlocked));
+        Assert.Equal(all.OrderBy(r => r.Tier).ThenBy(r => r.Price).Select(r => r.Code), all.Select(r => r.Code));
+        var known = SchematicCatalog.For(table, "mechanic", AllOn, 2);
+        Assert.All(known, r => Assert.Equal(r.Tier <= 2, r.Unlocked));
+        Assert.Contains(known, r => r.Code == "betterruins:br-schematic-mechanical" && !r.Unlocked && r.Tier == 3 && r.Price == 60);
+        Assert.Contains(known, r => r.Code == "seraphhorizons:schematic-transmission" && r.Unlocked);
+        // Both sellers of the diving gear sell it at one price.
+        var curio = SchematicCatalog.For(table, "curiodealer", AllOn, 0).Single(r => r.Code == "abyssaldepths:ad-schematic-divinggear");
+        var hunter = SchematicCatalog.For(table, "treasurehunter", AllOn, 0).Single(r => r.Code == "abyssaldepths:ad-schematic-divinggear");
+        Assert.Equal((curio.Price, curio.Tier, false), (hunter.Price, hunter.Tier, hunter.Unlocked));
+        Assert.Empty(SchematicCatalog.For(table, "animaldealer", AllOn, 4));
+    }
+
+    [Fact]
+    public void SwitchesTakeSchematicsOutOfEveryCatalog()
+    {
+        var table = Table.Value;
+        Func<string, bool> noMachines = s => s == SchematicCatalog.MachineSwitch;
+        Assert.DoesNotContain(SchematicCatalog.For(table, "mechanic", noMachines, null), r => table.IsMachineSchematic(r.Code));
+        Assert.Contains(SchematicCatalog.For(table, "mechanic", noMachines, null), r => r.Code == "betterruins:br-schematic-mechanical");
+        Func<string, bool> noRosser = s => s == "Rosser";
+        var mechanic = SchematicCatalog.For(table, "mechanic", noRosser, null);
+        Assert.DoesNotContain(mechanic, r => r.Code == "seraphhorizons:schematic-rosser");
+        Assert.Contains(mechanic, r => r.Code == "seraphhorizons:schematic-buckingmill");
+        Assert.DoesNotContain(SchematicCatalog.For(table, "curiodealer", s => s == "Eidolon", null), r => r.Code == "seraphhorizons:schematic-eidolon");
+        Assert.Null(SchematicCatalog.Sellers(table, "seraphhorizons:schematic-eidolon", s => s == "Eidolon"));
+        var (sellers, tier, price) = SchematicCatalog.Sellers(table, "seraphhorizons:schematic-eidolon", AllOn)!.Value;
+        Assert.Equal(["curiodealer"], sellers);
+        Assert.Equal((3, 90), (tier, price));
+        Assert.Null(SchematicCatalog.Sellers(table, "game:stick", AllOn));
+    }
+
+    [Fact]
+    public void TheBestTierInTheGroupUnlocks()
+    {
+        Assert.Equal(1, SchematicCatalog.GroupTier(1, []));
+        Assert.Equal(3, SchematicCatalog.GroupTier(1, [0, 3, 2]));
+        Assert.Equal(2, SchematicCatalog.GroupTier(2, [0, 1]));
+    }
+
+    [Theory]
+    [InlineData("betterruins:br-schematic-door", true)]
+    [InlineData("game:schematic-glider", true)]
+    [InlineData("seraphhorizons:schematic-windmill", true)]
+    [InlineData("scrolled:br-rolled-schematic-door", true)]
+    [InlineData("scrolled:rolled-schematic-glider", true)]
+    [InlineData("othermod:ad-rolled-schematic-divinggear", true)]
+    [InlineData("scrolled:br-rolled-locatormap-mine1", false)]
+    [InlineData("game:paper-parchment", false)]
+    public void SchematicsAndTheirRolledCopiesAreNeverBoughtBack(string code, bool never) =>
+        Assert.Equal(never, Table.Value.NeverBoughtBack(code));
 
     [Fact]
     public void AtTheTopTierEveryListStillHasRotatingSlots()
@@ -93,7 +265,7 @@ public class SchematicTests
     [Theory]
     [InlineData("game:windmillrotor-*", "game:windmillrotor-wood-north", true)]
     [InlineData("windmillrotor-*", "game:windmillrotor-wood-north", true)]
-    [InlineData("game:windmillrotor-*", "millwright:windmillrotor-single-north", false)]
+    [InlineData("game:windmillrotor-*", "othermod:windmillrotor-single-north", false)]
     [InlineData("mpegearbox:gearbox*", "mpegearbox:gearbox12brass-north", true)]
     [InlineData("game:largegear3", "game:largegear3", true)]
     [InlineData("game:largegear3", "game:largegearsection-wood", false)]
@@ -106,16 +278,17 @@ public class SchematicTests
     public void GatesFindTheirOutputsOnlyWithTheirModLoaded()
     {
         var table = Table.Value;
-        Assert.Equal("windmill", table.GateFor("millwright:windmillrotor-six-north", _ => true)?.Machine);
-        Assert.Null(table.GateFor("millwright:windmillrotor-six-north", mod => mod != "millwright"));
+        Assert.Equal("gearbox", table.GateFor("mpegearbox:gearbox12brass-north", _ => true)?.Machine);
+        Assert.Null(table.GateFor("mpegearbox:gearbox12brass-north", mod => mod != "mpegearbox"));
         Assert.Equal("transmission", table.GateFor("game:clutch-north", _ => true)?.Machine);
-        Assert.Equal("biplane", table.GateFor("flyingmachine:trestles", _ => true)?.Machine);
-        Assert.Null(table.GateFor("flyingmachine:wing", _ => true));
+        Assert.Equal("sawmill", table.GateFor("immersivewoodworking:sawmill-frame-north", _ => true)?.Machine);
+        Assert.Null(table.GateFor("immersivewoodworking:sawmill-frame-north", mod => mod != "immersivewoodworking"));
+        Assert.Null(table.GateFor("immersivewoodworking:sawmillcarriage", _ => true));
         Assert.Null(table.GateFor("madmechanics:clutch-north-down", _ => true));
         Assert.True(table.IsSold("betterruins:br-schematic-door"));
         Assert.True(table.IsSold("schematic-glider"));
         Assert.False(table.IsSold("scrolled:br-rolled-schematic-door"));
-        Assert.True(table.IsMachineSchematic("seraphhorizons:schematic-biplane"));
+        Assert.True(table.IsMachineSchematic("seraphhorizons:schematic-eidolon"));
         Assert.False(table.IsMachineSchematic("betterruins:br-schematic-door"));
     }
 
@@ -192,7 +365,7 @@ public class SchematicTests
             { "type": "mechanic", "wallet": {"avg": 100, "var": 0},
               "selling": { "core": [
                 {"code": "rope"},
-                {"code": "seraphhorizons:schematic-biplane", "price": 250, "priceReason": "a gate", "standingTier": 4},
+                {"code": "seraphhorizons:schematic-eidolon", "price": 180, "priceReason": "a gate", "standingTier": 4},
                 {"code": "seraphhorizons:schematic-windmill", "price": 30, "priceReason": "a gate", "standingTier": 1}
               ], "rotating": { "maxItems": 2, "list": [ {"code": "stick", "standingTier": 2} ] } } }
             """, Options)!;
@@ -201,7 +374,7 @@ public class SchematicTests
         Assert.Equal(["item:game:rope"], TradeListResolver.Resolve(def.Selling, region, 0).Core.Select(e => e.Key));
         Assert.Empty(TradeListResolver.Resolve(def.Selling, region, 0).Rotating);
         // Lowest tier first after the ungated core.
-        Assert.Equal(["item:game:rope", "item:seraphhorizons:schematic-windmill", "item:seraphhorizons:schematic-biplane"],
+        Assert.Equal(["item:game:rope", "item:seraphhorizons:schematic-windmill", "item:seraphhorizons:schematic-eidolon"],
             TradeListResolver.Resolve(def.Selling, region, 4).Core.Select(e => e.Key));
         Assert.Single(TradeListResolver.Resolve(def.Selling, region, 2).Rotating);
         Assert.Empty(TradeListResolver.Problems(def));

@@ -150,8 +150,6 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         var crew = eidolons.ToArray();
         var watch = new MineWatcher(W, toMine, crew, orders, c => orders[0].Kept.Contains(c) || orders[0].Plan?.Stair.Contains(c) == true, floors: false);
         var faults = new List<string>();
-        // Each distinct choice in turn (a job's first solve, then any new station plan's).
-        var choices = new List<string>();
         int tick = 0, lastMined = -1;
         long start = W.ElapsedMilliseconds;
         // where each still under its order last moved from, and when the crew last got anywhere (one of them
@@ -185,12 +183,6 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
             watch.Tick();
             if (MineWatcher.ClaimFault(Jobs.Mining, crew, orders, EidolonJobSystem.Now(W)) is { } claimFault)
                 faults.Add(claimFault);
-            if (orders[0].Job?.Shared is { Routes: { } routes } cells
-                && (routes.Today ? "today's dispatch"
-                    : cells.RoutesStalledPlan == cells.PlanVersion ? "today's dispatch (stalled)"
-                    : $"variant {routes.VariantIndex}") is var choice
-                && (choices.Count == 0 || choices[^1] != choice))
-                choices.Add(choice);
             int mined = orders.Sum(o => o.Mined);
             if (mined != lastMined && mined % 40 == 0 || ++tick % 600 == 0)
             {
@@ -204,7 +196,7 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         double seconds = (W.ElapsedMilliseconds - start) / 1000.0;
         var left = toMine.Where(c => W.BlockAccessor.GetBlock(c).Id != 0).ToList();
         var kept = orders[0].Kept;
-        Log($"{name}: {(EidolonMinePlans.Routing ? "routes" : "BASELINE (today's dispatch)")}, chosen {(choices.Count == 0 ? "none" : string.Join(" then ", choices))}; makespan {seconds:0.0} s "
+        Log($"{name}: {(EidolonMinePlans.Routing ? "routes" : "BASELINE (today's dispatch)")}, chosen {(watch.Choices.Count == 0 ? "none" : string.Join(" then ", watch.Choices))}; makespan {seconds:0.0} s "
             + $"(baseline {baseline:0.0} s); mined {string.Join(" + ", orders.Select(o => o.Mined))} of {toMine.Count}, left {left.Count}; "
             + $"contacts {watch.Contacts.Count}, longest {watch.LongestMs} ms; empty {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}");
         Log("faults: " + string.Join(" | ", faults.Concat(watch.Faults).Take(30)) + "; contacts: " + watch.Summary());
@@ -222,17 +214,15 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         // minutes, and none deep (MineWatcher.Pushing). Where any of the job ran on today's dispatch (the
         // solver's choice, its routes stalled, or routes off) its contacts are today's own, as they were before
         // routes (its trench of three brushed for 5 s once, 7.1 s in another run, and once came 0.87 apart as all
-        // three climbed out together to go home), so only a loose bound holds: none over 10 s, and no faults
-        // (above) either way.
-        bool routed = EidolonMinePlans.Routing && choices.Count > 0 && choices.All(c => c.StartsWith("variant"));
+        // three climbed out together to go home), so only a loose bound holds: none over 10 s
+        // (MineWatcher.ContactFault), and no faults (above) either way.
+        bool routed = watch.Routed;
+        Assert.Null(watch.ContactFault());
         if (routed)
         {
-            Assert.Null(watch.Pushing());
-            Assert.True(watch.LongestMs <= 2000, $"a contact of {watch.LongestMs} ms");
-            Assert.True(watch.Contacts.Count <= crew.Length * (1 + seconds / 120), $"{watch.Contacts.Count} contacts in {seconds:0} s");
+            Assert.True(watch.LongestMs <= 2000, $"a contact of {watch.LongestMs} ms: {watch.Summary()}");
+            Assert.True(watch.Contacts.Count <= crew.Length * (1 + seconds / 120), $"{watch.Contacts.Count} contacts in {seconds:0} s: {watch.Summary()}");
         }
-        else
-            Assert.True(watch.LongestMs <= 10000, $"a contact of {watch.LongestMs} ms on today's dispatch");
         // Makespan: by routes the whole job, within Tolerance of today's; left to today's dispatch (by the
         // solver or a stall) it is today's own time and a stall's, held only to TodayTolerance. Both are set
         // from the most seen over the baseline, with room: a check of a crew gone wrong, not of the spread

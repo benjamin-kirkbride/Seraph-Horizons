@@ -338,15 +338,18 @@ public sealed class OreRecovery
     /// <summary>
     /// The final step of an ore's ideal route (#765), which recovers whatever is left: the vanner for oxides,
     /// placer and free silver; the reverberatory roaster for a sulfide with no by-product; for a by-product
-    /// ore its parting machine (the Parkes kettle, with the cupellation furnace, for lead with silver; the
-    /// cupellation furnace for the rest it parts; the liquation furnace; the acid parting vessel).
+    /// ore its parting machine: the Parkes kettle (with the cupellation furnace after it) for silver-lead it
+    /// takes, leaner than its rich lead (plain galena; <see cref="Bullion.TakenBy"/>), the cupellation furnace
+    /// for the rest it parts (argentiferous galena, richer than the kettle's crust, is cupelled directly), the
+    /// liquation furnace, the acid parting vessel.
     /// </summary>
     public OreMachine FinalStep(OreSpec ore)
     {
         if (ore.ByProducts.Count > 0)
             return ore.ByProducts[0].PartedBy switch
             {
-                PartingMethod.Cupellation => ore.Metal == "lead" ? OreMachine.ParkesKettle : OreMachine.CupellationFurnace,
+                PartingMethod.Cupellation => Bullion.TakenBy(this, ore, PartingStation.ParkesKettle)
+                    ? OreMachine.ParkesKettle : OreMachine.CupellationFurnace,
                 PartingMethod.Liquation => OreMachine.LiquationFurnace,
                 _ => OreMachine.AcidParting,
             };
@@ -482,6 +485,26 @@ public sealed class OreRecovery
             if (bp.PartedBy == MethodOf(s))
                 parted.Add(new MetalUnits(bp.Metal, main * bp.Share * p));
         return parted;
+    }
+
+    /// <summary>
+    /// <see cref="Smelted(OreSpec, double, PartingStation?, bool)"/> on units of which <paramref name="wholeShare"/>
+    /// came off the whole route (a bar's <see cref="Bullion.WholeShareAttribute"/>): that share as whole units, the rest
+    /// not, each metal summed. At a station that is not the ore's final step it is the same as none.
+    /// </summary>
+    public IReadOnlyList<MetalUnits> Smelted(OreSpec ore, double mainUnits, PartingStation? station, double wholeShare)
+    {
+        double share = Bullion.Clamp(wholeShare);
+        if (share <= 0) return Smelted(ore, mainUnits, station);
+        if (share >= 1) return Smelted(ore, mainUnits, station, whole: true);
+        var sum = new List<MetalUnits>();
+        foreach (var m in Smelted(ore, mainUnits * (1 - share), station).Concat(Smelted(ore, mainUnits * share, station, whole: true)))
+        {
+            int i = sum.FindIndex(x => x.Metal == m.Metal);
+            if (i < 0) sum.Add(m);
+            else sum[i] = sum[i] with { Units = sum[i].Units + m.Units };
+        }
+        return sum;
     }
 
     /// <summary>The config key of an enum value: its name in lower case (<c>stampbattery</c>).</summary>

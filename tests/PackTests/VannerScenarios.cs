@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // feed box, its concentrate pushed into a chest at its concentrate face and its tailings discarded beside its
 // foot as sand, its worn belt renewed by right-click, and broken back into everything that went in. Built on
 // granite floors 40 above spawn at x 920, z 920; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string VannerFrame = "seraphhorizons:vanner-";
 
@@ -48,6 +48,7 @@ public partial class SharedWorldScenarios
                 Assert.True(vanner.ShowsPart("belt") && !vanner.ShowsPart("feedbox"));
         }
         Assert.True(vanner.Assembly.Ready);
+        MachineTest.FillOil(vanner);
     }
 
     private async Task VannerUntil(BEVanner vanner, Func<bool> done, int ticks = 200000)
@@ -69,14 +70,14 @@ public partial class SharedWorldScenarios
     {
         Assert.True(VannerSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(VannerFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(VannerFrame + "north"))!;
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(VannerFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(VannerFrame + "north"))!;
         Assert.Equal("vanner", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(block.Rig!.Anchor("concentrate"));
         Assert.NotNull(block.Rig.Anchor("tailings"));
         Assert.NotNull(block.Rig.Anchor(OreMachineRig.Infeed));
-        var build = OreMachinesSystem.Of(World.Api).Build("vanner")!;
+        var build = MachinesSystem.Of(World.Api).Build("vanner")!;
         Assert.Equal(["countershaft", "shaker", "rollers", "belt", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Equal("belt", Assert.Single(build.Wearing).Id);
         Assert.Equal("Vanner frame", new ItemStack(block).GetName());

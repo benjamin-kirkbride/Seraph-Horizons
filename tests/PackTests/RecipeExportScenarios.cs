@@ -252,6 +252,26 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         }
     }
 
+    // BetterRuins' recipes/grid/schematic-crate/chestsandmore.json, entry 0: an aged crate
+    // over the crate schematic makes game:clutter with attributes { collected: true,
+    // type: "crate/crate-large-empty" }. Clutter's name comes from its type (BlockClutter,
+    // lang "clutter-crate-crate-large-empty": "Large crate (Empty)"); the bare code has none.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Attribute_named_output_carries_the_name_of_its_exact_stack()
+    {
+        var r = Recipe("grid|betterruins:recipes/grid/schematic-crate/chestsandmore.json|0");
+        var output = (JObject)r["variants"]![0]!["outputs"]![0]!;
+        Assert.Equal("game:clutter", (string)output["code"]!);
+        Assert.Equal("crate/crate-large-empty", (string)output["attributes"]!["type"]!);
+        Assert.Equal("Large crate (Empty)", (string?)output["name"]);
+        // The recipe-level output is the definition's: no name.
+        Assert.Null(r["outputs"]![0]!["name"]);
+        // A stack without attributes is named by its item.
+        var schematic = r["variants"]![0]!["ingredients"]![1]![0]!;
+        Assert.Equal("betterruins:br-schematic-crate", (string)schematic["code"]!);
+        Assert.Null(schematic["name"]);
+    }
+
     // A Culinary Artillery's assets/aculinaryartillery/recipes/simmering/boiledbark.json:
     // 100 waterportion and 1 aculinaryartillery:bark-oak-dry simmer into bark-oak-boiled
     // (Simmering: meltingPoint 100, meltingDuration 200, smeltedRatio 1). A mod registry with
@@ -915,12 +935,12 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the cylinder borer, the press brake,
+        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the cylinder borer, the slitting mill, the press brake,
         // the squaring shear, the riddle, the mandrel station, ore processing's spalling, roasting, retorting, cupellation and liquation, the
         // springs, the jaw breaker, the stamp battery, the ball mill, the sluice, the jig, the shaking table, the vanner and the arrastra are the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
-            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType or RecipeSection.RockerType or RecipeSection.RiddleType or RecipeSection.BallMillType or RecipeSection.AmalgamationPlatesType or RecipeSection.AmalgamPanType or RecipeSection.StallRoasterType or RecipeSection.ReverberatoryType or RecipeSection.CupellationFurnaceType or RecipeSection.LiquationFurnaceType or RecipeSection.AcidPartingType
+            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.SlittingMillType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType or RecipeSection.RockerType or RecipeSection.RiddleType or RecipeSection.BallMillType or RecipeSection.AmalgamationPlatesType or RecipeSection.AmalgamPanType or RecipeSection.StallRoasterType or RecipeSection.ReverberatoryType or RecipeSection.CupellationFurnaceType or RecipeSection.LiquationFurnaceType or RecipeSection.AcidPartingType
                 or RecipeSection.SpallingType or RecipeSection.OreRoastingType or RecipeSection.OreRetortingType
                 or RecipeSection.CupellationType or RecipeSection.LiquationType or RecipeSection.SpringType or RecipeSection.JawBreakerType or RecipeSection.StampBatteryType or RecipeSection.SluiceType or RecipeSection.JigType or RecipeSection.ShakingTableType or RecipeSection.VannerType
                 or RecipeSection.ArrastraType or RecipeSection.ParkesKettleType))

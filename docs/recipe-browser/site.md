@@ -229,6 +229,11 @@ counts them; its page says how many items rot into it and that each one's page s
 Perishing into anything else, wine into vinegar or a bush cutting into sticks, is indexed
 on both sides (`listedOnSourceOnly` in `prepare.ts`).
 
+A grid ingredient the recipe keeps (`extra.consumed` false and no tool: the game's
+`consume: false`, the machines' schematics) has a "K" mark in its slot's corner, opposite a
+tool's "T", and a line under the grid ("kept, not consumed"); the generic card marks its slot
+the same way (`isKept` in `recipe-view.ts`).
+
 A transition card (`TransitionRecipe.svelte`) shows what turns, any station it needs
 (marked "station": the smoking rack, whose page then lists it under "Used in"), and when it
 turns:
@@ -411,7 +416,12 @@ pass on the one before's tailings, the hand stations, amalgamation, the ore's la
 it makes whole, roasting, smelting and parting). `oreRoutes` builds the tree of routes for one raw
 ore item at one grade, `placerRoutes` one for a block of placer; each node is a step with what
 one item gives smelted right after it (main metal, and the second metal where the ore has one).
-Grinding steps appear only for poor ore, which is the only grade they change. `bestRoute` finds
+Grinding steps appear only for poor ore, which is the only grade they change. As in the mod, the
+hand parting stations (the cupel, the liquation pan) hang off a firepit's roasted concentrate, not
+off bullion: bars, and roasted rock, are parted by the machines only. The Parkes kettle appears
+only for silver-lead leaner than rich lead (the section's `richLeadSilver`, 0.1 when an older
+export lacks it: plain galena), so argentiferous galena's last step is the cupellation furnace;
+the gold pan and the rocker take rich gravel, not bog iron. `bestRoute` finds
 the step that gives the most in all (the deeper on a tie), optionally among hand steps only.
 `test/ore-routes.test.ts` checks the trees against hand-worked figures, and `e2e/ores.spec.ts`
 checks the page against the export's own rocker record, which the mod computed.
@@ -475,6 +485,16 @@ The export has no list of entities. prepare-data turns the item `sources` of typ
 an entity, and each such source becomes a row of that entity, with `from` and `fromName`
 replaced by `item`, the item's index. An entity that gives nothing the export lists is
 therefore missing, and so is what it gives that is not an item of the export.
+
+The pack's own traders are written as one entity per type (`extra.entityType`
+`seraphhorizons:trader-{type}`, one `from`), so each type has one page with no chips. Their
+trades carry `extra.priceMin` and `extra.priceMax` ([item-data.md](item-data.md#the-packs-traders)):
+`site/src/lib/trades.ts` shows the range ("2–15", one number when they agree) in the price
+column, a Notes column with what limits each row (`tradeNotes`: "schematic catalog, flat
+price", "from standing Regular", "cold regions only", "in rotating stock", "rare stock",
+"once players have sold enough in the region"), and under the table a line saying the price
+varies with the roll, standing and regional supply. The merged view widens its range with
+both ends.
 
 A trade marked `extra.replaced` is left out everywhere (`shownSources` in `prepare.ts`), on
 the item's page and as a row of its trader: a trader the pack's trader grid replaces, never
@@ -551,6 +571,10 @@ block type (the code up to the first `-` of its path, so `game:richgravel-granit
 `game:richgravel`) into one row. The row names the first block and lists the others under
 "and N more". Block drops are not folded, so flint still has a row for each rock's flint
 ore.
+
+A pack trader's trade shows its range with the unit ("2–15 rusty gears") and its notes in
+the last column, and the table ends with the same line on why prices vary. Two of an item's
+trades at one trader that differ only in `extra` (a region, a catalog) stay two rows.
 
 A source of type `other` with a note the site knows (`Panned`, `Harvested`, in
 `t.sourceNotes`) shows the note as its kind ("Panning", "Harvested") instead of "Other".

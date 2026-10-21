@@ -18,7 +18,7 @@ namespace SeraphHorizons.PackTests;
 // acid and wash water, its fire laid and lit, parted under a chimney (aged rather than waited on), its silver drawn
 // from the tub and its gold taken out of the vessel, then capped and broken back into everything that went in. Built
 // on granite floors 40 above spawn at x -940, z 940; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string VesselFrame = "seraphhorizons:acidparting-";
     private const string Dore = "seraphhorizons:bullion-quartz_nativegold-gold";
@@ -63,13 +63,13 @@ public partial class SharedWorldScenarios
     {
         Assert.True(AcidPartingSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(VesselFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(VesselFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(VesselFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(VesselFrame + "north"));
         Assert.Equal("acidparting", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(AcidPartingSystem.Of(World.Api).Rig);
         Assert.Equal(VesselRequires.Extra.Order(), block.ExtraRequires.Order());
-        var build = OreMachinesSystem.Of(World.Api).Build("acidparting")!;
+        var build = MachinesSystem.Of(World.Api).Build("acidparting")!;
         Assert.Equal(["brickwork", "lining", "sandbath", "vesseltub", "services"], build.Stages.Select(s => s.Id).ToArray());
         foreach (var code in build.Stages[0].Materials[0].Codes)
             Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0 }, code);
@@ -147,7 +147,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(6, vessel.FuelSlot.StackSize);
         Assert.True(vessel.ShowsPart("fuel") && !vessel.ShowsPart("fire"));
         var handling = EnumHandling.PassThrough;
-        OreMachineFire.IgniteOver(player.Entity, pos, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, pos, 1.5f, ref handling);
         Assert.True(vessel.Lit);
         Assert.Equal(5, vessel.FuelSlot.StackSize);
         Assert.True(vessel.ShowsPart("fire") && !vessel.ShowsPart("fuel"));

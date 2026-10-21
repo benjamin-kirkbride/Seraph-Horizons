@@ -77,7 +77,7 @@ public partial class WoodworkingEidolonScenarios
             // No axe: refused.
             Assert.Equal(0, commander.Use(sp, slot, a));
             Assert.Equal(0, commander.Use(sp, slot, b));
-            Assert.Equal(0, commander.Use(sp, slot, rosser.GhostCells().First().Pos));
+            Assert.Equal(0, commander.Use(sp, slot, rosser.CellBlocks().First().Pos));
             Assert.Null(e.Orders!.OrderCode);
 
             var axe = new DummySlot(new ItemStack(axeItem));
@@ -85,7 +85,7 @@ public partial class WoodworkingEidolonScenarios
             Assert.True(axe.Empty, "it did not take the axe");
             Assert.Equal(0, commander.Use(sp, slot, a));
             Assert.Equal(0, commander.Use(sp, slot, b));
-            Assert.Equal(1, commander.Use(sp, slot, rosser.GhostCells().First().Pos));
+            Assert.Equal(1, commander.Use(sp, slot, rosser.CellBlocks().First().Pos));
         }
         finally
         {
@@ -96,7 +96,7 @@ public partial class WoodworkingEidolonScenarios
         var carry = e.GetBehavior<EntityBehaviorEidolonTrunk>()!;
         double Oil() => e.Oil?.Tank?.Points ?? 0;
         double oil = Oil();
-        string State() => $"{EidolonCommands.Describe(e)}; at {e.Pos.XYZ}; carrying {carry.Trunk?.Block?.Code}; rosser {rosser.State}; "
+        string State() => $"{EidolonCommands.Describe(e)}; at {e.Pos.XYZ}; carrying {carry.Trunk?.Block?.Code}; rosser {rosser.TripState}; "
                            + $"standing {logs.Count(l => Wood(l) > 0)}; {e.GetInfoText().Replace('\n', ' ')}; trunks lying at "
                            + string.Join(" ", TrunksLying(pos, 34).Select(t => $"({t.Pos.X:0.0} {t.Pos.Y:0.0} {t.Pos.Z:0.0})"));
 
@@ -118,7 +118,7 @@ public partial class WoodworkingEidolonScenarios
                 output.WriteLine($"rosser took trunk {taken.Count}: {on.Block?.Code} {Trunks.StoredLogs(on, W)} logs; " + State());
             }
             had = on != null;
-            if (rosser.State == RosserState.Delivered)
+            if (rosser.TripState == RosserState.Delivered)
                 rosser.TakeFinished();
             if (++ticks % 600 == 0)
                 output.WriteLine(State());

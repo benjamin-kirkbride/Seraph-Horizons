@@ -44,7 +44,7 @@ internal static class GearConsumerUses
         ("game:jonasframes-gearbox01", 3), ("game:jonasframes-gearbox02", 5), ("game:jonasframes-oscillator01", 3),
         ("game:jonasframes-spring01", 1), ("game:jonasframes-gears01", 1), ("game:jonasframes-gears02", 5),
         ("game:jonas-lamp", 1),
-        ("immersivewoodworking:sawmillcarriage", 1), ("flyingmachine:chaindrive", 1),
+        ("immersivewoodworking:sawmillcarriage", 1),
         ("playercorpseforked:corpsecompass", 1), ("spinningwheel:hpmoaitem-", 1),
         ("sprinklersmod:t_one_sprinkler-", 2), ("sprinklersmod:t_two_sprinkler-", 4),
     ];

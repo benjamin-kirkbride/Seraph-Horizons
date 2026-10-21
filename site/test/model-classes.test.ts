@@ -38,6 +38,27 @@ describe("a rig with a class past thick", () => {
   });
 });
 
+describe("a rig whose work has one class", () => {
+  const mill = manifest.models.find((m) => m.id === "slitting-mill")!;
+  const millRig = repo(mill.rig!) as Rig;
+  const millScenario = mill.scenario!;
+  const millRequires = [...new Set(millRig.parts!.map((p) => p.requires).filter((r): r is string => !!r))];
+  const millAnchors = discoverAnchors(millRig).anchors;
+
+  it("offers none and that class only (the slitting mill's plate), and ties the work to it", () => {
+    const path = workOf(millRig);
+    expect(progressClasses(path)).toEqual([1]);
+    expect(sizeNames(millScenario.inputs?.size?.names, ["None", "Thin", "Thick"], path)).toEqual(["None", "Plate"]);
+    expect(sizeNames(undefined, ["None", "Thin", "Thick"], path)).toEqual(["None", "Thin"]);
+    expect([0, 1, 2].map((k) => classShows("plate", k, millScenario))).toEqual([false, true, false]);
+    expect(checkScenario(millScenario, millRig, millAnchors, millRequires)).toEqual([]);
+    // a name short of that class, or a class it has no work for, is refused
+    const bad = (s: Partial<Scenario>) => checkScenario({ ...millScenario, ...s }, millRig, millAnchors, millRequires);
+    expect(bad({ inputs: { ...millScenario.inputs, size: { names: ["None"] } } })).toContainEqual(expect.stringContaining("inputs.size.names"));
+    expect(bad({ requiresClass: { plate: "thick" } })).toContainEqual(expect.stringContaining("no end for class thick"));
+  });
+});
+
 describe("hot metal, as the game draws it", () => {
   it("is vanilla's incandescence colour (ColorUtil.GetIncandescenceColorAsColor4f)", () => {
     expect(incandescence(20)).toEqual([0, 0, 0, 0]);

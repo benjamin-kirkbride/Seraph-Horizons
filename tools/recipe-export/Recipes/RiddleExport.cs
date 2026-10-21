@@ -35,7 +35,7 @@ public static class RiddleExport
     public const string CrushedPrefix = "crushedore-";
     public const string DefaultRock = "granite";
 
-    // Riddle/Core/RiddleParts.cs: the mesh and how many it takes.
+    // config/builds/riddle.json (the shared staged build): the mesh and how many it takes.
     public static readonly string[] MeshCodes =
         ["game:metalnailsandstrips-iron", "game:metalnailsandstrips-meteoriciron", "game:metalnailsandstrips-steel"];
     public const int MeshCount = 2;

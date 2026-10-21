@@ -116,21 +116,22 @@ sets `cast` to `sheet-plain/{metal}5`.
 
 ## Gameplay
 
-The rules are `Core/` (no game; `tests/CylinderBorer/`), the game side `Game/`, both after the gear cutter and the
-draw bench.
+The rules are `Core/` (no game; `tests/CylinderBorer/`), the game side `Game/` (`CylinderBorerSystem` and the controller
+`BECylinderBorer`), on the shared machine base (`docs/modeling/machine-base.md`), as the gear cutter and the draw bench are.
 
-- **Blocks.** `seraphhorizons:cylinderborer-frame-{side}` (`BlockCylinderBorer`, `BECylinderBorer`): the controller at
-  the bench end, placed as the draw bench is (`side` the way the player looks, `CylinderBorerRig.PlacedSide`), stamping
-  `cylinderborer-ghost` into its other cells and `cylinderborer-ghostpower-{side}` into the power cell, a consumer on the
-  power face only (`BEBehaviorCylinderBorerMP`, `Resistance` 0.3, a token 0.005 unassembled; the load never changes with
-  the oil).
-- **Assembly** (`CylinderBorerParts`): frame, then bushings, bar, feed, cutter head, only in that order, each stage its
-  materials (metal parts; three rods, metal parts and a large stainless gear; two oak planks, a rod, two ropes and a
-  plate; the forged head), a material a click as the ore machines' stages take theirs (Machines' `StagedBuild` holds the
-  counts), drawn once complete; `ctrl` + right-click takes the head back with the durability it has left, then a casting in the cradle; the rest
-  comes back only by breaking the frame (everything put in, the head with its wear, and the casting); in creative, `ctrl` +
-  right-click fills the next stage free. The bar and the feed were grid-made items before they took their materials directly; a borer saved
-  with them restores those stages complete in their materials (iron rods and plate).
+- **Blocks.** `seraphhorizons:cylinderborer-frame-{side}` (class `seraphhorizons.Machine`, the shared `BlockMachine`,
+  with `BECylinderBorer`): the controller at the bench end, placed as every machine on the base is (`side` the way the
+  player looks), stamping the shared `machine-cell` into its other cells and `machine-cellpower-{face}` into the power
+  cell, whose shared `BEBehaviorMachineMP` puts the borer's load on the power face only (`Resistance` 0.3, a token 0.005
+  until it is whole; the load never changes with the oil).
+- **Assembly** (`config/builds/cylinderborer.json`, kept by the shared `MachineAssembly`): frame, then bushings, bar,
+  feed, cutter head, only in that order, each stage its materials (metal parts; three rods, metal parts and a large
+  stainless gear; two oak planks, a rod, two ropes and a plate), a material a click as the ore machines' stages take
+  theirs, drawn once complete; the forged head is the build's durable wearing part (`head`), fitted as the last stage,
+  its uses the head item's durability (8), a spent one refused. `ctrl` + right-click takes the head back with the
+  durability it has left (`MachineAssembly.Take`), then a casting in the cradle; the rest comes back only by breaking the
+  frame (everything put in, the head with its wear, and the casting); in creative, `ctrl` + right-click fills the next
+  stage free. Saves are the shared base's: a borer saved before the move loads as a bare frame.
 - **The bore** (`Boring`, `BoreJob`): a rough cast cylinder, `seraphhorizons:cylinderblank-iron` (k 1) or `-steel` (k 2), by
   right-click or from a chest or hopper against the infeed face (native east, beside the cradle), one at a time. W
   advances with the shaft's angle at `TurnsPerBlockIron` 64 or `TurnsPerBlockSteel` 96 axle turns a block to the head's
@@ -144,8 +145,13 @@ draw bench.
 - **Oil** (`MachineOilSettings.CylinderBorer`): a 1000-point tank, 10 points a cylinder, either metal.
 - **Settings** (`CylinderBorerSettings`): `TurnsPerBlockIron`, `TurnsPerBlockSteel`, `HeadWearPerCylinder`, `Resistance`,
   `MinSpeed`; the server's figures are synced to clients for the info and the renderer.
-- **The renderer** (`CylinderBorerRenderer`): one mesh per rig part from `cylinderborer.json`, posed by the shared rig
-  maths from θ (the shaft's angle about native z, `MillMotion.NativeShaftAngle`), W, k and p from `CylinderBorerClock`
+- **The block info** is the shared layout: the head's share left, the state, the oil (dry, "it wears its cutter fast"),
+  then the cylinders the head has left at this oil level (dry, "the next cylinder breaks the cutter head") and the
+  casting in the cradle; a wrench adds the head's uses, the oil a cylinder drains, the wear multiplier, the bore's W and
+  turns a block, the shaft and the axle's face.
+- **The renderer** (the shared `MachineRenderer`, posed by `BECylinderBorer.FrameInput`): one mesh per rig part from
+  `cylinderborer.json`, posed by the shared rig maths from θ (the shaft's angle about native z), W, k and p from
+  `CylinderBorerClock`
   (W follows the shaft, never behind the server's nor more than 1/16 ahead; the casting drawn only while it is in the
   cradle; p eases the head back after it), and the oil; chips at the bore's mouth while it cuts, drips from the far cup
   while there is oil, smoke when dry, and the gears' sound.
@@ -389,7 +395,7 @@ runs again: port them into `make_shape.py`, or stop regenerating.
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in projections rendered from the written files and side by side with ppex's engine
-cylinder. No one has yet looked at it in a client: the renderer (`Game/CylinderBorerRenderer.cs`), the textures in the
+cylinder. No one has yet looked at it in a client: the renderer (the shared `MachineRenderer`, `BECylinderBorer.FrameInput`), the textures in the
 game's atlas, the particles and the sounds are untested but by the Atlas scenarios' server side.
 
 1. **Box teeth.** The pinion's and the wheel's teeth are boxes; they mesh by their pitch circles, with up to 0.12 of

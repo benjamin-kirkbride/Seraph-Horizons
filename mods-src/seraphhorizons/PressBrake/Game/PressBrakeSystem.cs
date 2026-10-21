@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.PressBrake.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -8,21 +9,24 @@ using Vintagestory.API.Config;
 namespace SeraphHorizons.Mod.PressBrake;
 
 /// <summary>
-/// The press brake: registers its classes and holds what its blocks share: its settings
-/// (PressBrakeSettings in ModConfig/seraphhorizons.json) and the rig
-/// (assets/seraphhorizons/config/pressbrake-rig.json). With the <c>PressBrake</c> switch off the
-/// server leaves its blocks and its recipe out of the game (<see cref="Disable"/>). A hand machine:
-/// no mechanical power and no oil.
+/// The press brake: registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame and cell are the shared blocks, its build
+/// <c>config/builds/pressbrake.json</c>) and holds its settings (PressBrakeSettings in
+/// ModConfig/seraphhorizons.json) and the rig (assets/seraphhorizons/config/pressbrake-rig.json). With the
+/// <c>PressBrake</c> switch off the server leaves its block and its recipe out of the game
+/// (<see cref="Disable"/>). A hand machine: no mechanical power and no oil.
 /// </summary>
 public class PressBrakeSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "pressbrake";
     public static readonly AssetLocation RigAsset = new(Domain, "config/pressbrake-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/pressbrake/frame.json"),
-        new(Domain, "blocktypes/pressbrake/ghost.json"),
     ];
 
     public static readonly AssetLocation[] RecipeAssets =
@@ -68,10 +72,8 @@ public class PressBrakeSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.PressBrake", typeof(BlockPressBrake));
-        api.RegisterBlockClass("seraphhorizons.PressBrakeGhost", typeof(BlockPressBrakeGhost));
         api.RegisterBlockEntityClass("seraphhorizons.PressBrake", typeof(BEPressBrake));
-        api.RegisterBlockEntityClass("seraphhorizons.PressBrakeGhost", typeof(BEPressBrakeGhost));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find

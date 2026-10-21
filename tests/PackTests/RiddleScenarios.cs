@@ -1,4 +1,5 @@
 using Atlas.XUnit;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Riddle;
 using SeraphHorizons.Mod.Riddle.Core;
@@ -10,11 +11,11 @@ namespace SeraphHorizons.PackTests;
 
 // seraphhorizons, Riddle (mods-src/seraphhorizons/Riddle/, #714): the riddle in the plain world, worked by hand.
 // The player's right-click held on it is played through the block's own interaction calls (start, a step each
-// tick, stop), as the game makes them (the squaring shear's ShearHold), so W moves only while held; a charge
+// tick, stop), as the game makes them (the shared Hold), so W moves only while held; a charge
 // takes 9 seconds of holding, so the scenario holds for less and finishes it through BERiddle.Shake. Every
 // scenario builds on a granite floor of its own 40 above spawn at x 840 to 876, z -840 (clear of the other
 // machines' sites), and shares the gear cutter's player, gearcutterhand.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private RiddleSystem RiddleMod => RiddleSystem.Of(World.Api);
 
@@ -27,13 +28,6 @@ public partial class SharedWorldScenarios
         World.SetBlock($"seraphhorizons:riddle-frame-{side}", pos);
         await World.Ticks(5);
         return W.BlockAccessor.GetBlockEntity(pos) as BERiddle ?? throw new Xunit.Sdk.XunitException($"no riddle at {pos}");
-    }
-
-    private static string RiddleInfo(BERiddle riddle, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        riddle.GetBlockInfo(player, sb);
-        return sb.ToString();
     }
 
     /// <summary>The stacks of <paramref name="code"/> the player holds, as (count, classified).</summary>
@@ -59,9 +53,14 @@ public partial class SharedWorldScenarios
         Assert.True(RiddleSystem.Applies(World.Api));
         var rig = RiddleMod.Rig ?? throw new Xunit.Sdk.XunitException("the riddle's rig did not load");
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockRiddle>(W.GetBlock(new AssetLocation($"seraphhorizons:riddle-frame-{side}")));
-        Assert.Equal("Riddle box", new ItemStack(W.GetBlock(BlockRiddle.ItemCode)).GetName());
-        foreach (var code in RiddleParts.MeshCodes)
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:riddle-frame-{side}")));
+        Assert.Equal("Riddle box", new ItemStack(W.GetBlock(new AssetLocation(RiddleFrame))).GetName());
+        // its frame is the shared machine block, its build the shared build's
+        Assert.Same(rig, ((BlockMachine)W.GetBlock(new AssetLocation(RiddleFrame))).Rig);
+        var build = MachinesSystem.Of(World.Api).Build(RiddleSystem.MachineId)!;
+        Assert.Equal(["riddle"], build.Stages.Select(s => s.Id));
+        Assert.Equal(RiddleBuild.MeshCodes, build.Stages.Single().Materials.Single().Codes);
+        foreach (var code in RiddleBuild.MeshCodes)
             Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false }, $"no {code}");
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == RiddleFrame && r.Enabled);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:plank-oak");
@@ -69,6 +68,63 @@ public partial class SharedWorldScenarios
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         Assert.Equal(rig.LumpsPerCharge, RiddleMod.Config.LumpsPerCharge);
         Assert.Equal(rig.ShakesPerCharge, RiddleMod.Config.ShakesPerCharge, 3);
+    }
+
+    // Holding right-click with crushed ore goes round: a charge finished while held gives its oversize and fines to
+    // the player and the next charge goes on from the hand, riddled without letting go; a click with crushed ore on
+    // a riddled charge does the same; and with too few left in hand the hold stops at the riddled charge.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Riddle_held_with_crushed_ore_riddles_charge_after_charge()
+    {
+        var pos = await CutterSite(852, -840);
+        var player = await CutterPlayer();
+        RiddleClearInventory(player);
+        var riddle = await PlaceRiddle(pos);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(RiddleMesh, 3))?.StackSize);
+        Assert.True(riddle.Complete);
+        double shakes = RiddleMod.Config.ShakesPerCharge;
+
+        // a charge half a shake from riddled, held with two charges' worth in hand: it finishes while held, and the
+        // next goes on and is riddled, the hold never broken
+        Assert.Null(CutterClick(player, pos, CutterItem(RiddleCrushed, 3)));
+        Assert.False(riddle.Shake(2 * Math.PI * (shakes - 0.5)));
+        Assert.True(riddle.Riddling);
+        var (started, steps) = await Hold(player, pos, 30, CutterItem(RiddleCrushed, 6));
+        Assert.True(started);
+        Assert.Equal(30, steps);
+        Assert.True(riddle.Riddling);
+        Assert.InRange(riddle.Job.Work, 0.01, 0.3);
+        Assert.Equal(3, player.InventoryManager.ActiveHotbarSlot.StackSize);
+        Assert.Equal([(1, false)], RiddleHeld(player, "game:ore-medium-hematite-granite"));
+        Assert.Contains((2, true), RiddleHeld(player, RiddleCrushed));
+        Assert.Contains((3, false), RiddleHeld(player, RiddleCrushed));
+
+        // a click with crushed ore on a riddled charge takes it out and puts the next on
+        Assert.True(riddle.Shake(2 * Math.PI * shakes));
+        Assert.NotNull(riddle.Oversize);
+        Assert.Null(CutterClick(player, pos, CutterItem(RiddleCrushed, 3)));
+        Assert.True(riddle.Riddling);
+        Assert.True(riddle.Job.Untouched);
+        Assert.Null(riddle.Oversize);
+        Assert.Null(riddle.Fines);
+        Assert.Equal([(2, false)], RiddleHeld(player, "game:ore-medium-hematite-granite"));
+
+        // too few for a charge: the hold stops at the riddled charge, which waits for an empty hand
+        Assert.True(riddle.Shake(2 * Math.PI * shakes));
+        (_, steps) = await Hold(player, pos, 10, CutterItem(RiddleCrushed, 2));
+        Assert.Equal(0, steps);
+        Assert.False(riddle.Riddling);
+        Assert.NotNull(riddle.Oversize);
+        Assert.NotNull(riddle.Fines);
+        CutterClick(player, pos, null);
+        CutterClick(player, pos, null);
+        Assert.Null(riddle.Oversize);
+        Assert.Null(riddle.Fines);
+        CutterKillItems(pos);
+        W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
+        await World.Ticks(2);
+        CutterKillItems(pos);
+        RiddleClearInventory(player);
     }
 
     // The whole round: no charge before the mesh, the mesh fitted with two nails and strips, a charge of three
@@ -83,7 +139,7 @@ public partial class SharedWorldScenarios
         RiddleClearInventory(player);
         var riddle = await PlaceRiddle(pos, "east");
         Assert.Equal(Side.East, riddle.Side);
-        Assert.Contains("Next part", RiddleInfo(riddle, player));
+        Assert.Contains("Build: stage 1 of 1, the riddle's wire mesh", MachineTest.Info(riddle, player));
 
         // no charge on a bare frame, and one nails and strips is too few for the mesh
         Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);
@@ -102,7 +158,7 @@ public partial class SharedWorldScenarios
         Assert.True(riddle.BoxHoldsFines);
 
         // held, W moves; let go, it stops
-        var (started, steps) = await ShearHold(player, pos, 20);
+        var (started, steps) = await Hold(player, pos, 20);
         Assert.True(started);
         Assert.True(steps >= 15, $"held for only {steps} steps");
         await World.Ticks(2);
@@ -110,7 +166,7 @@ public partial class SharedWorldScenarios
         Assert.InRange(work, 0.03, 0.3);
         await World.Ticks(20);
         Assert.Equal(work, riddle.Job.Work);
-        Assert.Contains("riddled", RiddleInfo(riddle, player));
+        Assert.Contains("riddled", MachineTest.Info(riddle, player));
 
         // finish it: two fines in the box, classified, and the oversize on the mesh as raw ore of the floor's rock
         Assert.True(riddle.Shake(2 * Math.PI * RiddleMod.Config.ShakesPerCharge));
@@ -121,12 +177,10 @@ public partial class SharedWorldScenarios
         Assert.True(riddle.ChargeOn);
         Assert.Equal(1, riddle.RiddleWork);
 
-        // the next charge waits: the oversize first, then the fines
-        Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);
+        // an empty hand takes them out: the oversize first, then the fines
         CutterClick(player, pos, null);
         Assert.Null(riddle.Oversize);
         Assert.Equal([(1, false)], RiddleHeld(player, "game:ore-medium-hematite-granite"));
-        Assert.Equal(3, CutterClick(player, pos, CutterItem(RiddleCrushed, 3))?.StackSize);
         Assert.NotNull(riddle.Fines);
         CutterClick(player, pos, null);
         Assert.Null(riddle.Fines);

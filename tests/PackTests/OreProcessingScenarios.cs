@@ -1426,4 +1426,112 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         World.SetBlock("game:air", pos.EastCopy());
     }
 
+    // The whole route through the crucible (BullionWhole): roasted concentrate the vanner marked off argentiferous
+    // galena's whole route (oreWhole, carried by the reverberatory) smelts in the crucible to silver-lead carrying its
+    // share (oreWholeShare); the ingot mold keeps it on the bar and refuses another share into a bar begun; bars of two
+    // shares merge at their weighted share; the cupellation furnace, the ore's final step, makes the share whole.
+    [AtlasScenario]
+    public async Task Whole_route_concentrate_smelts_to_bullion_carrying_its_share()
+    {
+        string roasted = OreProducts.RoastedCode("galena_nativesilver");
+        string bullion = "seraphhorizons:bullion-galena_nativesilver-lead";
+        var crucible = (BlockSmeltingContainer)W.GetBlock(new AssetLocation("game:crucible-blue-fired"));
+        ItemStack Marked(int n)
+        {
+            var stack = Stack(roasted, n);
+            OreStreamAttributes.MarkWhole(stack, true);
+            return stack;
+        }
+        // Smelts a charge in the crucible as the firepit does; the molten bar and its units.
+        (ItemStack Metal, int Units) Smelt(params ItemStack[] charge)
+        {
+            var slots = new LooseSlots(charge.Select(c => (ItemSlot)new DummySlot(c)).ToArray());
+            var input = new DummySlot(new ItemStack(crucible));
+            var outSlot = new DummySlot();
+            Assert.True(crucible.CanSmelt(W, slots, input.Itemstack, null));
+            crucible.DoSmelt(W, slots, input, outSlot);
+            var smelted = Assert.IsAssignableFrom<BlockSmeltedContainer>(outSlot.Itemstack?.Collectible);
+            var (metal, units) = smelted.GetContents(W, outSlot.Itemstack!);
+            Assert.Equal(bullion, metal.Collectible.Code.ToString());
+            return (metal, units);
+        }
+
+        // all marked: the whole bar
+        var (whole, units) = Smelt(Marked(40));
+        Assert.Equal(200, units);
+        Assert.Equal(1.0, OreStreamAttributes.WholeShareOf(whole), 9);
+        // unmarked: nothing on it, as before
+        var (plain, _) = Smelt(Stack(roasted, 40));
+        Assert.False(plain.Attributes.HasAttribute(OreStreamAttributes.WholeShare));
+        // 30 marked and 10 not: three quarters
+        var (mixed, mixedUnits) = Smelt(Marked(30), Stack(roasted, 10));
+        Assert.Equal(200, mixedUnits);
+        Assert.Equal(0.75, OreStreamAttributes.WholeShareOf(mixed), 9);
+        // anything but bullion is left alone: an oxide's concentrate smelts to its metal, unmarked
+        var cassiterite = Stack("seraphhorizons:concentrate-cassiterite", 20);
+        OreStreamAttributes.MarkWhole(cassiterite, true);
+        var tinSlots = new LooseSlots([new DummySlot(cassiterite)]);
+        var tinOut = new DummySlot();
+        crucible.DoSmelt(W, tinSlots, new DummySlot(new ItemStack(crucible)), tinOut);
+        var tin = ((BlockSmeltedContainer)tinOut.Itemstack!.Collectible).GetContents(W, tinOut.Itemstack).Key;
+        Assert.False(tin.Attributes.HasAttribute(OreStreamAttributes.WholeShare));
+
+        // Poured into an ingot mold: the bar keeps its share; a pour of another share does not top it up.
+        // (the mold falls without a floor under it)
+        var pos = World.Spawn.AddCopy(72, 8, 60);
+        World.SetBlock("game:rock-granite", pos.DownCopy());
+        World.SetBlock("game:ingotmold-blue-fired", pos);
+        await World.Ticks(2);
+        var mold = Assert.IsType<BlockEntityIngotMold>(W.BlockAccessor.GetBlockEntity(pos));
+        int amount = 50;
+        mold.ReceiveLiquidMetal(whole, ref amount, 800);
+        Assert.Equal(0, amount);
+        Assert.Equal(1.0, OreStreamAttributes.WholeShareOf(mold.SelectedContents!), 9);
+        amount = 50;
+        mold.ReceiveLiquidMetal(mixed, ref amount, 800);
+        Assert.Equal(50, amount);
+        Assert.Equal(50, mold.SelectedFillLevel);
+        World.SetBlock("game:air", pos);
+        World.SetBlock("game:air", pos.DownCopy());
+
+        // Bars merge whatever their shares, at the weighted share: 4 whole and 12 unmarked, a quarter.
+        var bar = Item(bullion);
+        var wholeBars = new ItemStack(bar, 4);
+        OreStreamAttributes.SetWholeShare(wholeBars, 1);
+        var sink = new DummySlot(wholeBars);
+        var source = new DummySlot(new ItemStack(bar, 12));
+        var op = new ItemStackMoveOperation(W, EnumMouseButton.Left, 0, EnumMergePriority.AutoMerge, 12);
+        Assert.Equal(12, source.TryPutInto(sink, ref op));
+        Assert.Equal(16, sink.StackSize);
+        Assert.Equal(0.25, OreStreamAttributes.WholeShareOf(sink.Itemstack), 9);
+        Assert.True(OreStreamAttributes.SameBar(W, sink.Itemstack, new ItemStack(bar, 1)));
+        Assert.False(OreStreamAttributes.SameBar(W, sink.Itemstack, Stack("seraphhorizons:bullion-galena-lead", 1)));
+
+        // The tooltip says it: a bar's share, a concentrate's mark.
+        string Info(ItemStack stack)
+        {
+            var info = new System.Text.StringBuilder();
+            stack.Collectible.GetHeldItemInfo(new DummySlot(stack), info, W, false);
+            return info.ToString();
+        }
+        Assert.Contains(Lang.Get("seraphhorizons:oreproduct-wholeshare", "25"), Info(sink.Itemstack));
+        Assert.DoesNotContain(Lang.Get("seraphhorizons:oreproduct-wholeshare", "100").Split(':')[0], Info(new ItemStack(bar, 1)));
+        Assert.Contains(Lang.Get("seraphhorizons:oreproduct-whole"), Info(Marked(1)));
+
+        // What the furnace, argentiferous galena's final step, makes of two whole bars: all their lead and silver made
+        // whole; the same bars unmarked, the lead as it is and the silver at 95 %.
+        var r = System.Recovery!;
+        var spec = r.Ore("galena_nativesilver");
+        Assert.Equal(OreMachine.CupellationFurnace, r.FinalStep(spec));
+        var two = new ItemStack(bar, 2);
+        OreStreamAttributes.SetWholeShare(two, 1);
+        var y = SeraphHorizons.Mod.CupellationFurnace.Core.Cupelling.Yield(r,
+            [SeraphHorizons.Mod.CupellationFurnace.BECupellationFurnace.ChargeOf(two)]);
+        Assert.Equal(200 * r.WholeRestore(spec), y.LeadUnits, 6);
+        Assert.Equal(200 * r.WholeRestore(spec) * 0.38, y.UnitsOf("silver"), 6);
+        var unmarked = SeraphHorizons.Mod.CupellationFurnace.Core.Cupelling.Yield(r,
+            [SeraphHorizons.Mod.CupellationFurnace.BECupellationFurnace.ChargeOf(new ItemStack(bar, 2))]);
+        Assert.Equal(200, unmarked.LeadUnits, 6);
+        Assert.Equal(200 * 0.38 * 0.95, unmarked.UnitsOf("silver"), 6);
+    }
 }

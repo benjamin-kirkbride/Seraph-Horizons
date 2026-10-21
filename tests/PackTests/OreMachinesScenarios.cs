@@ -1,16 +1,22 @@
 using Atlas.XUnit;
+using SeraphHorizons.Mod.Jig;
+using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
+using Vintagestory.GameContent.Mechanics;
 
 namespace SeraphHorizons.PackTests;
 
 // seraphhorizons, Machines/ (#711, #694): the ore machines' shared code in the pack's world: every build
 // file loads and names items the game has, tailings heap up as vanilla layered gravel and sand in the
-// ore's rock, and products leave by vanilla chute. Built 40 above spawn at x 540 to 560, z 540.
-public partial class SharedWorldScenarios
+// ore's rock, and products leave by vanilla chute; the machines on a shaft take oil. Built 40 above spawn at
+// x 540 to 560, z 540, and the oiled machines at x 380 to 540, z 580.
+public partial class MillWorldScenarios
 {
     [AtlasScenario, ReadsBootLog]
     public void Ore_machine_build_files_load_cleanly_and_name_items_the_game_has()
@@ -21,11 +27,14 @@ public partial class SharedWorldScenarios
             .Select(e => $"[{e.Level}] {e.Message}").ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
         var system = OreMachinesSystem.Of(World.Api);
-        Assert.Contains("stampbattery", system.Builds.Keys);
+        var builds = MachinesSystem.Of(World.Api).Builds;
+        Assert.Contains("stampbattery", builds.Keys);
         Assert.Equal(0.05f, system.Config.MinSpeed);
         Assert.NotNull(system.Config.TailingsFor("sluice"));
         var missing = new List<string>();
-        foreach (var (machine, build) in system.Builds)
+        foreach (var (machine, file) in builds)
+            // the eidolon gantry's build is in the frame's wood, filled in for each gantry
+            foreach (var build in new[] { machine == SeraphHorizons.Mod.EidolonGantry.Core.GantryBuild.MachineId ? SeraphHorizons.Mod.EidolonGantry.Core.GantryBuild.ForWood(file, "oak") : file })
             foreach (var codes in build.Stages.SelectMany(s => s.Materials).Select(m => m.Codes).Concat(build.Wearing.Select(w => w.Codes)))
                 foreach (var code in codes)
                 {
@@ -108,17 +117,105 @@ public partial class SharedWorldScenarios
             W.BlockAccessor.SetBlock(0, p);
     }
 
+    /// <summary>The ore machines that turn on a shaft, by frame, and their MachineOilSettings entries.</summary>
+    private static readonly (string Frame, OilMachine Oil)[] OiledOreMachines =
+    [
+        ("jawbreaker", OilMachine.JawBreaker), ("stampbattery", OilMachine.StampBattery), ("arrastra", OilMachine.Arrastra),
+        ("ballmill", OilMachine.BallMill), ("jig", OilMachine.Jig), ("shakingtable", OilMachine.ShakingTable),
+        ("vanner", OilMachine.Vanner), ("reverberatory", OilMachine.ReverberatoryRoaster), ("parkeskettle", OilMachine.ParkesKettle),
+    ];
+
+    // Every ore machine on a shaft is built dry, its load on the shaft three times its own until oiled (the
+    // shared MachineOiling); oil poured from a bucket fills its tank (scaled by its load: the jig's half a
+    // bucket) and brings the load back; a job, a rock jigged, drains its DrainPerJob. Each machine's own
+    // scenarios run it oiled (OilUp).
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Ore_machines_on_a_shaft_are_built_dry_take_oil_and_drain_it_by_the_job()
+    {
+        var hand = await CutterHand();
+        var oil = MachineOilSystem.Of(World.Api).Config;
+        BEOreMachine? jig = null;
+        for (int i = 0; i < OiledOreMachines.Length; i++)
+        {
+            var (frame, kind) = OiledOreMachines[i];
+            var pos = await CutterSite(380 + 20 * i, 580, 8);
+            World.SetBlock($"seraphhorizons:{frame}-south", pos);
+            await World.Ticks(5);
+            var m = W.BlockAccessor.GetBlockEntity(pos) as BEOreMachine ?? throw new Xunit.Sdk.XunitException($"no {frame} at {pos}");
+            m.PlaceCells();
+            // no tank work before it is built: the token load, dry or not
+            Assert.Equal(MachineLoad.Unassembled, m.Resistance);
+            while (m.Assembly!.FillNext()) { }
+            m.MarkDirty(true);
+            Assert.True(m.Built, frame);
+            var tank = m.Oiling ?? throw new Xunit.Sdk.XunitException($"the {frame} has no oil tank");
+            Assert.Equal(kind, tank.Machine);
+            Assert.True(tank.Dry, frame);
+            Assert.Equal(oil.For(kind).Tank, tank.Tank.Capacity);
+            float dry = m.Resistance;
+            MachineTest.FillOil(m);
+            Assert.True(dry > 0, frame);
+            Assert.Equal(oil.DryResistanceMultiplier * m.Resistance, dry, 4);
+            if (frame == "jig")
+            {
+                jig = m;
+                continue;
+            }
+            W.BlockAccessor.BreakBlock(pos, null);
+        }
+
+        // the jig, oiled by hand from a bucket: as much as fits (500 points, five litres), the rest stays in it
+        var j = (BEJig)jig!;
+        var tankOf = j.Oiling!;
+        tankOf.Tank = tankOf.Tank with { Points = 0 };
+        Assert.Equal(0.3f, j.Resistance, 4);
+        var bucket = CutterItem("game:woodbucket");
+        ((BlockLiquidContainerBase)bucket.Block).SetContent(bucket, CutterItem("game:oilportion-flax", 1000));
+        var left = CutterClick(hand.Player, j.Pos, bucket)!;
+        Assert.Equal(500, tankOf.Tank.Points, 3);
+        Assert.Equal(5f, ((BlockLiquidContainerBase)left.Block).GetCurrentLitres(left), 3);
+        Assert.Equal(0.1f, j.Resistance, 4);
+        var info = new System.Text.StringBuilder();
+        j.GetBlockInfo(hand.Player, info);
+        Assert.Contains("Oil: 500 of 500", info.ToString());
+
+        // one rock jigged on a turning shaft: one job's oil (its columns kept loaded, so it runs on the virtual
+        // clock with no player beside it)
+        int size = GlobalConstants.ChunkSize;
+        var sapi = (ICoreServerAPI)World.Api;
+        for (int cx = (j.Pos.X - 5) / size; cx <= (j.Pos.X + 5) / size; cx++)
+            for (int cz = (j.Pos.Z - 5) / size; cz <= (j.Pos.Z + 5) / size; cz++)
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
+        var power = j.CellPos(j.Rig!.Anchor("power")!.Value.Cell);
+        var rotorPos = power.AddCopy(j.PowerFace);
+        World.SetBlock($"game:creativerotor-{j.PowerFace.Code}", rotorPos);
+        await World.Ticks(2);
+        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
+        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
+        rotor.Blockentity.MarkDirty(true);
+        await World.Until(() => Math.Abs(j.ShaftSpeed) >= 0.3f, 15000);
+        Assert.Null(CutterClick(hand.Player, j.Pos, JigCrushed("cassiterite", "rich", 1)));
+        j.FillWater(j.ReservoirCapacity);
+        await JigUntil(j, () => j.InfeedSlot.Empty);
+        Assert.Equal(500 - oil.Jig.DrainPerJob, tankOf.Tank.Points, 3);
+        // turning idle costs nothing
+        await World.Ticks(20);
+        Assert.Equal(500 - oil.Jig.DrainPerJob, tankOf.Tank.Points, 3);
+        W.BlockAccessor.SetBlock(0, rotorPos);
+        W.BlockAccessor.BreakBlock(j.Pos, null);
+    }
+
     /// <summary>
     /// Waits until a chute feeding <paramref name="machine"/> has emptied and the machine has drawn what it
     /// pushed. A chute does not reach the infeed: when the infeed anchor is not on the controller it empties
-    /// into that cell's buffer (<see cref="BEOreMachineCell.Buffer"/>), and the machine pulls it into its
+    /// into that cell's buffer (<see cref="BEMachineCell.Buffer"/>), and the machine pulls it into its
     /// infeed on its own tick (every 100 ms). Waiting for the chute alone ends with the item still in the
     /// buffer, before the infeed or anything worked has changed (#1176, #1259).
     /// </summary>
     private async Task UntilChuteFed(BEOreMachine machine, BlockEntityItemFlow chute, int ticks = 20000)
     {
         var cell = machine.Rig!.Anchor(OreMachineRig.Infeed)!.Value.Cell;
-        var buffer = cell == Int3.Zero ? null : (BEOreMachineCell)W.BlockAccessor.GetBlockEntity(machine.CellPos(cell))!;
+        var buffer = cell == Int3.Zero ? null : (BEMachineCell)W.BlockAccessor.GetBlockEntity(machine.CellPos(cell))!;
         await World.Until(() => chute.Inventory.Empty && (buffer == null || buffer.Buffer.Empty), ticks);
     }
 }

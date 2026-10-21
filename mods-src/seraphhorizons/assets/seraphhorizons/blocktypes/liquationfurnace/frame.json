@@ -5,9 +5,9 @@
 // LiquationFurnace/Core/LiquationFurnaceRig.cs). The server disables it with LiquationFurnace or OreProcessing off.
 {
 	code: "liquationfurnace",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.LiquationFurnace",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the furnace's working front faces
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the furnace's working front faces
 	// the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -31,7 +31,7 @@
 		"ember":  { base: "game:block/coal/ember" }
 	},
 	attributes: {
-		oreMachine: {
+		machine: {
 			machine: "liquationfurnace",
 			extraRequires: [
 				"cakes", "tinrun", "tin", "lead", "outletcap", "damperopen", "damperhalf", "dampershut",

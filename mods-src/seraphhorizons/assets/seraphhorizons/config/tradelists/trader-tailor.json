@@ -16,9 +16,7 @@
 			{"code": "sewingkit", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
 			{"code": "tailorsdelight:needle-bone", "stacksize": 8, "stock": {"avg": 4, "var": 1}},
 			{"code": "tailorsdelight:awl-obsidian", "stacksize": 2, "stock": {"avg": 2, "var": 1}},
-			{"code": "wool:fibers-generic-plain", "stacksize": 8, "stock": {"avg": 3, "var": 1}},
-			{"code": "betterruins:br-schematic-weaver", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 22, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-banner", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 16, "priceReason": "schematic: a hand-set gate", "standingTier": 1}
+			{"code": "wool:fibers-generic-plain", "stacksize": 8, "stock": {"avg": 3, "var": 1}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [

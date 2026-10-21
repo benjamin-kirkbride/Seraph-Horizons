@@ -9,10 +9,11 @@ namespace SeraphHorizons.Mod.MandrelStation.Core;
 /// assets/seraphhorizons/config/mandrelstation-rig.json (written by MandrelStation/tools/make_shape.py).
 /// Native, south-facing frame, controller cell at (0,0,0) (the stump, nearest the player), blocks.
 /// The keys are the model's contract with gameplay (mandrelstation-contract, "What gameplay reads from
-/// the rig"); unknown keys are ignored. A hand station: a rig naming a power cell or face is refused.
-/// Throws <see cref="FormatException"/> naming what is wrong.
+/// the rig"); unknown keys are ignored. A hand station: a rig naming a power cell or face is refused, and
+/// it has no anchors for the shared machine base (<see cref="IMachineRig"/>). Throws
+/// <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class MandrelStationRig
+public sealed class MandrelStationRig : IMachineRig
 {
     /// <summary>The part that carries the hammer's clock (the contract's stable id).</summary>
     public const string MandrelPartId = "mandrel";
@@ -28,6 +29,13 @@ public sealed class MandrelStationRig
     /// <summary>Blows per hollow of each class, [none, lead, copper], as the model is drawn.</summary>
     public IReadOnlyList<int> BlowsPerHollow { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>None: a hand station takes no axle, chute or pipe.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+
+    public MachineAnchor? Anchor(string name) => null;
     /// <summary>The spring job (<c>wind</c>), or null for a rig without one.</summary>
     public WindSpec? Wind { get; }
 

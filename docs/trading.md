@@ -464,14 +464,14 @@ Its own trader's list (trader-domesticanimal, 101 entries), by kind:
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
 | luxuries | sell | `walkingstick:walkingstick-forlorn` | curiodealer sell |
-| treasurehunter | sell | `walkingstick:schematic-flintlock` | curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `walkingstick:schematic-flintlock` | schematic catalog (curiodealer, treasurehunter) |
 
 ### Abyssal Depths 1.0.20
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
-| treasurehunter | sell | `abyssaldepths:ad-schematic-divinggear` | curiodealer sell, treasurehunter sell |
-| treasurehunter | buy | `abyssaldepths:ad-schematic-divinggear` | curiodealer buy, treasurehunter buy |
+| treasurehunter | sell | `abyssaldepths:ad-schematic-divinggear` | schematic catalog (curiodealer, treasurehunter) |
+| treasurehunter | buy | `abyssaldepths:ad-schematic-divinggear` | never bought (traders do not buy schematics) |
 
 ### Translocator Map
 
@@ -555,7 +555,7 @@ stood in for since 2026-10-06 (`ShippedListPayTests` and its outlier fixture are
 
 `price` survives only as an override, gears per entry stack, that must carry a `priceReason`
 (`TradeListResolver.Problems` reports one without; `ShippedListValueTests` holds the shipped lists to
-it): schematics (hand-set gates, 10–250 gears; they have no value by rule), the special `kind`
+it): the special `kind`
 entries (maps and leads, priced by the maps system; the 1 there is a placeholder), the curio
 dealer's found tapestries (one code for every picture, not in the recipe export) and BetterRuins'
 locator maps (priced by what they lead to). An override is not rolled. Every other entry needs a
@@ -829,9 +829,9 @@ goods (× the fit).
 
 - **Schematics** have no value: they are kept on crafting and traders are their only source, so
   `tools/item-values` never prices one, and a recipe that uses one (MachineSchematics' gates) is
-  priced by its consumed parts and labour only. A trader sells them at the price its list entry
-  overrides by hand (`price`, `priceReason`), and the curio dealer buys back the diving gear
-  schematic at its entry's price; the value check asks them for that override instead. (#506)
+  priced by its consumed parts and labour only. Traders sell them from their catalogs at a price
+  set by hand (`config/schematic-gates.json` "sales", "Schematics" below), never from a list, and
+  no trader buys one back. (#506)
 - **The stainless gear** (`seraphhorizons:gear-stainless`, the steel gear until the stainless
   rework) takes its cheapest route, like any item: the gear cutter, or the reclamation lottery (ten
   neutralized gears less the nine stainless bits the failed rolls give). The large stainless gear
@@ -978,11 +978,13 @@ goods (× the fit).
 
 ## Open problems
 
-- The handbook's and the recipe browser's "sold by" read vanilla-format lists from entity attributes
-  (`tradePropsFile`/`tradeProps`); our types have none, so neither shows them. In a grid world both
-  leave out the traders the grid replaces (seraphhorizons README, "Traders"), the game's treasure
-  hunter among them, so they list only the villagers (and a mod's story traders, none in the pack). Showing ours needs either a flattened
-  vanilla-format view per type or the exporter learning our format.
+- The handbook's "sold by" reads vanilla-format lists from entity attributes
+  (`tradePropsFile`/`tradeProps`); our types have none, so it does not show them. In a grid world it
+  leaves out the traders the grid replaces (seraphhorizons README, "Traders"), the game's treasure
+  hunter among them, so it lists only the villagers (and a mod's story traders, none in the pack).
+  The recipe browser does show ours: its exporter reads the loaded lists and the schematic catalog
+  (`tools/recipe-export/Items/PackTradeSources.cs`, docs/recipe-browser/item-data.md "The pack's
+  traders"), one page per trader type with price ranges and standing tiers.
 - A camp's spots are decided as chunks generate, so two worlds of the same seed explored in different
   orders can end up with a camp at a different spot of the same cell (or none). `/sh trade camps`
   shows what each world did.
@@ -1007,10 +1009,10 @@ goods (× the fit).
 ## Schematics (#468, #469)
 
 `Trading/Schematics/`, switches `TraderSchematics` and `MachineSchematics`, data in
-`config/schematic-gates.json` ("sold": the schematic code patterns; "gates": machine → gated recipe
-outputs, each with its mod; "sales": seller types and standing tier per schematic, which
-`tests/Trading/Schematics` holds the trade lists to). Server side only: clients get item types and
-recipes from the server.
+`config/schematic-gates.json` ("sold": the schematic code patterns; "rolledCopies": Scrolled's rolled
+copies; "gates": machine → gated recipe outputs, each with its mod, and the switch its machine needs;
+"sales": the catalogs, seller types, standing tier and flat price per schematic). Clients get item
+types and recipes from the server; the table loads on both sides for the refusal below.
 
 **Where schematics came from** (1.22.7 and the pinned mods):
 
@@ -1043,7 +1045,7 @@ built). A gated recipe gets a new key in `Ingredients`, a new pattern and size, 
 (`GridGate.Place`: first empty slot, else a column, else a row, else two slots of the most frequent
 consumable ingredient merged at double quantity if the stack fits). `GridRecipe.Enabled` is only read
 at load, so removed recipes are taken out of `World.GridRecipes`. Non-grid construction (the water
-wheel's stages, ppex's exlib construction, the biplane on its trestles)
+wheel's stages, ppex's exlib construction)
 is gated through the grid recipe of its first stage. A one-slot, consumed, make-one recipe is a
 conversion (Scrolled, MadMechanics) and is neither gated, removed nor made to keep its input.
 
@@ -1053,15 +1055,72 @@ walking stick's on the server only), so we enforce `Consume = false` on recipe s
 non-consumed ingredient returns early in `OnConsumedByCrafting`, so a `returnedStack` would not
 double, but it is cleared anyway.
 
-**Standing gate.** `TradeEntry.StandingTier` (default 0): `TradeListResolver.Resolve(def, region,
-tier)` leaves out entries above the tier; the core is the ungated entries, then the gated ones lowest
-tier first, cut at 16. `Problems` counts every core entry (the top tier) against the 16 slots. The
-trader's restock passes the shelf tier (see "Wave 2 glue"). Slot pressure decided the
-sellers: the issue's mapping put 20+ schematics on the mechanic and carpenter, so the wooden machines
-went to the carpenter, the metal gear work to the smith, chest/crate/candle/toymaker/artisan and the
-hand crank to the general store, book/alchemist/texture flipper to the curio dealer, and a few plain
-core goods (the carpenter's planks, the mechanic's ppex gears and blades, the smith's charcoal, borax
-and copper nails) moved to rotating; every list keeps at most 14 core entries at the top tier.
+**The catalogs** (the owner's call after the playtest, 2026-10-20). Schematics were core entries of
+the trade lists, one in stock, restocked weekly, at hand-set prices, gated by `standingTier` and
+squeezed into the 16 shared shelf slots, the shelf's tier the best recent customer's. Now no list
+holds one (`SchematicTests`): each trader type sells the table's `sales` for it off the shelf, on
+the trade window's own **Schematics** tab, never sold out and never restocked.
+`Core/SchematicCatalog.cs` resolves a catalog: sales × trader type × switches × tier → rows
+`CatalogRow(Code, Price, Tier, Unlocked)`, lowest tier first, then cheapest. A machine schematic
+(`seraphhorizons:schematic-*`) is in it only with `MachineSchematics` on and every switch of its
+gate's `switch` on (a name or a list, `SchematicGate.Switches`; every one of the pack's own machines
+names its own: `BuckingSawmill`, `Rosser`, `Eidolon`, `Handcar`, `CylinderBorer`, `DrawBench`,
+`SlittingMill`, `GearCutter`, `StainlessSteel` for the crucible furnace, and each ore machine its own
+with `OreProcessing`, which its system also needs). The recipe exporter's `PackTradeSources` reads
+the same field, a name or a list. This replaced `TradingSystem.Exclude` for schematics
+(it still takes the eidolon's pump head off the curio dealer's list). `SchematicTable.Problems`
+checks a switch is one of `SeraphHorizonsConfig`'s bools (the server passes their names; the unit
+test reads them from the config class's source).
+- **Unlocked by standing, per group**: a row is unlocked when the best tier with that trader among
+  the player and everyone sharing a player group with them (`StandingSystem.GroupTierFor`, the
+  game's groups, not only the designated company) reaches its tier, the same tier index standing
+  uses (0 stranger … 4 partner); no group, their own. Locked rows are shown greyed with the tier
+  that unlocks them. With standing off, everything in the catalog is unlocked.
+- **Flat price**: `price` gears, the same for every buyer: no standing factor, no regional supply,
+  no roll. The prices are half the shelves' last hand-set ones, rounded up (5 to 90 gears), but
+  BetterRuins' mechanical blueprint, which makes axles and gears cheaply in bulk and also takes the
+  transmission schematic: it moved from the smith (tier 1) to the mechanic at tier 3 and 60 gears.
+- **A purchase** (`TradeAction.BuySchematic` with the code and price seen, `SchematicsSystem.BuySchematic`,
+  the camp leads' pattern): refused if the row is gone or locked or the price changed, then room
+  (`HasRoom`) and gears; the gears go into the trader's wallet, `Standing.OnDeal` credits the buyer
+  as any deal, and the schematic is given (dropped at their feet if their bags filled meanwhile).
+- **Never sold back** (`Refusal.Schematic`, "Traders do not buy schematics."): `SchematicTable.NeverBoughtBack`
+  is every "sold" pattern and Scrolled's rolled copies (`*:*rolled-schematic-*`, which otherwise took
+  a 0.417 family value from `scrolled:br-rolled-`, the rolled locator maps'). `EconomySystem.QuoteOffList`
+  refuses them before any value is read, and `SeraphTraderInventory.MayPlace` keeps them out of the
+  sell slots even if a list should name one. The curio dealer's and treasure hunter's diving gear
+  buying entries (10 gears) are gone.
+- **In the handbook** (`Core/SchematicHandbook.cs`, drawn by `ValueHandbook` in place of the value
+  line): a schematic's page lists who sells it from `SchematicCatalog.Sellers`, a line per trader
+  type with the rusty gear's icon ("Mechanic: 40 rusty gears, from standing Regular"; "with no
+  standing needed" at tier 0 or with `TraderStanding` off), then "Traders do not buy schematics.".
+  A rolled copy, or a machine schematic whose switch is off, has only that last line. The client
+  reads the tier codes from `standing-tiers.json` itself (the standing system is the server's) and
+  the switches from the world config's `seraphhorizons:switchesOff`. No vanilla-format trade list
+  names a schematic (`SchematicTests`), so the game's own "Sold by" section never shows on these
+  pages. `TraderSchematics` does not enter into it: the catalogs sell with it off too.
+- **Consolidated** (2026-10-20): the centred spur gear's schematic folded into the transmission's
+  (its outputs are the transmission gate's now), and the hand crank's went (its recipe takes none);
+  both item states, their names and texts are deleted, not kept as legacy items.
+- **Every machine** (2026-10-20, 43 gates): the pack's own powered and fired machines and the
+  handcar, each at its frame or first stage, and other mods' machines: ppex's steam (`steampower`:
+  Cornish boiler and Watt engine; `highpressuresteam`: Lancashire boiler and Cornish engine; only the
+  recipes left live, their `ppex:gear-*` twins are switched off by `gearconsumers-ppex.json`), smex's
+  `blastfurnace` (door, twin-tub blower frame, Cowper stove intake) and `bessemer` (converter
+  control), Yang's `steamengine` (primitive, simple) and `locomotive` (standard, advanced, the
+  upgrade recipe too), the temporal stabilizer, the tier-one sprinkler (the higher tiers are made
+  from it; the one-slot up and down conversions are skipped), the spinning wheel's and fly-shuttle
+  loom's final assemblies, and Alchemy's potion cauldron. Not gated: the hand ore tools, the
+  squaring shear, press brake and mandrel station, and the pickling tub. The item
+  texts no longer say who sells a schematic: the handbook's generated "Sold by" line does.
+
+The core was cut at 16 slots with the gated entries lowest tier first; slot pressure had decided
+the sellers (the wooden machines at the carpenter, the metal gear work at the smith, five
+BetterRuins families at the general store, three at the curio dealer) and moved a few plain core
+goods to rotating (the carpenter's planks, the mechanic's ppex gears and blades, the smith's
+charcoal, borax and copper nails). With schematics off the shelves that pressure is gone; the
+sellers and the lists stay as they were, and every list keeps at most 14 core entries at the top
+tier. `TradeEntry.StandingTier` still gates other goods (the pump head, the inns' rare goods).
 
 ## Orders and deliveries (#453, #454)
 
@@ -1304,36 +1363,19 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     | trusted | 3 | 9 | 2.25 | 5.14 | 76 |
     | partner | 5 | 0 | 2.34 | 1 | 11 |
     | partner | 5 | 12 | 2.34 | 4.85 | 55 |
-  - *The pity map* (a player's very first map, `campLeads.pity`: `price` 10, `reach` 10 rings): a
-    flat 10 gears, to a prospector. Offered by every trader but a prospector, first on the tab, while
-    the player has not had it (`LeadBook.PityUsed`) and nothing of theirs is being drawn, at any
-    standing: a stranger gets it too, even when the group's stranger map from this trader is spent
-    (a company member had it, or a version 1 save recorded it before the first map existed; until
-    this change that withheld it from strangers only, `CampLeadsFor`'s `pityHere` and `Pick`'s early
-    `StrangerUsed` return, while known and up got it). Its camp (`PityMap.Target`): the
-    nearest seeded prospector cell (`TraderGrid.IsProspector`; the lattice puts one within ring 2 of
-    every cell) to the selling trader, ring by ring, that the buyer lacks and that can take a camp
-    or has one (`Site`: placed, or a spot left; Failed and Open cells can't); none out to ring 10,
-    the nearest camp of any type that exists or can be placed. A cell's seeded type is never
-    changed: the search only chooses among cells as seeded. To a stranger it is the trader's only
-    offer; from known up the tier's offers follow it (its camp left out of them). The buy names
-    `pity` as its `Code` (`MapsSystem.PityCode`), not the cell: `ResolveCamp` settles its cell, and
-    if that places none the cell joins `_noCamp` and the next target is settled, from where the
-    trader stood (at most `PityTries`, 16 cells), a refund only when none places. Placed: it counts
-    as a lead bought here and spends this trader's stranger map (`RecordBought(asStranger: true)`
-    whatever the tier), and the player's pity is spent (`RecordPity`). Being a lead like any other,
-    its prospector is had from then on and not offered again; it doesn't hold the prospector-first
-    slot, which still goes to a prospector in reach while the buyer has none marked there. It
-    measures from the selling trader, so it is the same wherever a player spawns. Two players buying
-    at once are safe: buys run on the server thread, the registry (`CampRegistry`) is locked, and a
-    cell settled for both leads both to the one camp.
+  - *The pity map* (removed): a player's very first map, a flat 10 gears from any trader but a
+    prospector to the nearest prospector (`campLeads.pity`, `PityMap.Target`, `LeadBook.PityUsed`,
+    the buy's `pity` code, "your first map" in the window) was sold until the spawn mark (below)
+    replaced it: the mark gives a new player the same nearest prospector for nothing on their first
+    join. Its config entry, offer, window row, lang keys and admin output are gone; a save's
+    `pityMap` flag is ignored (see *Saved*).
   - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector,
-    ring, pity), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab
-    lists them under its Leads heading, the pity map first, each a row like the shelf's offers with
-    a Buy button (`TradeAction.BuyLead`, the cell, or `pity`, as `Code`, the price seen as `Price`;
+    ring), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab lists
+    them under its Leads heading, each a row like the shelf's offers with a Buy button
+    (`TradeAction.BuyLead`, the cell as `Code`, the price seen as `Price`;
     `TradeWindowModel.CampLeadRow`). A lead's row says how far and which way its camp is from the
-    trader, never its ring ("Cook's camp", "about 4 km north", 24 g); the pity map's says "your
-    first map · nearest prospector · about 3 km northeast". The
+    trader, never its ring ("Cook's camp", "about 4 km north", 24 g), and the prospector kept for
+    the first slot says "nearest prospector". The
     Standing tab's tier lines say "maps to n traders within about k km" (`TierView.LeadMaps`, and
     `LeadReach` in rings as k = `MapDistance.ReachKm`: (rings + ½) × 2,048 blocks rounded, 3, 5, 7
     and 11 km for 1, 2, 3 and 5 rings) or, for a stranger, "one map onward, to the nearest trader
@@ -1353,20 +1395,48 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     `ResolveCamp` (its next spots' chunks loaded until the camp is placed or none is left, as
     `/sh trade tp` does). Placed: the group's count here goes up (and a stranger's lead is spent),
     and the pending lead becomes the lead to where the camp stands. None: the gears come back from
-    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place
-    (the pity map goes on to its next target first, above).
+    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place.
   - *Saved* (`LeadBook`, savegame key `seraphhorizons:leads`, `{"version": 2, "groups": {...}}`):
     per group key `player:<uid>` and `company:<group uid>` (standing's company), maps bought per
     trader id, traders that sold the stranger's lead, camps visited, and on the player's own key
-    only `pityMap` (their first map had). Written to the player's key and their company's, read as
-    the most of them (the higher count, either's stranger lead, the union of visits), as standing
-    pools; the pity is read from the player's key alone, so a new company member gets their own. A
-    version 1 save (#615) migrates (`LeadBook.Migrate`): nobody in it has had their first map. A
-    newer version than the code knows, or a save that does not parse, starts empty with a warning; a
-    world from before has none.
+    only `spawnMark` (the spawn mark given, below). Written to the player's key and their company's,
+    read as the most of them (the higher count, either's stranger lead, the union of visits), as
+    standing pools; the spawn mark is read from the player's key alone, so a new company member has
+    their own. Version 2 added `pityMap` (the removed pity map's flag): a save that has it loads,
+    the key is ignored and gone at the next save, so neither version 1 (#615) nor 2 needs more than
+    `LeadBook.Migrate` setting the version. `spawnMark` came within version 2 without a bump: a book
+    saved before it lacks the key, read as not given, which the join's veteran rule settles (below);
+    an older build reading a newer book drops it. A newer version than the code knows, or a save
+    that does not parse, starts empty with a warning; a world from before has none.
   - *Admin*: `/sh trade leads [player] [trader]`, the history per group key, whether the player has
-    had their first map, and the trader's offers to the player with ring and price, the first map
-    marked (`--json` too: `pityUsed`, `reach`, and per offer `ring` and `pity`).
+    had their spawn mark, and the trader's offers to the player with ring and price (`--json` too:
+    `spawnMark`, per group `spawnMark`, `reach`, and per offer `ring`).
+  - *The spawn mark* (switch `SpawnProspectorMark`, default on, effective with `TraderMaps` and the
+    grid; `Core/SpawnMark.cs`, `Game/MapsSystem.SpawnMark.cs`): on a player's first join
+    (`PlayerNowPlaying`) the nearest prospector's camp goes on their map as a bought lead's would:
+    target `camp:x,z`, `LeadPrecision`, titled `map-waypoint-lead` ("Trader camp (prospector)
+    (approximate, ±64 m)"), the trader icon and colour, so it counts as had wherever leads look,
+    and meeting its trader (`EntitySeraphTrader.Met`) makes it exact. A chat line says how far and
+    which way (`trading-maps-spawnmark`: "The nearest prospector's camp is marked on your map, about
+    2 km northeast", `MapDistance` wording, the window's eight-point direction), or with no world
+    map the leads' `trading-maps-lead-distance` line. *Which camp* (`SpawnMark.Target`): the seeded
+    prospector cells (`TraderGrid.IsProspector`) around the cell the player joined in (their spawn),
+    their own cell included, out to `SpawnMark.Reach` (3) rings, with a site (`Site`: placed, or a
+    spot left) the player lacks, by real distance from where they joined; rings are searched until
+    the next one cannot hold anything nearer (`SpawnMark.Clearance`, the distance to the edge of the
+    inner rings), so a camp just inside ring 2 beats a far corner of ring 1. *Settling*: as a lead's
+    sale, `ResolveCamp` loads the cell's next spots' chunks after the join, so the marker lands a few
+    seconds late; a cell that places none joins `_noCamp` and the next target is tried, at most
+    `SpawnMarkTries` (16) cells. *Once*: `LeadBook` `spawnMark` on the player's own key, set when it
+    is marked (or found already marked, or there is no world map, or no prospector is in reach); not
+    on respawn, rejoin or after the waypoint is deleted. A player who leaves while it settles has
+    nothing set and tries again at their next join. *Veterans*: with the flag absent (a world from
+    before), a player who has any remembered `camp:` marker (`MarkBook`) has the flag set and no mark
+    (`SpawnMark.Decide`). *With leads*: the camp being had, a stranger's map and the tiers' offers
+    pass it over like any camp they have, and the prospector-first slot goes to a prospector in reach
+    only while they have none there. It replaced the pity map (above), which measured from the
+    selling trader. Atlas: `TradingSpawnMarkScenarios` (`trading-misc`); `TradingMapsScenarios` has
+    the mark off (fixtures/nospawnmark), its scenarios counting a fresh player's trader markers.
   - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
     left on a shelf until its next restock show sold out and are refused.
 - **Ore map prices** (`MapPriceTable.OrePrice`): `bandMiddleIngots × ingotValue × share[precision] ×
@@ -1538,7 +1608,7 @@ pack's traders and keeps the quests: `Trading/Core/StoryTraders.cs` (game-indepe
   `TraderTypes.Listed` (camp types, visitors, story) is what the lists load and `Problems` accepts.
   Being an `EntitySeraphTrader`, everything that tests for the pack's traders takes it: the shelves,
   economy, standing, orders, deliveries (as a sender; destinations are camps), maps and leads (gravel
-  maps, camp leads from its cell, the first map), the trade window and the admin tools.
+  maps, camp leads from its cell), the trade window and the admin tools.
 - **Outfit and name**: vanilla's treasure hunter has no outfit set of its own (its outfits are the
   generic `trader-{gender}-*-{climate}` keys) and the shared random names, so the pack's variant of the
   same humanoid looks and is named the same way.
@@ -1567,10 +1637,10 @@ pack's traders and keeps the quests: `Trading/Core/StoryTraders.cs` (game-indepe
   `trader-treasurehunter` and of the mods' patches into it (the fixture's `list:
   "trader-treasurehunter"` rows, each now homed `treasurehunter sell|buy` too) but the lore scroll
   (lore is never priced), with the game's stack and stock and the flags the pack's lists already give
-  the same goods (player-supplied, rare, the schematics' and BetterRuins' maps' price overrides).
-  Core: the gravel map and lead entries, the treasure map, three loot vessels, lapis, and the diving
-  gear and flintlock schematics at tier 3 (both now sold by the curio dealer and the treasure hunter,
-  `schematic-gates.json`); 49 more in rotation (6 slots). Buying: bronze tools, bombs, the backpack,
+  the same goods (player-supplied, rare, BetterRuins' maps' price overrides).
+  Core: the gravel map and lead entries, the treasure map, three loot vessels and lapis; the diving
+  gear and flintlock schematics are its catalog's at tier 3, as the curio dealer's
+  (`schematic-gates.json`); 49 more in rotation (6 slots). Buying: bronze tools, bombs, the backpack,
   linen sack and bread in the core, 25 more in rotation (8 slots). Wallet 120 ± 20, `campWeight` 0. The
   curio dealer keeps its copies. Every entry is priced by the value table (`tools/item-values check`
   passes: all of them were already on other lists).
@@ -1635,7 +1705,7 @@ the same way, so every economy patch and list keeps working), set before vanilla
 (`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and the buying cart (nothing is
 ever put in it by a click) and passes the four selling-cart slots through: those are the window's
 sell slots (36 to 39), `ItemSlotSell` (`NewSlot`), which take anything but money, delivery
-packages and what the trader refuses outright (maps and leads, worthless goods: `MayPlace`),
+packages and what the trader refuses outright (maps and leads, schematics, worthless goods: `MayPlace`),
 whether the trader buys it now or not (vanilla's `ItemSlotBuying` takes only what it buys). The selling cart belongs to its owner, the trading player when the window opened
 (`OwnerUid`; vanilla's `tradingPlayerUID` is cleared by the walk-away tick before the inventory
 closes): only they may move stacks in it (slot packets from anyone else are rolled back), sell from
@@ -1648,10 +1718,11 @@ a deal that throws restores the carts, the rest of a sold stack and the side bud
 **Network.** One channel, `seraphhorizons-trade`, one protobuf message (`TradeWindowPacket`: kind,
 trader entity id, JSON). Client to server: a `TradeRequest` (`Refresh`, `Buy` with a selling slot,
 `Sell`, `TakeOrder`/`HandInOrder` with an order id, `TakeDelivery`, `HandInDelivery`,
-`MarkDelivery` with a delivery id or 0 for the offer). Server to client: a `TradeResult` (done or
+`MarkDelivery` with a delivery id or 0 for the offer, `BuyLead`, `BuySchematic` with the code and
+price seen). Server to client: a `TradeResult` (done or
 refused, a lang key and its arguments, formatted in the player's language) after each, and a
 `TradeWindowState` (standing with every tier, orders, the delivery offer or why there is none, the
-player's deliveries from or to this trader, locked stock, which features are on) after each, when
+player's deliveries from or to this trader, locked stock, the schematic catalog, which features are on) after each, when
 the window opens, and when a conversation with the trader starts (for the dialogue). The shelves
 are not in it: the client has them from the trader's inventory (packet 1234 and the watched
 attribute, as vanilla).
@@ -1735,7 +1806,7 @@ below itself) at the right edge, its tab row below the lowest right-top HUD; wit
 sits left of them. A local render harness (not in the repository) drew every tab with long content
 at several screen sizes and GUI scales with the game's Cairo text code to check it. A header with the trader's name, type and region and
 the player's tier with a bar to the next and the raw numbers ("Regular [310 / 800]"); tabs Trade,
-Orders (n), Deliveries (n), Maps & leads and Standing; a footer with the player's gears, the
+Orders (n), Deliveries (n), Maps & leads, Schematics and Standing; a footer with the player's gears, the
 trader's and its side budget ("for goods off her list 21 g"). A feature that is switched off
 (`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`; the side budget with
 `EverythingHasAPrice`) has no tab or line. The Trade tab's shelves are the trader's own slots (price
@@ -1755,7 +1826,11 @@ slot, code and price seen, as a completed hold did, a camp lead `TradeAction.Buy
 checks are unchanged. One that can't be bought has its button off, labelled Sold out, Locked, Have
 it or Surveying (`TradeWindowModel.BuyButton`). The notes on leads (each costs more than the last,
 why there are none, the tier that sells settlement ground unless a locked row says it) sit quietly
-under the Leads rows. Locked stock (`LockedStock`): what the selling list would shelve
+under the Leads rows. The Schematics tab (shown when the trader's catalog has anything,
+`TradeWindowState.Schematics`) lays out the same way, one group: each schematic's icon and name, a
+locked one's "unlocks at" tier, its price and Buy (`TradeAction.BuySchematic`), Locked while the
+group's best tier is short of it (`TradeWindowModel.SchematicRow`); the note under it says they never
+sell out and cost everyone the same. Locked stock (`LockedStock`): what the selling list would shelve
 at the top tier with rare stock, less what the player's own tier gets, less what is on the shelf
 anyway, hatched (`GuiElementSlotHatch`) with the tier that unlocks it (its `standingTier`, or the
 first tier with `rareStock`). The Standing tab lists the five tiers with their thresholds, the

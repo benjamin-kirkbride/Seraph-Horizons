@@ -35,6 +35,9 @@ public class BEJig : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.Jig;
 
+    /// <summary>Oiled, its job a rock jigged (<see cref="BEOreMachine.WorkItem"/>).</summary>
+    protected override OilMachine? OilKind => OilMachine.Jig;
+
     protected override IReadOnlyList<string> OutputAnchors => [Concentrate, Tailings];
 
     /// <summary>What the sluice washes (<see cref="SluiceSystem.TakesFeed"/>): crushed or ground ore, rich

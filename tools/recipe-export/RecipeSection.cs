@@ -143,6 +143,7 @@ public static partial class RecipeSection
         FillGearChain(ctx, records, types);
         FillDrawBench(ctx, records, types);
         FillCylinderBorer(ctx, records, types);
+        FillSlittingMill(ctx, records, types);
         FillPressBrake(ctx, records, types);
         FillSquaringShear(ctx, records, types);
         FillRiddle(ctx, records, types);
@@ -181,6 +182,7 @@ public static partial class RecipeSection
 
         root["recipes"] = new JArray(records);
         Switches.AnnotateRecipes(api, (JArray)root["recipes"]!);
+        StackNames.Fill(api, root);
         root["recipeTypes"] = new JObject(types.Select(kv => new JProperty(kv.Key, kv.Value)));
         return ctx.Referenced;
     }

@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.MandrelStation.Core;
 
 /// <summary>What a steel rod (or another mandrel rod) does when it is right-clicked on the station.</summary>
@@ -25,7 +27,8 @@ public enum RodVerdict
 /// <see cref="TurnsPerSecond"/> and W (0..1) advances by θ / (2π · turnsPerRod); at W = 1 the rod is used
 /// up and the spring comes off at the rod's temperature. Heat follows the anvil (vanilla's
 /// <c>ItemIngot.CanWork</c>): the rod works at its <c>workableTemperature</c> attribute, else at half its
-/// melting point (steel: 1502 °C, so 751 °C); below that the winding stops until it is reheated.
+/// melting point (steel: 1502 °C, so 751 °C); below that the winding stops until it is reheated. The rod on
+/// the mandrel is a <see cref="MachineJob"/> of class <see cref="SpringClass"/> ending at 1 (<see cref="Start"/>).
 /// </summary>
 public static class Winding
 {
@@ -39,10 +42,6 @@ public static class Winding
 
     /// <summary>Radians of the winding clock a second while held.</summary>
     public const double RadiansPerSecond = 2 * Math.PI * TurnsPerSecond;
-
-    /// <summary>How long a player counts as winding after the game last said they hold right-click on
-    /// the station (the press brake's and the quern's second or so).</summary>
-    public const long HoldTimeoutMs = 600;
 
     /// <summary>Whether <paramref name="code"/> is the rod a spring is wound from: steel only.</summary>
     public static bool IsRod(string? code) => MandrelPart.Normalise(code) == SteelRod;
@@ -83,58 +82,15 @@ public static class Winding
     /// <summary>The glow vanilla's renderers give hot metal at <paramref name="temperature"/> °C
     /// (<c>AnvilWorkItemRenderer</c> and the like): Clamp((t − 550) / 2, 0, 255), integer arithmetic.</summary>
     public static int ExtraGlow(float temperature) => Math.Clamp(((int)temperature - 550) / 2, 0, 255);
-}
 
-/// <summary>A rod on the mandrel: whether one is, and W, the winding so far (0..1).</summary>
-public readonly record struct WindJob(bool On, double Work)
-{
-    public static readonly WindJob None = new(false, 0);
-
-    public static WindJob Start => new(true, 0);
-
-    public bool Done => On && Work >= 1 - 1e-9;
-
-    /// <summary>Whether the rod is still straight (it comes back as it went on).</summary>
-    public bool Untouched => On && Work <= 0;
+    /// <summary>The winding of a rod just put on the mandrel (W ends at 1).</summary>
+    public static MachineJob Start() => MachineJob.Start(SpringClass, 1);
 
     /// <summary>The job after <paramref name="radians"/> more of the winding clock with the rod
     /// <paramref name="hot"/> or not (a cold rod does not wind), W held at 1, and whether this step finished it.</summary>
-    public (WindJob Job, bool Finished) Advance(double radians, double turnsPerRod, bool hot)
-    {
-        if (!On || Done || !hot)
-            return (this, false);
-        var next = this with { Work = Math.Min(1, Work + Winding.RodsFor(radians, turnsPerRod)) };
-        if (next.Work >= 1 - 1e-9)
-            next = next with { Work = 1 };
-        return (next, next.Done);
-    }
+    public static (MachineJob Job, bool Finished) Advance(MachineJob job, double radians, double turnsPerRod, bool hot) =>
+        hot ? job.Advance(RodsFor(radians, turnsPerRod)) : (job, false);
 
-    /// <summary>A saved job: W clamped to 0..1.</summary>
-    public static WindJob Restore(bool on, double work) =>
-        on ? new WindJob(true, double.IsFinite(work) ? Math.Clamp(work, 0, 1) : 0) : None;
-}
-
-/// <summary>
-/// The players winding, as the quern keeps its grinders: each with the time the game last said they held
-/// right-click on the station. A player counts until <see cref="Winding.HoldTimeoutMs"/> after that, or
-/// until they let go.
-/// </summary>
-public sealed class WindHolds
-{
-    private readonly Dictionary<string, long> _holds = [];
-
-    public void Hold(string player, long nowMs) => _holds[player] = nowMs;
-
-    public void Release(string player) => _holds.Remove(player);
-
-    public void Clear() => _holds.Clear();
-
-    /// <summary>Forgets every player not heard from for <see cref="Winding.HoldTimeoutMs"/>, and says
-    /// whether anyone is still winding.</summary>
-    public bool Any(long nowMs)
-    {
-        foreach (var stale in _holds.Where(h => nowMs - h.Value > Winding.HoldTimeoutMs).Select(h => h.Key).ToList())
-            _holds.Remove(stale);
-        return _holds.Count > 0;
-    }
+    /// <summary>A saved job: W clamped to 0..1; none without a rod.</summary>
+    public static MachineJob Restore(bool on, double work) => on ? MachineJob.Restore(SpringClass, work, 1) : MachineJob.None;
 }

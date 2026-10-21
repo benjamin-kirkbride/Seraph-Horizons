@@ -6,7 +6,7 @@
   "features": {
     "Eidolon": {
       "code": ["Eidolon/", "EidolonGantry/"],
-      "codes": ["eidolon", "eidolongantry", "eidolongantryghost", "eidoloncommander", "eidolontorso",
+      "codes": ["eidolon", "eidolongantry", "eidoloncommander", "eidolontorso",
                 "creature-eidolon"],
       "export": ["Recipes/EidolonExport.cs", "EidolonSection.cs", "RecipeSection.Eidolon.cs"],
       "switches": ["Eidolon", "EidolonSettings"],
@@ -17,10 +17,11 @@
       "codes": ["trading", "tradingwindow", "trader", "traderlead", "tradelists", "visitor", "schematic",
                 "standing", "dialogue", "package", "inn", "innflag", "innsign", "map", "item-values",
                 "itemvalues"],
+      "export": ["Items/PackTradeSources.cs"],
       "switches": ["TraderGrid", "TraderStanding", "TraderStandingSpilloverKm", "EverythingHasAPrice",
                    "RegionalSupply", "SupplyHalfLifeDays", "SupplySpreadFraction", "TraderSchematics",
                    "MachineSchematics", "TraderOrders", "TraderDeliveries", "TraderMaps",
-                   "DepositCheckApproachMetres", "DepositCheckPauseSeconds", "TravellingMerchants",
+                   "DepositCheckApproachMetres", "DepositCheckPauseSeconds", "SpawnProspectorMark", "TravellingMerchants",
                    "TravellingMerchantMinSupply"],
       "classes": ["Trading*"]
     },
@@ -194,6 +195,13 @@
       "lang": ["*cylinderborer*"],
       "export": ["Recipes/CylinderBorerExport.cs", "RecipeSection.CylinderBorer.cs"],
       "switches": ["CylinderBorer", "CylinderBorerSettings"],
+      "classes": []
+    },
+    "SlittingMill": {
+      "code": ["SlittingMill/"],
+      "codes": ["slittingmill", "slittercutter"],
+      "export": ["Recipes/SlittingMillExport.cs", "RecipeSection.SlittingMill.cs"],
+      "switches": ["SlittingMill", "SlittingMillSettings"],
       "classes": []
     },
     "PressBrake": {

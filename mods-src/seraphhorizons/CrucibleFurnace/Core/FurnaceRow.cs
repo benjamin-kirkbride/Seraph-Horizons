@@ -73,6 +73,9 @@ public sealed record FurnaceRow(int First, int Count, int? ChimneyAt, int Chimne
     /// <summary>The row has its draught: one chimney tall enough and topped, every other outlet capped.</summary>
     public bool Works => Problem == RowProblem.None;
 
+    /// <summary>A furnace alone with no chimney: the row of one not yet found.</summary>
+    public static readonly FurnaceRow Alone = new(0, 1, null, 0, null, RowProblem.NoChimney);
+
     /// <summary>The highest shaft block counted (a taller one is just as good).</summary>
     public const int ChimneyScan = 64;
 

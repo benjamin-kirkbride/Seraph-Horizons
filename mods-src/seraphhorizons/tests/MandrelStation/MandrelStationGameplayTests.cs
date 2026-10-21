@@ -4,12 +4,16 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.MandrelStation;
 
-/// <summary>MandrelStation/Core: the mandrel (no take-back: it comes out only by breaking); the hollows
+/// <summary>MandrelStation: the mandrel, its build (config/builds/mandrelstation.json on the shared staged
+/// build; no take-back: it comes out only by breaking); the hollows
 /// by metal and what is refused; the forging's arithmetic (a blow at a time, two sections at the last);
 /// right-click held refilling from the hotbar; the renderer's clock; the settings; and the rig reader, on
 /// a rig written to the contract.</summary>
 public class MandrelStationGameplayTests
 {
+    private static MachineBuild Build() =>
+        MachineBuildJson.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "builds", "mandrelstation.json")));
+
     // ---- The mandrel ----
 
     [Theory]
@@ -20,8 +24,11 @@ public class MandrelStationGameplayTests
     {
         Assert.True(MandrelPart.IsMandrel(code));
         Assert.Equal(metal, MandrelPart.MetalOf(code));
-        Assert.Equal(MandrelFitVerdict.Fits, MandrelPart.CanFit(code, null));
-        Assert.Equal(MandrelFitVerdict.AlreadyFitted, MandrelPart.CanFit(code, "game:rod-iron"));
+        var parts = new MachineAssembly(Build());
+        Assert.Equal(AssemblyVerdict.Fitted, parts.Fit(code, 1).Verdict);
+        Assert.True(parts.Built);
+        Assert.Equal(metal, MandrelPart.MetalOf(parts.Build.CodeIn(0, 0)));
+        Assert.Equal(AssemblyVerdict.AlreadyFitted, parts.Fit("game:rod-iron", 1).Verdict);
     }
 
     [Theory]
@@ -34,19 +41,27 @@ public class MandrelStationGameplayTests
     {
         Assert.False(MandrelPart.IsMandrel(code));
         Assert.Null(MandrelPart.MetalOf(code));
-        Assert.Equal(MandrelFitVerdict.NotAMandrel, MandrelPart.CanFit(code, null));
+        Assert.Equal(AssemblyVerdict.NotAPart, new MachineAssembly(Build()).Fit(code, 1).Verdict);
     }
 
     [Fact]
     public void The_mandrel_is_drawn_once_fitted_and_never_the_hollows()
     {
-        Assert.True(MandrelPart.Fitted(null, null));
-        Assert.False(MandrelPart.Fitted("mandrel", null));
-        Assert.True(MandrelPart.Fitted("mandrel", "game:rod-iron"));
-        Assert.False(MandrelPart.Fitted("hollowlead", "game:rod-iron"));
-        Assert.False(MandrelPart.Fitted("hollowcopper", "game:rod-iron"));
+        var parts = new MachineAssembly(Build());
+        Assert.True(parts.Shows(null));
+        Assert.False(parts.Shows("mandrel"));
+        // the creative shortcut fits the first code: an iron rod
+        Assert.True(parts.FillNext());
+        Assert.Equal("game:rod-iron", parts.Build.CodeIn(0, 0));
+        Assert.True(parts.Shows("mandrel"));
+        // the work is the clock's: no stage adds it (BEMandrelStation.ShowsPart draws it)
+        var build = Build();
+        Assert.Equal(["mandrel"], build.Stages.Select(s => s.Id));
+        Assert.Equal(["mandrel"], Assert.Single(build.Stages).Adds);
+        Assert.Equal(MandrelPart.Codes, Assert.Single(Assert.Single(build.Stages).Materials).Codes);
+        Assert.Null(build.Block);   // its construction record is its own in the export
+        Assert.DoesNotContain(build.Stages, s => s.Adds.Any(MandrelRequires.IsWork));
         Assert.True(MandrelRequires.KnownRequires.SetEquals(["mandrel", "hollowlead", "hollowcopper", "rodsteel"]));
-        Assert.False(MandrelPart.Fitted("rodsteel", "game:rod-iron"));
         Assert.Equal("rodsteel", MandrelRequires.Work(3));
         Assert.Equal("hollowcopper", MandrelRequires.Work(2));
         Assert.Null(MandrelRequires.Work(0));
@@ -58,11 +73,20 @@ public class MandrelStationGameplayTests
     [Fact]
     public void A_saved_mandrel_is_restored_only_if_it_is_one()
     {
-        Assert.Equal("game:rod-steel", MandrelPart.Restore("game:rod-steel"));
-        Assert.Equal("game:rod-iron", MandrelPart.Restore("rod-iron"));
-        Assert.Null(MandrelPart.Restore("game:rod-copper"));
-        Assert.Null(MandrelPart.Restore(null));
-        Assert.Null(MandrelPart.Restore(""));
+        var parts = new MachineAssembly(Build());
+        parts.Fit("game:rod-steel", 1);
+        var (build, wearing) = parts.Snapshot();
+        var restored = MachineAssembly.Restore(Build(), build, wearing, out var dropped);
+        Assert.Equal("game:rod-steel", restored.Build.CodeIn(0, 0));
+        Assert.Empty(dropped);
+        Assert.Equal([new StageDrop("game:rod-steel", 1)], restored.Returns());
+        // a code that is not a mandrel is given back, and the station is bare
+        var wrong = MachineAssembly.Restore(Build(), new Dictionary<string, int> { ["0/0/game:rod-copper"] = 1 }, wearing, out dropped);
+        Assert.False(wrong.Built);
+        Assert.Equal([new StageDrop("game:rod-copper", 1)], dropped);
+        // nothing takes the mandrel back out: breaking is the only way
+        Assert.Empty(restored.Wearing.Parts);
+        Assert.Null(restored.Take("mandrel"));
     }
 
     // ---- What goes on ----
@@ -115,22 +139,22 @@ public class MandrelStationGameplayTests
     [Fact]
     public void Each_blow_advances_W_by_one_over_the_blows_and_the_last_finishes()
     {
-        var job = new ForgeJob(1, 0, 0);
+        var job = Forging.Start(1);
         Assert.True(job.Untouched);
         for (int i = 1; i < 6; i++)
         {
-            (job, bool finished) = job.Strike(6);
+            (job, bool finished) = Forging.Strike(job, 6);
             Assert.False(finished, $"finished at blow {i}");
-            Assert.Equal(i, job.Blows);
+            Assert.Equal(i, job.Steps);
             Assert.Equal(i / 6.0, job.Work, 9);
             Assert.False(job.Untouched);
         }
-        (job, bool last) = job.Strike(6);
+        (job, bool last) = Forging.Strike(job, 6);
         Assert.True(last);
         Assert.True(job.Done);
         Assert.Equal(1.0, job.Work);
         // nothing more after the end
-        var (after, again) = job.Strike(6);
+        var (after, again) = Forging.Strike(job, 6);
         Assert.False(again);
         Assert.Equal(job, after);
     }
@@ -144,10 +168,10 @@ public class MandrelStationGameplayTests
         Assert.Equal(0, config.BlowsPerHollow(0));
         int Blows(int k)
         {
-            var job = new ForgeJob(k, 0, 0);
+            var job = Forging.Start(k);
             int n = 0;
             for (bool done = false; !done; n++)
-                (job, done) = job.Strike(config.BlowsPerHollow(k));
+                (job, done) = Forging.Strike(job, config.BlowsPerHollow(k));
             return n;
         }
         Assert.Equal(9, Blows(1));
@@ -177,7 +201,7 @@ public class MandrelStationGameplayTests
         Assert.Equal(1.0, Forging.BlowWeight(tier, 2));
         Assert.Equal(1 / 6.0, Forging.WorkPerBlow(6, tier, 2), 12);
         Assert.Equal(6, Forging.BlowsWith(6, tier, 2));
-        Assert.Equal(new ForgeJob(1, 0, 0).Strike(6), new ForgeJob(1, 0, 0).Strike(6, tier, 2));
+        Assert.Equal(Forging.Strike(Forging.Start(1), 6), Forging.Strike(Forging.Start(1), 6, tier, 2));
     }
 
     [Theory]
@@ -191,12 +215,12 @@ public class MandrelStationGameplayTests
         var config = new MandrelStationConfig();
         int Blows(int k)
         {
-            var job = new ForgeJob(k, 0, 0);
+            var job = Forging.Start(k);
             int n = 0;
             for (bool done = false; !done; n++)
-                (job, done) = job.Strike(config.BlowsPerHollow(k), tier, config.BaseHammerTier);
+                (job, done) = Forging.Strike(job, config.BlowsPerHollow(k), tier, config.BaseHammerTier);
             Assert.Equal(1.0, job.Work);
-            Assert.Equal(n, job.Blows);
+            Assert.Equal(n, job.Steps);
             return n;
         }
         Assert.Equal((lead, copper), (Blows(1), Blows(2)));
@@ -206,14 +230,14 @@ public class MandrelStationGameplayTests
     [Fact]
     public void A_steel_blow_forges_two_and_a_half_copper_blows()
     {
-        var (job, finished) = new ForgeJob(1, 0, 0).Strike(6, 5, 2);
+        var (job, finished) = Forging.Strike(Forging.Start(1), 6, 5, 2);
         Assert.False(finished);
         Assert.Equal(2.5 / 6, job.Work, 12);
         // the third blow overshoots and is held at 1
-        (job, _) = job.Strike(6, 5, 2);
-        (job, finished) = job.Strike(6, 5, 2);
+        (job, _) = Forging.Strike(job, 6, 5, 2);
+        (job, finished) = Forging.Strike(job, 6, 5, 2);
         Assert.True(finished);
-        Assert.Equal((3, 1.0), (job.Blows, job.Work));
+        Assert.Equal((3, 1.0), (job.Steps, job.Work));
     }
 
     [Fact]
@@ -224,7 +248,7 @@ public class MandrelStationGameplayTests
         Assert.Equal(0.5, Forging.WorkPerBlow(1, 5, 2));
         Assert.Equal(0.5, Forging.WorkPerBlow(2, 5, 2));
         Assert.Equal(2, Forging.BlowsWith(1, 5, 2));
-        var (job, finished) = new ForgeJob(2, 0, 0).Strike(1, 5, 2);
+        var (job, finished) = Forging.Strike(Forging.Start(2), 1, 5, 2);
         Assert.False(finished);
         Assert.Equal(0.5, job.Work);
         // under the cap it is untouched
@@ -236,12 +260,13 @@ public class MandrelStationGameplayTests
     [Fact]
     public void No_hollow_takes_no_blows()
     {
-        var (job, finished) = ForgeJob.None.Strike(6);
+        var (job, finished) = Forging.Strike(MachineJob.None, 6);
         Assert.False(finished);
-        Assert.Equal(ForgeJob.None, job);
-        Assert.False(ForgeJob.None.On);
-        Assert.False(ForgeJob.None.Untouched);
-        Assert.Equal((new ForgeJob(1, 0, 0), false), new ForgeJob(1, 0, 0).Strike(0));
+        Assert.Equal(MachineJob.None, job);
+        Assert.False(MachineJob.None.On);
+        Assert.False(MachineJob.None.Untouched);
+        Assert.Equal((Forging.Start(1), false), Forging.Strike(Forging.Start(1), 0));
+        Assert.Equal(MachineJob.None, Forging.Start(3));
     }
 
     [Fact]
@@ -250,11 +275,11 @@ public class MandrelStationGameplayTests
     [Fact]
     public void A_saved_job_is_clamped_and_needs_a_hollows_class()
     {
-        Assert.Equal(new ForgeJob(2, 4, 0.5), ForgeJob.Restore(2, 4, 0.5));
-        Assert.Equal(new ForgeJob(1, 0, 1), ForgeJob.Restore(1, -3, 7));
-        Assert.Equal(new ForgeJob(1, 2, 0), ForgeJob.Restore(1, 2, double.NaN));
-        Assert.Equal(ForgeJob.None, ForgeJob.Restore(3, 2, 0.5));
-        Assert.Equal(ForgeJob.None, ForgeJob.Restore(0, 2, 0.5));
+        Assert.Equal(new MachineJob(2, 0.5, 1, 4), Forging.Restore(2, 4, 0.5));
+        Assert.Equal(new MachineJob(1, 1, 1, 0), Forging.Restore(1, -3, 7));
+        Assert.Equal(new MachineJob(1, 0, 1, 2), Forging.Restore(1, 2, double.NaN));
+        Assert.Equal(MachineJob.None, Forging.Restore(3, 2, 0.5));
+        Assert.Equal(MachineJob.None, Forging.Restore(0, 2, 0.5));
     }
 
     // ---- Right-click held: the next hollow from the hotbar ----
@@ -492,35 +517,37 @@ public class MandrelStationGameplayTests
     [Fact]
     public void Winding_advances_a_turn_a_second_only_while_hot_and_the_last_step_finishes()
     {
-        var job = WindJob.Start;
+        var job = Winding.Start();
         Assert.True(job.Untouched);
-        (job, bool done) = job.Advance(Winding.RadiansPerSecond, 4, hot: true);
+        Assert.Equal(Winding.SpringClass, job.Class);
+        (job, bool done) = Winding.Advance(job, Winding.RadiansPerSecond, 4, hot: true);
         Assert.Equal(0.25, job.Work, 9);
         Assert.False(done);
         Assert.False(job.Untouched);
-        (var cold, done) = job.Advance(Winding.RadiansPerSecond, 4, hot: false);
+        (var cold, done) = Winding.Advance(job, Winding.RadiansPerSecond, 4, hot: false);
         Assert.Equal(job, cold);   // a cold rod does not wind
         Assert.False(done);
         for (int i = 0; i < 2; i++)
-            (job, _) = job.Advance(Winding.RadiansPerSecond, 4, true);
-        (job, done) = job.Advance(Winding.RadiansPerSecond * 2, 4, true);
+            (job, _) = Winding.Advance(job, Winding.RadiansPerSecond, 4, true);
+        (job, done) = Winding.Advance(job, Winding.RadiansPerSecond * 2, 4, true);
         Assert.True(done);
         Assert.Equal(1, job.Work);
-        Assert.Equal((job, false), job.Advance(1, 4, true));
-        Assert.Equal((WindJob.None, false), WindJob.None.Advance(10, 4, true));
-        Assert.Equal(WindJob.None, WindJob.Restore(false, 0.5));
-        Assert.Equal(1, WindJob.Restore(true, 7).Work);
-        Assert.Equal(0, WindJob.Restore(true, double.NaN).Work);
+        Assert.Equal((job, false), Winding.Advance(job, 1, 4, true));
+        Assert.Equal((MachineJob.None, false), Winding.Advance(MachineJob.None, 10, 4, true));
+        Assert.Equal(MachineJob.None, Winding.Restore(false, 0.5));
+        Assert.Equal(1, Winding.Restore(true, 7).Work);
+        Assert.Equal(0, Winding.Restore(true, double.NaN).Work);
     }
 
     [Fact]
     public void A_winder_counts_until_they_let_go_or_go_quiet()
     {
-        var holds = new WindHolds();
+        // the shared hand holds (BEMachine.HandWorked), at the quern's 600 ms
+        var holds = new HandHolds();
         Assert.False(holds.Any(0));
         holds.Hold("a", 1000);
-        Assert.True(holds.Any(1000 + Winding.HoldTimeoutMs));
-        Assert.False(holds.Any(1001 + Winding.HoldTimeoutMs));
+        Assert.True(holds.Any(1000 + HandHolds.DefaultTimeoutMs));
+        Assert.False(holds.Any(1001 + HandHolds.DefaultTimeoutMs));
         holds.Hold("a", 2000);
         holds.Release("a");
         Assert.False(holds.Any(2000));

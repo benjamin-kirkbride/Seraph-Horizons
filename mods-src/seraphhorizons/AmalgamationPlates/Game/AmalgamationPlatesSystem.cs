@@ -10,7 +10,7 @@ namespace SeraphHorizons.Mod.AmalgamationPlates;
 /// <summary>
 /// The amalgamation plates (#917; README "Ore processing: the amalgamation plates"): registers their block entity
 /// and holds their settings (AmalgamationPlatesSettings in ModConfig/seraphhorizons.json). Their frame is the
-/// shared ore machine block (<see cref="BlockOreMachine"/>), their cells the shared ones; their figures are
+/// shared machine block (<see cref="BlockMachine"/>), their cells the shared ones; their figures are
 /// ore-core's (<c>config/ore-processing.json</c>, <c>machines.amalgamationplates</c>). With the
 /// <c>AmalgamationPlates</c> switch off, or ore processing off (they take crushed ore and make amalgam, which
 /// then do not exist), the server leaves their frame and recipe out of the game.
@@ -48,7 +48,7 @@ public class AmalgamationPlatesSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 
     /// <summary>The frame blocks' attribute the recipe exporter reads (tools/recipe-export, AmalgamationPlatesExport):

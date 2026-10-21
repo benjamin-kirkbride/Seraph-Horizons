@@ -351,17 +351,6 @@ public class TradeWindowModelTests
     }
 
     [Fact]
-    public void ThePityMapsRowSaysItIsTheFirstMap()
-    {
-        var pity = new LeadOfferRow { Cell = "1,1", Type = "prospector", Distance = 2900, Dx = 2000, Dz = 2000, Price = 10, Ring = 1, Prospector = true, Pity = true };
-        Assert.Equal("trading-window-offer-firstmap · trading-window-offer-nearest-prospector · trading-window-offer-way(map-distance-km(3), trading-window-dir-se)",
-            Details(TradeWindowModel.CampLeadRow(pity)));
-        Assert.Equal("trading-window-offer-firstmap · trading-window-offer-nearest-camp · trading-window-offer-way(map-distance-under, trading-window-dir-here)",
-            Details(TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Pity = true })));
-        Assert.True(TradeWindowState.FromJson(new TradeWindowState { LeadOffers = [pity] }.ToJson()).LeadOffers.Single().Pity);
-    }
-
-    [Fact]
     public void StandingSectionsSayHowFarToTheNextTier()
     {
         var sections = TradeWindowModel.StandingSections(State());
@@ -520,5 +509,49 @@ public class WireFormatTests
         Assert.False(res.Ok);
         Assert.Equal(["2.5", "3"], res.Args);
         Assert.Equal(TradeAction.Buy, res.Action);
+    }
+
+    [Fact]
+    public void ATraderWithACatalogHasASchematicsTabBeforeStanding()
+    {
+        var state = new TradeWindowState { Switches = TradeWindowModelTests.AllOn(), Standing = TradeWindowModelTests.Summary(2, 310), Orders = [new OrderRow { Id = 1 }], DeliveryOffer = new DeliveryOfferRow() };
+        Assert.DoesNotContain(TradeWindowModel.Tabs(state), t => t.Tab == WindowTab.Schematics);
+        state.Schematics = [new SchematicOfferRow { Code = "seraphhorizons:schematic-windmill", Price = 15, Tier = 1, Unlocked = true }];
+        Assert.Equal([WindowTab.Trade, WindowTab.Orders, WindowTab.Deliveries, WindowTab.Maps, WindowTab.Schematics, WindowTab.Standing],
+            TradeWindowModel.Tabs(state).Select(t => t.Tab));
+        // Off the shelf: with every feature off it is there all the same.
+        state.Switches = new WindowSwitches();
+        Assert.Equal([WindowTab.Trade, WindowTab.Schematics], TradeWindowModel.Tabs(state).Select(t => t.Tab));
+        var back = TradeWindowState.FromJson(state.ToJson());
+        Assert.Equal(("seraphhorizons:schematic-windmill", 15, 1, true),
+            (back.Schematics[0].Code, back.Schematics[0].Price, back.Schematics[0].Tier, back.Schematics[0].Unlocked));
+    }
+
+    [Fact]
+    public void ALockedSchematicIsGreyedWithTheTierThatUnlocksItAndAnUnlockedOneIsForSale()
+    {
+        var open = TradeWindowModel.SchematicRow(new SchematicOfferRow { Code = "game:schematic-glider", Price = 75, Tier = 2, Unlocked = true }, TradeWindowModelTests.Summary(2, 310));
+        Assert.Equal((OfferGroup.Schematics, MapOfferStatus.Available, 75), (open.Group, open.Status, open.Price));
+        Assert.Equal("trading-window-schematic(game:schematic-glider)", open.Title.ToString());
+        Assert.Empty(open.Details);
+        Assert.Equal(("trading-window-buy", true), (TradeWindowModel.BuyButton(open.Status, open.Price, 80).Label.Key, TradeWindowModel.BuyButton(open.Status, open.Price, 80).Enabled));
+        Assert.False(TradeWindowModel.BuyButton(open.Status, open.Price, 74).Enabled);
+
+        var locked = TradeWindowModel.SchematicRow(new SchematicOfferRow { Code = "game:schematic-glider", Price = 75, Tier = 3 }, TradeWindowModelTests.Summary(2, 310));
+        Assert.Equal(MapOfferStatus.Locked, locked.Status);
+        Assert.Equal("trading-window-schematic-unlocks(trading-standing-tier-trusted)", Assert.Single(locked.Details).ToString());
+        Assert.Equal("trading-window-offer-locked", TradeWindowModel.BuyButton(locked.Status, 75, 999).Label.Key);
+        Assert.NotNull(TradeWindowModel.PriceText(locked));
+        Assert.Equal("trading-window-offers-schematics", TradeWindowModel.GroupHeading(OfferGroup.Schematics).Key);
+        Assert.Equal("trading-window-schematics-note-nostanding", TradeWindowModel.SchematicsNote(new WindowSwitches()).Key);
+        Assert.Equal("trading-window-schematics-note", TradeWindowModel.SchematicsNote(TradeWindowModelTests.AllOn()).Key);
+    }
+
+    [Fact]
+    public void SchematicsAreRefusedWithTheirOwnReason()
+    {
+        Assert.Equal("trading-economy-refused-schematic", Assert.Single(TradeWindowModel.OfferLines(Offer.Refused(Refusal.Schematic), false, 0)).Key);
+        var buy = TradeRequest.FromJson(new TradeRequest { Action = TradeAction.BuySchematic, Code = "game:schematic-glider", Price = 75 }.ToJson());
+        Assert.Equal((TradeAction.BuySchematic, "game:schematic-glider", (int?)75), (buy.Action, buy.Code, buy.Price));
     }
 }

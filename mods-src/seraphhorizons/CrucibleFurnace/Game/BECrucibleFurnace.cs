@@ -1,5 +1,4 @@
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -15,17 +14,20 @@ namespace SeraphHorizons.Mod.CrucibleFurnace;
 
 /// <summary>
 /// The crucible furnace's controller (#796, README "Crucible furnace"), the front middle cell, the ash
-/// mouth's. Holds the build (<see cref="FurnaceBuild"/>: every fitted item and the brick type), the two
-/// pots (<see cref="FurnacePot"/>), the one coke bed and its fire (<see cref="HoleHeat"/>), the lid, the
-/// ash-pit damper and the outlet's cap. The server ticks it each second: it finds the furnace's row and
-/// chimney (<see cref="FurnaceRow"/>), sets the draught by the chimney's height, advances the fire by
-/// the calendar's hours since the last tick (<see cref="FurnaceHeat"/>) and with it the pots, each
-/// melting while the fire is at its recipe's temperature, and a molten one freezing when the fire has
-/// stayed too long below its solid point (<see cref="FurnaceMelt"/>). A player works it by right-clicks on any of its cells
-/// (<see cref="OnInteract"/>) and lights it as a forge is lit (<see cref="BlockCrucibleFurnace"/>,
-/// <see cref="IIgnitable"/>); the client draws it (<see cref="CrucibleFurnaceRenderer"/>).
+/// mouth's, on the shared machine base (<see cref="BEMachine"/>, docs/modeling/machine-base.md): its build is
+/// <c>config/builds/cruciblefurnace.json</c> (the brickwork in one fired brick type, the lining, the lid and
+/// damper), its cells the shared ones, its flue the fired machines' (<see cref="FurnaceFiring"/>: the outlet's
+/// cap and the row). It holds the two pots (<see cref="FurnacePot"/>), the one coke bed and its fire
+/// (<see cref="HoleHeat"/>), the lid and the ash-pit damper. The server ticks it each second: it finds the
+/// furnace's row and chimney (<see cref="FurnaceRow"/>), sets the draught by the chimney's height, advances the
+/// fire by the calendar's hours since the last tick (<see cref="FurnaceHeat"/>) and with it the pots, each
+/// melting while the fire is at its recipe's temperature, and a molten one freezing when the fire has stayed
+/// too long below its solid point (<see cref="FurnaceMelt"/>). A player works it by right-clicks on any of its
+/// cells (<see cref="InteractContent"/>, <see cref="InteractWork"/>) and lights it as a forge is lit
+/// (<see cref="MachineFire"/>); the client draws it with its own renderer (<see cref="CrucibleFurnaceRenderer"/>:
+/// the pots' metals and the fire's glow), its cells' boxes changing with the build and the lid.
 /// </summary>
-public class BECrucibleFurnace : BlockEntity
+public class BECrucibleFurnace : BEMachine, IFiredMachine
 {
     private static readonly AssetLocation LidSound = new("game", "sounds/block/hatch");
     private static readonly AssetLocation DamperSound = new("game", "sounds/effect/latch");
@@ -38,92 +40,68 @@ public class BECrucibleFurnace : BlockEntity
 
     /// <summary>Real milliseconds the lid takes to open or shut: its swing's boxes stand that long.</summary>
     public const long SwingMs = 1400;
-    private const string BuildKeyPrefix = "build-";
 
-    private FurnaceBuild? _build;
     private readonly FurnacePot?[] _pots = new FurnacePot?[2];
+    private readonly FurnaceFiring _firing = new(CapSound);
     private HoleHeat _heat = new(FurnaceHeat.Ambient, 0, false);
     private double _lastHours = double.NaN;
     private bool _lidOpen = true;
     private long _lidMovedMs = long.MinValue / 2;
     private Damper _damper = Damper.Open;
-    private bool _capped;
-    private FurnaceRow _row = new(0, 1, null, 0, null, RowProblem.NoChimney);
     private Draught? _draught;
     private Vec3d? _chimneyTop;
     private int? _serverCokeCapacity;
     private BoxTables? _boxes;
-    private CrucibleFurnaceRenderer? _renderer;
     private float _particleSeconds;
 
-    public Side Side { get; private set; } = Side.North;
-    public FurnaceBuild? Build => _build;
-    public bool Complete => _build?.Complete == true;
-    public bool LiningIn => _build?.Has(FurnaceRequires.Lining) == true;
-    public bool LidFitted => _build?.Has(FurnaceRequires.Lid) == true;
+    public FurnaceFiring Firing => _firing;
+    public bool LiningIn => Assembly?.Build.Fitted(FurnaceRequires.Lining) == true;
+    public bool LidFitted => Assembly?.Build.Fitted(FurnaceRequires.Lid) == true;
     /// <summary>The lid is fitted and shut.</summary>
     public bool LidClosed => LidFitted && !_lidOpen;
     public bool LidOpen => !LidClosed;
     /// <summary>The lid is still turning (both sides: from when each heard it move).</summary>
     public bool LidSwinging => LidFitted && Api != null && Api.World.ElapsedMilliseconds - _lidMovedMs < SwingMs;
     public Damper Damper => _damper;
-    public bool Capped => _capped;
+    public bool Capped => _firing.Capped;
     public FurnacePot? Pot(int i) => i >= 0 && i < _pots.Length ? _pots[i] : null;
     public double Temperature => _heat.Temperature;
     public double Coke => _heat.Coke;
     public bool Lit => _heat.Lit;
-    public FurnaceRow Row => _row;
+    public FurnaceRow Row => _firing.Row;
     /// <summary>The row's draught, or null when it has none.</summary>
     public Draught? Draught => _draught;
     /// <summary>The top of the row's chimney, where it smokes; null with none.</summary>
     public Vec3d? ChimneyTop => _chimneyTop;
-    public string? BrickType => _build?.BrickType;
+    /// <summary>The fired brick type of its brickwork (<c>red</c>), set by its first brick; null before.</summary>
+    public string? BrickType =>
+        Assembly?.Build.CodeIn(0, 0) is { } code && Rig is { } rig ? rig.Bricks.TypeOf(code) : null;
     public int CokeCapacity => _serverCokeCapacity ?? Config.CokeCapacity;
 
     private CrucibleFurnaceSystem System => CrucibleFurnaceSystem.Of(Api);
     private CrucibleFurnaceConfig Config => System.Config;
-    private CrucibleFurnaceRig? Rig => System.Rig;
+    private new CrucibleFurnaceRig? Rig => base.Rig as CrucibleFurnaceRig;
+
+    /// <summary>Lit, the furnace works: its state is the fire's.</summary>
+    public override bool HasWork => _heat.Lit;
+
+    protected override int ClientTickMs => 100;
 
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        if (Rig is { } rig)
-            _build ??= new FurnaceBuild(rig.Stages, rig.Bricks);
         BuildBoxes();
         if (api.Side == EnumAppSide.Server)
-        {
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
             RegisterGameTickListener(_ => Update(), 1000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 100);
-            if (api is ICoreClientAPI capi && Rig is { } r && Block is BlockCrucibleFurnace)
-                _renderer = new CrucibleFurnaceRenderer(capi, this, r);
-        }
     }
 
-    // ---- Footprint ----
-
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
+    /// <summary>The furnace's own renderer: the stages, the pots in their metals, the coke, the fire's glow, the
+    /// lid's swing.</summary>
+    protected override IRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) =>
+        new CrucibleFurnaceRenderer(capi, this, (CrucibleFurnaceRig)rig);
 
     /// <summary>A world position's cell in the native frame.</summary>
-    public Int3 LocalCell(BlockPos cellPos) => Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
-
-    public IEnumerable<BlockPos> GhostCells() => Rig is { } rig ? rig.GhostCells.Select(c => CellPos(c.Pos)) : [];
+    public Int3 LocalCell(BlockPos cellPos) => LocalOf(cellPos);
 
     /// <summary>The cells under the hollow ones: the top of the hole's rows, where a click is the
     /// hole's (the lid, the pots, the fire).</summary>
@@ -139,8 +117,9 @@ public class BECrucibleFurnace : BlockEntity
 
     private void BuildBoxes()
     {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
+        if (Rig is not { } rig)
             return;
+        var side = Side;
         Cuboidf World(Box b)
         {
             var w = Footprint.ToWorld(b, side);
@@ -165,11 +144,11 @@ public class BECrucibleFurnace : BlockEntity
     /// <summary>A cell's selection boxes by the furnace's state: the iron frame's cells whole before the
     /// brickwork, the rig's after; over the hole, the lid's while it stands open or swings; null when
     /// the cell is not the furnace's.</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Boxes(cellPos, collision: false);
+    public override Cuboidf[]? CellBoxes(BlockPos cellPos) => Boxes(cellPos, collision: false);
 
     /// <summary>A cell's collision boxes: as <see cref="CellBoxes"/>, the iron frame's ground row only
     /// before the brickwork, and the rig's decks on the top cells after it.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Boxes(cellPos, collision: true);
+    public override Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Boxes(cellPos, collision: true);
 
     private Cuboidf[]? Boxes(BlockPos cellPos, bool collision)
     {
@@ -185,64 +164,8 @@ public class BECrucibleFurnace : BlockEntity
             var table = LidSwinging ? t.LidSwept : _lidOpen ? t.LidOpen : null;
             return table?.GetValueOrDefault(local) ?? [];
         }
-        bool brick = _build?.Has(FurnaceRequires.Brickwork) == true;
+        bool brick = Assembly?.Build.Fitted(FurnaceRequires.Brickwork) == true;
         return (brick ? collision ? t.BuiltCollision : t.Built : collision ? t.FrameCollision : t.Frame).GetValueOrDefault(local);
-    }
-
-    // ---- Ghosts ----
-
-    private Block? GhostBlock => Api.World.GetBlock(new AssetLocation(CrucibleFurnaceSystem.Domain, "cruciblefurnace-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock is not { } ghost)
-            return;
-        foreach (var pos in GhostCells())
-            StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BECrucibleFurnaceGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server || GhostBlock is not { } expected)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BECrucibleFurnaceGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var pos in GhostCells())
-            if (ba.GetBlock(pos) is BlockCrucibleFurnaceGhost && ba.GetBlockEntity(pos) is BECrucibleFurnaceGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
     }
 
     // ---- The fire ----
@@ -259,8 +182,7 @@ public class BECrucibleFurnace : BlockEntity
         _lastHours = now;
 
         var row = FindRow();
-        bool rowChanged = row != _row;
-        _row = row;
+        bool rowChanged = _firing.SetRow(row);
         var draught = row.Works ? FurnaceHeat.DraughtOf(row.ChimneyHeight, Config) : null;
         rowChanged |= draught != _draught;
         _draught = draught;
@@ -318,39 +240,17 @@ public class BECrucibleFurnace : BlockEntity
 
     /// <summary>The chimney standing on this furnace's outlet: its shaft, counted from the outlet up,
     /// and its top.</summary>
-    public ChimneyColumn ChimneyOnOutlet()
-    {
-        if (Rig is not { } rig)
-            return default;
-        var ba = Api.World.BlockAccessor;
-        var pos = CellPos(rig.ChimneyBase);
-        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), Config);
-    }
+    public ChimneyColumn ChimneyOnOutlet() => Rig is { } rig ? FurnaceFiring.ChimneyOn(this, rig.Flue) : default;
 
     /// <summary>The controller of the furnace <paramref name="k"/> widths along the row (native +x), or null.</summary>
-    public BECrucibleFurnace? Neighbour(int k)
-    {
-        if (Rig is not { } rig)
-            return null;
-        var pos = CellPos(new Int3(k * rig.Width, 0, 0));
-        return Api.World.BlockAccessor.GetBlockEntity(pos) is BECrucibleFurnace other && other.Side == Side
-               && Api.World.BlockAccessor.GetBlock(pos) is BlockCrucibleFurnace ? other : null;
-    }
+    public BECrucibleFurnace? Neighbour(int k) => Rig is { } rig ? FurnaceFiring.Beside<BECrucibleFurnace>(this, rig.Flue, k) : null;
 
     /// <summary>This furnace's row: its neighbours of the same facing side by side, each with its
     /// lining in (an unlined furnace has no flue yet, and ends the row).</summary>
-    public FurnaceRow FindRow()
-    {
-        if (Rig == null)
-            return new FurnaceRow(0, 1, null, 0, null, RowProblem.NoChimney);
-        RowMember? At(int k)
-        {
-            if (k == 0)
-                return new RowMember(_capped, ChimneyOnOutlet());
-            return Neighbour(k) is { LiningIn: true } other ? new RowMember(other.Capped, other.ChimneyOnOutlet()) : null;
-        }
-        return FurnaceRow.Find(At, Config.MaxFurnacesInRow, Config.MinChimneyHeight);
-    }
+    public FurnaceRow FindRow() =>
+        Rig is { } rig
+            ? _firing.Find(this, rig.Flue, k => Neighbour(k) is { LiningIn: true } other ? other : null, Config.MaxFurnacesInRow, Config.MinChimneyHeight)
+            : FurnaceRow.Alone;
 
     private Vec3d? ChimneyTopOf(FurnaceRow row)
     {
@@ -364,22 +264,38 @@ public class BECrucibleFurnace : BlockEntity
     // ---- Interaction ----
 
     /// <summary>
-    /// A right-click on any of the furnace's cells. In creative mode, Ctrl fits the next stage with
-    /// nothing taken. An iron plate on the outlet's top caps it (once the lining is in) and an empty
-    /// hand there takes the plate back. While the furnace is being built a stage's material goes in, a
-    /// stack a click. Once it is built: an empty hand on the front works the ash-pit damper; on the
-    /// hole (the top cells of its two rows) it opens the lid, pulls the nearer pot, or with no pot
-    /// there shuts the lid, and on the open lid it shuts it (Shift: the lid, wherever); a fired pot
-    /// goes into the nearer place, coke onto the fire (Shift: into the nearer pot), and a charge into
-    /// the nearer pot. A firestarter or a torch lights it (<see cref="IIgnitable"/>). Decided and done
-    /// on the server; the client only says whether the click is the furnace's.
+    /// The outlet's cap, before the build's clicks: an iron plate on the outlet's top caps it (once the lining is
+    /// in), and an empty hand there takes the plate back.
     /// </summary>
-    public bool OnInteract(IPlayer byPlayer, BlockSelection sel)
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection sel)
     {
-        if (Rig is not { } rig || _build is not { } build)
-            return false;
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
+        if (Rig is not { } rig || !LiningIn || sel.Face != BlockFacing.UP || LocalCell(sel.Position) != rig.OutletCell)
+            return null;
         var held = slot?.Itemstack;
+        if (!Capped && held?.Collectible?.Code?.ToString() == rig.Flue.CapCode)
+            return _firing.TryCap(this, rig.Flue, byPlayer, slot!);
+        if (Capped && held == null)
+        {
+            _firing.Uncap(this, rig.Flue, byPlayer, stack => Give(byPlayer, stack));
+            return true;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// A right-click that is not the build's. Before it is built, a pot, coke or a charge is refused (the next
+    /// stage first). Once it is built: an empty hand on the front works the ash-pit damper; on the hole (the top
+    /// cells of its two rows) it opens the lid, pulls the nearer pot, or with no pot there shuts the lid, and on
+    /// the open lid it shuts it (Shift: the lid, wherever); a fired pot goes into the nearer place, coke onto the
+    /// fire (Shift: into the nearer pot), and a charge into the nearer pot. A firestarter or a torch lights it
+    /// (<see cref="MachineFire"/>). Decided and done on the server; the client only says whether the click is the
+    /// furnace's.
+    /// </summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection sel)
+    {
+        if (Rig is not { } rig || Assembly is not { } assembly)
+            return false;
+        var held = slot.Itemstack;
         string? code = held?.Collectible?.Code?.ToString();
         var controls = byPlayer.Entity.Controls;
         bool server = Api.Side == EnumAppSide.Server;
@@ -387,43 +303,14 @@ public class BECrucibleFurnace : BlockEntity
         var hit = sel.HitPosition ?? new Vec3d(0.5, 0.5, 0.5);
         var native = MachinePoints.NativeHit(Pos, sel.Position, hit, Side);
 
-        if (CreativeShortcutApplies(byPlayer))
+        if (!assembly.Built)
         {
-            if (server)
-                FillNextStage(byPlayer);
-            return true;
-        }
-        // the outlet's cap
-        if (cell == rig.OutletCell && sel.Face == BlockFacing.UP && LiningIn)
-        {
-            if (!_capped && rig.OutletCap.Matches(code))
-            {
-                if (server)
-                    Cap(byPlayer, slot!);
-                return true;
-            }
-            if (_capped && held == null)
-            {
-                if (server)
-                    Uncap(byPlayer);
-                return true;
-            }
-        }
-        if (!build.Complete)
-        {
-            var fit = build.CanFit(code, held?.StackSize ?? 0);
-            if (fit.Verdict is not (BuildVerdict.NotAMaterial or BuildVerdict.Built))
-            {
-                if (server)
-                    TryFit(slot!, byPlayer);
-                return true;
-            }
             bool furnaceItem = code == CrucibleFurnaceSystem.FiredPot || code == "game:coke" || code != null && System.Recipes.IsIngredient(code);
             if (furnaceItem && server)
-                Error(byPlayer, "notbuilt", StageName(build.Next));
+                Refuse(byPlayer, "notbuilt", NextStageName());
             return furnaceItem;
         }
-        // a firestarter or a torch lights the coke (IIgnitable)
+        // a firestarter or a torch lights the coke (MachineFire)
         if (held != null && (held.Collectible is ItemFirestarter || held.Block?.HasBehavior<BlockBehaviorCanIgnite>() == true))
             return false;
         int pot = rig.NearerPot(native);
@@ -441,7 +328,7 @@ public class BECrucibleFurnace : BlockEntity
             else if (lid || controls.ShiftKey || LidClosed)
                 ToggleLid(byPlayer);
             else if (_pots[pot] != null)
-                Pull(byPlayer, slot!, pot);
+                Pull(byPlayer, slot, pot);
             else
                 ToggleLid(byPlayer);
             return true;
@@ -451,119 +338,35 @@ public class BECrucibleFurnace : BlockEntity
         if (!isPot && !coke && !System.Recipes.IsIngredient(code!))
         {
             if (IsHoleCell(cell) && server)
-                Error(byPlayer, "notaningredient");
+                Refuse(byPlayer, "notaningredient");
             return IsHoleCell(cell);
         }
         if (!server)
             return true;
         if (LidClosed)
-            return Error(byPlayer, "lidclosed");
+            return Refuse(byPlayer, "lidclosed");
         if (isPot)
-            PutPot(byPlayer, slot!, pot);
+            PutPot(byPlayer, slot, pot);
         else if (coke)
-            AddCoke(byPlayer, slot!);
+            AddCoke(byPlayer, slot);
         else
-            AddCharge(byPlayer, slot!, pot);
+            AddCharge(byPlayer, slot, pot);
         return true;
     }
 
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a furnace with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
+    /// <summary>The last stage in: the lid goes in open, and the damper open.</summary>
+    protected override void OnAssemblyChanged()
     {
-        var controls = byPlayer.Entity.Controls;
-        return _build is { Complete: false }
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fills the next stage with nothing taken.</summary>
-    public bool FillNextStage(IPlayer? byPlayer)
-    {
-        if (_build is not { } build || !build.FillNext())
-            return false;
-        StageFitted(byPlayer);
-        return true;
-    }
-
-    /// <summary>Fits what the next stage takes of the stack in <paramref name="slot"/> (server side);
-    /// false, with an error to the player, when the rules say no. The fitted items are taken from the
-    /// slot unless the player is in creative mode.</summary>
-    public bool TryFit(ItemSlot slot, IPlayer? byPlayer)
-    {
-        if (_build is not { } build || slot.Itemstack is not { } stack)
-            return false;
-        string code = stack.Collectible.Code.ToString();
-        int? stage = build.Next;
-        var fit = build.Fit(code, stack.StackSize);
-        switch (fit.Verdict)
-        {
-            case BuildVerdict.Fits:
-                break;
-            case BuildVerdict.OutOfOrder:
-                return Error(byPlayer, "error-order", StageName(build.Next));
-            case BuildVerdict.Enough:
-                return Error(byPlayer, "error-enough", StageName(build.Next));
-            case BuildVerdict.OtherBrick:
-                return Error(byPlayer, "error-otherbrick", BrickName(build.BrickType));
-            case BuildVerdict.UnknownBrick:
-                return Error(byPlayer, "error-unknownbrick");
-            default:
-                return Error(byPlayer, "error-notamaterial");
-        }
-        if (byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(fit.Count);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        if (stage is { } s && build.StageComplete(s))
-            StageFitted(byPlayer);
-        else
-            MarkDirty(true);
-        return true;
-    }
-
-    /// <summary>A stage is complete: with the last (the lid and damper) the lid goes in open, and the
-    /// damper open.</summary>
-    private void StageFitted(IPlayer? byPlayer)
-    {
-        if (Complete)
+        if (Built)
         {
             _lidOpen = true;
             _damper = Damper.Open;
         }
-        MarkDirty(true);
     }
 
-    /// <summary>A stage's name as the block info and the errors show it.</summary>
-    public string StageName(int? stage) =>
-        stage is { } s && _build != null ? Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-stage-" + _build.Stages[s].Requires) : "";
-
-    public static string BrickName(string? type) =>
-        type == null ? "" : Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-brick-" + type);
-
-    private void Cap(IPlayer byPlayer, ItemSlot slot)
-    {
-        _capped = true;
-        if (byPlayer.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(1);
-            slot.MarkDirty();
-        }
-        var at = WorldPoint(new Float3(Rig!.OutletCell.X + 0.5f, Rig.OutletCell.Y + 1, Rig.OutletCell.Z + 0.5f));
-        Api.World.PlaySoundAt(CapSound, at.X, at.Y, at.Z, byPlayer);
-        MarkDirty(true);
-    }
-
-    private void Uncap(IPlayer byPlayer)
-    {
-        _capped = false;
-        if (CrucibleFurnaceSystem.Resolve(Api.World, Rig!.OutletCap.Code) is { } plate)
-            Give(byPlayer, new ItemStack(plate, Rig.OutletCap.Quantity));
-        var at = WorldPoint(new Float3(Rig.OutletCell.X + 0.5f, Rig.OutletCell.Y + 1, Rig.OutletCell.Z + 0.5f));
-        Api.World.PlaySoundAt(CapSound, at.X, at.Y, at.Z, byPlayer);
-        MarkDirty(true);
-    }
+    /// <summary>The next stage's name, as the errors show it.</summary>
+    private string NextStageName() =>
+        Assembly?.Build is { Next: { } next } build ? MachineText.StageName(Machine, build.Stages[next]) : "";
 
     /// <summary>Whether the player can touch the furnace's hot parts: it is not too hot to touch, or
     /// they hold tongs (any <c>heatResistant</c> item) in the off hand.</summary>
@@ -577,7 +380,7 @@ public class BECrucibleFurnace : BlockEntity
         if (!LidFitted)
             return false;
         if (!CanTouch(byPlayer))
-            return Error(byPlayer, "lidhot");
+            return Refuse(byPlayer, "lidhot");
         _lidOpen = !_lidOpen;
         _lidMovedMs = Api.World.ElapsedMilliseconds;
         var at = WorldPoint(Rig!.Mouth);
@@ -601,7 +404,7 @@ public class BECrucibleFurnace : BlockEntity
     {
         if (_pots[i] != null)
         {
-            Error(byPlayer, "haspot");
+            Refuse(byPlayer, "haspot");
             return;
         }
         var stack = slot.Itemstack!;
@@ -622,7 +425,7 @@ public class BECrucibleFurnace : BlockEntity
         int room = Config.CokeCapacity - (int)Math.Ceiling(_heat.Coke - 1e-9);
         if (room <= 0)
         {
-            Error(byPlayer, "cokefull", Config.CokeCapacity);
+            Refuse(byPlayer, "cokefull", Config.CokeCapacity);
             return;
         }
         int n = Math.Min(room, slot.StackSize);
@@ -638,17 +441,17 @@ public class BECrucibleFurnace : BlockEntity
     {
         if (_pots[i] is not { } pot)
         {
-            Error(byPlayer, "nopot");
+            Refuse(byPlayer, "nopot");
             return;
         }
         if (pot.Frozen)
         {
-            Error(byPlayer, "frozen");
+            Refuse(byPlayer, "frozen");
             return;
         }
         if (!pot.TakesCharge(System.Recipes))
         {
-            Error(byPlayer, "molten");
+            Refuse(byPlayer, "molten");
             return;
         }
         var stack = slot.Itemstack!;
@@ -657,7 +460,7 @@ public class BECrucibleFurnace : BlockEntity
         var add = pot.Add(System.Recipes, code, slot.StackSize, Config.PotCapacityUnits);
         if (add.Count <= 0)
         {
-            Error(byPlayer, "refused-" + add.Refusal.ToString().ToLowerInvariant(), Config.PotCapacityUnits);
+            Refuse(byPlayer, "refused-" + add.Refusal.ToString().ToLowerInvariant(), Config.PotCapacityUnits);
             return;
         }
         Chill(add.Count * PotRecipes.UnitsOf(code), itemTemperature);
@@ -675,7 +478,7 @@ public class BECrucibleFurnace : BlockEntity
         if (_pots[i] is not { } pot)
             return false;
         if (!CanTouch(byPlayer))
-            return Error(byPlayer, "needtongs");
+            return Refuse(byPlayer, "needtongs");
         double t = _heat.Temperature;
         var world = Api.World;
         var recipe = System.Recipes.Get(pot.Melted);
@@ -705,12 +508,12 @@ public class BECrucibleFurnace : BlockEntity
                 // frozen in the furnace: the pot is lost, the metal knocked out
                 world.PlaySoundAt(CrackSound, at.X, at.Y, at.Z, null);
                 Give(byPlayer, Bits(metal, units / Stainless.UnitsPerLump));
-                Error(byPlayer, "frozenhole", units / Stainless.UnitsPerLump);
+                Refuse(byPlayer, "frozenhole", units / Stainless.UnitsPerLump);
                 return true;
             }
             // what had not dissolved (or put the bath off every ratio) goes to the slag
             if (pot.Charge.Count > 0)
-                Error(byPlayer, "additionslost", PotStack.Describe(world, pot.Charge), Lang.Get("material-" + (ingot.Variant["metal"] ?? "")));
+                Refuse(byPlayer, "additionslost", PotStack.Describe(world, pot.Charge), Lang.Get("material-" + (ingot.Variant["metal"] ?? "")));
             var smelted = new ItemStack(world.GetBlock(new AssetLocation(CrucibleFurnaceSystem.SmeltedPot)));
             (smelted.Collectible as BlockSmeltedContainer)?.SetContents(smelted, metal, PotRecipes.Products(recipe, units).Units);
             PotStack.SetHeats(smelted, heats);
@@ -727,7 +530,7 @@ public class BECrucibleFurnace : BlockEntity
         if (heats >= Config.PotHeats)
         {
             world.PlaySoundAt(CrackSound, at.X, at.Y, at.Z, null);
-            Error(byPlayer, "potcracked");
+            Refuse(byPlayer, "potcracked");
         }
         else
         {
@@ -766,7 +569,7 @@ public class BECrucibleFurnace : BlockEntity
             Api.World.SpawnItemEntity(stack, WorldPoint(Rig?.Mouth ?? new Float3(0.5f, 2, 1)).Add(0, 0.2, 0));
     }
 
-    private bool Error(IPlayer? byPlayer, string key, params object[] args)
+    private bool Refuse(IPlayer? byPlayer, string key, params object[] args)
     {
         if (!key.StartsWith("error-", StringComparison.Ordinal))
             key = "error-" + key;
@@ -777,10 +580,20 @@ public class BECrucibleFurnace : BlockEntity
 
     // ---- Lighting ----
 
+    /// <summary>Lit with a firestarter or a torch on any of its cells, as the forge is: once it is built, when it can be.</summary>
+    public override bool Ignitable => true;
+
+    public override bool Burning => _heat.Lit;
+
+    public override string? CannotIgnite() =>
+        CannotLight() is { } why ? Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-error-" + why, NextStageName()) : null;
+
+    public override void Ignite(IPlayer? byPlayer) => TryLight(byPlayer);
+
     /// <summary>Whether a firestarter or torch can light the furnace now; else the error key.</summary>
     public string? CannotLight()
     {
-        if (!Complete)
+        if (!Built)
             return "notbuilt";
         if (_heat.Lit)
             return "lit";
@@ -797,12 +610,13 @@ public class BECrucibleFurnace : BlockEntity
     public bool TryLight(IPlayer? byPlayer)
     {
         if (CannotLight() is { } why)
-            return Error(byPlayer, why, StageName(_build?.Next));
+            return Refuse(byPlayer, why, NextStageName());
         Update();
         _heat = _heat with { Lit = true };
         var at = WorldPoint(Rig!.Mouth);
         Api.World.PlaySoundAt(IgniteSound, at.X, at.Y, at.Z, null);
         MarkDirty();
+        RefreshState();
         return true;
     }
 
@@ -811,18 +625,16 @@ public class BECrucibleFurnace : BlockEntity
     /// <summary>What breaking the furnace gives besides its frame: every fitted item, the outlet's cap,
     /// the unburnt coke, each pot with its charge; a melted charge as its products (molten metal as
     /// bits), the pot lost.</summary>
-    public List<ItemStack> ContentDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        var drops = new List<ItemStack>();
         var world = Api.World;
-        foreach (var drop in _build?.Returns() ?? [])
-            if (CrucibleFurnaceSystem.Resolve(world, drop.Code) is { } item)
-                drops.Add(new ItemStack(item, drop.Count));
-        if (_capped && Rig is { } rig && CrucibleFurnaceSystem.Resolve(world, rig.OutletCap.Code) is { } plate)
-            drops.Add(new ItemStack(plate, rig.OutletCap.Quantity));
+        foreach (var drop in base.AssemblyDrops())
+            yield return drop;
+        if (Rig is { } rig && _firing.Drop(world, rig.Flue) is { } cap)
+            yield return cap;
         int coke = (int)Math.Floor(_heat.Coke + 1e-9);
         if (coke > 0 && world.GetItem(new AssetLocation("game", "coke")) is { } cokeItem)
-            drops.Add(new ItemStack(cokeItem, coke));
+            yield return new ItemStack(cokeItem, coke);
         foreach (var pot in _pots)
         {
             if (pot == null)
@@ -835,52 +647,60 @@ public class BECrucibleFurnace : BlockEntity
                     var stack = recipe.Pourable ? Bits(new ItemStack(output), products.Units / Stainless.UnitsPerLump)
                         : products.Lumps > 0 ? new ItemStack(output, products.Lumps) : null;
                     if (stack != null)
-                        drops.Add(stack);
+                        yield return stack;
                 }
                 if (products.Byproducts > 0 && recipe.Byproduct != null && CrucibleFurnaceSystem.Resolve(world, recipe.Byproduct) is { } slag)
-                    drops.Add(new ItemStack(slag, products.Byproducts));
+                    yield return new ItemStack(slag, products.Byproducts);
                 continue;
             }
             var back = new ItemStack(world.GetBlock(new AssetLocation(CrucibleFurnaceSystem.FiredPot)));
             PotStack.SetHeats(back, pot.Heats);
             PotStack.SetCharge(back, pot.Charge);
-            drops.Add(back);
+            yield return back;
         }
-        return drops;
     }
 
-    public override void OnBlockRemoved()
+    // ---- Help ----
+
+    /// <summary>The build's help, then the cap's once the lining is in.</summary>
+    public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
     {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
+        var help = base.InteractionHelp(forPlayer).ToList();
+        if (!Built && LiningIn && CapHelp() is { } cap)
+            help.Add(cap);
+        return help.ToArray();
     }
 
-    public override void OnBlockUnloaded()
+    private WorldInteraction? CapHelp()
     {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
+        if (Rig is not { } rig || FurnaceFiring.CapStack(Api.World, rig.Flue) is not { } plate)
+            return null;
+        return Capped
+            ? new WorldInteraction { ActionLangCode = HelpKey("uncap"), MouseButton = EnumMouseButton.Right }
+            : new WorldInteraction { ActionLangCode = HelpKey("cap"), MouseButton = EnumMouseButton.Right, Itemstacks = [plate] };
     }
 
-    private void DisposeRenderer()
+    private static string HelpKey(string action) => CrucibleFurnaceSystem.Domain + ":blockhelp-cruciblefurnace-" + action;
+
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
     {
-        _renderer?.Dispose();
-        _renderer = null;
+        var world = Api.World;
+        ItemStack[] Stacks(string code) => CrucibleFurnaceSystem.Resolve(world, code) is { } c ? [new ItemStack(c)] : [];
+        if (CapHelp() is { } cap)
+            help.Add(cap);
+        help.Add(new WorldInteraction { ActionLangCode = HelpKey("lid"), MouseButton = EnumMouseButton.Right });
+        help.Add(new WorldInteraction { ActionLangCode = HelpKey("damper"), MouseButton = EnumMouseButton.Right });
+        help.Add(new WorldInteraction { ActionLangCode = HelpKey("pot"), MouseButton = EnumMouseButton.Right, Itemstacks = Stacks(CrucibleFurnaceSystem.FiredPot) });
+        help.Add(new WorldInteraction { ActionLangCode = HelpKey("coke"), MouseButton = EnumMouseButton.Right, Itemstacks = Stacks("game:coke") });
+        help.Add(new WorldInteraction { ActionLangCode = HelpKey("light"), MouseButton = EnumMouseButton.Right, Itemstacks = FurnaceFiring.IgniteStacks(world.Api) });
+        help.Add(new WorldInteraction { ActionLangCode = HelpKey("pull"), MouseButton = EnumMouseButton.Right });
     }
 
     // ---- Client ----
 
-    // The client's own: the client removes a broken furnace at once, and an update the server sent
-    // before it heard of the break then brings the block entity back over air: drop it. A lit furnace
-    // flames at the hole while its lid is open and smokes at its row's chimney.
-    private void OnClientTick(float dt)
+    // A lit furnace flames at the hole while its lid is open and smokes at its row's chimney.
+    protected override void OnClientTick(float dt)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockCrucibleFurnace)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
         if (Api is not ICoreClientAPI capi || Rig is not { } rig || !_heat.Lit)
             return;
         if ((_particleSeconds += dt) < 0.3f)
@@ -911,26 +731,16 @@ public class BECrucibleFurnace : BlockEntity
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>After the shared lines (the build, the state): the brick, then once it is built the lid, the
+    /// damper, the fire, the coke, each pot, and the row's draught.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        if (_build is not { } build || Rig is not { } rig)
+        if (Rig is null)
             return;
         string L(string key, params object[] args) => Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-info-" + key, args);
-        string ItemName(string code) => CrucibleFurnaceSystem.Resolve(Api.World, code) is { } c ? new ItemStack(c).GetName() : code;
-
-        // the build
-        if (build.Next is { } next)
-        {
-            int done = next - 1;
-            dsc.AppendLine(L("stage", done < 0 ? Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-stage-frame") : StageName(done)));
-            var missing = build.Stages[next].Materials.Select((m, i) => (m, i)).Where(p => build.Missing(next, p.i) > 0)
-                .Select(p => $"{build.Missing(next, p.i)} {(build.ItemOf(next, p.i) is { } item ? ItemName(item) : Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-material-anybrick"))}");
-            dsc.AppendLine(L("next", StageName(next), string.Join(", ", missing)));
-        }
-        if (build.BrickType is { } brick)
+        if (BrickType is { } brick)
             dsc.AppendLine(L("brick", BrickName(brick)));
-        if (!build.Complete)
+        if (!Built)
         {
             if (LiningIn)
                 AppendRow(dsc, L);
@@ -1040,14 +850,14 @@ public class BECrucibleFurnace : BlockEntity
     private void AppendRow(StringBuilder dsc, System.Func<string, object[], string> L)
     {
         string Line(string key, params object[] args) => L(key, args);
-        var row = _row;
+        var row = Row;
         var c = Config;
         string chimney = row.ChimneyAt is { } at ? Where(at) : "";
         string members = row.Count > 1 ? Line("row", row.Count, chimney) : "";
         dsc.AppendLine(row.Problem switch
         {
             RowProblem.TooManyFurnaces => Line("draught-toomany", c.MaxFurnacesInRow),
-            RowProblem.NoChimney => Line(_capped && row.Count == 1 ? "draught-capped" : "draught-none", c.MinChimneyHeight),
+            RowProblem.NoChimney => Line(Capped && row.Count == 1 ? "draught-capped" : "draught-none", c.MinChimneyHeight),
             RowProblem.OutletOpen => Line("draught-open", Where(row.OpenOutlet ?? 0), chimney),
             RowProblem.ChimneyTooShort => Line("draught-short", row.ChimneyHeight, c.MinChimneyHeight),
             RowProblem.NoChimneyTop => Line("draught-notop", row.ChimneyHeight),
@@ -1060,22 +870,23 @@ public class BECrucibleFurnace : BlockEntity
             dsc.AppendLine(members);
     }
 
+    /// <summary>For a wrench: the fire's exact heat and coke.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (!Built)
+            return;
+        string Num(double x, string format) => x.ToString(format, global::System.Globalization.CultureInfo.InvariantCulture);
+        dsc.AppendLine(Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-detail-fire", Num(_heat.Temperature, "0.0"), Num(_heat.Coke, "0.00")));
+    }
+
+    public static string BrickName(string? type) =>
+        type == null ? "" : Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-brick-" + type);
+
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var key in tree.Select(e => e.Key).Where(k => k.StartsWith(BuildKeyPrefix, StringComparison.Ordinal)).ToList())
-            tree.RemoveAttribute(key);
-        if (_build != null)
-        {
-            foreach (var (key, n) in _build.Snapshot())
-                tree.SetInt(BuildKeyPrefix + key, n);
-            if (_build.BrickType != null)
-                tree.SetString("brickType", _build.BrickType);
-            else
-                tree.RemoveAttribute("brickType");
-        }
         for (int i = 0; i < _pots.Length; i++)
         {
             string k = "pot" + i;
@@ -1104,13 +915,7 @@ public class BECrucibleFurnace : BlockEntity
         tree.SetDouble("lastHours", _lastHours);
         tree.SetBool("lidOpen", _lidOpen);
         tree.SetInt("damper", (int)_damper);
-        tree.SetBool("capped", _capped);
-        tree.SetInt("rowFirst", _row.First);
-        tree.SetInt("rowCount", _row.Count);
-        tree.SetInt("rowChimneyAt", _row.ChimneyAt ?? int.MinValue);
-        tree.SetInt("rowChimneyHeight", _row.ChimneyHeight);
-        tree.SetInt("rowOpenOutlet", _row.OpenOutlet ?? int.MinValue);
-        tree.SetInt("rowProblem", (int)_row.Problem);
+        _firing.Write(tree);
         if (_draught is { } d)
         {
             tree.SetDouble("draughtRate", d.HeatingPerHour);
@@ -1134,14 +939,6 @@ public class BECrucibleFurnace : BlockEntity
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        if (CrucibleFurnaceSystem.Of(worldForResolving.Api).Rig is { } rig)
-        {
-            var counts = new Dictionary<string, int>();
-            foreach (var e in tree)
-                if (e.Key.StartsWith(BuildKeyPrefix, StringComparison.Ordinal) && e.Value is IntAttribute n)
-                    counts[e.Key[BuildKeyPrefix.Length..]] = n.value;
-            _build = FurnaceBuild.Restore(rig.Stages, rig.Bricks, counts, tree.GetString("brickType"));
-        }
         for (int i = 0; i < _pots.Length; i++)
         {
             if (tree["pot" + i] is not ITreeAttribute p)
@@ -1170,10 +967,7 @@ public class BECrucibleFurnace : BlockEntity
             _lidMovedMs = Api.World.ElapsedMilliseconds;
         _lidOpen = lidOpen;
         _damper = (Damper)Math.Clamp(tree.GetInt("damper"), 0, 2);
-        _capped = tree.GetBool("capped");
-        int? Opt(string key) => tree.GetInt(key, int.MinValue) is var v && v != int.MinValue ? v : null;
-        _row = new FurnaceRow(tree.GetInt("rowFirst"), Math.Max(1, tree.GetInt("rowCount", 1)), Opt("rowChimneyAt"), tree.GetInt("rowChimneyHeight"),
-            Opt("rowOpenOutlet"), (RowProblem)tree.GetInt("rowProblem", (int)RowProblem.NoChimney));
+        _firing.Read(tree);
         _draught = tree.HasAttribute("draughtRate")
             ? new Draught(tree.GetDouble("draughtRate"), tree.GetDouble("draughtMax"), tree.GetInt("draughtHeight"))
             : null;

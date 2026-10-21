@@ -5,9 +5,9 @@
 // Rocker or OreProcessing off.
 {
 	code: "rocker",
-	class: "seraphhorizons.Rocker",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.Rocker",
-	// No HorizontalOrientable: BlockRocker.TryPlaceBlock picks the side so the handle is the player's.
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the handle is the player's.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
 	],
@@ -24,6 +24,8 @@
 		"concentrate": { base: "game:item/resource/nugget/nativegold" }
 	},
 	attributes: {
+		// It stands on its rockers on the block below: placed only on a solid top, and broken when it goes.
+		machine: { needsSolidGround: true },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:rocker-handbook-card-title", text: "seraphhorizons:rocker-handbook-card-text" },

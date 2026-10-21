@@ -1,5 +1,6 @@
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 
 namespace SeraphHorizons.Mod.Ore.Processing;
 
@@ -11,6 +12,9 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// for an item whose code doesn't name them its ore and grade (<c>ore</c>, <c>grade</c>). A concentrate off the
 /// whole ideal route is marked <c>oreWhole</c> (<see cref="ConcentratorPass.Whole"/>). Stacks that differ in
 /// any of these don't merge, which is intended: classified and unclassified rock are different feed.
+/// A bar of bullion carries the share of its units smelted from whole-route stacks (<c>oreWholeShare</c>,
+/// <see cref="Bullion.WholeShareAttribute"/>, set by <see cref="BullionWhole"/>); bars of one ore merge whatever
+/// their shares, at the weighted share (<see cref="ItemOreProduct"/>).
 /// </summary>
 public static class OreStreamAttributes
 {
@@ -32,6 +36,24 @@ public static class OreStreamAttributes
         if (whole) stack.Attributes.SetBool(Whole, true);
         else stack.Attributes.RemoveAttribute(Whole);
     }
+
+    public const string WholeShare = Bullion.WholeShareAttribute;
+
+    /// <summary>The share of a bar's units off the whole route; 0 for none (or any other stack).</summary>
+    public static double WholeShareOf(ItemStack stack) => Bullion.Clamp(stack.Attributes.GetDouble(WholeShare));
+
+    /// <summary>Sets a bar's whole-route share, removing it for none.</summary>
+    public static void SetWholeShare(ItemStack stack, double share)
+    {
+        share = Bullion.Clamp(share);
+        if (share > 0) stack.Attributes.SetDouble(WholeShare, share);
+        else stack.Attributes.RemoveAttribute(WholeShare);
+    }
+
+    /// <summary>Whether two stacks are the same but for what stacks ignore and a bar's whole-route share: bars of one
+    /// ore a machine takes into one slot, merging their shares.</summary>
+    public static bool SameBar(IWorldAccessor world, ItemStack a, ItemStack b) =>
+        a.Equals(world, b, [.. GlobalConstants.IgnoredStackAttributes, WholeShare]);
 
     /// <summary>The form of an ore item: the pack's rock forms by their <c>oreForm</c>, vanilla's ore item raw.</summary>
     public static OreForm? FormOf(CollectibleObject item) => item.Attributes?["oreForm"].AsString(null) switch

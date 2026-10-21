@@ -225,6 +225,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     public string Code => OrderCode;
 
+    /// <summary>Where it was ordered from, which it walks back to.</summary>
+    private Vec3d? Home => home;
+
     public MarkArea Area => area;
 
     /// <summary>Blocks it broke.</summary>
@@ -506,9 +509,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 // waiting for the stair to come free to climb out by
                 if (_stairWait)
                     return GoHome(eidolon);
-                // a crew by routes: walking at one standing, it stops short and sets off again a little later
-                // (a few times: one that stays in its way for good ends its walk, MineReturn.Bumps)
-                if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
+                // walking at one standing, it stops short and sets off again a little later, whatever its job's
+                // dispatch was (Parts); a few times: one that stays in its way for good ends its walk (MineReturn.Bumps),
+                // and falling in behind one ahead in single file (Untangle, InFile) is one of those stops
+                if (_nav!.Active && Parts && WalksInto(eidolon))
                 {
                     _nav.Stop();
                     _bumpedAt = now;
@@ -942,6 +946,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool CrewByRoutes => EidolonMinePlans.Routing && _job != null && Cells.RouteChoice.Index is { } chosen
         && chosen != MineRoutePlanner.TodayIndex;
 
+    /// <summary>Whether it parts from one its box is in and stops short of one standing that it walks at on its
+    /// way home (<see cref="Untangle"/>, <see cref="WalksInto"/>): a crew by routes to its job's end, and any
+    /// member walking home with its job done and reported, whatever its job's dispatch. Nothing is mined any
+    /// more, so none of today's dispatch is left to keep to, and nothing of it parts two walking home: two in
+    /// single file along a trench 5 wide, the one behind pressed into the one ahead for 11 seconds (#1329).</summary>
+    private bool Parts => CrewByRoutes || _phase == Phase.Return && _done;
+
     private bool RoutedJob => EidolonMinePlans.Routing && _job != null && Cells.Routes is { Today: false } r && r.PlanVersion == Cells.PlanVersion
         && Cells.RoutesStalledPlan != Cells.PlanVersion;
 
@@ -1106,13 +1117,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// it. Its step away is left to go on while their boxes still touch (<see cref="EidolonParting.StepSeconds"/>
     /// at most: a climb keeps its box over its foot until near the top, and stopped and begun again at every
     /// look it never got there, #971), and two still touching after <see cref="EidolonParting.SwapSeconds"/>
-    /// change over, the one that waited stepping away; still touching after <see cref="EidolonParting.GiveUpSeconds"/>,
-    /// they stop parting until they come apart and each goes on with its order. Never while it strikes. True when it
-    /// acted this tick.
+    /// change over, the one that waited stepping away. Never while it strikes. And any member walking home with
+    /// its job done (<see cref="Parts"/>), whatever its job's dispatch; two walking home in single file part by
+    /// the way they go, not their ids (<see cref="InFile"/>): the one behind stops and falls in behind, setting
+    /// off again a little later (one of its <see cref="MineReturn.Bumps"/>), and the one ahead walks on, neither
+    /// stepping aside (one stepping aside in a trench only stands in the other's way again). Still touching
+    /// after <see cref="EidolonParting.GiveUpSeconds"/>, they stop parting until they come apart and each goes on
+    /// with its order (a walk home then pressing on getting no nearer is stopped short, <see cref="MineReturn.StallSeconds"/>).
+    /// True when it acted this tick.
     /// </summary>
     private bool Untangle(EntityLaborEidolon eidolon, double now)
     {
-        if (_phase == Phase.Strike || !CrewByRoutes)
+        if (_phase == Phase.Strike || !Parts)
         {
             _touchSince = null;
             _tangledSince = null;
@@ -1156,6 +1172,16 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _partingSince = null;
         if ((_touchSince ??= now) > now - EidolonParting.TouchSeconds)
             return false;
+        if (_phase == Phase.Return && InFile(eidolon, touching) is { } behind)
+        {
+            _touchSince = now;
+            // ahead: it walks on, its navigator not stopping for one behind it going its way
+            if (!behind)
+                return false;
+            _nav?.Stop();
+            _bumpedAt = now;
+            return true;
+        }
         // it moves for one with a lower id, one striking, and one with no mining order or home (not walking);
         // the two change over while they stay touching
         bool moves = EidolonParting.Moves(touching.Any(o => o.EntityId < id
@@ -1180,6 +1206,55 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 break;
         }
         return true;
+    }
+
+    /// <summary>Walking home, whether it is behind (true) or ahead of (false) every eidolon it touches in single
+    /// file: each of them walking home too, going much its way (their headings, by their motion or the end of
+    /// their path, within 60 degrees), and the one behind the other along their mean heading, so that of two
+    /// exactly one is behind and they never both stop. Only on one level with the one ahead walking: the one
+    /// behind waits on it walking on, so with it standing (stopped short itself) both would stand, and on a
+    /// climb (#1360's queue run: two standing 2.4 s at the foot and top of a step out of the open pit, each
+    /// waiting on the other) they part as before. Null when any of them is not so (one at work, one coming
+    /// the other way, one beside it, one standing ahead, one a level off): they part by the rule of ids.</summary>
+    private bool? InFile(EntityLaborEidolon eidolon, List<EntityLaborEidolon> touching)
+    {
+        if (Heading(eidolon, home) is not { } mine)
+            return null;
+        bool? behind = null;
+        foreach (var o in touching)
+        {
+            if (o.Orders?.Current is not MineOrder { _phase: Phase.Return } other || Heading(o, other.Home) is not { } theirs
+                || mine.X * theirs.X + mine.Z * theirs.Z < 0.5)
+                return null;
+            // along their mean heading, the same for both: where one finds the other ahead, the other finds it behind
+            double hx = mine.X + theirs.X, hz = mine.Z + theirs.Z;
+            double along = (o.Pos.X - eidolon.Pos.X) * hx + (o.Pos.Z - eidolon.Pos.Z) * hz;
+            if (Math.Abs(along) < 0.1 || Math.Abs(o.Pos.Y - eidolon.Pos.Y) >= 1 || !Walking(along > 0 ? o : eidolon))
+                return null;
+            behind = behind == true || along > 0;
+        }
+        return behind;
+    }
+
+    private static bool Walking(EntityLaborEidolon e) =>
+        Math.Sqrt(e.Pos.Motion.X * e.Pos.Motion.X + e.Pos.Motion.Z * e.Pos.Motion.Z) >= EidolonNavigator.StandingMotion;
+
+    /// <summary>The way it goes, a horizontal unit: by its motion walking, else to the end of its path, else to
+    /// <paramref name="home"/>; null when it has none.</summary>
+    private static (double X, double Z)? Heading(EntityLaborEidolon eidolon, Vec3d? home)
+    {
+        double x = eidolon.Pos.Motion.X, z = eidolon.Pos.Motion.Z;
+        if (Math.Sqrt(x * x + z * z) < EidolonNavigator.StandingMotion)
+        {
+            if (eidolon.WalkGoal is { } goal)
+                (x, z) = (goal.X - eidolon.Pos.X, goal.Z - eidolon.Pos.Z);
+            else if (home != null)
+                (x, z) = (home.X - eidolon.Pos.X, home.Z - eidolon.Pos.Z);
+            else
+                return null;
+        }
+        double len = Math.Sqrt(x * x + z * z);
+        return len < 1e-6 ? null : (x / len, z / len);
     }
 
     /// <summary>Stopped short of one standing: it steps away to the nearest place apart from every other

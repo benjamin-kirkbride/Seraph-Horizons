@@ -333,6 +333,17 @@ tank), the oil (each listed oil in the variant, with the litres one cylinder dra
 travel, 1.125 `blocks`, `turnsPerUnit` each), `kept`, `wear` (`dividedByOilFill`, as the gear cutter's kit) and
 `oil` (`points` drained per cylinder from a `tank`). The cylinder mold's casting is an ordinary `casting` record.
 
+**The slitting mill** (type `slittingmill`, shape `machine`): one record per plate metal, id
+`slittingmill|game:metalplate-<metal>|0` (copper, tin bronze, bismuth bronze, black bronze, brass, silver, gold, iron,
+meteoric iron, steel, molybdochalkos and electrum). The ingredients are the plate (consumed), what the five stages are
+built of, summed by item (ten slitter cutters, six rods, the Jonas gears, one metal parts, a block, the Jonas gearbox, the
+heavy bracket, a plate and an oak plank, each listed in the variant; all in `machine.kept`), the knife (a cleaver, `isTool`,
+its `toolDurabilityCost` the metal's wear a plate; the variant lists the steel, meteoric iron and iron cleavers), the oil
+(each listed oil in the variant, with the litres a plate drains) and the machine (role `station`); the output is the
+metal's nails and strips (`game:metalnailsandstrips-<metal>`, 20). `machine` has `power` (`mechanical`), the `turns` of
+the input shaft a plate takes, the `work` it is made of (5 `strokes` of the knife, `turnsPerUnit` each), `kept`, `wear`
+(`fixed`) and `oil` (`points` drained per plate from a `tank`). `extra.metal` is the plate's metal.
+
 **The press brake** (type `pressbrake`, shape `machine`): one record per half plate metal, id
 `pressbrake|seraphhorizons:halfplate-<metal>|0`. The ingredients are the half plate (consumed), the
 screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
@@ -626,8 +637,10 @@ wildcard over the host rock, every rock's block an alternative in the variant); 
 second's water from a pipe tapping it: Hydrate or Diedrate's `waterportion-fresh-well-clean` (the
 game's `waterportion` without Hydrate, whatever the spring fills a container with) in portions,
 with its `litres`. Nothing is consumed: a spring never runs dry. `extra` has the `kind`, the
-`litresPerSecond` (the server's `SpringsSettings`) and the feed `pressure` in atm; `requirements`
-says where springs are found, that a pipe taps one, and that it fills containers and is drunk from.
+`litresPerSecond` (the server's `SpringsSettings`), the feed `pressure` in atm and, when it is above 0,
+`pumpBoostPerTurn` (what a mechanical pump drawing on the spring's run adds per turn a second of its
+shaft, as a share of the rate); `requirements` says where springs are found, that a pipe taps one,
+that it fills containers and is drunk from, and, with the boost, what a pump makes it give.
 
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
@@ -675,6 +688,10 @@ switch off, lack it.
   `config/ore-processing.json` has them.
 - `machines`: each machine's `recovery`, keyed as in the config (1 where the config gives none:
   a machine that loses nothing).
+- `richLeadSilver`, optional (exports before it lack it; the site then takes the mod's default,
+  0.1): the share of a rich lead bar's lead that is silver, the config's `bullion.richLeadSilver`
+  as the mod reads it. The Parkes kettle takes only silver-lead leaner than this (plain galena's,
+  not argentiferous galena's), which decides whether it is on an ore's routes and its last step.
 - `ores`: every ore with crushed ore items, by code: `ore`, `name` (the game's `ore-<ore>` lang
   entry), and the mod's reading of it (`OreRecovery.Ore`): `metal`, `class`, `density`, `free`,
   `unparted`, `byProducts` (`metal`, `share`, `partedBy`); and `units`, the metal units a raw ore

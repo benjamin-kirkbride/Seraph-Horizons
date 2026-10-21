@@ -18,6 +18,9 @@ public enum Refusal
     NoValue,
     /// <summary>Money.</summary>
     Currency,
+    /// <summary>A schematic (config/schematic-gates.json "sold") or a rolled copy of one: traders sell
+    /// them from their catalogs and never buy them back.</summary>
+    Schematic,
 }
 
 /// <summary>Who prices what, for an <see cref="IPriceModifier"/>.</summary>

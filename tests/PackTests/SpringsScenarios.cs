@@ -16,9 +16,10 @@ namespace SeraphHorizons.PackTests;
 // seraphhorizons, Springs (Springs/): the rivulet generator places springs in new chunks; a spring
 // pours like the water source it replaced; a ppex pipe against it taps it, stops the pouring and
 // fills its run with water at the spring's rate; untapped, it pours again; broken, it gives its
-// rock's stones and its water drains; a rapids spring pours out of one side at a time. The
-// hand-built springs sit 40 above spawn at z -360: the pouring one at x 360, the bucket's at x 372,
-// the rapids spring at x 384 (clear of the pipe scenarios at x 300 to 320, z -300); the new chunks
+// rock's stones and its water drains; a rapids spring pours out of one side at a time; a mechanical
+// pump drawing on a spring's run makes it give more. The hand-built springs sit 40 above spawn at
+// z -360: the pouring one at x 360, the bucket's at x 372, the rapids spring at x 384, the pumped one
+// at x 396 (clear of the pipe scenarios at x 300 to 320, z -300); the new chunks
 // are generated at x -600 to -480, z 600 to 720.
 public partial class SharedWorldScenarios
 {
@@ -320,5 +321,106 @@ public partial class SharedWorldScenarios
             W.BlockAccessor.SetBlock(0, origin.AddCopy(0, y, 0));
         foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.SOUTH })
             W.BlockAccessor.SetBlock(0, spring.AddCopy(facing));
+    }
+
+    /// <summary>A ppex mechanical pump (not built, so its own tick does nothing; its work is driven
+    /// here, at a set axle speed, as ppex's DoWork allows) with a spring under the pipe below its
+    /// source port and a sealed run of ten pipes from its delivery port. ppex's pump draws only on a
+    /// fluid intake; on a spring's run it draws on the spring, which gives its rate times
+    /// (1 + PumpBoostPerTurn × the shaft's turns a second) into that run, the pump moving it on to the
+    /// delivery run (what it moves is measured, not the delivery run's volume, which ppex settles).
+    /// Stopped, the spring's extra stops. On the virtual clock.</summary>
+    [AtlasScenario(TimeoutMs = 90_000)]
+    public async Task A_mechanical_pump_on_a_springs_run_draws_it_and_makes_it_give_more()
+    {
+        // Joined first: joining takes long enough for the spring to see the pump stop.
+        var player = await CutterPlayer();
+        // Reach: the pump's three cells, its port and the eleven cells of the delivery run.
+        var origin = await CutterSite(396, -360, 16);
+        // It runs longer than a column not kept stays loaded far from every player.
+        var sapi = (ICoreServerAPI)World.Api;
+        int size = GlobalConstants.ChunkSize;
+        for (int cx = (origin.X - 16) / size; cx <= (origin.X + 16) / size; cx++)
+            for (int cz = (origin.Z - 16) / size; cz <= (origin.Z + 16) / size; cz++)
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
+        string granite = "game:rock-granite";
+        var pumpBlock = W.GetBlock(new AssetLocation("ppex:mpfluidpump-north"))
+            ?? throw new Xunit.Sdk.XunitException("no ppex:mpfluidpump-north");
+        var pumpPos = origin.AddCopy(0, 3, 0);
+        World.SetBlock("ppex:mpfluidpump-north", pumpPos);
+        await World.Ticks(2);
+        var pump = W.BlockAccessor.GetBlockEntity(pumpPos) ?? throw new Xunit.Sdk.XunitException("the pump has no block entity");
+        Assert.Equal(SpringPumpBridge.PumpTypeName, pump.GetType().FullName);
+        Assert.True(SpringPumpBridge.Bound, "the pump bridge is not bound");
+        var source = (BlockPos)AccessTools.Method(pumpBlock.GetType(), "SourceWorldPos")!.Invoke(pumpBlock, [pumpPos])!;
+        var outlet = (BlockPos)AccessTools.Method(pumpBlock.GetType(), "OutletWorldPos")!.Invoke(pumpBlock, [pumpPos])!;
+        var outFace = (BlockFacing)AccessTools.Property(pumpBlock.GetType(), "OutputFace")!.GetValue(pumpBlock)!;
+
+        // The source run: one pipe under the source port, the spring under it.
+        var feedPipe = source.DownCopy();
+        World.SetBlock(PpexPipe("ud", "copper"), feedPipe);
+        var spring = feedPipe.DownCopy();
+        World.SetBlock(SpringCode, spring);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(spring);
+        // The delivery run: ten pipes out of the delivery port, sealed by granite.
+        string axis = outFace.Axis == EnumAxis.Z ? "ns" : "we";
+        var first = outlet.AddCopy(outFace);
+        for (int i = 0; i < 10; i++)
+            World.SetBlock(PpexPipe(axis, "copper"), first.AddCopy(outFace, i));
+        World.SetBlock(granite, first.AddCopy(outFace, 10));
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(first);
+        using var clock = VirtualClock.Start(World);
+        await World.Until(() => SpringAt(spring).Tapped, 10_000);
+        Assert.True(SpringAt(spring).Tapped);
+
+        var doWork = AccessTools.DeclaredMethod(pump.GetType(), "DoWork", [typeof(float), typeof(float)]);
+        const float speed = 2f;
+        float turns = SpringPumps.TurnsPerSecond(speed);
+        float rate = SpringsSystem.Settings.NormalLitresPerSecond;
+        float extra = SpringPumps.Extra(rate, SpringsSystem.Settings.PumpBoostPerTurn, turns);
+        float pumpRate = (float)AccessTools.DeclaredMethod(pump.GetType(), "OutputAt", [typeof(float)])!.Invoke(null, [speed])!;
+        Assert.True(pumpRate > rate + extra, $"the pump's own {pumpRate} L/s would be the limit, not the spring's {rate + extra}");
+        float Delivered() => HodNetworkAcross(outlet, outFace) is { } n ? NetworkVolume(n) : 0f;
+        float moved = 0;
+        async Task Run(float seconds)
+        {
+            long end = W.ElapsedMilliseconds + (long)(seconds * 1000);
+            while (W.ElapsedMilliseconds < end)
+            {
+                long t = W.ElapsedMilliseconds;
+                await World.Until(() => W.ElapsedMilliseconds - t >= 1000, 5_000);
+                moved += (float)doWork.Invoke(pump, [speed, 1f])!;
+            }
+        }
+
+        // Warmed up (the source pipe's standing water drawn off), then measured.
+        await Run(5);
+        Assert.True(moved > 0, "the pump moved nothing from the spring's run");
+        Assert.True(SpringAt(spring).PumpTurns > 0, "the spring does not see the pump");
+        Assert.Equal(turns, SpringAt(spring).PumpTurns, 2);
+        Assert.Contains("Pumped at", ((BlockWaterSpring)W.BlockAccessor.GetBlock(spring)).GetPlacedBlockInfo(W, spring, player));
+        // What the pump moves on (its DoWork's litres, put into the delivery run) is what the spring
+        // gives its run: the delivery run's own volume is ppex's to settle.
+        float m0 = moved;
+        long t0 = W.ElapsedMilliseconds;
+        await Run(6);
+        float litres = moved - m0;
+        float seconds = (W.ElapsedMilliseconds - t0) / 1000f;
+        output.WriteLine($"pumped {litres:0.##} L in {seconds:0.##} s: {litres / seconds:0.##} L/s, the spring {rate} + {extra:0.##} L/s at {turns:0.##} turns a second; delivery run holds {Delivered():0.##} L");
+        Assert.True(Delivered() > 0, "the delivery run holds no water");
+        Assert.True(litres > rate * (seconds + SpringFlow.MaxCatchUpSeconds), $"{litres} L in {seconds} s is no more than the unpumped spring's {rate} L/s");
+        Assert.True(litres <= (rate + extra) * (seconds + SpringFlow.MaxCatchUpSeconds) + 0.01f, $"{litres} L in {seconds} s is over {rate + extra} L/s");
+        Assert.True(litres >= (rate + extra) * (seconds - 2), $"{litres} L in {seconds} s is well under {rate + extra} L/s");
+
+        // The pump stopped: the spring's extra stops.
+        long t1 = W.ElapsedMilliseconds;
+        await World.Until(() => SpringAt(spring).PumpTurns == 0 && W.ElapsedMilliseconds - t1 > 1000, 10_000);
+        Assert.Equal(0f, SpringAt(spring).PumpTurns);
+
+        W.BlockAccessor.SetBlock(0, spring);
+        W.BlockAccessor.SetBlock(0, feedPipe);
+        for (int i = 0; i <= 10; i++)
+            W.BlockAccessor.SetBlock(0, first.AddCopy(outFace, i));
+        W.BlockAccessor.BreakBlock(pumpPos, null);
     }
 }

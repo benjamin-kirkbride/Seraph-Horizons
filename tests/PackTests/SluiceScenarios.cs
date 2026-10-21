@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // by its stages, fed by hand, watered by code (FillWater, as a ppex pipe would), washing on the virtual
 // clock: concentrate down into a chest under its third block, tailings into a chest beyond its tail or onto
 // a gravel heap there; rich gravel and bog iron on the line. Built 40 above spawn at x 600 to 640, z 600.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     /// <summary>
     /// A floor of granite at <paramref name="dx"/>, <paramref name="dz"/> from spawn, 40 up, cleared five high, its
@@ -112,9 +112,9 @@ public partial class SharedWorldScenarios
     {
         Assert.True(SluiceSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:sluice-{side}")));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:sluice-{side}")));
         Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:sluice-north");
-        var build = OreMachinesSystem.Of(World.Api).Build("sluice");
+        var build = MachinesSystem.Of(World.Api).Build("sluice");
         Assert.NotNull(build);
         Assert.Equal(["riffles", "services"], build!.Stages.Select(s => s.Id));
         var rig = OreMachinesSystem.Of(World.Api).Rig("sluice", ["concentrate"]);

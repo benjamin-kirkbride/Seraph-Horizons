@@ -11,7 +11,7 @@ sys.path.insert(0, "tools")
 import packtool
 cog.outl(packtool.readme_status())
 ]]] -->
-**Game version:** 1.22.7 (.NET 10) · **Mods:** 129, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
+**Game version:** 1.22.7 (.NET 10) · **Mods:** 127, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
 <!-- [[[end]]] -->
 
 ## Motivation
@@ -61,6 +61,8 @@ Each [GitHub Release](../../releases) has these files:
 | `seraphhorizons_<v>_server.zip` | Plain dedicated servers | `lock.json` + `fetch-mods.sh`, which downloads each mod from the ModDB and checks its sha256 |
 | `seraphhorizons_<v>_modlist.txt` | `modid@version,...` for launchers that import that format | Exact |
 | `seraphhorizons_<v>.zip` | The pack's own mod (`mods-src/seraphhorizons`), version `<v>` like the pack | The `.cairn` file installs it from the release and checks its sha256; the server bundle carries it; with the mod list, add it to `Mods/` yourself |
+
+Running a server: see [SERVER-HOSTING.md](SERVER-HOSTING.md).
 
 The pack's own mod checks each install against the release it came with: if a mod is missing, at
 another version than the pack's, or not in the pack at all, or the game is another version, the

@@ -24,7 +24,7 @@ public sealed record ItemRef(string Code)
 }
 
 /// <summary>The window's tabs (mockup "A · Tabs"); a tab of a feature that is off is left out.</summary>
-public enum WindowTab { Trade, Orders, Deliveries, Maps, Standing }
+public enum WindowTab { Trade, Orders, Deliveries, Maps, Schematics, Standing }
 
 /// <summary>The header's standing: the tier, the points, the next tier's threshold and how far
 /// towards it, with the raw numbers in brackets ("Regular [310 / 800]").</summary>
@@ -46,8 +46,8 @@ public sealed record SpeechLine(Text Voice, IReadOnlyList<Text> Facts);
 /// <summary>What a map or lead offer on the shelf is to this player.</summary>
 public enum MapOfferStatus { Available, SoldOut, Locked, Owned, Surveying }
 
-/// <summary>The Maps &amp; leads tab's groups, in the order it shows them.</summary>
-public enum OfferGroup { OreMaps, GravelMaps, Leads }
+/// <summary>The Maps &amp; leads tab's groups, in the order it shows them, and the Schematics tab's one.</summary>
+public enum OfferGroup { OreMaps, GravelMaps, Leads, Schematics }
 
 /// <summary>
 /// One thing for sale on the Maps &amp; leads tab, as one row: its icon, what it is in a word or two
@@ -85,7 +85,7 @@ public static class TradeWindowModel
     // ---- Tabs ----
 
     /// <summary>The tabs to show, in order, with their labels: Trade always; Orders (n), Deliveries (n),
-    /// Maps &amp; leads and Standing when their feature is on.</summary>
+    /// Maps &amp; leads and Standing when their feature is on, Schematics when the trader has a catalog.</summary>
     public static List<(WindowTab Tab, Text Label)> Tabs(TradeWindowState state)
     {
         var sw = state.Switches;
@@ -93,6 +93,7 @@ public static class TradeWindowModel
         if (sw.Orders) tabs.Add((WindowTab.Orders, new Text("trading-window-tab-orders", state.Orders.Count)));
         if (sw.Deliveries) tabs.Add((WindowTab.Deliveries, new Text("trading-window-tab-deliveries", DeliveryCount(state))));
         if (sw.Maps) tabs.Add((WindowTab.Maps, new Text("trading-window-tab-maps")));
+        if (state.Schematics.Count > 0) tabs.Add((WindowTab.Schematics, new Text("trading-window-tab-schematics")));
         if (sw.Standing && state.Standing != null) tabs.Add((WindowTab.Standing, new Text("trading-window-tab-standing")));
         return tabs;
     }
@@ -218,6 +219,7 @@ public static class TradeWindowModel
         Refusal.Worthless => "trading-economy-refused-worthless",
         Refusal.NoValue => "trading-economy-refused-novalue",
         Refusal.Currency => "trading-economy-refused-currency",
+        Refusal.Schematic => "trading-economy-refused-schematic",
         _ => "trading-window-pays-none",
     };
 
@@ -345,13 +347,11 @@ public static class TradeWindowModel
 
     /// <summary>A camp lead offered to this player (off the shelf): the camp's type, how far
     /// (<see cref="Distance(double)"/>, never its ring) and which way from the trader; the prospector
-    /// kept for first says so, and the player's very first map (the pity map) says it is their first.</summary>
+    /// kept for first says so.</summary>
     public static OfferRow CampLeadRow(LeadOfferRow row)
     {
         var details = new List<object>();
-        if (row.Pity) details.Add(new Text("trading-window-offer-firstmap"));
         if (row.Prospector) details.Add(new Text("trading-window-offer-nearest-prospector"));
-        else if (row.Pity) details.Add(new Text("trading-window-offer-nearest-camp"));
         details.Add(new Text("trading-window-offer-way", Distance(row.Distance), Direction(row.Dx, row.Dz)));
         return new OfferRow(OfferGroup.Leads, CampTitle(row.Type), details, row.Price, MapOfferStatus.Available);
     }
@@ -376,8 +376,28 @@ public static class TradeWindowModel
     {
         OfferGroup.OreMaps => "trading-window-offers-ore",
         OfferGroup.GravelMaps => "trading-window-offers-gravel",
+        OfferGroup.Schematics => "trading-window-offers-schematics",
         _ => "trading-window-offers-leads",
     });
+
+    // ---- Schematics tab ----
+
+    /// <summary>A schematic of the trader's catalog as a row: its name, and for a locked one the tier
+    /// that unlocks it (greyed, "Locked"). Never sold out.</summary>
+    public static OfferRow SchematicRow(SchematicOfferRow row, StandingSummary? standing)
+    {
+        var details = new List<object>();
+        if (!row.Unlocked)
+            details.Add(new Text("trading-window-schematic-unlocks",
+                standing?.Tiers.ElementAtOrDefault(row.Tier)?.Code is { Length: > 0 } code ? TierName(code) : row.Tier));
+        return new OfferRow(OfferGroup.Schematics, new Text("trading-window-schematic", new ItemRef(row.Code)), details, row.Price,
+            row.Unlocked ? MapOfferStatus.Available : MapOfferStatus.Locked);
+    }
+
+    /// <summary>Under the schematics: they never sell out and cost everyone the same, and (standing
+    /// on) whose standing unlocks them.</summary>
+    public static Text SchematicsNote(WindowSwitches sw) =>
+        new(sw.Standing ? "trading-window-schematics-note" : "trading-window-schematics-note-nostanding");
 
     /// <summary>"a", "a and b", "a, b and c".</summary>
     public static object ListText(IReadOnlyList<object> items) => items.Count switch

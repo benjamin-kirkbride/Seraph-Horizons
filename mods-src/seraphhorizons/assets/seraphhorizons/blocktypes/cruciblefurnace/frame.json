@@ -1,14 +1,15 @@
 // The crucible furnace's iron frame (#796; CrucibleFurnace/, README "Crucible furnace"): the
 // controller cell of a 3 x 3 x 2 furnace, the front middle cell (the ash mouth's), nearest the player
 // who placed it, the furnace extending away from them. The item is the frame (a grid recipe); placed,
-// it is built up in stages (brickwork, lining, lid and damper) by right-clicks. The server disables it
-// with StainlessSteel off.
+// it is built up in stages (brickwork, lining, lid and damper) by right-clicks, its build
+// config/builds/cruciblefurnace.json on the shared machine base (docs/modeling/machine-base.md), its other
+// cells the shared seraphhorizons:machine-cell. The server disables it with StainlessSteel off.
 {
 	code: "cruciblefurnace",
-	class: "seraphhorizons.CrucibleFurnace",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.CrucibleFurnace",
-	// No HorizontalOrientable: BlockCrucibleFurnace.TryPlaceBlock picks the side so the furnace extends
-	// away from the player, as the cylinder borer does.
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the furnace extends away
+	// from the player, as every machine's.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }

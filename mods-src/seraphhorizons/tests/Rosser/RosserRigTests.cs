@@ -79,7 +79,7 @@ public class RosserRigTests
         var partial = rig.CellAt(new Int3(-15, 1, -1))!;
         Assert.False(partial.Hollow);
         Assert.Equal(new Box(0, 0, 0, 1, 0.5f, 1), Assert.Single(partial.Boxes));
-        Assert.Equal(rig.Cells.Count - 1, rig.GhostCells.Count());
+        Assert.Equal(rig.Cells.Count - 1, rig.OtherCells().Count());
     }
 
     [Fact]

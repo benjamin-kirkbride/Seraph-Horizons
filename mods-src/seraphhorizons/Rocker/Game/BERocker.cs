@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -8,55 +9,46 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Rocker;
 
 /// <summary>
-/// The rocker (#716): the charge in its hopper, the item being washed, what lies behind its riffles and
-/// the units carried between items (<see cref="RockerState"/>), and who rocks it. The player tips crushed
-/// or ground ore, or placer gravel, into the hopper and works it by holding right-click on it with water
-/// in a bucket, as on the quern: the server rocks it while held, pours the bucket into the hopper as it
-/// does, puts what each washed item gives behind the riffles and drops the tailings in the cell beyond
-/// the foot (#694). The concentrate comes out by hand, an empty hand's right-click. No automated input
-/// or output: it has no inventory any hopper or chute can reach. The client draws it
-/// (<see cref="RockerRenderer"/>).
+/// The rocker (#716), on the shared machine base (<see cref="BEMachine"/>: placed whole, so its build has no
+/// stages; its block info, its renderer): the charge in its hopper, the item being washed, what lies behind
+/// its riffles and the units carried between items (<see cref="RockerState"/>). A hand machine
+/// (<see cref="BEMachine.HandWorked"/>, its holds forgotten 400 ms after the last step): the player tips
+/// crushed or ground ore, or placer gravel, into the hopper and works it by holding right-click on it with
+/// water in a bucket, as on the quern: the server rocks it while held, pours the bucket into the hopper as it
+/// does (<see cref="RockerWater"/>: the water is poured as it rocks, never stored, so the base's reservoir is
+/// not the rocker's), puts what each washed item gives behind the riffles and drops the tailings in the cell
+/// beyond the foot (#694). The concentrate comes out by hand, an empty hand's right-click. No automated input
+/// or output: it has no inventory any hopper or chute can reach.
 /// </summary>
-public class BERocker : BlockEntity
+public class BERocker : BEMachine
 {
     private static readonly AssetLocation PourSound = new("game", "sounds/effect/water-pour");
     private static readonly AssetLocation LoadSound = new("game", "sounds/block/gravel");
     private static readonly AssetLocation TakeSound = new("game", "sounds/block/sand");
-    // How long after its last step a player's hold counts (the game steps every tick while held).
-    private const long HoldTimeoutMs = 400;
-    // A client's own player holding right-click counts as rocking for this long after its last step.
-    private const long LocalHoldMs = 250;
     // The server syncs the washing at least this often (of an item).
     private const double SyncStep = 0.1;
+    private const float SplashInterval = 0.15f;
 
     private readonly RockerState _state = new();
     private ItemStack? _charge;
     private TailingsOwed _tailings;
     private double _litresOwed;
-    private string? _holder;
-    private long _heldAt;
-    private bool _held;
-    private long _localHeldAt = long.MinValue / 2;
+    private string? _rocker;
     private float _pourSeconds;
     private float? _serverRocksPerSecond;
-    private Cuboidf[]? _boxes;
-    private Cuboidf[]? _collision;
-    private RockerRenderer? _renderer;
+    private readonly RockerClock _clock = new();
+    private float _splashTimer;
 
-    public Side Side { get; private set; } = Side.South;
-    public RockerState State => _state;
+    public RockerState Washing => _state;
     /// <summary>One item of the charge in the hopper (its kind), or null.</summary>
     public ItemStack? Charge => _state.HasCharge ? _charge : null;
     /// <summary>The code of what lies behind the riffles (the most of it), for the renderer; or null.</summary>
     public string? CatchCode => _state.Riffles.OrderByDescending(r => r.Value).Select(r => r.Key).FirstOrDefault();
-
-    /// <summary>Someone rocks it (the server's word, or this client's own player holding right-click).</summary>
-    public bool Held =>
-        _held || Api is { Side: EnumAppSide.Client } && Api.World.ElapsedMilliseconds - _localHeldAt <= LocalHoldMs;
 
     public float RocksPerSecond => _serverRocksPerSecond ?? Config.RocksPerSecond;
 
@@ -64,64 +56,36 @@ public class BERocker : BlockEntity
 
     private RockerSystem System => RockerSystem.Of(Api);
     private RockerConfig Config => System.Config;
-    public RockerRig? Rig => System.Rig;
+    public new RockerRig? Rig => base.Rig as RockerRig;
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.South;
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-            RegisterGameTickListener(OnTick, 50);
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 100);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockRocker)
-                _renderer = new RockerRenderer(capi, this, rig);
-        }
-    }
+    /// <summary>Placed whole: a build with no stages (no build file), so the rocker is built as it is placed.</summary>
+    protected override MachineBuild? BuildSpec(IWorldAccessor world) => new(RockerSystem.MachineId, null, FeedMode.Continuous, [], []);
 
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) => MachinePoints.WorldPoint(Pos, native, Side);
+    protected override bool HandWorked => true;
+    // How long after its last step a player's hold counts (the game steps every tick while held).
+    protected override long HoldTimeoutMs => 400;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 100;
+    public override int RenderRange => 48;
 
-    public Cuboidf[]? SelectionBoxes => _boxes;
-    public Cuboidf[]? CollisionBoxes => _collision;
-
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig)
-            return;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, Side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        _boxes = rig.Cell.Boxes.Count == 0 ? [Cuboidf.Default()] : rig.Cell.Boxes.Select(World).ToArray();
-        _collision = rig.Cell.LidBox is { } lid ? [.. _boxes, World(lid)] : _boxes;
-    }
+    public override bool HasWork => _state.HasCharge;
+    public override double? WorkProgress => _state.HasCharge ? _state.ItemWork : null;
 
     /// <summary>The world position of the cell the tailings fall into, beyond the open foot.</summary>
-    public BlockPos TailingsPos()
-    {
-        var local = Rig?.TailingsCell ?? new Int3(-1, 0, 0);
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
+    public BlockPos TailingsPos() => CellPos(Rig?.TailingsCell ?? new Int3(-1, 0, 0));
 
     // ---- Interaction ----
 
     /// <summary>
     /// Right-click on the rocker. With crushed or ground ore or placer gravel in hand, tips as much of it
     /// as the hopper holds in (one kind at a time). With a liquid container in hand, starts rocking:
-    /// held, it rocks while water is poured (<see cref="OnWorkStep"/>). With an empty hand, takes
+    /// held, it rocks while water is poured (<see cref="OnInteractStep"/>). With an empty hand, takes
     /// everything from behind the riffles; Ctrl and an empty hand takes the charge back while untouched.
-    /// Shift lets a held block be placed against it. Decided and done on the server; the client says
-    /// whether the click is the rocker's.
+    /// Shift lets a held block be placed against it.
     /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
-        var held = slot?.Itemstack;
+        var held = slot.Itemstack;
         var controls = byPlayer.Entity.Controls;
         bool server = Api.Side == EnumAppSide.Server;
         if (controls.ShiftKey)
@@ -137,7 +101,7 @@ public class BERocker : BlockEntity
             return _state.HasCharge ? Error(byPlayer, "error-need-water") : Error(byPlayer, "error-empty");
         }
         if (RockerFeed.Parse(held.Collectible.Code.ToString()) != null)
-            return !server || TryLoad(slot!, byPlayer);
+            return !server || TryLoad(slot, byPlayer);
         if (RockerWater.IsContainer(held))
         {
             if (!server)
@@ -149,70 +113,29 @@ public class BERocker : BlockEntity
                     RockerStop.RifflesFull => "error-riffles-full",
                     _ => "error-no-water",
                 });
-            Hold(byPlayer);
-            return true;
+            _rocker = byPlayer.PlayerUID;
+            return StartHold(byPlayer);
         }
         return false;
     }
 
-    /// <summary>Right-click still held (both sides, every tick): whether the player goes on rocking.</summary>
-    public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
+    /// <summary>Right-click still held (both sides, every tick): the player goes on rocking while they hold a
+    /// liquid container, and (on the server) while it has the water the next rock pours and the rocker can
+    /// wash.</summary>
+    public override bool OnInteractStep(IPlayer byPlayer, float secondsUsed)
     {
         var held = byPlayer.InventoryManager.ActiveHotbarSlot?.Itemstack;
-        if (!RockerWater.IsContainer(held))
-            return false;
-        if (Api.Side == EnumAppSide.Client)
+        bool server = Api.Side == EnumAppSide.Server;
+        if (!RockerWater.IsContainer(held)
+            || server && _state.Stop(RockerWater.Litres(held) - _litresOwed, Config) != RockerStop.None)
         {
-            bool go = _state.HasCharge && RockerWater.Litres(held) > 0 || secondsUsed < 0.5f;
-            if (go)
-                _localHeldAt = Api.World.ElapsedMilliseconds;
-            return go;
-        }
-        if (_state.Stop(RockerWater.Litres(held) - _litresOwed, Config) != RockerStop.None)
-        {
-            Release(byPlayer);
+            if (server)
+                OnInteractStop(byPlayer);
             return false;
         }
-        Hold(byPlayer);
-        return true;
-    }
-
-    /// <summary>The player let go.</summary>
-    public void Release(IPlayer byPlayer)
-    {
-        if (Api.Side == EnumAppSide.Client)
-        {
-            _localHeldAt = long.MinValue / 2;
-            return;
-        }
-        if (_holder == byPlayer.PlayerUID)
-            _holder = null;
-        UpdateHeld();
-    }
-
-    private void Hold(IPlayer byPlayer)
-    {
-        _holder = byPlayer.PlayerUID;
-        _heldAt = Api.World.ElapsedMilliseconds;
-        UpdateHeld();
-    }
-
-    private IPlayer? Holder()
-    {
-        if (_holder == null || Api.World.ElapsedMilliseconds - _heldAt > HoldTimeoutMs)
-            return null;
-        return Api.World.PlayerByUid(_holder);
-    }
-
-    private void UpdateHeld()
-    {
-        bool held = Holder() != null && _state.HasCharge;
-        if (held == _held)
-            return;
-        _held = held;
-        if (!held)
-            _holder = null;
-        MarkDirty(false);
+        if (server)
+            _rocker = byPlayer.PlayerUID;
+        return base.OnInteractStep(byPlayer, secondsUsed);
     }
 
     /// <summary>The key a charge's kind is held by: its code and the ore's state on the stack (riddled,
@@ -272,7 +195,7 @@ public class BERocker : BlockEntity
     public bool TakeCatch(IPlayer byPlayer)
     {
         var caught = _state.TakeCatch();
-        foreach (var stack in Stacks(caught))
+        foreach (var stack in StacksOf(caught))
             Give(byPlayer, stack);
         var at = WorldPoint(Rig?.Concentrate.Pos ?? new Float3(0.4f, 0.3f, 0.5f));
         Api.World.PlaySoundAt(TakeSound, at.X, at.Y, at.Z, byPlayer);
@@ -280,7 +203,7 @@ public class BERocker : BlockEntity
         return true;
     }
 
-    private IEnumerable<ItemStack> Stacks(IReadOnlyDictionary<string, int> counts)
+    private IEnumerable<ItemStack> StacksOf(IReadOnlyDictionary<string, int> counts)
     {
         foreach (var (code, count) in counts)
         {
@@ -303,6 +226,7 @@ public class BERocker : BlockEntity
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.0, 0.5));
     }
 
+    /// <summary>The rocker's own message (<c>seraphhorizons:rocker-{key}</c>) to the player; false.</summary>
     private bool Error(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
@@ -310,13 +234,47 @@ public class BERocker : BlockEntity
         return false;
     }
 
+    /// <summary>The help: feed tips in while the hopper has room; a bucket of water rocks a charge; an empty
+    /// hand takes the concentrate, and Ctrl the charge back while untouched.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => RockerSystem.Domain + ":blockhelp-rocker-" + action;
+        var world = Api.World;
+        if (CanTakeMoreCharge)
+            help.Add(new WorldInteraction
+            {
+                ActionLangCode = Key("charge"), MouseButton = EnumMouseButton.Right,
+                Itemstacks = Stacks(world, ["seraphhorizons:crushedore-quartz_nativegold-medium", "seraphhorizons:crushedore-cassiterite-medium",
+                                            "seraphhorizons:groundore-galena-poor", "game:richgravel-granite"], 1),
+            });
+        if (_state.HasCharge)
+            help.Add(new WorldInteraction { ActionLangCode = Key("rock"), MouseButton = EnumMouseButton.Right, Itemstacks = WaterStacks(world) });
+        if (_state.HasCatch)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takeconcentrate"), MouseButton = EnumMouseButton.Right });
+        if (_state.HasCharge && _state.ChargeUntouched)
+            help.Add(new WorldInteraction { ActionLangCode = Key("takecharge"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
+    // A full bucket of water, for the help.
+    private static ItemStack[] WaterStacks(IWorldAccessor world)
+    {
+        if (world.GetBlock(new AssetLocation("game:woodbucket")) is not BlockLiquidContainerBase bucket
+            || world.GetItem(new AssetLocation(RockerWater.PlainWater)) is not { } water)
+            return [];
+        var full = new ItemStack(bucket);
+        var props = BlockLiquidContainerBase.GetContainableProps(new ItemStack(water));
+        bucket.SetContent(full, new ItemStack(water, (int)((props?.ItemsPerLitre ?? 100) * bucket.CapacityLitres)));
+        return [full];
+    }
+
     // ---- Rocking ----
 
-    private void OnTick(float dt)
+    // The rocking syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool WorkUnpowered(float dt)
     {
-        UpdateHeld();
-        if (_held && Holder() is { } player)
+        if (_rocker != null && Api.World.PlayerByUid(_rocker) is { } player)
             Rock(player, Config.RocksPerSecond * dt);
+        return false;
     }
 
     /// <summary>
@@ -350,29 +308,23 @@ public class BERocker : BlockEntity
             MarkDirty(true);
         else if (countBefore != _state.ChargeCount || Math.Floor(before / SyncStep) != Math.Floor(_state.ItemWork / SyncStep))
             MarkDirty(false);
-        UpdateHeld();
+        RefreshState();
         return step;
     }
 
     // The tailings of the items washed: the rocker's rule (#694), in the feed's rock, into the cell beyond the foot.
     private void Discard(ItemStack template, int washed)
     {
-        if (OreMachinesSystem.Of(Api).Config.TailingsFor("rocker") is not { } rule)
+        if (OreMachinesSystem.Of(Api).Config.TailingsFor(RockerSystem.MachineId) is not { } rule)
             return;
         (int whole, _tailings) = _tailings.Add(washed, rule);
         if (whole > 0)
-            Tailings.Discard(Api.World, TailingsPos(), rule.Form, Tailings.RockOf(template), whole);
+            Machines.Tailings.Discard(Api.World, TailingsPos(), rule.Form, Machines.Tailings.RockOf(template), whole);
     }
 
-    // The client's own: a worked rocker splashes and pours; one removed under it goes.
-    private void OnClientTick(float dt)
+    // A worked rocker pours.
+    protected override void OnClientTick(float dt)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockRocker)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
         if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Held || !_state.HasCharge)
         {
             _pourSeconds = 0;
@@ -386,11 +338,95 @@ public class BERocker : BlockEntity
         }
     }
 
+    // ---- The renderer's ----
+
+    // Worked: someone rocks it with a charge in the hopper.
+    private bool Worked => Held && _state.HasCharge;
+
+    /// <summary>Nothing of it stands still, so the block's chunk mesh is empty and every rig part is drawn: the
+    /// cradle always; the water while it is worked; the charge while one is in the hopper and the concentrate
+    /// while some lies behind the riffles.</summary>
+    public override bool ShowsPart(string? requires) => requires switch
+    {
+        null => true,
+        RockerRequires.Water => Worked,
+        RockerRequires.Charge => Charge != null,
+        RockerRequires.Concentrate => CatchCode != null,
+        _ => false,
+    };
+
+    /// <summary>The charge's and the concentrate's textures follow what is in it.</summary>
+    public override string TextureKey => (Charge?.Collectible.Code.ToString() ?? "") + "|" + (CatchCode ?? "");
+
+    /// <summary>The block's textures with the charge's and the concentrate's own in place of <c>charge</c> and
+    /// <c>concentrate</c>.</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi)
+    {
+        var catchStack = CatchCode is { } code ? StackOf(code) : null;
+        return new LoadTextureSource(base.PartTextures(capi), Atlas(capi, Charge), Atlas(capi, catchStack));
+    }
+
+    private ItemStack? StackOf(string code)
+    {
+        var loc = new AssetLocation(code);
+        CollectibleObject? c = Api.World.GetItem(loc) ?? (CollectibleObject?)Api.World.GetBlock(loc);
+        return c == null || c.IsMissing || c.Id == 0 ? null : new ItemStack(c);
+    }
+
+    /// <summary>An item's own texture in the block atlas (a crushed ore's, the concentrate's, a gravel's), or null.</summary>
+    private static TextureAtlasPosition? Atlas(ICoreClientAPI capi, ItemStack? stack)
+    {
+        if (stack == null)
+            return null;
+        CompositeTexture? texture = stack.Item != null ? stack.Item.FirstTexture : stack.Block?.Textures?.Values.FirstOrDefault();
+        if (texture == null)
+            return null;
+        try
+        {
+            return new ContainerTextureSource(capi, stack, texture)["charge"];
+        }
+        catch (Exception e)
+        {
+            capi.Logger.Warning("[seraphhorizons] Rocker: no texture for {0}: {1}", stack.Collectible.Code, e.Message);
+            return null;
+        }
+    }
+
+    /// <summary>The rocking clock θ (<see cref="RockerClock"/>: a turn a rock, run on to level when the hold
+    /// ends); while worked, splashes at the foot (<c>outflow</c>).</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        bool worked = Worked;
+        _clock.Advance(dt, worked, RocksPerSecond);
+        if (!far && worked && Rig is { } rig && (_splashTimer += dt) >= SplashInterval)
+        {
+            _splashTimer = 0;
+            var at = WorldPoint(rig.Posed(rig.Outflow, _clock.Theta));
+            int colour = ColorUtil.ToRgba(140, 160, 190, 220);
+            Api.World.SpawnParticles(3, colour, at.AddCopy(-0.05, -0.02, -0.15), at.AddCopy(0.05, 0.02, 0.15),
+                new Vec3f(-0.6f, -0.2f, -0.2f), new Vec3f(-0.2f, 0.3f, 0.2f), 0.5f, 1f, 0.2f, EnumParticleModel.Quad, null);
+        }
+        return new RigInput(_clock.Theta);
+    }
+
+    /// <summary>The block's textures with the charge's and the concentrate's in place of their codes.</summary>
+    private sealed class LoadTextureSource(ITexPositionSource inner, TextureAtlasPosition? charge, TextureAtlasPosition? concentrate)
+        : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+        public TextureAtlasPosition this[string textureCode] => textureCode switch
+        {
+            "charge" when charge != null => charge,
+            "concentrate" when concentrate != null => concentrate,
+            _ => inner[textureCode]!,
+        };
+    }
+
     // ---- Breaking ----
 
     /// <summary>What breaking it gives besides the rocker: the charge while untouched, and everything
     /// behind the riffles (an item half washed is lost).</summary>
-    public IEnumerable<ItemStack> ContentDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
         if (_state.HasCharge && _charge != null)
         {
@@ -402,26 +438,8 @@ public class BERocker : BlockEntity
                 yield return stack;
             }
         }
-        foreach (var stack in Stacks(_state.Riffles))
+        foreach (var stack in StacksOf(_state.Riffles))
             yield return stack;
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -453,7 +471,6 @@ public class BERocker : BlockEntity
         tree["carry"] = carry;
         tree.SetDouble("tailings", _tailings.Layers);
         tree.SetDouble("litresOwed", _litresOwed);
-        tree.SetBool("held", _held);
         if (Api?.Side == EnumAppSide.Server)
             tree.SetFloat("rocksPerSecond", Config.RocksPerSecond);
     }
@@ -475,10 +492,7 @@ public class BERocker : BlockEntity
         _tailings = TailingsOwed.Restore(tree.GetDouble("tailings"));
         _litresOwed = Math.Clamp(tree.GetDouble("litresOwed"), 0, 1);
         if (worldForResolving.Side == EnumAppSide.Client)
-        {
-            _held = tree.GetBool("held");
             _serverRocksPerSecond = tree.TryGetFloat("rocksPerSecond");
-        }
     }
 
     public override void OnStoreCollectibleMappings(Dictionary<int, AssetLocation> blockIdMapping, Dictionary<int, AssetLocation> itemIdMapping)
@@ -496,17 +510,12 @@ public class BERocker : BlockEntity
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The charge in the hopper and how far the item in hand is washed, and what lies behind the riffles.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
         string L(string key, params object[] args) => Lang.Get(RockerSystem.Domain + ":rocker-" + key, args);
         if (Charge is { } charge)
-        {
-            int percent = (int)Math.Floor(_state.ItemWork * 100 + 1e-9);
-            dsc.AppendLine(L(Held ? "info-rocking" : "info-charge", _state.ChargeCount, charge.GetName(), percent));
-        }
-        else
-            dsc.AppendLine(L("info-empty"));
+            dsc.AppendLine(L("info-charge", _state.ChargeCount, charge.GetName(), (int)Math.Floor(_state.ItemWork * 100 + 1e-9)));
         if (_state.HasCatch)
         {
             var names = _state.Riffles.OrderBy(r => r.Key, StringComparer.Ordinal).Select(r =>
@@ -519,5 +528,15 @@ public class BERocker : BlockEntity
             if (_state.RiffleCount >= Config.RiffleItems)
                 dsc.AppendLine(L("info-riffles-full"));
         }
+    }
+
+    /// <summary>For a wrench: the item in hand's washing exactly, the rocks a second, and the water owed to the
+    /// bucket.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (_state.HasCharge)
+            dsc.AppendLine(Lang.Get(RockerSystem.Domain + ":rocker-info-work",
+                _state.ItemWork.ToString("0.000", CultureInfo.InvariantCulture), RocksPerSecond.ToString("0.##", CultureInfo.InvariantCulture),
+                _litresOwed.ToString("0.00", CultureInfo.InvariantCulture)));
     }
 }

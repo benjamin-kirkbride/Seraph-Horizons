@@ -216,6 +216,9 @@ public class OreProcessingSystem : ModSystem
                 api.Logger.Warning("[seraphhorizons] Ore processing: the game's AlloyRecipe.mergeAndCompareStacks is not as expected; "
                                    + "an alloy counts rock at a whole number of items per ingot, which can be off its grade's exact share");
             ContainerText.Patch(_harmony);
+            if (!BullionWhole.Patch(_harmony))
+                api.Logger.Warning("[seraphhorizons] Ore processing: the game's BlockSmeltingContainer.DoSmelt is not as expected; "
+                                   + "bullion does not carry the whole route from the crucible, so its final parting does not make it whole");
             if (!CupelForge.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: crucibulum's forge ({0}) is missing or not as expected; "
                                    + "the cupel works nowhere", CupelForge.ForgeType);

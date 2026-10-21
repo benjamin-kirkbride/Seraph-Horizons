@@ -350,9 +350,16 @@ viewer in a browser, or in a client.
 ## Gameplay
 
 #714, switch `Riddle` (with `OreProcessing`: without crushed ore there is nothing to riddle), figures in
-`RiddleSettings` (`ModConfig/seraphhorizons.json`). The rules are `Core/` (`Riddling`, `RiddleJob`, `RiddleParts`,
-`RiddleConfig`, `RiddleRig`, the renderer's `RiddleClock`), the game side `Game/` (`RiddleSystem`, `BlockRiddle`,
-`BERiddle`, `RiddleRenderer`, `RiddleOre`).
+`RiddleSettings` (`ModConfig/seraphhorizons.json`). The rules are `Core/` (`Riddling` with the charge's job, a
+`MachineJob` of class 1; `RiddleBuild`, the mesh and the `requires` vocabulary; `RiddleConfig`, `RiddleRig`, the
+renderer's `RiddleClock`), and its build is data, `assets/seraphhorizons/config/builds/riddle.json`. The game side
+is the shared machine base (`../Machines/Game/`, docs/modeling/machine-base.md), as the press brake's: the frame
+is `BlockMachine` (one cell, so no other cells), the parts are drawn by `MachineRenderer`; `Game/` holds
+`RiddleSystem` (its settings and rig, which it names to `MachinesSystem`), `BERiddle : BEMachine`, a hand machine
+(`HandWorked`: the base's `HandHolds`, 600 ms) with no power anchor, no oil and no inventory a hopper or chute can
+reach, and `RiddleOre`. A riddle saved before the shared base loads as a bare frame. The block info is the shared
+layout: the build, the state (riddling with its percent), the charge, oversize and fines; a wrench adds W and the
+shakes a charge takes.
 
 - **Building.** The frame is a grid recipe (six oak planks, one nails and strips of iron, meteoric iron or steel, a
   hammer) and is placed with its operator's side toward the player. Its one stage, the riddle, is fitted by
@@ -374,6 +381,11 @@ viewer in a browser, or in a client.
   lost. Its rock is the charge's own `rock` attribute if it carries one, else the rock the station stands on, else
   granite; with no such raw ore, the crushed ore itself, unclassified.
 - **Taking out.** An empty-handed right-click takes the oversize first, then the fines. Then the next charge.
+  With crushed ore in hand (a whole charge of it, unclassified) both come out at once, to the inventory or dropped
+  beside the station when it is full, and the next charge goes on from the hand: by a click, or while right-click is
+  still held when a charge finishes, so holding right-click with crushed ore riddles charge after charge without
+  letting go or emptying the hand (`BERiddle.TryCycle` and `OnInteractStep`, `Riddling.CanReload`). With too few
+  in hand the hold stops at the riddled charge, which waits as before.
 - **Drawn.** The renderer reads the anchors, `contents`, `work` and `requires`, never element names; the block's
   boxes are the rig's cell's; `ore` is set to the crushed ore's texture and `rock` to the oversize's host rock (the
   rock under the station before there is one).

@@ -16,7 +16,7 @@ namespace SeraphHorizons.PackTests;
 // rotor on its power face, fed raw ore by a vanilla chute and by hand, its crushed ore pushed into a chest
 // at its output face, its load following its charge, and broken back into everything that went in. Built
 // on granite floors 40 above spawn at x 600 to 640, z 600 to 620; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string JawFrame = "seraphhorizons:jawbreaker-";
 
@@ -46,6 +46,7 @@ public partial class SharedWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(breaker.Assembly.Ready);
+        MachineTest.FillOil(breaker);
     }
 
     [AtlasScenario]
@@ -53,14 +54,14 @@ public partial class SharedWorldScenarios
     {
         Assert.True(JawBreakerSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(JawFrame + side)));
-        Assert.IsType<BlockOreMachineCell>(W.GetBlock(BlockOreMachineCell.CellCode));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(JawFrame + side)));
+        Assert.IsType<BlockMachineCell>(W.GetBlock(BlockMachineCell.CellCode));
         foreach (var face in BlockFacing.ALLFACES)
-            Assert.IsType<BlockOreMachineCellPower>(W.GetBlock(BlockOreMachineCellPower.CodeFor(face)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(JawFrame + "north"));
+            Assert.IsType<BlockMachineCellPower>(W.GetBlock(BlockMachineCellPower.CodeFor(face)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(JawFrame + "north"));
         Assert.Equal("jawbreaker", block.Machine);
         Assert.NotNull(block.Rig);
-        Assert.NotNull(OreMachinesSystem.Of(World.Api).Build("jawbreaker"));
+        Assert.NotNull(MachinesSystem.Of(World.Api).Build("jawbreaker"));
         Assert.Equal("Jaw breaker frame", new ItemStack(block).GetName());
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == JawFrame + "north" && r.Enabled);
         Assert.Contains(recipe.ResolvedIngredients!, i => i?.Code?.ToString() == "game:metalplate-iron" && i.Quantity == 9);
@@ -87,12 +88,12 @@ public partial class SharedWorldScenarios
             foreach (var cell in rig.OtherCells)
             {
                 var at = breaker.CellPos(cell.Pos);
-                var be = Assert.IsType<BEOreMachineCell>(W.BlockAccessor.GetBlockEntity(at));
+                var be = Assert.IsType<BEMachineCell>(W.BlockAccessor.GetBlockEntity(at));
                 Assert.Equal(pos, be.Principal);
                 Assert.NotNull(W.BlockAccessor.GetBlock(at).GetSelectionBoxes(W.BlockAccessor, at));
             }
             var power = breaker.CellPos(rig.Anchor("power")!.Value.Cell);
-            var powerBlock = Assert.IsType<BlockOreMachineCellPower>(W.BlockAccessor.GetBlock(power));
+            var powerBlock = Assert.IsType<BlockMachineCellPower>(W.BlockAccessor.GetBlock(power));
             Assert.Equal(CellFaces.ToWorld(CellFace.East, side).Code(), powerBlock.PowerFace.Code);
             Assert.Equal(powerBlock.PowerFace, breaker.PowerFace);
             // the output face is the machine's front: toward a player who placed it looking along the facing

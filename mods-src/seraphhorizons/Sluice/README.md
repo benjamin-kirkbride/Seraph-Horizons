@@ -394,7 +394,7 @@ its clock and its products.
 - **Tailings.** The item goes on as tailings, the same item carrying what is left (`oreUnits`, `oreLocked`,
   `oreWorked`), by the tailings chute to the jig, or, with nothing beyond the tail face, onto a heap of gravel in its
   rock beside the tail, a layer a rock (#694).
-- **Drawn.** The renderer (the shared `OreMachineRenderer`) draws each part once its stage is in, the supplied metal's
+- **Drawn.** The renderer (the shared `MachineRenderer`) draws each part once its stage is in, the supplied metal's
   inlet, and the concentrate in the riffles while the sluice works.
 - **Bog iron** (#701, the owner's ruling of 2026-10-14): with the switch on, its block drops exactly one stone and
   the stone loses its raw smelt to a bloom (`SluiceSystem.BogIronOnTheLine`).

@@ -177,6 +177,12 @@ public class TradeWindowSystem : ModSystem
                 var (ok, key, args) = maps.BuyCampLead(player, trader, request.Code, request.Price);
                 return ok ? TradeResult.Done(action, key, args) : TradeResult.Refused(action, key, args);
             }
+            case TradeAction.BuySchematic:
+            {
+                if (Schematics.SchematicsSystem.Of(_sapi!) is not { Table: not null } schematics) return TradeResult.Refused(action, "trading-window-off");
+                var (ok, key, args) = schematics.BuySchematic(player, trader, request.Code, request.Price);
+                return ok ? TradeResult.Done(action, key, args) : TradeResult.Refused(action, key, args);
+            }
         }
         return TradeResult.Refused(action, "trading-window-failed");
     }
@@ -324,11 +330,16 @@ public class TradeWindowSystem : ModSystem
                 state.LeadOffers.Add(new LeadOfferRow
                 {
                     Cell = o.Cell.ToString(), Type = o.Type, Distance = o.Distance, Dx = o.X - trader.Pos.X, Dz = o.Z - trader.Pos.Z,
-                    Price = o.Price, Prospector = o.Prospector, Ring = o.Ring, Pity = o.Pity,
+                    Price = o.Price, Prospector = o.Prospector, Ring = o.Ring,
                 });
             state.LeadsBought = leadView.Buyer.Bought;
             state.LeadsWhy = MapsSystem.WhyKey(leadView.Why);
         }
+
+        // The schematic catalog (off the shelf, for this player and their groups).
+        if (Schematics.SchematicsSystem.Of(api) is { } schematics)
+            state.Schematics = schematics.CatalogFor(player, trader)
+                .Select(r => new SchematicOfferRow { Code = r.Code, Price = r.Price, Tier = r.Tier, Unlocked = r.Unlocked }).ToList();
 
         // Map and lead offers this player has already (marked on their map, or a copy carried).
         if (maps?.Active == true && MapMarksSystem.Of(api) is { } marks)

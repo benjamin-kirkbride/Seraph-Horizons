@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // chest at its output face, stopped dry and started again with water, the shaking table's middlings freed, and
 // broken back into everything that went in. Built on granite floors 40 above spawn at x 660 to 700, z 660 to
 // 680; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string MillFrame = "seraphhorizons:ballmill-";
 
@@ -56,6 +56,7 @@ public partial class SharedWorldScenarios
                 Assert.True(mill.ShowsPart("girth") && !mill.ShowsPart("pinion"));
         }
         Assert.True(mill.Assembly.Ready);
+        MachineTest.FillOil(mill);
     }
 
     private static int MillChestCount(BlockEntityContainer chest, string code) =>
@@ -88,11 +89,11 @@ public partial class SharedWorldScenarios
     {
         Assert.True(BallMillSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(MillFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(MillFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(MillFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(MillFrame + "north"));
         Assert.Equal("ballmill", block.Machine);
         Assert.NotNull(block.Rig);
-        var build = OreMachinesSystem.Of(World.Api).Build("ballmill")!;
+        var build = MachinesSystem.Of(World.Api).Build("ballmill")!;
         Assert.Equal(["drum", "gearing", "screens", "sheetiron", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Empty(build.Wearing);
         Assert.Equal("Ball mill", new ItemStack(block).GetName());

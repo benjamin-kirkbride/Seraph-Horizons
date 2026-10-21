@@ -1,0 +1,12 @@
+{
+	"_comment": "The riddle's build (Riddle/README.md, 'Fitted parts'): its one stage after the frame, the riddle on its bearers, as its rig's parts draw it; read by Machines/Core/MachineBuildJson.cs (its schema) and kept by the shared machine base (docs/modeling/machine-base.md). Two nails and strips of iron, meteoric iron or steel at once, its woven mesh (the riddle's oak boards are the frame recipe's). A hand station: nothing wears. No block: the riddle's records are its own in the recipe export, not the ore machines' generic one.",
+	"machine": "riddle",
+	"stages": [
+		{
+			"id": "riddle", "name": "riddle", "adds": ["riddle"],
+			"materials": [
+				{ "codes": ["game:metalnailsandstrips-iron", "game:metalnailsandstrips-meteoriciron", "game:metalnailsandstrips-steel"], "quantity": 2 }
+			]
+		}
+	]
+}

@@ -15,13 +15,7 @@
 			{"code": "candle", "stacksize": 4, "stock": {"avg": 8, "var": 2}},
 			{"code": "firewood", "stacksize": 16, "stock": {"avg": 12, "var": 3}},
 			{"code": "bandage-clean", "stacksize": 2, "stock": {"avg": 6, "var": 2}},
-			{"code": "linensack", "stacksize": 1, "stock": {"avg": 8, "var": 2}},
-			{"code": "betterruins:br-schematic-chest", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 16, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-crate", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 14, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-candle", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 12, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-toymaker", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 18, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-artisan", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 26, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "seraphhorizons:schematic-handcrank", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 20, "priceReason": "schematic: a hand-set gate", "standingTier": 1}
+			{"code": "linensack", "stacksize": 1, "stock": {"avg": 8, "var": 2}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [

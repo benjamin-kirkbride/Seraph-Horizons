@@ -41,7 +41,7 @@ public enum DockWakeVerdict
 /// <summary>
 /// Docking an eidolon on a gantry's spine, to strip and refit its layers (Eidolon/README.md, "Docking"):
 /// the timing of its <c>dock</c> animation and the rules for stripping and waking. The game side is
-/// <c>EntityBehaviorEidolonDock</c> (the entity) and <c>BEBehaviorEidolonBody</c> (the gantry).
+/// <c>EntityBehaviorEidolonDock</c> (the entity) and <c>GantryBody</c> (the gantry).
 /// </summary>
 public static class EidolonDocking
 {

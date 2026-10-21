@@ -9,7 +9,8 @@ namespace SeraphHorizons.Mod.CrucibleFurnace;
 
 /// <summary>
 /// Draws the crucible furnace's parts by its state (client only; created and disposed by
-/// <see cref="BECrucibleFurnace"/>, and only while its block is the furnace). One mesh per rig part
+/// <see cref="BECrucibleFurnace"/> in place of the shared <see cref="MachineRenderer"/>, which draws one texture
+/// set and no glow, and only while its block is the furnace). One mesh per rig part
 /// from <c>shapes/block/cruciblefurnace.json</c>; the iron frame is the block's own shape
 /// (cruciblefurnace_frame.json) and is not drawn here. Each part is drawn turned to the furnace's
 /// facing, and only when gameplay shows it:
@@ -136,14 +137,13 @@ public sealed class CrucibleFurnaceRenderer : IRenderer
     /// <summary>Whether part <paramref name="i"/> is drawn now, and the mesh set it is drawn from.</summary>
     private PartMeshSet? Shown(int i)
     {
-        var build = _be.Build;
-        if (build == null || !_drawn[i])
+        if (_be.Assembly is not { } assembly || !_drawn[i])
             return null;
         string? requires = _parts.Parts[i].Requires;
-        if (!build.Fitted(requires))
+        if (!assembly.Shows(requires))
             return null;
         if (_brick[i])
-            return BrickMeshes(build.BrickType ?? _rig.Bricks.Default);
+            return BrickMeshes(_be.BrickType ?? _rig.Bricks.Default);
         switch (requires)
         {
             case null or FurnaceRequires.Brickwork or FurnaceRequires.Lining or FurnaceRequires.Lid:
@@ -151,7 +151,7 @@ public sealed class CrucibleFurnaceRenderer : IRenderer
             case FurnaceRequires.OutletCap:
                 return _be.Capped && _be.LiningIn ? _base : null;
         }
-        if (!build.Complete)
+        if (!assembly.Built)
             return null;
         for (int p = 0; p < _rig.Figures.Pots; p++)
         {
@@ -215,7 +215,7 @@ public sealed class CrucibleFurnaceRenderer : IRenderer
         {
             // light from over the hole's front row, which nothing fills but the swinging lid
             var light = _be.CellPos(new Int3(0, 2, 0));
-            prog = rapi.PreparedStandardShader(light.X, light.Y, light.Z);
+            prog = MachineShading.Prepare(_capi, light);
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
