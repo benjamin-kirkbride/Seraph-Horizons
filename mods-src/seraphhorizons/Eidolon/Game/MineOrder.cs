@@ -69,9 +69,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>Within this of where it was ordered, it is back.</summary>
     private const double HomeSlack = 1.5;
 
-    /// <summary>Times it sets off back again when its walk back stops short of where it was ordered.</summary>
-    private const int HomeTries = 3;
-
     /// <summary>How near its place counts as there: its box is 1.7 wide on a 2-block node, so off by
     /// more than 0.15 it stands over a third column, which it may not mine under.</summary>
     private const float ArriveWithin = 0.2f;
@@ -180,7 +177,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private double _waitCheckAt;
     private int? _band;
     private MineSector? _sector;
-    private int _homeTries;
+    private readonly MineReturn _homeTries = new();
     private int _toldSaved = toldOutOfReach;
     private bool _stairWait;
     private double? _throughSince;
@@ -510,7 +507,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (_stairWait)
                     return GoHome(eidolon);
                 // a crew by routes: walking at one standing, it stops short and sets off again a little later
-                // (a stop that counts against none of its tries)
+                // (a few times: one that stays in its way for good ends its walk, MineReturn.Bumps)
                 if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
                 {
                     _nav.Stop();
@@ -522,10 +519,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (_bumpedAt > double.NegativeInfinity && !_nav.Active)
                 {
                     _bumpedAt = double.NegativeInfinity;
-                    return GoHome(eidolon);
+                    if (_homeTries.Bumped())
+                        return GoHome(eidolon);
+                    eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: its walk back "
+                        + $"stopped short of one in its way {MineReturn.Bumps} times ({_homeTries}): it stays where it is ({DebugState})");
+                    return false;
                 }
                 // stopped short (stuck, or off an edge into the pit): it sets off again, a few times
-                return _nav!.Active || ++_homeTries <= HomeTries && GoHome(eidolon);
+                return _nav!.Active || _homeTries.StoppedShort() && GoHome(eidolon);
             case Phase.Travel:
                 if (_nav!.Active)
                     return true;
