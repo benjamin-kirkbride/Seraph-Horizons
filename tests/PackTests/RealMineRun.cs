@@ -196,9 +196,12 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
                     unbusy[i] = now - unbusySince[i]!.Value;
                 if (!working && counts && (idleSince[i] == null || now - askedAt[i] >= 1))
                 {
-                    var free = CouldWork(i, eidolons, orders, job!.Shared, now);
-                    could[i] = free != null;
-                    couldTake[i] = free is { } f ? $"could take #{f.Id} at ({f.Stand.X},{f.Stand.Y},{f.Stand.Z})" : "";
+                    var free = FreeStations(i, eidolons, orders, job!.Shared, now);
+                    could[i] = free.Count > 0;
+                    var crosses = free.Select(f => CrossesClaims(orders[i], eidolons[i], f.Stand, now)).ToList();
+                    couldTake[i] = free.Count == 0 ? "" : "could take " + string.Join(", ", free.Select((f, k) =>
+                        $"#{f.Id} at ({f.Stand.X},{f.Stand.Y},{f.Stand.Z}){(crosses[k] ? " (its way crosses a claim)" : "")}"))
+                        + (crosses.All(c => c) ? "; every free station's way crosses a claim" : "");
                     askedAt[i] = now;
                 }
                 if (working || !counts || !could[i])
@@ -371,20 +374,23 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
                 + $"with them where they stand: {(MineDispatch.Workable(plan, live, at2) is { } v ? $"#{v.Id}" : "none")}; "
                 + $"why left: {string.Join(", ", MineDispatch.WhyLeft(plan, live, live.Remaining, at2).Select(k => $"{k.Value} {k.Key}"))}");
             for (int i = 0; i < eidolons.Count; i++)
-                parts.Add($"{eidolons[i].EntityId} could take: {(CouldWork(i, eidolons, orders, shared, W.ElapsedMilliseconds / 1000.0) is { } c ? $"#{c.Id} at ({c.Stand.X},{c.Stand.Y},{c.Stand.Z})" : "none")}");
+                parts.Add($"{eidolons[i].EntityId} could take: {(FreeStations(i, eidolons, orders, shared, W.ElapsedMilliseconds / 1000.0).FirstOrDefault() is { } c ? $"#{c.Id} at ({c.Stand.X},{c.Stand.Y},{c.Stand.Z})" : "none")}");
         }
         return string.Join(" | ", parts);
     }
 
-    /// <summary>A station member <paramref name="i"/> could take now, or null: one of the plan's with cells left that
+    /// <summary>Stations member <paramref name="i"/> could take now (the first <paramref name="most"/>): the plan's with cells left that
     /// passes the guard with the others where they stand (<see cref="MineDispatch.Executable"/>), none of the others'
     /// own (the station each works or walks to), its stand under none of them, its claim's columns held by none of them
     /// on the job board (README "Eidolon", working together, *Claims*). What the dispatch's order or the routes would
-    /// give it first is not asked: only whether there is work for it.</summary>
-    private MineStation? CouldWork(int i, List<EntityLaborEidolon> eidolons, MineOrder[] orders, MineJobCells shared, double now)
+    /// give it first is not asked, nor whether its way crosses another's claim (a station reachable at all is work:
+    /// crossing a claim is how members taking turns showed; <see cref="CrossesClaims"/> says which for the log): only whether there is work for it.</summary>
+    private List<MineStation> FreeStations(int i, List<EntityLaborEidolon> eidolons, MineOrder[] orders, MineJobCells shared, double now,
+        int most = 6)
     {
+        var free = new List<MineStation>();
         if (shared.Plan is not { } plan || shared.Live is not { } live)
-            return null;
+            return free;
         var board = EidolonJobSystem.Of(world.Api)!.Mining;
         var others = new List<MineWorkerAt>();
         for (int j = 0; j < eidolons.Count; j++)
@@ -401,11 +407,21 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
                 continue;
             if (MineDispatch.Claim(station, plan.Tunnel).Any(c => board.Holder(c, now) is { } h && h != eidolons[i].EntityId))
                 continue;
-            if (MineDispatch.Executable(plan, live, station, others, out _))
-                return station;
+            if (MineDispatch.Executable(plan, live, station, others, out _) && free.Count < most)
+                free.Add(station);
         }
-        return null;
+        return free;
     }
+
+    private static readonly System.Reflection.MethodInfo CrossesClaimsMethod =
+        typeof(MineOrder).GetMethod("CrossesClaims", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+        ?? throw new MissingMethodException("MineOrder.CrossesClaims (the dispatch's claim crossing) is gone: find it again for RealMineRun");
+
+    /// <summary>Whether the member's way to <paramref name="stand"/> crosses a column another holds, as its own dispatch
+    /// asks it (MineOrder.CrossesClaims, private: the game's path found, its first steps off): a station set aside for
+    /// it (README "Eidolon", working together) is told apart from one free and clear. For the log only.</summary>
+    private static bool CrossesClaims(MineOrder order, EntityLaborEidolon eidolon, PathCell stand, double now) =>
+        (bool)CrossesClaimsMethod.Invoke(order, [eidolon, stand, now])!;
 
     /// <summary>Those of <paramref name="check"/> a fresh reach bound (<see cref="MineReach"/>) over the world as it is
     /// now clears: the window the job's live state reads, its home and bad stands, over <paramref name="targets"/>
