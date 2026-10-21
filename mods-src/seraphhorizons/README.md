@@ -7745,10 +7745,10 @@ machine's first-stage grid recipe, kept on crafting:
 
 | Schematic | Gates | Seller, standing tier |
 |---|---|---|
-| `windmill` | windmill rotors (the game's, Millwright's) | carpenter, 1 |
+| `windmill` | the game's windmill rotors | carpenter, 1 |
 | `waterwheel` | the water wheel (its first stage) | carpenter, 1 |
 | `handcrank` | the hand crank | general store, 1 |
-| `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake; Millwright's brake and axle passthroughs | mechanic, 2 |
+| `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake | mechanic, 2 |
 | `helvehammer` | the helve hammer base | mechanic, 2 |
 | `pulverizer` | the pulverizer frame | mechanic, 2 |
 | `sawmill`, `chopper` | Immersive Woodworking's frames | carpenter, 2 |

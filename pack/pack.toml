@@ -296,14 +296,6 @@ redistribute = false
 why = "Vertical transmissions and ceiling-mountable clutches."
 
 [[mod]]
-id = "millwright"
-version = "1.3.5"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Reinforced rotors, better sails and vertical-axis windmills."
-
-[[mod]]
 id = "exlib"
 version = "0.8.4"
 side = "universal"
