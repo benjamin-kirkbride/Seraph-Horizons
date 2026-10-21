@@ -2235,6 +2235,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             var pos = new BlockPos(cell.X, cell.Y, cell.Z, eidolon.Pos.Dimension);
             var block = blocks.GetBlock(pos);
+            // gone since it was looked at, with this strike's earlier blocks (granite caves in where one leaves
+            // it hanging): not its to count, and not one to leave
+            if (block.Id == 0)
+            {
+                Plans?.Seen(Cells, cell, new MineVoxel(false, MineRule.Air));
+                continue;
+            }
             if (!sounded && block.Sounds?.GetBreakSound(EnumTool.Pickaxe).Location is { } sound)
             {
                 world.PlaySoundAt(sound, cell.X + 0.5, cell.Y + 0.5, cell.Z + 0.5, null, true, 24);

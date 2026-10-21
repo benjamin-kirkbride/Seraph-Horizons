@@ -174,7 +174,11 @@ public class EidolonOverhangScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(0, mostOut);
         Assert.Null(o1.ToldOutOfReach);
         Assert.All(toMine, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, o1.Mined + o2.Mined);
+        // what they mined and what went with no strike of theirs (granite caves in, at random, where a strike leaves it
+        // hanging, breaking into its drops) are every block of it, each counted once
+        int gone = o1.Job!.Shared.Gone;
+        Log($"{gone} caved in");
+        Assert.Equal(toMine.Count, o1.Mined + o2.Mined + gone);
         Assert.True(o1.Mined > 0 && o2.Mined > 0, $"{o1.Mined} and {o2.Mined}");
         e1.Die(EnumDespawnReason.Removed);
         e2.Die(EnumDespawnReason.Removed);

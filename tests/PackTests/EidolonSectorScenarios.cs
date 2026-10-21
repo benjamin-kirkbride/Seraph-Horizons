@@ -149,7 +149,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Log("faults: " + string.Join(" | ", watch.Faults.Take(30)) + "; overlapping: " + watch.Summary());
         Assert.Empty(watch.Faults);
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, orders.Sum(o => o.Mined));
+        Assert.Equal(toMine.Count, orders.Sum(o => o.Mined) + (orders[0].Job?.Shared.Gone ?? 0));
         Assert.All(orders, o => Assert.True(o.Mined > 0, $"one mined nothing: {string.Join(" + ", orders.Select(x => x.Mined))}"));
         // Each broke in its own station's columns, and they kept apart: well over two boxes' width on average,
         // never one pushing through or standing in another (a shallow brush allowed, however long).

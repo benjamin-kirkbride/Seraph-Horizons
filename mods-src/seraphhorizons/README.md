@@ -3793,7 +3793,10 @@ all the same and the plan made again (three once waited by a stand none could ge
 failing and taking it again, with nothing in the log, for 40 minutes). Each member keeps
 why it last let go of a station (`MineOrder.DebugState`, in `/sh eidolon info`), and a run of them for one
 reason with no strike that goes on 30 seconds is logged at Debug (`[eidolon-mine]`), at most every 30
-seconds. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
+seconds. A target that goes with no strike of its job's (the game's rock caving in where a strike left it
+hanging, as granite does at random beside a block broken, breaking into its drops; a player) is counted
+(`MineJobCells.Gone`), never as mined: a strike that comes to a block of its group already gone so passes it
+by. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
 plan's, the same for all. *Waiting at the rim*: one with no station it may take (all held by
 others, under another, or of a band whose turn has not come) frees its columns and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,

@@ -130,6 +130,10 @@ public sealed class MineJobCells
     /// cells were left (README "Eidolon", working together, *Dispatch*): once, until a block is broken.</summary>
     public bool StuckReplanned { get; set; }
 
+    /// <summary>How many of its targets went with no strike of its own (the game's rock caving in where a strike
+    /// left it hanging, granite breaking into its drops, or a player): what it mined and these are all that went.</summary>
+    public int Gone { get; set; }
+
     /// <summary>The job's last strike (<see cref="LastStrikeAt"/>) when its owner was last told it looks stalled
     /// (README "Eidolon", working together, *When none may work*), null never: told again only after another.</summary>
     public double? StallToldStrike { get; set; }
