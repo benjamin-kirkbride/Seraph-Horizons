@@ -39,8 +39,8 @@ public class BEGearCutter : BEMachine
     private int? _serverWearPerGear;
     private readonly GearCutterClock _clock = new();
     private double _lastPsi;
-    private float _chipTimer;
-    private float _sprayTimer;
+    private readonly ParticleTimer _chips = new(ChipInterval);
+    private readonly ParticleTimer _spray = new(SprayInterval);
 
     public bool BlankOn => _job.On && _blank != null;
     public ItemStack? Blank => _blank;
@@ -303,16 +303,10 @@ public class BEGearCutter : BEMachine
         _clock.Advance(dt, turned, Master, BlankOn, _job.Work, (int)_job.End, running, TurnsPerTooth);
         if (!far && running && Rig is { } rig)
         {
-            if ((_chipTimer += dt) >= ChipInterval)
-            {
-                _chipTimer = 0;
+            if (_chips.Due(dt))
                 SpawnChips(rig);
-            }
-            if (OilFill > 0 && (_sprayTimer += dt) >= SprayInterval)
-            {
-                _sprayTimer = 0;
+            if (OilFill > 0 && _spray.Due(dt))
                 SpawnSpray(rig);
-            }
         }
         return _clock.Input(theta, psi, OilFill);
     }
@@ -321,21 +315,19 @@ public class BEGearCutter : BEMachine
     {
         var at = WorldPoint(rig.Chips);
         // steel chips, and now and then a spark
-        Api.World.SpawnParticles(2, ColorUtil.ToRgba(255, 150, 150, 160),
-            at.AddCopy(-0.04, -0.04, -0.04), at.AddCopy(0.04, 0.04, 0.04),
-            new Vec3f(-0.8f, -0.2f, -0.8f), new Vec3f(0.8f, 0.6f, 0.8f), 0.8f, 1f, 0.25f, EnumParticleModel.Cube, null);
+        MachineParticles.Chips(ColorUtil.ToRgba(255, 150, 150, 160)).Spawn(Api.World, at, MachineParticles.Around(0.04));
         if (Api.World.Rand.NextDouble() < 0.3)
-            Api.World.SpawnParticles(1, ColorUtil.ToRgba(255, 60, 190, 255),
-                at, at.AddCopy(0.02, 0.02, 0.02),
-                new Vec3f(-1.5f, 0.2f, -1.5f), new Vec3f(1.5f, 1.2f, 1.5f), 0.3f, 1f, 0.15f, EnumParticleModel.Quad, null);
+            new Puff(1, ColorUtil.ToRgba(255, 255, 190, 60), new Vec3f(-1.5f, 0.2f, -1.5f), new Vec3f(1.5f, 1.2f, 1.5f), 0.3f, 1f, 0.15f)
+                .SpawnBetween(Api.World, at, at.AddCopy(0.02, 0.02, 0.02));
     }
 
     private void SpawnSpray(GearCutterRig rig)
     {
         var at = WorldPoint(rig.Drip);
-        Api.World.SpawnParticles(2, ColorUtil.ToRgba(170, 40, 140, 190),
-            at.AddCopy(-0.02, -0.05, -0.02), at.AddCopy(0.02, 0, 0.02),
-            new Vec3f(-0.15f, -0.6f, -0.15f), new Vec3f(0.15f, -0.3f, 0.15f), 0.5f, 1f, 0.2f, EnumParticleModel.Quad, null);
+        (MachineParticles.Drip(ColorUtil.ToRgba(170, 190, 140, 40)) with
+        {
+            Count = 2, MinVelocity = new Vec3f(-0.15f, -0.6f, -0.15f), MaxVelocity = new Vec3f(0.15f, -0.3f, 0.15f), Life = 0.5f, Size = 0.2f,
+        }).SpawnBetween(Api.World, at.AddCopy(-0.02, -0.05, -0.02), at.AddCopy(0.02, 0, 0.02));
     }
 
     // ---- Breaking ----

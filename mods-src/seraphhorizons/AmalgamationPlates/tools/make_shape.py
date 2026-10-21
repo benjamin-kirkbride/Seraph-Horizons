@@ -707,7 +707,7 @@ def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
 
 
-POINTS = ("feedSpout", "spray", "amalgam", "trapWell")
+POINTS = ("feedSpout", "spray", "amalgam", "lip", "trapWell")
 
 
 def make_rig(parts):
@@ -731,6 +731,7 @@ def make_rig(parts):
         "feedSpout": {"pos": pt(cx, DIST_Y[0], sum(HOLES_Z) / 2)},
         "spray": {"pos": pt(cx, NOZZLE_Y[0], NOZZLE_Z1)},
         "amalgam": {"pos": pt(cx, bed_y(mid_z) + AMALGAM_H0 / COS, mid_z)},
+        "lip": {"pos": pt(cx, BED_FOOT_Y, BED_Z[1])},
         "trapWell": {"pos": pt((TRAP_X[0] + TRAP_X[1]) / 2, MERCURY_TOP, (TRAP_Z[0] + TRAP_Z[1]) / 2)},
         "buildStages": [{"stage": n, "name": name, "adds": list(req)} for n, (req, name) in enumerate(BUILD_STAGES, 1)],
         "amalgamStates": list(AMALGAM),

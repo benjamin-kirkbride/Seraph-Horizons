@@ -219,7 +219,9 @@ water a rock, a charge of 2 rock in 7.5 hours at the reference speed 0.6.
   ore, or a charge not yet ground, which comes back crushed with its turns lost. The water stays.
 - **Load:** constant once built, 0.1 working or idle (0.005 unbuilt), on the axle at the power cell. No oil, no
   wearing parts, no tailings (`OreMachinesSettings.Tailings` lists none for it).
-- **Drawn:** the rig's `charge` part while a charge is in, `paste` once it is ground.
+- **Drawn:** the rig's `charge` part while a charge is in, `paste` once it is ground. While it grinds (a wet charge
+  in, the shaft turning), wet grit in the charge's colour and now and then a fleck of muddy water are thrown up at
+  one of the drag stones (the rig's `stone1`..`stone4`, carried round by the `stones` part), a few times a second.
 - **Breaking** the frame or any cell gives back the frame, every stage's materials and what is in the pit.
 
 The recipe browser shows its build (the shared `construction` record) and a grinding record per crushed ore
@@ -311,7 +313,7 @@ fewer stages draws a subset, so what holds for the whole holds for it.
 - **No z-fighting** (full runs): no coplanar overlapping faces with either content at three axle angles, after the
   fix (`fix_coplanar`, a content at a time with the whole machine).
 - **Files:** every texture declared; the frame shape the frame part alone; 8 cells, each with boxes inside it, none
-  hollow, no lids; of the anchors only the power and the draw (no key matching `FORBIDDEN_ANCHOR`), no hopper, spout
+  hollow, no lids; of the anchors only the power and the draw, beside them only the stones' points (no key matching `FORBIDDEN_ANCHOR`), no hopper, spout
   or chute element, and no chute, pipe or solder texture; the rig's `build` the generator's stages; the shipped
   model the checked one moved.
 
@@ -324,7 +326,8 @@ states.
 The bucking sawmill's format (`../BuckingSawmill/README.md`, "Rig schema"). The only input is θ; every driver is a
 `rotate` on it, and the rest of the parts ride or stand still. Keys: `cells` (8, with `boxes`; no lids, none
 hollow), `powerCell` and `powerFace`, `drawCell` and `drawFace` (the draw, a hand action; the crucible furnace's
-`holeCell` is the pattern), `build`
+`holeCell` is the pattern), `stone1`..`stone4` (the particles' points: each drag stone's middle at the charge's top,
+at rest, with `part: "stones"`, the part that carries it round, the rocker's form), `build`
 (`{stages: [{requires}]}`, the crucible furnace's key, the stages in order, no materials yet) and `parts`.
 `requires` values: `pit`, `post`, `arms`, `stones` (the stages), `charge`, `paste` (the contents), or null. No
 `loadCell` and no `waterCell`: the arrastra is loaded and watered by hand, straight into the pit, and the validator

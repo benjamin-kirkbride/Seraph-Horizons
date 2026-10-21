@@ -504,6 +504,26 @@ public class BECupellationFurnace : BEFiredOreMachine
         return requires == CupellationRequires.DamperPart(_damper);
     }
 
+    // ---- Client ----
+
+    private readonly ParticleTimer _fume = new(0.5f), _drip = new(0.75f);
+
+    /// <summary>The fire's (<see cref="BEFiredOreMachine"/>); while the blast works the charge (the litharge running),
+    /// white litharge fume rises off the dish and the litharge drips glowing into the pot. The pot's cell is solid to
+    /// the game, so the drop passes through it and is short-lived.</summary>
+    protected override void OnClientTick(float dt)
+    {
+        base.OnClientTick(dt);
+        if (Api is not ICoreClientAPI capi || Rig is not { } rig || !_lit || !_running || !TestIn)
+            return;
+        if (_fume.Due(dt) && rig.Point("dish") is { } dish)
+            (MachineParticles.Fume(MachineParticles.FumeLead) with { Life = 2f })
+                .Spawn(capi.World, WorldPoint(dish), MachineParticles.Around(new Float3(0.15f, 0.02f, 0.25f), Side));
+        if (_drip.Due(dt) && rig.Point("litharge") is { } pot)
+            (MachineParticles.Drip(MachineParticles.Molten, glowing: true) with { Life = 0.3f, TerrainCollision = false })
+                .Spawn(capi.World, WorldPoint(new Float3(pot.X, pot.Y + 0.15f, pot.Z)), MachineParticles.Around(0.01));
+    }
+
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)

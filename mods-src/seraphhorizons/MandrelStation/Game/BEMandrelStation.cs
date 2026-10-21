@@ -503,19 +503,8 @@ public class BEMandrelStation : BEMachine
     }
 
     // Small sparks off the blow, the anvil's colour.
-    private void Sparks(Vec3d at)
-    {
-        var props = new SimpleParticleProperties(
-            3, 6, ColorUtil.ToRgba(255, 255, 233, 83),
-            at.AddCopy(-0.1, 0, -0.1), at.AddCopy(0.1, 0.05, 0.1),
-            new Vec3f(-1.2f, 0.6f, -1.2f), new Vec3f(1.2f, 2.2f, 1.2f),
-            0.12f, 1f, 0.1f, 0.2f, EnumParticleModel.Cube)
-        {
-            VertexFlags = 128,
-            WithTerrainCollision = true,
-        };
-        Api.World.SpawnParticles(props);
-    }
+    private void Sparks(Vec3d at) =>
+        MachineParticles.Sparks().SpawnBetween(Api.World, at.AddCopy(-0.1, 0, -0.1), at.AddCopy(0.1, 0.05, 0.1));
 
     /// <summary>Drops <paramref name="stack"/> just beyond the output face.</summary>
     public void Deliver(ItemStack stack)

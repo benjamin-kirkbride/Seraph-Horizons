@@ -38,6 +38,7 @@ public class BEAmalgamPan : BEMachine
     // The server syncs the turns at least this often (a share of the charge).
     private const double SyncStep = 0.05;
     private static readonly Float3 PanFallback = new(0.5f, 0.4f, 0.5f);
+    private const float FleckInterval = 0.25f;
 
     private AmalgamPanBatch _batch = new();
     private ItemStack? _charge;
@@ -46,6 +47,7 @@ public class BEAmalgamPan : BEMachine
     private float _grindSeconds;
     private int _syncedNeed;
     private readonly AmalgamPanClock _clock = new();
+    private readonly ParticleTimer _flecks = new(FleckInterval);
 
     public AmalgamPanBatch Batch => _batch;
     public ItemStack? Charge => _charge;
@@ -444,10 +446,19 @@ public class BEAmalgamPan : BEMachine
     }
 
     /// <summary>θ: the axle's angle while one turns the pan (the quern's top stone takes it as it is), else the
-    /// hand's clock while held on a built pan (<see cref="AmalgamPanClock"/>).</summary>
+    /// hand's clock while held on a built pan (<see cref="AmalgamPanClock"/>). While it works a charge, flecks of
+    /// the slurry (the quartz's colour) thrown up round the muller.</summary>
     public override RigInput FrameInput(float dt, bool far)
     {
         _clock.Advance(dt, ShaftTurning ? ShaftAngle : null, Held && Built, Config.HandTurnsPerSecond);
+        if (!far && Running && _flecks.Due(dt))
+        {
+            int colour = MachineParticles.MaterialColour(_charge, 200, MachineParticles.Slurry, Api as ICoreClientAPI);
+            (MachineParticles.SlurryDrops(colour) with
+            {
+                Count = 1, MaxCount = 2, MinVelocity = new Vec3f(-0.3f, 0.3f, -0.3f), MaxVelocity = new Vec3f(0.3f, 0.7f, 0.3f), Life = 0.6f, Size = 0.12f,
+            }).Spawn(Api.World, WorldPoint(Rig?.Pan ?? PanFallback), MachineParticles.Around(0.25, 0.02, 0.25));
+        }
         return _clock.Input();
     }
 

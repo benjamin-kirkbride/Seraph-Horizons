@@ -52,7 +52,7 @@ public class BECrucibleFurnace : BEMachine, IFiredMachine
     private Vec3d? _chimneyTop;
     private int? _serverCokeCapacity;
     private BoxTables? _boxes;
-    private float _particleSeconds;
+    private readonly ParticleTimer _particles = new(0.3f);
 
     public FurnaceFiring Firing => _firing;
     public bool LiningIn => Assembly?.Build.Fitted(FurnaceRequires.Lining) == true;
@@ -256,9 +256,7 @@ public class BECrucibleFurnace : BEMachine, IFiredMachine
     {
         if (row.ChimneyAt is not { } c || Rig is not { } rig || (c == 0 ? this : Neighbour(c)) is not { } owner)
             return null;
-        // over the chimney top, which stands on the shaft: its pots rise to 12 voxels
-        var b = owner.CellPos(rig.ChimneyBase);
-        return new Vec3d(b.X + 0.5, b.Y + row.ChimneyHeight + 0.75, b.Z + 0.5);
+        return FurnaceFiring.ChimneyTop(owner, rig.Flue, row.ChimneyHeight);
     }
 
     // ---- Interaction ----
@@ -703,30 +701,15 @@ public class BECrucibleFurnace : BEMachine, IFiredMachine
     {
         if (Api is not ICoreClientAPI capi || Rig is not { } rig || !_heat.Lit)
             return;
-        if ((_particleSeconds += dt) < 0.3f)
+        if (!_particles.Due(dt))
             return;
-        _particleSeconds = 0;
         if (LidOpen)
         {
             var mouth = WorldPoint(rig.Mouth);
-            var flames = new SimpleParticleProperties(2, 4, ColorUtil.ToRgba(220, 255, 160, 40), mouth.AddCopy(-0.6, -0.2, -0.3),
-                mouth.AddCopy(0.6, 0, 0.3), new Vec3f(-0.05f, 0.3f, -0.05f), new Vec3f(0.05f, 0.8f, 0.05f), 0.5f, -0.05f, 0.4f, 0.9f, EnumParticleModel.Quad)
-            {
-                VertexFlags = 200,
-                OpacityEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, -200),
-            };
-            capi.World.SpawnParticles(flames);
+            MachineParticles.Flame().SpawnBetween(capi.World, mouth.AddCopy(-0.6, -0.2, -0.3), mouth.AddCopy(0.6, 0, 0.3));
         }
         if (_chimneyTop is { } top && _draught != null)
-        {
-            var smoke = new SimpleParticleProperties(1, 2, ColorUtil.ToRgba(80, 60, 60, 60), top.AddCopy(-0.2, 0, -0.2), top.AddCopy(0.2, 0.2, 0.2),
-                new Vec3f(-0.1f, 0.3f, -0.1f), new Vec3f(0.1f, 0.6f, 0.1f), 3, -0.02f, 0.5f, 1.5f, EnumParticleModel.Quad)
-            {
-                SizeEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, 1.5f),
-                OpacityEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, -40),
-            };
-            capi.World.SpawnParticles(smoke);
-        }
+            FurnaceFiring.ChimneySmoke(capi.World, top);
     }
 
     // ---- Info ----

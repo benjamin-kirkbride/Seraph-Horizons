@@ -368,5 +368,8 @@ What gameplay reads, and where:
   held to the rig's `furnace.charge` by a test. The burn is the shared fire (`MachineFire`).
 - **The row** is the crucible furnace's (`FurnaceRow`, `ChimneyColumn`): along native x, the stall's width (2)
   apart, up to `furnace.rowMax`, the chimney from `outletCell` up, at least `furnace.minChimney`.
+- **Particles:** no fire door: lit, the heap smoulders, embers drifting off its top (`heap`, lowered by the courses
+  not charged), and the row's chimney smokes; while it burns with draught through it (the front walled or half
+  walled, the row drawing), thick yellowish sulfurous smoke rises off the heap.
 - **Tests**: `tests/StallRoaster/StallRoasterTests.cs` (the rules, the rig's gameplay half, the build against the
   rig, the figures); `tests/PackTests/StallRoasterScenarios.cs` places, builds, charges, burns and empties it.

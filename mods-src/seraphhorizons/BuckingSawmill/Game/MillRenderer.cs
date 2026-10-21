@@ -44,7 +44,7 @@ public sealed class MillRenderer : IRenderer
     private double _lastAngle;
     private bool _angleSeeded;
     private int _stroke;
-    private float _sawdustTimer;
+    private readonly ParticleTimer _sawdust = new(SawdustInterval);
     private float _lifting;                         // 1 while the saws are wound up: the levers' and clutch's trip input
     private double _travel;                         // the shaft's travel: total angle turned either way (the rectified gears' input)
 
@@ -251,12 +251,8 @@ public sealed class MillRenderer : IRenderer
         int strokes = MillMotion.StrokesBetween(before, _theta);
         if (strokes > 0)
             PlayStroke();
-        _sawdustTimer += dt;
-        if (_sawdustTimer >= SawdustInterval)
-        {
-            _sawdustTimer = 0;
+        if (_sawdust.Due(dt))
             SpawnSawdust();
-        }
     }
 
     private void PlayStroke()
@@ -282,9 +278,8 @@ public sealed class MillRenderer : IRenderer
             var edge = Mat4.Apply(mats[i], new Float3((b.Min.X + b.Max.X) / 2, b.Min.Y, mid));
             var lo = WorldPoint(new Float3(edge.X - 0.1f, edge.Y, mid - 0.6f));
             var hi = WorldPoint(new Float3(edge.X + 0.1f, edge.Y + 0.15f, mid + 0.6f));
-            _capi.World.SpawnParticles(3, ColorUtil.ToRgba(255, 214, 180, 120),
-                new Vec3d(Math.Min(lo.X, hi.X), lo.Y, Math.Min(lo.Z, hi.Z)), new Vec3d(Math.Max(lo.X, hi.X), hi.Y, Math.Max(lo.Z, hi.Z)),
-                new Vec3f(-0.4f, 0.1f, -0.4f), new Vec3f(0.4f, 0.6f, 0.4f), 1.2f, 0.6f, 0.4f, EnumParticleModel.Quad, null);
+            new Puff(3, ColorUtil.ToRgba(255, 214, 180, 120), new Vec3f(-0.4f, 0.1f, -0.4f), new Vec3f(0.4f, 0.6f, 0.4f), 1.2f, 0.6f, 0.4f)
+                .SpawnBetween(_capi.World, lo, hi);
         }
     }
 

@@ -47,7 +47,7 @@ public class BESlittingMill : BEMachine
     private int? _serverKnifeWear;
     private readonly SlittingMillClock _clock = new();
     private double _lastPsi;
-    private float _dustTimer;
+    private readonly ParticleTimer _dust = new(DustInterval);
 
     public bool PlateOn => _job.On && _plate != null;
     public ItemStack? Plate => _plate;
@@ -376,13 +376,11 @@ public class BESlittingMill : BEMachine
         _lastPsi = psi;
         bool running = Running;
         _clock.Advance(dt, turned, PlateOn, _job.Work, running, TurnsPerStroke);
-        if (!far && running && Rig is { } rig && (_dustTimer += dt) >= DustInterval)
+        if (!far && running && Rig is { } rig && _dust.Due(dt))
         {
-            _dustTimer = 0;
             var at = WorldPoint(rig.Nip);
-            Api.World.SpawnParticles(2, ColorUtil.ToRgba(220, 120, 115, 110),
-                at.AddCopy(-0.1, -0.03, -0.03), at.AddCopy(0.1, 0.03, 0.03),
-                new Vec3f(-0.2f, -0.1f, -0.2f), new Vec3f(0.2f, 0.25f, 0.2f), 0.6f, 1f, 0.15f, EnumParticleModel.Cube, null);
+            (MachineParticles.Dust(ColorUtil.ToRgba(220, 120, 115, 110)) with { MinVelocity = new Vec3f(-0.2f, -0.1f, -0.2f), MaxVelocity = new Vec3f(0.2f, 0.25f, 0.2f) })
+                .Spawn(Api.World, at, MachineParticles.Around(0.1, 0.03, 0.03));
         }
         return _clock.Input(theta, psi, OilFill);
     }

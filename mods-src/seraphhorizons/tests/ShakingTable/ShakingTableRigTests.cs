@@ -42,6 +42,25 @@ public class ShakingTableRigTests
     }
 
     [Fact]
+    public void The_bump_is_where_the_rig_draws_the_deck_at_the_end_of_its_push()
+    {
+        using var doc = JsonDocument.Parse(File("shakingtable-rig.json"));
+        Assert.Equal(Mod.ShakingTable.Core.ShakingTabling.BumpAt, doc.RootElement.GetProperty("stroke").GetProperty("bumpAt").GetDouble());
+        var rig = OreMachineRig.Parse(File("shakingtable-rig.json"));
+        foreach (var point in new[] { "deck", "feed", "concentrate", "tailings" })
+            Assert.NotNull(rig.Point(point));
+        // the deck's z is greatest at the bump, and it is passed once a stroke, three a turn of the axle
+        var parts = Shipped();
+        int deck = parts.IndexOf("deck");
+        double Z(double travel) => parts.Matrices(new RigInput(0, Travel: travel))[deck][14];
+        double bump = Mod.ShakingTable.Core.ShakingTabling.BumpAt / Mod.ShakingTable.Core.ShakingTabling.StrokesPerTurn;
+        double most = Enumerable.Range(0, 3600).Max(k => Z(k * 2 * Math.PI / 3600));
+        Assert.True(most - Z(bump) < 1e-4, $"the deck is {most - Z(bump)} short of its forward end at the bump");
+        int bumps = Enumerable.Range(0, 3600).Count(k => Mod.ShakingTable.Core.ShakingTabling.Bumped(k * 2 * Math.PI / 3600, (k + 1) * 2 * Math.PI / 3600));
+        Assert.Equal(3, bumps);
+    }
+
+    [Fact]
     public void The_shipped_rig_matches_the_python_reference_poses()
     {
         var parts = Shipped();

@@ -18,6 +18,8 @@
 	"concentrateFace": "north",
 	"tailingsCell": [0, 0, 2],
 	"tailingsFace": "south",
+	"headBox": {"pos": [0.625, 0.5813, 0.3]},
+	"foot": {"pos": [0.625, 0.5062, 2.5125]},
 	"pipes": {"requires": {"copper": "pipecopper", "lead": "pipelead"}, "_comment": "The water line, from the inlet to the spray pipe's nozzles: ppex's pipe, soldered, one part per metal (the same elements); only the supplied metal's is drawn."},
 	"buildStages": [{"stage": 1, "id": "countershaft", "name": "the countershaft", "adds": ["countershaft"]}, {"stage": 2, "id": "shaker", "name": "the shaking frame", "adds": ["shaker"]}, {"stage": 3, "id": "rollers", "name": "the rollers and creep", "adds": ["rollers", "creep"]}, {"stage": 4, "id": "belt", "name": "the belt", "adds": ["belt"]}, {"stage": 5, "id": "services", "name": "services", "adds": ["feedbox", "chutes", "pipecopper", "pipelead"]}],
 	"drive": {"strokesPerTurn": 1.0, "shake": 0.0625, "beltPerTurn": 0.005454, "beltLength": 4.6633, "ratchet": {"teeth": 12, "teethPerTurn": 1.0}, "worm": {"starts": 1, "wheelTeeth": 12}, "_comment": "strokesPerTurn: the shaking frame's strokes (one across and back) per turn of the axle; shake: the stroke, blocks. beltPerTurn: blocks the belt creeps to the head per turn of the axle, either way, at the head drum's surface (the fixed pawl pushes the ratchet a tooth a stroke; a single-start worm on the head roller's 12-tooth wheel); beltLength: its loop round the drums, blocks (the seams' parts carry them round it)."},

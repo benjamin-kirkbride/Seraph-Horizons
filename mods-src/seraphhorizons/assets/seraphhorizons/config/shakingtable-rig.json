@@ -20,7 +20,11 @@
 	"middlingsFace": "south",
 	"tailingsCell": [1, 0, 0],
 	"tailingsFace": "east",
-	"stroke": {"strokesPerTurn": 3.0, "length": 0.075, "forward": "south", "_comment": "strokesPerTurn: the deck's strokes (and the head shaft's turns) per turn of the axle, either way (the rectifier steps up 3:1). length: the stroke, blocks. forward: the way the slow push goes, towards the concentrate end; the quick return goes back."},
+	"deck": {"pos": [0.9625, 0.5599, 1.7812]},
+	"feed": {"pos": [0.75, 0.6129, 1.5]},
+	"concentrate": {"pos": [0.6781, 0.5473, 2.8]},
+	"tailings": {"pos": [1.7375, 0.5261, 1.7812]},
+	"stroke": {"strokesPerTurn": 3.0, "length": 0.075, "forward": "south", "bumpAt": 2.177298, "_comment": "strokesPerTurn: the deck's strokes (and the head shaft's turns) per turn of the axle, either way (the rectifier steps up 3:1). length: the stroke, blocks. forward: the way the slow push goes, towards the concentrate end; the quick return goes back. bumpAt: the head shaft's angle (strokesPerTurn times the travel, radians into its turn) where the push ends and the return starts, the bump. The points deck (its sound), feed, concentrate and tailings (the deck at rest) are where its particles show."},
 	"buildStages": [{"stage": 1, "id": "deck", "name": "the deck", "adds": ["deck"]}, {"stage": 2, "id": "rectifier", "name": "the rectifier", "adds": ["rectifier"]}, {"stage": 3, "id": "head", "name": "the differential head", "adds": ["head"]}, {"stage": 4, "id": "services", "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}],
 	"parts": [
 		{"id": "entry", "match": ["entry_*"], "requires": "rectifier", "drivers": [{"type": "rotate", "axis": "x", "pivot": [0.0, 0.5, 0.5], "ratio": 1.0}], "ride": null},

@@ -654,7 +654,8 @@ def validate_files(m, shape, frame_shape, ship):
     """The written files: every texture declared; the frame shape the frame part alone; the footprint's cells, every
     one holding part of the machine (none hollow), with boxes inside them, no lids; batch, loaded and watered by hand:
     no chute and no pipe (no chute, pipe or solder texture), and of the anchors only the power and the draw (no load,
-    infeed, output, chute, pour or water: FORBIDDEN_ANCHOR); the rig's build lists the stages in order."""
+    infeed, output, chute, pour or water: FORBIDDEN_ANCHOR), beside them only the particles' points (POINTS); the rig's
+    build lists the stages in order."""
     ok = True
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
@@ -679,7 +680,7 @@ def validate_files(m, shape, frame_shape, ship):
         print("FAIL the frame shape is not the frame part")
         ok = False
     keys = [k for k in ship if k not in ("_comment", "cells", "parts", "build")]
-    want = [k for key in m.CELL_KEYS for k in (key, key.replace("Cell", "Face"))]
+    want = [k for key in m.CELL_KEYS for k in (key, key.replace("Cell", "Face"))] + list(m.POINTS)
     chutes = [k for k in shape["textures"] if any(w in k or w in shape["textures"][k] for w in ("chute", "pipe", "solder"))]
     print(f"  anchors {keys}; chute or pipe textures {chutes or 'none'}; build stages {[s['requires'] for s in ship['build']['stages']]}")
     fed = [k for k in ship if FORBIDDEN_ANCHOR.search(k)] + [n for n in {e["name"] for e in shape["elements"]}

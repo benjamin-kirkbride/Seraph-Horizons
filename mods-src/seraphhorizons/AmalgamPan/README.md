@@ -58,7 +58,8 @@ right-click and load and empty the pan; the pan is nearly symmetric, and the dis
 side of the wall. Placed as the press brake is (`side` = the way the player looks).
 
 **Anchors** (in `assets/seraphhorizons/config/amalgampan-rig.json`): `powerCell` and `powerFace`; `pan.pos`,
-the middle of the pan's floor (`[0.5, 0.375, 0.5]`: grinding sounds and particles, around the cone);
+the middle of the pan's floor (`[0.5, 0.375, 0.5]`: grinding sounds and, while it works a charge, flecks
+of slurry in the quartz's colour thrown up around the cone);
 `operatorSide` (`north`). Nothing for item transfer (above).
 
 **Fitted parts and contents** (the rig's `requires`). The frame item carries everything with `requires`

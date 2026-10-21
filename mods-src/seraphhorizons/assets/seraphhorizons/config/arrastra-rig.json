@@ -14,6 +14,10 @@
 	"powerFace": "south",
 	"drawCell": [0, 0, 0],
 	"drawFace": "north",
+	"stone1": {"pos": [0.8558, 0.1875, 1.3558], "part": "stones"},
+	"stone2": {"pos": [0.8558, 0.1875, 0.6442], "part": "stones"},
+	"stone3": {"pos": [0.1442, 0.1875, 0.6442], "part": "stones"},
+	"stone4": {"pos": [0.1442, 0.1875, 1.3558], "part": "stones"},
 	"build": {"_comment": "Provisional (#733): the stages in the order they go on, each fitting its requires value once its materials are in; the frame (the head frame and the power shaft) is placed. The frame's recipe and each stage's items are open. The contents (charge, paste) are the batch's, not stages.", "stages": [{"requires": "pit"}, {"requires": "post"}, {"requires": "arms"}, {"requires": "stones"}]},
 	"parts": [
 		{"id": "shaft", "match": ["sh_*"], "requires": null, "ride": null, "drivers": [{"type": "rotate", "axis": "z", "pivot": [0.5, 1.5, 1.5], "ratio": 1.0}]},

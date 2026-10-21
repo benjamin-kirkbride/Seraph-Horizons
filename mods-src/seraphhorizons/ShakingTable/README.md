@@ -229,7 +229,8 @@ no driver and no input: θ and ψ only, no work.
 | `infeedCell`, `infeedFace` | The infeed chute's. |
 | `waterCell`, `waterFace` | The water line's inlet. |
 | `concentrateCell`/`Face`, `middlingsCell`/`Face`, `tailingsCell`/`Face` | The three output chutes'. |
-| `stroke` | `strokesPerTurn` (3: the deck's strokes and the head shaft's turns a turn of the axle, either way), `length` (blocks), `forward` (`south`, the slow push's way). Not drawn by the viewer. |
+| `deck`, `feed`, `concentrate`, `tailings` | Points (`pos`, the deck at rest): the deck's top middle (the wash's sound), the feed box's weir, the far end's lip over the concentrate launder, the low side's edge. Where the particles show. |
+| `stroke` | `strokesPerTurn` (3: the deck's strokes and the head shaft's turns a turn of the axle, either way), `length` (blocks), `forward` (`south`, the slow push's way), `bumpAt` (the head shaft's angle into its turn where the push ends and the quick return starts). Not drawn by the viewer. |
 | `buildStages` | `[{ stage, id, name, adds }]`: each build stage after the placed frame, in order, and the `requires` it fits (services: `chutes` and the two water lines, one of which is drawn). |
 | `parts` | The ten parts above, in first-match order. |
 
@@ -241,7 +242,15 @@ Don't: regenerate. Element names are the rig's interface (`entry_*`, `headshaft_
 ## Provisional
 
 - The rig's `stroke` object: figures for the site, not read by the game (the deck's 3 strokes a turn are
-  `ShakingTabling.StrokesPerTurn`; the work is counted in axle turns, as every ore machine's).
+  `ShakingTabling.StrokesPerTurn` and the bump `ShakingTabling.BumpAt`, held to the rig by
+  `tests/ShakingTable/ShakingTableRigTests.cs`; the work is counted in axle turns, as every ore machine's).
+
+## Particles
+
+While it washes a rock (working, a rock in the feed box): the pulp spills over the feed box's weir (`feed`) and a
+sheet of wash water runs off the low side (`tailings`) a few times a second; at each bump, the end of the push
+(`ShakingTabling.Bumped` on ψ), water and a grain or two splash off the far end's lip (`concentrate`). Pulp and grains
+take the rock's colour, the water its own.
 
 ## Oil
 

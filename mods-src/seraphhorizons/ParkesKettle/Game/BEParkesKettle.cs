@@ -451,6 +451,24 @@ public class BEParkesKettle : BEFiredOreMachine
     private static int Index(string requires, string prefix) =>
         int.TryParse(requires.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : int.MaxValue;
 
+    // ---- The renderer's ----
+
+    private double _lastStir;
+
+    /// <summary>The default clock's; while the stirrer works a charge, each half turn (a paddle across the bath) lifts a
+    /// shimmer of zinc fume off the mouth. The cell over it is solid to the game, so the fume passes through.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        double stir = input.Travel ?? 0, before = _lastStir;
+        _lastStir = stir;
+        if (!far && Running && Phase == KettlePhase.Stirring && Rig?.Point("mouth") is { } mouth
+            && Math.Floor(stir / Math.PI) != Math.Floor(before / Math.PI))
+            (MachineParticles.Fume(MachineParticles.FumeZinc) with { Life = 2f, TerrainCollision = false })
+                .Spawn(Api.World, WorldPoint(mouth), MachineParticles.Around(new Float3(0.2f, 0.02f, 0.2f), Side));
+        return input;
+    }
+
     // ---- Breaking ----
 
     /// <summary>The frame and every stage's items, the cap, and what is in it: the silver-lead and zinc of a charge
