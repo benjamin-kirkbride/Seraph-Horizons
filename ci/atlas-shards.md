@@ -95,8 +95,9 @@ mountain (EidolonRealSlopeScenarios), `eidolon-real-ground` a pit and rough grou
 area for 8 minutes of game time, a shard each (together they ran 331 s): `eidolon-real-large-hillside`
 on a hillside (EidolonRealLargeHillsideScenarios), `eidolon-real-large-rough` on rough ground
 (EidolonRealLargeRoughScenarios); all matched by the `EidolonReal` prefix out of `eidolon-jobs`, so a
-new EidolonReal* class needs a shard of its own, and `eidolon-jobs` every other Eidolon*
-class (chunk loading, the mine window grown round a crew, EidolonMineWindowScenarios), the complement of the others, kept short so a new one can join it
+new EidolonReal* class needs a shard of its own, `eidolon-window` the mine window grown round a
+crew (EidolonMineWindowScenarios, out of `eidolon-jobs` once that ran 310 s on CI), and
+`eidolon-jobs` every other Eidolon* class (chunk loading), the complement of the others, kept short so a new one can join it
 (with VirtualClockScenarios, a world of its own kept out of `rest`).
 
 A class's scenarios run one after another on its server (a boot is about a minute); keep
