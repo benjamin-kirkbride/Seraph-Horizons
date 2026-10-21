@@ -51,9 +51,6 @@ public sealed class LeadOfferRow
     [JsonPropertyName("prospector")] public bool Prospector { get; set; }
     /// <summary>Rings of grid cells from the trader's cell to the camp's (1: next door).</summary>
     [JsonPropertyName("ring")] public int Ring { get; set; }
-    /// <summary>The player's very first map: a flat price, to the nearest prospector (a buy names
-    /// <c>pity</c>, not the cell, since a cell that places no camp passes it on to the next).</summary>
-    [JsonPropertyName("pity")] public bool Pity { get; set; }
 }
 
 /// <summary>A player's standing at one trader, with every tier, for the header, the Standing tab and

@@ -22,9 +22,13 @@ namespace SeraphHorizons.PackTests;
 /// loaded pack: the rule replaces Interesting Ore Gen's spacing filter, answers by the seed and
 /// places a deposit at a generated anchor, the patches and the scaling reached the deposits the
 /// game loaded, and the world recorded its settings. Stable veins' one-world order check
-/// (OreCellOrderScenarios.cs) shares this world and boot, run last.
+/// (OreCellOrderScenarios.cs) shares this world and boot, run last. Its ModConfig
+/// (fixtures/nospawnmark) turns the spawn mark off: settling the nearest prospector's camp for a
+/// joining player loads chunks in the background, and the order check's clear waits for chunk
+/// loading to be idle around the spawn.
 /// </summary>
 [AtlasWorld(Seed = Seed, WorldType = "standard")]
+[AtlasDataFiles("fixtures/nospawnmark", TargetPath = "ModConfig")]
 [TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
 public partial class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {

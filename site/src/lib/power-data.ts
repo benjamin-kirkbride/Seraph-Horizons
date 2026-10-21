@@ -12,9 +12,9 @@
 
 /** Where a figure was read from, so the page can say so and a test can catch fallbacks. */
 export interface PowerSource {
-  /** What the figure is, e.g. "SailCenteredModifier". */
+  /** What the figure is, e.g. "SawmillResistance". */
   what: string;
-  /** Where it came from: "ModConfig/millwright.json", "block attributes", "code constant (BEBehaviorMPPulverizer)". */
+  /** Where it came from: "ModConfig/ImmersiveWoodworking/automation.json", "block attributes", "code constant (BEBehaviorMPPulverizer)". */
   from: string;
   /** True when the exporter could not read the live value and used its built-in default. */
   fallback?: boolean;
@@ -29,8 +29,8 @@ export interface RotorModel {
 
 /**
  * A windmill: a rotor whose target speed is min(speedCap, wind × speedPerWind).
- * `turbulencePenalty`: the game halves a vanilla windmill's torque factor when another
- * windmill is within 1.5 × sails blocks (Millwright's rotors have no such check).
+ * `turbulencePenalty`: whether the torque factor is halved when another windmill is within
+ * 1.5 × sails blocks, as the game does for its own windmill.
  */
 export interface WindModel {
   kind: "wind";

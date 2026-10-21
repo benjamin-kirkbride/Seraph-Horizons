@@ -7745,10 +7745,10 @@ machine's first-stage grid recipe, kept on crafting:
 
 | Schematic | Gates | Seller, standing tier |
 |---|---|---|
-| `windmill` | windmill rotors (the game's, Millwright's) | carpenter, 1 |
+| `windmill` | the game's windmill rotors | carpenter, 1 |
 | `waterwheel` | the water wheel (its first stage) | carpenter, 1 |
 | `handcrank` | the hand crank | general store, 1 |
-| `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake; Millwright's brake and axle passthroughs | mechanic, 2 |
+| `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake | mechanic, 2 |
 | `helvehammer` | the helve hammer base | mechanic, 2 |
 | `pulverizer` | the pulverizer frame | mechanic, 2 |
 | `sawmill`, `chopper` | Immersive Woodworking's frames | carpenter, 2 |
@@ -7857,18 +7857,16 @@ carry their own discount instead).
   | partner | 5 | 0 | 11 |
   | partner | 5 | 12 | 55 |
 
-  **Your very first map** is 10 gears and leads to a prospector. Every trader but a prospector
-  offers it, at any standing, a stranger's included, first among the Maps & leads tab's leads
-  ("Prospector's camp", "your first map · nearest prospector · about 3 km northeast", 10 g), until you buy it; it is
-  yours alone, so every new member of a company gets their own, even where their company has had
-  its stranger's map from that trader (and so does a player from a world saved before the first
-  map, at a trader that already sold them their stranger's map). It goes to the nearest prospector cell to the selling trader (the grid puts one within two
-  rings of every cell), generating its camp as you buy; if that cell can't take a camp, the next
-  nearest prospector cell, out to ring 10; and if no prospector camp can be placed that far, the
-  nearest camp of any kind, still 10 gears. No cell's kind is ever changed for it. It is that
-  trader's one stranger map (so a stranger gets nothing more there) and counts as a lead bought
-  there; like any lead, the prospector it leads to is not offered again, and it doesn't stop a
-  later trader keeping its first slot for a prospector if you have none marked in its reach.
+  **The nearest prospector, marked on your first join** (`SpawnProspectorMark`, default on, with
+  `TraderMaps` and the camp grid): the first time you join a world, the prospector's camp nearest
+  to where you joined goes on your world map as a bought lead's would, "Trader camp (prospector)
+  (approximate, ±64 m)", and the chat says how far and which way ("The nearest prospector's camp is
+  marked on your map, about 2 km northeast"; without a world map, the lead's distance line). Its
+  camp may need generating first, so the marker can land a few seconds after you join. Once per
+  player, ever: not on respawn, not when you join again, not again if you delete the marker. A
+  player from a world that had camps before it, who has a trader camp marked already, is not given
+  one. Meeting its trader makes it exact, and leads pass it over as a camp you have. It replaced the
+  pity map (a first map for 10 gears to the nearest prospector), which is no longer sold.
 
   A lead may point at a camp nobody has generated yet: buying it settles the cell (its next spots'
   chunks are generated until the camp is placed, as `/sh trade tp` does; the chat says "the trader
@@ -7920,35 +7918,37 @@ time); an ore map's precision is the offer's, the same for everyone.
 What each group has bought where, the traders that sold it a stranger's lead and the camps it
 visited are saved with the world (`seraphhorizons:leads`, versioned; a world from before starts
 empty), per player and per company as standing is: both are written, the most of them read, so
-leaving a company keeps what you did. Whether a player has had their first map is saved on their
-own record only (version 2; in a world saved before it, nobody has had theirs yet). Admin
-(`controlserver`): `/sh trade leads [player] [trader]` shows a player's history and whether they
-have had their first map, and the leads a trader offers them now with their ring and price, the
-first map marked (yourself and the nearest trader if none given).
+leaving a company keeps what you did. Whether a player has had their spawn mark is saved on their
+own record only (in a world saved before it, nobody has had theirs yet; the removed pity map's
+flag in such a save is ignored). Admin (`controlserver`): `/sh trade leads [player] [trader]` shows
+a player's history and whether they have had their spawn mark, and the leads a trader offers them
+now with their ring and price (yourself and the nearest trader if none given).
 
 Tests: `tests/Trading/Maps/` (offer selection, sold out, the precision roll's weights and determinism, the shipped price
 table, ore map prices by the formula against the shipped ore sizes and item values, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
 marker replaced by the met trader's, old markers matched by icon, place and title; camp leads
 (`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
 in a table, prices never rising with standing, count and reach per tier, the prospector first, the
-refill, the stranger's one lead in ring 1 and chaining, the trader's own camp never a target, the
-first map alone to a stranger (even one whose group had its stranger's map there) and on top from
-known up, and its target: the nearest seeded
-prospector cell, the next when one can take no camp, out to ring 10, then any camp; distances
+refill, the stranger's one lead in ring 1 and chaining, the trader's own camp never a target; the
+spawn mark (`SpawnMarkTests`): who gets it (once; a veteran with a camp marked has it spent), its
+camp the nearest prospector by distance rather than ring, its own cell included, the cells it skips
+and where its ring search stops; distances
 (`MapDistanceTests`): rounding to the nearest km, under a km, a tier's reach in km; the lead
 history (`LeadBookTests`): counts that never reset, the stranger's lead, visits, pooling by company,
-the first map per player and not per company, the saved version and its migration from version 1);
+the spawn mark per player and not per company, a save from before it (with the pity map's flag)
+loading, the saved version and its migration from version 1);
+`tests/PackTests/TradingSpawnMarkScenarios.cs` (Atlas: a fresh player's spawn mark, one prospector
+camp marked approximate, once, nothing more on joining again or after deleting it);
 `tests/PackTests/TradingMaps*Scenarios.cs` (Atlas, a fixed seed, three classes each on a world of
 its own, as checking a deposit generates its columns: `TradingMapsShelfScenarios` a prospector's ore
 map offers, buying one through the trade window, the registry marked sold and no other trader
 offering it; `TradingMapsApproachScenarios` a far camp's deposits checked in the background, one at a
 time, as a player nears it; `TradingMapsScenarios` a gravel map offered exactly when a field is in reach, standing changing a trader's prices but not its
-ore maps' precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
-buying it generating the camp and marking it, nothing more from that trader, and one onward in
-ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in
-ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a stranger
-whose group had its stranger's map at a store still offered their first map there, its line in km;
-a known
+ore maps' precision; a fresh player at a store offered the stranger's one lead in ring 1, its line
+in km, buying it generating the camp and marking it, nothing more from that trader, and one onward
+in ring 1 at that camp; a stranger's one lead at a prospector in ring 1 at the formula's price, and
+`/sh trade leads` naming the ring and the spawn mark's state (the spawn mark is off in this class's
+world); a known
 customer offered two leads in ring 1 at the formula's price, buying one bringing the next; a
 partner's lead to a camp nobody generated settling it and marking it where it
 stands; a lead bought not offered again, carried or marked, while the gravel map bought after it
