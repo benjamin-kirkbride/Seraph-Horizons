@@ -143,6 +143,7 @@ public static partial class RecipeSection
         FillGearChain(ctx, records, types);
         FillDrawBench(ctx, records, types);
         FillCylinderBorer(ctx, records, types);
+        FillSlittingMill(ctx, records, types);
         FillPressBrake(ctx, records, types);
         FillSquaringShear(ctx, records, types);
         FillRiddle(ctx, records, types);

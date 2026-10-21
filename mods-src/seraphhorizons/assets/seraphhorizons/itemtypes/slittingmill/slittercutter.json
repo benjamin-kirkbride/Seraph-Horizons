@@ -1,0 +1,41 @@
+// The slitting mill's slitter cutter (SlittingMill/, README "Slitting mill"; the slitter rolls' stage takes
+// ten, five on each arbor): a steel collar, a thin disc with a bore for the arbor, the one part of the mill
+// the game has nothing for. Two are forged from one steel ingot (recipes/smithing/slittingmill.json). Drawn
+// as the collars are in the machine, a 12-sided ring (shapes/item/slittercutter.json). The server disables
+// it with SlittingMill off.
+{
+	code: "slittercutter",
+	variantgroups: [
+		{ code: "metal", states: ["steel"] }
+	],
+	shape: { base: "seraphhorizons:item/slittercutter" },
+	textures: {
+		"steel": { base: "game:block/metal/sheet-plain/steel1" }
+	},
+	maxstacksize: 16,
+	materialDensity: 7850,
+	attributes: {
+		handbook: { extraSections: [ { title: "seraphhorizons:slittingmill-part-section-title", text: "seraphhorizons:slittingmill-cutter-section-text" } ] }
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"], "mechanics": ["*"] },
+	guiTransform: {
+		rotation: { x: -30, y: 45, z: 0 },
+		origin: { x: 0.5, y: 0.05, z: 0.5 },
+		scale: 2.6
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.5
+	},
+	fpHandTransform: {
+		translation: { x: 0, y: 0.1, z: 0 },
+		rotation: { x: 15, y: 15, z: 0 },
+		origin: { x: 0.5, y: 0.05, z: 0.5 },
+		scale: 2
+	},
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.1, z: -0.6 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.8
+	}
+}

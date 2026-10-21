@@ -115,6 +115,7 @@ public class MachineOilTests
         Assert.Equal(10f, c.GearCutter.DrainPerJob);
         Assert.Equal(2f, c.DrawBench.DrainPerJob);
         Assert.Equal(10f, c.CylinderBorer.DrainPerJob);
+        Assert.Equal(5f, c.SlittingMill.DrainPerJob);
         Assert.Empty(c.Sanitise());
     }
 
@@ -122,7 +123,7 @@ public class MachineOilTests
     private static readonly OilMachine[] Workshop =
     [
         OilMachine.HelveHammer, OilMachine.Pulverizer, OilMachine.Sawmill, OilMachine.Chopper, OilMachine.BuckingMill,
-        OilMachine.Rosser, OilMachine.GearCutter, OilMachine.DrawBench, OilMachine.CylinderBorer,
+        OilMachine.Rosser, OilMachine.GearCutter, OilMachine.DrawBench, OilMachine.CylinderBorer, OilMachine.SlittingMill,
     ];
 
     private static readonly OreRecovery Recovery = new(JsonSerializer.Deserialize<OreProcessingConfig>(

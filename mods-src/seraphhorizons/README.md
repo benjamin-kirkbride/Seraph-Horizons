@@ -12,7 +12,8 @@ into stainless gears through the pot, the pickling tub and the barrel (`GearRecl
 recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); the cylinder borer, which bores the cast cylinder of Pipes and Power Expanded's steam engines
-(`CylinderBorer`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
+(`CylinderBorer`); the slitting mill, which slits the game's metal plates into nails and strips
+(`SlittingMill`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
 bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); springs of solid rock where the game's rivulets were, which pour, feed a pipe tapping them and give fresh well water (`Springs`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, mines, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
@@ -41,7 +42,7 @@ creative item source and sink are blocks of its own in the same way, with dialog
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's, the rosser's, the gear cutter's, the draw bench's, the cylinder borer's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
+sawmill's, the rosser's, the gear cutter's, the draw bench's, the cylinder borer's, the slitting mill's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
 their moving parts. So are the springs: the server generates, pours and feeds them, the client
 draws them and starts a drink. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
@@ -1561,8 +1562,8 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
 
 The game, Immersive Woodworking (`immersivewoodworking`, 1.3.13) and this mod's two machines. The
 heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
-Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench, the gear
-cutter and the cylinder borer (whose oil wears their cutter kit and cutter head instead of loading their shafts: "Gear
+Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench, the slitting
+mill, the gear cutter and the cylinder borer (whose oil wears their cutter kit and cutter head instead of loading their shafts: "Gear
 cutter" and "Cylinder borer" below), and every ore machine that turns on a shaft: the jaw breaker, the stamp battery,
 the arrastra, the ball mill, the jig, the shaking table, the vanner, and the reverberatory roaster's rabbles and the
 Parkes kettle's stirrer. Nothing else
@@ -1590,7 +1591,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
-  double), the draw bench per pipe section drawn, the cylinder borer per cylinder bored, the ore machines
+  double), the draw bench per pipe section drawn, the cylinder borer per cylinder bored, the slitting mill per plate slit, the ore machines
   per rock worked (the arrastra's drained a charge at a time as it is ground), the reverberatory roaster per
   item roasted by its weight, and the Parkes kettle per charge stirred by its share of a full charge.
 - **Block info** (every oiled machine's, the shared machine base's layout; the machines not yet on
@@ -1623,6 +1624,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `GearCutter` | tank 1000, 10 a gear | A large gear drains double; never a dry load ("Gear cutter") |
 | `DrawBench` | tank 1000, 2 a pipe section | Four pipe sections a hollow, 8 points ("Draw bench") |
 | `CylinderBorer` | tank 1000, 10 a cylinder | Either metal; never a dry load ("Cylinder borer") |
+| `SlittingMill` | tank 1000, 5 a plate | Any metal ("Slitting mill") |
 | `JawBreaker` | tank 4000, 3.8 a rock | The ore machines' are scaled by load (below) |
 | `StampBattery` | tank 3750, 14.3 a rock | |
 | `Arrastra` | tank 500, 43 a rock | Drained a charge at a time |
@@ -2812,6 +2814,104 @@ item types, the two mold block types and the grid, smithing and clay forming rec
 the game loads them, and empties the engines' patch, so none of it exists, borers already placed are lost,
 and ppex's engines take their plates and pipes again; the machine oil page and the mod's own text no longer
 name it. Not yet: a schematic for the frame (`MachineSchematics`).
+
+### Slitting mill (`SlittingMill`, `SlittingMillSettings`)
+
+Nails by the stand rather than the anvil: a mechanically powered slitting mill, the nail-rod mill of the 17th to
+19th centuries, with a cut-off shear behind its stand, that takes one of the game's metal plates
+(`game:metalplate-{metal}`) and makes **20** of the game's nails and strips (`game:metalnailsandstrips-{metal}`)
+of its metal, four more than the anvil's 16 from a plate's two ingots (the anvil's own nail recipes are left as
+they are). Its model, rig and generator are described in `SlittingMill/README.md`; this is the gameplay, in
+`SlittingMill/` (rules in `SlittingMill/Core/`, the game side in `SlittingMill/Game/`).
+
+**Blocks.** `seraphhorizons:slittingmill-frame-{side}` is the controller: the feed table's west half, the block
+the player clicks, with the mill running two blocks away from them along their line of sight, two wide and two
+high, on the shared machine base (`docs/modeling/machine-base.md`): the shared machine cell in each of the rig's
+other cells and the shared power cell (`machine-cellpower-{face}`) a block up at the near end, which takes the axle
+from the player's left (native east). Its build is `config/builds/slittingmill.json`. The frame is a grid recipe:
+two oak logs (placed, upright) and two oak planks, two plates and two rods of iron, meteoric iron or steel, 12 nails
+and strips of the same and a hammer; it carries no gearing, so no stainless gear.
+
+**Stages.** Fitted by right-click on the frame or any of its cells with what each takes, in this order only, a
+material a click (all the stage still needs of it from the stack held, or a whole full stack), as the cylinder
+borer's; every item is kept by its own code, so rods, plates and the bracket may be of mixed metals and breaking
+the frame gives back exactly what went in. Every material is the game's but the cutters, the one part the game has
+nothing for.
+
+| # | Stage (`requires`) | Takes | Draws |
+|---|---|---|---|
+| 1 | `rolls` | Ten `seraphhorizons:slittercutter-steel` and two rods (`game:rod-iron`, `-meteoriciron` or `-steel`) | The two arbors, each with five steel cutters and five spacers |
+| 2 | `pinions` | A Jonas gear frame (`game:jonasframes-gears01` or `-gears02`) and one `game:metal-parts` (a block) | The two equal pinions pairing the arbors and the great wheel on the top arbor |
+| 3 | `drive` | A Jonas gearbox (`game:jonasframes-gearbox01` or `-gearbox02`) and two rods | The rectifier, the rectified shaft, the cone clutch and its fork, the crankshaft with its mutilated gear |
+| 4 | `shear` (and `knife`) | A heavy bracket (`game:bracket-heavy-iron`, `-meteoriciron` or `-steel`), a plate (`game:metalplate-iron`, `-meteoriciron` or `-steel`) and the knife: a cleaver (`game:cleaver-iron`, `-meteoriciron` or `-steel`), the wearing part | The crank disc, the bed knife; the knife, its crosshead, ram and yoke while a cleaver is in |
+| 5 | `pusher` | Two rods and an oak plank (`game:plank-oak`) | The operator's push bar |
+
+The **slitter cutter** is smithed: one steel ingot (32 voxels, a thin collar with the arbor's bore) makes two,
+steel only; its recipe is named `slittercutter`, not `plate`, so the helve hammer does not work it. It is drawn
+as the collars are in the machine, a 12-sided ring (`shapes/item/slittercutter.json`). The **knife** is the game's
+cleaver, a heavy square blade, the nearest thing the game has to a guillotine's knife, and a tool with durability
+of its own (steel 2000, meteoric iron 950, iron 800), so it goes in with what it has left, comes back out with
+what is left, breaks when it is spent and needs no item of the pack's; the bronze, gold and silver cleavers are
+refused (too soft to cut iron). In creative mode Ctrl + right-click on an incomplete mill fills its next stage
+with what it still takes (rods, plates and the bracket in iron, a new steel cleaver for the knife) with nothing
+taken. **Ctrl + right-click** takes the knife back, with the durability it has left (taking it out wears it no
+further; the crank and the bed knife stay), then the plate on the table, its slitting lost. Every other stage
+comes back only by breaking the frame, which drops the frame, everything put in, the knife with its wear, and the
+plate.
+
+**Work.** A plate of copper, tin bronze, bismuth bronze, black bronze, brass, silver, gold, iron, meteoric iron,
+steel, molybdochalkos or electrum (every metal the game's nail recipe allows that has a plate: bismuth has none)
+goes on the feed table by right-click, or from a chest or hopper against the feed table's end (native north), one
+at a time while the shaft turns; nails, a lead plate or an ingot are never taken. The slitting needs the shaft at
+`MinSpeed` and advances W, knife strokes since the plate went in, with its angle, one stroke per `TurnsPerStroke`
+(1, the model's drawn pace) turns either way; at W = 5 (the hand-out) the plate's `NailsPerPlate` (20) nails and
+strips go into a container against the output face (the nail box's end, native south), else drop just outside it,
+and the next plate comes in from the infeed a moment later, once the clutch has eased out. The model's push bar,
+which follows the plate and pushes the strips out, is drawn by W as the rest of the job is: it is the operator's,
+and asks nothing of the player. The metal changes only the load and the knife's wear.
+
+**Oil, load and wear.** A MachineOil machine (`MachineOilSettings.SlittingMill`: tank 1000, 5 points a plate,
+any metal), dry three times its load. Its load is the plate's metal's `Resistance`, the lightest metal's with the
+table empty; the knife loses its metal's `KnifeWear` a plate, oiled or dry (rule `fixed`), when the plate is
+handed out, so a knife with less left than that still finishes its plate, then breaks (the tool-break sound) and
+the mill stops until another goes in.
+
+| Metal | `Resistance` | `KnifeWear` | Plates from a steel cleaver |
+|---|---|---|---|
+| gold, silver | 0.2 | 4 | 500 |
+| copper, electrum | 0.25 | 6 | 333 |
+| molybdochalkos | 0.25 | 8 | 250 |
+| brass | 0.3 | 8 | 250 |
+| tin bronze, bismuth bronze | 0.3 | 10 | 200 |
+| black bronze | 0.3 | 12 | 166 |
+| iron | 0.4 | 20 | 100 |
+| meteoric iron | 0.4 | 24 | 83 |
+| steel | 0.5 | 40 | 50 |
+
+The block info is the machines' shared layout: the build ("Build: stage 2 of 5, pinions and great wheel" and
+"Still takes:") or the knife's share left, the state with how far the plate is, the oil, then the plate on the
+table with the nails cut from every rod so far and the plates of its metal the knife has left; a wrench adds the
+knife's uses, the oil a plate drains, W exactly with the turns a stroke, the nails a plate makes and the knife's
+wear for the metal, the shaft's speed and load and the axle's face.
+
+**Drawn.** The block draws `slittingmill_frame.json`; the renderer splits `slittingmill.json` into the rig's parts
+and draws each whose stage is fitted (the knife while a cleaver is in), and the work (the plate, its rods, nails and
+strips, `requires` `plate`, in the plate's metal's ingot texture) only while a plate is on: once its nails and
+strips are handed out the work is gone at once and W is held while the clutch eases out (`SlittingMillClock`). θ is
+the power cell's angle about native x; W runs on with the shaft between the server's syncs. While it slits: metal
+dust at the nip and the gears' sound at the knife.
+
+| Setting | Default | |
+|---|---|---|
+| `TurnsPerStroke` | 1 | Axle turns a knife stroke, five strokes a plate; the rig's `slit.turnsPerStroke` (a test holds them together) |
+| `NailsPerPlate` | 20 | Nails and strips a plate makes |
+| `MinSpeed` | 0.05 | Below it the mill neither slits nor takes a plate from its infeed |
+| `Metals` | the table above | Each metal's `Resistance` (the load slitting it) and `KnifeWear` (the knife's durability a plate); a metal missing is put back, one it does not slit dropped |
+
+With the switch off the server marks the frame's block type, the slitter cutter's item type and the grid and
+smithing recipe files disabled before the game loads them, so none of it exists and mills already placed are lost;
+the machine oil page and the mod's own text no longer name it. Not yet: a schematic for the frame
+(`MachineSchematics`).
 
 ### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
 
@@ -7564,7 +7664,8 @@ the CastPipes switch's patch adds to smex's tool mold (`smex:toolmold-*-pipe`), 
 exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `GearReclamation`;
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
-`CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
+`CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `slittingmill`: `SlittingMill`, whose files are
+`SlittingMillSystem.TypeAssets`, the slitter cutter's among them, and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
 `PressBrakeSystem.TypeAssets` and `RecipeAssets`; `rocker`: `Rocker`, whose files are
 `RockerSystem.TypeAssets` and `RecipeAssets`; `amalgampan`: `AmalgamPan`, whose files are
 `AmalgamPanSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
@@ -7581,6 +7682,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
+| `SlittingMill` | the mill's blocks, the slitter cutter (`seraphhorizons:slittercutter-*`), its grid and smithing recipes, the slitting mill records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `Rocker` | the rocker's block (`seraphhorizons:rocker-*`), `recipes/grid/rocker.json`, the rocker records |
 | `AmalgamPan` | the amalgam pan's block, its grid recipe, the amalgam pan records |
@@ -8173,7 +8275,12 @@ drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/C
 `tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the cylinder borer's build order,
 cutter head durability, wear by the oil and take-back, a save's restore, bore arithmetic per metal, renderer clock,
 settings, placement and rig, the shipped rig held to its reader, its contract and the reference poses
-(`CylinderBorer/Core/`, `tests/CylinderBorer/CylinderBorerGameplayTests.cs`, `CylinderBorerRigTests.cs`), the press brake's build order,
+(`CylinderBorer/Core/`, `tests/CylinderBorer/CylinderBorerGameplayTests.cs`, `CylinderBorerRigTests.cs`), the slitting mill's build
+order (the game's items, the knife a cleaver closing the shear), the knife's durability by its cleaver, take-back and wear by
+metal, a save's restore, the plates it takes (every metal the game's nail recipe allows that has a plate), the slitting's
+arithmetic (five strokes, nails cut at 3 and 4), load and wear by metal, renderer clock, settings, placement and rig, the
+shipped rig held to its reader, its contract and the reference poses (`SlittingMill/Core/`,
+`tests/SlittingMill/SlittingMillGameplayTests.cs`, `SlittingMillRigTests.cs`), the press brake's build order,
 half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
@@ -8586,6 +8693,27 @@ without it, and nothing logged. `RecipeExportCylinderBorerScenarios.cs` requires
 (`cylinderborer|seraphhorizons:cylinderblank-{metal}|0`): the casting, the three kept stages, the cutter head as a
 tool worn 1 divided by the oil's fill, 10 points of oil, the frame, the bored cylinder, the turns 72 and 108; the
 mold's casting record (six ingots, iron and steel); and the engines' grid records taking the cylinder.
+
+`tests/PackTests/SlittingMillScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires the slitting
+mill's blocks, every stage's material, the cleavers' durability as the knife's uses, a plate and nails and strips for
+each of its twelve metals, its grid recipe (no pack item in it) and the cutters' smithing recipe (two from a steel
+ingot, steel only), the game's anvil nails left as they are, the settings' pace the rig's and the machine oil page
+naming it; placing on all four facings, every cell pointing home, the power cell a block up at the near end with its
+face native east turned with the facing, and every cell cleared and the frame dropped on breaking; the stages fitted in
+order by real clicks, a later stage's part, a plate before it is built, nine cutters and a spent cleaver refused, a
+worn cleaver going in with its wear, a stage partly in kept through a save, and the info and wrench lines; the
+creative shortcut fitting the five stages with a steel cleaver; under a creative rotor, the shaft moving W by itself,
+nails, a lead plate and an ingot never handled, one plate at a time, the load the plate's metal's, and 20 copper
+nails and strips dropped beyond the output face (knife worn 6, oil 995); steel the heaviest load, three times dry, a
+knife with 50 left wearing 40 and then breaking on an iron plate that still comes out, no plate without a knife; the
+knife back by Ctrl with its durability, then the plate, and breaking giving back every part, the knife with its wear
+and the plate; plates taken from a chest at the infeed (not while the shaft stands, never nails or a lead plate) and
+the nails and strips put in a chest at the output. With the switch off, `SwitchesOffScenarios` requires no mill
+block, cutter or recipe, no link to them, the machine oil page without it, and nothing logged.
+`RecipeExportSlittingMillScenarios.cs` requires one `machine` record per plate metal
+(`slittingmill|game:metalplate-{metal}|0`): the plate, the eight kept materials summed by item, the three cleavers as
+a tool worn by the metal's figure (`fixed`), 5 points of oil, the frame, 20 nails and strips, five turns of five
+strokes; and the cutters' smithing record.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
 the press brake's blocks, the metal parts and plates its stages take, the lead and copper half plates it folds

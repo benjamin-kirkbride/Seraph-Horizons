@@ -333,6 +333,17 @@ tank), the oil (each listed oil in the variant, with the litres one cylinder dra
 travel, 1.125 `blocks`, `turnsPerUnit` each), `kept`, `wear` (`dividedByOilFill`, as the gear cutter's kit) and
 `oil` (`points` drained per cylinder from a `tank`). The cylinder mold's casting is an ordinary `casting` record.
 
+**The slitting mill** (type `slittingmill`, shape `machine`): one record per plate metal, id
+`slittingmill|game:metalplate-<metal>|0` (copper, tin bronze, bismuth bronze, black bronze, brass, silver, gold, iron,
+meteoric iron, steel, molybdochalkos and electrum). The ingredients are the plate (consumed), what the five stages are
+built of, summed by item (ten slitter cutters, six rods, the Jonas gears, one metal parts, a block, the Jonas gearbox, the
+heavy bracket, a plate and an oak plank, each listed in the variant; all in `machine.kept`), the knife (a cleaver, `isTool`,
+its `toolDurabilityCost` the metal's wear a plate; the variant lists the steel, meteoric iron and iron cleavers), the oil
+(each listed oil in the variant, with the litres a plate drains) and the machine (role `station`); the output is the
+metal's nails and strips (`game:metalnailsandstrips-<metal>`, 20). `machine` has `power` (`mechanical`), the `turns` of
+the input shaft a plate takes, the `work` it is made of (5 `strokes` of the knife, `turnsPerUnit` each), `kept`, `wear`
+(`fixed`) and `oil` (`points` drained per plate from a `tank`). `extra.metal` is the plate's metal.
+
 **The press brake** (type `pressbrake`, shape `machine`): one record per half plate metal, id
 `pressbrake|seraphhorizons:halfplate-<metal>|0`. The ingredients are the half plate (consumed), the
 screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
