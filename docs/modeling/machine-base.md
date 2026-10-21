@@ -291,6 +291,7 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
 | Gear cutter | `BEGearCutter : BEMachine` | yes, dry wears the kit | no |
 | Draw bench | `BEDrawBench : BEMachine` | yes | no |
 | Cylinder borer | `BECylinderBorer : BEMachine` | yes, dry wears the head | no |
+| Slitting mill | `BESlittingMill : BEMachine` | yes | no |
 | Press brake | `BEPressBrake : BEMachine` (hand) | no | no |
 | Squaring shear | `BESquaringShear : BEMachine` (hand) | no | no |
 | Mandrel station | `BEMandrelStation : BEMachine` (hand) | no | no |

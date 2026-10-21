@@ -485,6 +485,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("GearCutter", off);
         Assert.Contains("DrawBench", off);
         Assert.Contains("CylinderBorer", off);
+        Assert.Contains("SlittingMill", off);
         Assert.Contains("PressBrake", off);
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
@@ -579,6 +580,41 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("drawbench", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("draw bench", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>SlittingMill</c>: no slitting mill block, no slitter cutter and no recipe for either, no link to
+    /// them in the mod's own text, the machine oil page without it whatever the other machines' switches (all off
+    /// here, and their edits to that page touch different passages), and nothing logged about them. The game's
+    /// plates, nails and cleavers are left as they are.</summary>
+    [AtlasScenario]
+    public void Slitting_mill_off_there_is_no_slitting_mill()
+    {
+        Assert.True(Off("SlittingMill"));
+        Assert.False(SeraphHorizons.Mod.SlittingMill.SlittingMillSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittingmill"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittercutter"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittingmill"));
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittercutter"));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:metalnailsandstrips-iron")));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:cleaver-steel")));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:(slittingmill|slittercutter)"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the slitting mill: " + string.Join(", ", linked));
+        var oil = Lang.Get("seraphhorizons:machineoil-text");
+        Assert.DoesNotContain("slitting mill", oil);
+        Assert.Contains("powered chopper</a>, the <a href=\"handbook://block-seraphhorizons:buckingmill-frame-north\">", oil);
+        Assert.Contains("1 point a log, and the bucking sawmill", oil);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("slittingmill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("slitting mill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("slittercutter", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
