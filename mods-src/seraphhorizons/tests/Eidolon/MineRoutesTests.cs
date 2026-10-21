@@ -145,6 +145,27 @@ public class MineRoutesTests(ITestOutputHelper output)
         }
     }
 
+    // Stations sharing one long approach (a far end of the area, a walk over LongApproachSeconds from the rest) are one
+    // member's trip: whoever goes there works the stations a short walk from it, and the others leave them to it.
+    [Fact]
+    public void A_cluster_at_the_end_of_a_long_walk_is_one_member_s_trip()
+    {
+        const int L = 10;
+        var c = new MineCase("far end", () => new MineTestWorld().Ground(L - 1), MineTestWorld.Area(0, 39, L - 1, L - 1, 0, 3),
+            new PathCell(-6, L, 0), [new PathCell(-6, L, 0), new PathCell(-6, L, 3)]);
+        var start = Begin(c);
+        var routes = MineRoutePlanner.Solve(start.Input());
+        foreach (var r in routes.Routes.Values)
+            output.WriteLine($"{r.Member}: " + string.Join(" ", r.Stops.Select(s => s.Kind == MineStopKind.Wait ? "w" : $"#{s.Station}@{s.At.X},{s.At.Z} {s.Leg.Count}")));
+        // the far end (stands x 25 on, over 15 s from where they start): all on one member, one after another
+        var far = routes.Routes.Values.Where(r => r.Stops.Any(s => s.Kind == MineStopKind.Station && s.At.X >= 25)).ToList();
+        var trip = Assert.Single(far);
+        var stations = trip.Stops.Where(s => s.Kind == MineStopKind.Station).ToList();
+        int first = stations.FindIndex(s => s.At.X >= 25), last = stations.FindLastIndex(s => s.At.X >= 25);
+        Assert.All(stations.Skip(first).Take(last - first + 1), s => Assert.True(s.At.X >= 25, $"#{s.Station} at {s.At} in the far trip"));
+        Assert.True(stations.Count(s => s.At.X >= 25) >= 4);
+    }
+
     [Fact]
     public void Narrow_way_slots_never_overlap()
     {

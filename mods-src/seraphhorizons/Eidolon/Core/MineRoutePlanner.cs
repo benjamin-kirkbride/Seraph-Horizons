@@ -50,6 +50,10 @@ public static class MineRoutePlanner
 
     public const int Relocations = 16, Validations = 3;
 
+    /// <summary>A walk this long to a station is a long approach, and the stations within <see cref="ClusterSeconds"/>
+    /// of its stand share it: one member works them in one trip (README "Eidolon", working together, *Routes*).</summary>
+    public const double LongApproachSeconds = 15, ClusterSeconds = 6;
+
     /// <summary>The most a member puts off setting off for another's claim on its way.</summary>
     public const double CrossDelayMax = 30;
 
@@ -392,6 +396,9 @@ public static class MineRoutePlanner
         public bool Retired;
         public readonly List<SimStop> Stops = new();
         public int Stations;
+        // where it came by a long walk (LongApproachSeconds) and still works, the stations a short walk from
+        // there its own (a cluster sharing one long approach, done in one trip)
+        public PathCell? Remote;
         public Queue<int>? Fixed;
         public double FixedSince = double.NaN;
         public PathCell Place(double t)
@@ -669,7 +676,11 @@ public static class MineRoutePlanner
             bool Busy(Member o) => o.Stops.Any(s => s.Kind == MineStopKind.Station && s.Depart <= t + 1e-9 && s.Finish > t + 1e-9);
             bool Left(Candidate c) => Variant.Leave && _members.Any(o => o != m && !o.Retired
                 && Math.Max(o.Free, t) + MineCosts.Estimate(o.At, c.Station.Stand) + MineCosts.ArriveSeconds + c.Work < c.Finish - (Busy(o) ? 1e-9 : LeaveMargin));
-            foreach (var c in candidates.Where(c => !Left(c)).OrderBy(Sooner).ThenBy(c => c.Finish + (c.Ahead ? AheadPenaltySeconds : 0) + (SecondFace(c) ? SecondFacePenaltySeconds : 0) - Critical * Beneath(c.Station)).ThenBy(c => c.Station.Id))
+            // a cluster of stations sharing one long approach is one member's trip: the one there works the rest of it
+            // first, before it walks the long way back (the others are not kept off it: kept off, one far from
+            // every station was left with none)
+            bool Here(Candidate c) => m.Remote is { } here && MineCosts.Estimate(here, c.Station.Stand) <= ClusterSeconds;
+            foreach (var c in candidates.Where(c => !Left(c)).OrderBy(c => !Here(c)).ThenBy(Sooner).ThenBy(c => c.Finish + (c.Ahead ? AheadPenaltySeconds : 0) + (SecondFace(c) ? SecondFacePenaltySeconds : 0) - Critical * Beneath(c.Station)).ThenBy(c => c.Station.Id))
             {
                 if (tries++ >= GuardTries)
                     break;
@@ -926,6 +937,8 @@ public static class MineRoutePlanner
             _slots.Reserve(m.Id, stop.Seq, c.Depart, c.Runs);
             m.Stops.Add(stop);
             m.Stations++;
+            m.Remote = c.LegSeconds >= LongApproachSeconds ? stop.At
+                : m.Remote is { } here && MineCosts.Estimate(here, stop.At) <= ClusterSeconds ? here : null;
             m.At = stop.At;
             m.Free = stop.Finish;
             _pending.Add(stop);

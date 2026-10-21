@@ -17,7 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// the rest open ground. Only one fits at the face at a time; the other quarries the open ground away from
 /// the face's approach, works ahead in the band below, and opens a second face only with neither (README
 /// "Eidolon", working together, *Spare work*). Over 8 minutes on the virtual clock (<see cref="VirtualClock"/>)
-/// both keep mining (neither goes over <see cref="LongestGap"/> without a strike), and they mine at least
+/// both keep mining (neither spends over <see cref="LongestGap"/> at a time neither striking nor walking to its own
+/// station), and they mine at least
 /// <see cref="Faster"/> times what main did here before (<see cref="Before"/>: a regression guard). In the sky (<see cref="Felling.Sky"/>), the export placed whole.
 /// </summary>
 [AtlasWorld]
@@ -37,7 +38,9 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
     private const int Before = 980;
     private const double Faster = 1.1;
 
-    /// <summary>The longest either may go with no block broken (the owner's bar).</summary>
+    /// <summary>The longest either may spend at a time neither striking nor walking to its own station (its route's
+    /// head, or the station dispatch gave it): waiting, parting, stopped short of another (the owner's bar). A walk
+    /// to a planned station counts as work: one station on the hilltop is a 36 s walk from the heading.</summary>
     private const double LongestGap = 25;
 
     private void Log(string what)
@@ -100,13 +103,16 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
         await World.Ticks(2);
         var orders = eidolons.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToList();
 
-        // Each tick: the longest each goes with no block broken, from the first plan on, and what it did meanwhile
-        // (each change of its state, where it was).
+        // Each tick, from the first plan on: the longest each spends neither striking nor walking to its own station
+        // (the bar), and what it did meanwhile (each change of its state, where it was); and, for comparison, the
+        // longest it goes with no block broken.
         double start = EidolonJobSystem.Now(W), end = start + Minutes * 60;
         double? planned = null;
         var mined = orders.Select(o => o.Mined).ToArray();
         var since = new double[orders.Count];
         var longest = new (double Seconds, double At, string Doing)[orders.Count];
+        var unbroken = new (double Seconds, double At)[orders.Count];
+        var idleSince = new double?[orders.Count];
         var gap = orders.Select(_ => new List<string>()).ToArray();
         int ticks = 0;
         string State(int i)
@@ -124,20 +130,29 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
             }
             for (int i = 0; i < orders.Count; i++)
             {
-                if (orders[i].Mined != mined[i])
-                {
+                bool struck = orders[i].Mined != mined[i];
+                if (struck)
                     (mined[i], since[i]) = (orders[i].Mined, now);
+                else if (planned != null && now - since[i] > unbroken[i].Seconds)
+                    unbroken[i] = (now - since[i], now - start);
+                string debug = orders[i].DebugState ?? "";
+                bool busy = struck || debug.StartsWith("Strike,")
+                    || debug.StartsWith("Walk,") && !debug.Contains("head none");
+                if (busy || planned == null)
+                {
+                    idleSince[i] = null;
                     gap[i].Clear();
                     continue;
                 }
+                idleSince[i] ??= now;
                 string state = State(i);
                 if (gap[i].Count == 0 || !gap[i][^1].EndsWith(state))
                 {
                     var p = eidolons[i].Pos;
                     gap[i].Add($"{now - start:0} s at {p.X - corner.X:0},{p.Y - corner.Y:0},{p.Z - corner.Z:0}: {state}");
                 }
-                if (planned != null && now - since[i] > longest[i].Seconds)
-                    longest[i] = (now - since[i], now - start, string.Join("; ", gap[i].TakeLast(12)));
+                if (now - idleSince[i]!.Value > longest[i].Seconds)
+                    longest[i] = (now - idleSince[i]!.Value, now - start, string.Join("; ", gap[i].TakeLast(12)));
             }
             if (++ticks % 600 == 0)
                 Log($"{now - start:0} s: {string.Join(" + ", orders.Select(o => o.Mined))} mined; "
@@ -146,14 +161,15 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
         }, 400_000);
 
         int total = orders.Sum(o => o.Mined);
-        Log($"mined {string.Join(" + ", orders.Select(o => o.Mined))} = {total} in {Minutes} minutes (at least {Before * Faster:0}: {Faster} x main's {Before}); longest with none: "
-            + string.Join(", ", longest.Select((l, i) => $"{eidolons[i].EntityId} {l.Seconds:0.0} s to {l.At:0} s")));
+        Log($"mined {string.Join(" + ", orders.Select(o => o.Mined))} = {total} in {Minutes} minutes (at least {Before * Faster:0}: {Faster} x main's {Before}); longest neither striking nor walking to its station: "
+            + string.Join(", ", longest.Select((l, i) => $"{eidolons[i].EntityId} {l.Seconds:0.0} s to {l.At:0} s"))
+            + "; longest with no block broken: " + string.Join(", ", unbroken.Select((l, i) => $"{eidolons[i].EntityId} {l.Seconds:0.0} s to {l.At:0} s")));
         for (int i = 0; i < orders.Count; i++)
             Log($"{eidolons[i].EntityId}'s longest: {longest[i].Doing}");
         foreach (var e in eidolons)
             e.Die(EnumDespawnReason.Removed);
         Assert.NotNull(planned);
         Assert.True(total >= Before * Faster, $"{total} mined, under {Faster} x {Before}");
-        Assert.All(longest, l => Assert.True(l.Seconds <= LongestGap, $"{l.Seconds:0.0} s with no block broken, to {l.At:0} s: {l.Doing}"));
+        Assert.All(longest, l => Assert.True(l.Seconds <= LongestGap, $"{l.Seconds:0.0} s neither striking nor walking to its station, to {l.At:0} s: {l.Doing}"));
     }
 }
