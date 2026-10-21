@@ -62,6 +62,8 @@ Each [GitHub Release](../../releases) has these files:
 | `seraphhorizons_<v>_modlist.txt` | `modid@version,...` for launchers that import that format | Exact |
 | `seraphhorizons_<v>.zip` | The pack's own mod (`mods-src/seraphhorizons`), version `<v>` like the pack | The `.cairn` file installs it from the release and checks its sha256; the server bundle carries it; with the mod list, add it to `Mods/` yourself |
 
+Running a server: see [SERVER-HOSTING.md](SERVER-HOSTING.md).
+
 The pack's own mod checks each install against the release it came with: if a mod is missing, at
 another version than the pack's, or not in the pack at all, or the game is another version, the
 server logs it and tells admins as they join, and the game shows a dialog listing it once you are
