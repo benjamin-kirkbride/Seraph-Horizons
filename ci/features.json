@@ -426,6 +426,12 @@
       "switches": ["RarerBattleTowers"],
       "classes": []
     },
+    "BiodiversityWelcome": {
+      "code": ["BiodiversityWelcome.cs"],
+      "codes": [],
+      "switches": ["NoBiodiversityWelcome"],
+      "classes": []
+    },
     "BloodSausage": {
       "code": ["BloodSausage.cs"],
       "codes": ["bloodsausage"],

@@ -6,7 +6,7 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// The scenarios that need nothing but the pack's plain world (<c>[AtlasWorld]</c>, no data files),
 /// one partial file per feature: PackLoad, BetterRuins, HydrationCoverage, SeraphHorizonsMod, Tun,
-/// IrrigationVessel, BloodSausage, DuplicateRecipes, FruitDrying, BarrelRackKegs, AgeOfFlaxRebalance, CreativeModTabs, GearboxSourceRatio, TrunkTool, NanMotion, RuinSurfaceMedian, WailaRounding (each
+/// IrrigationVessel, BloodSausage, DuplicateRecipes, FruitDrying, BarrelRackKegs, AgeOfFlaxRebalance, CreativeModTabs, GearboxSourceRatio, TrunkTool, NanMotion, RuinSurfaceMedian, WailaRounding, BiodiversityWelcome (each
 /// <c>*Scenarios.cs</c>); the ore machines are <see cref="MillWorldScenarios"/>, on a plain world of their own
 /// only so that neither class's CI shard runs too long. Atlas boots one server per scenario class, about 30 s each in CI, so these
 /// share a single boot. A new feature that needs only the plain world adds a partial file of this
