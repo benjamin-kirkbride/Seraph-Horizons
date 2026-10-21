@@ -3678,8 +3678,9 @@ to today's: where today's wins (a pit that holds one at a time, a narrow tunnel'
 as below, with no routes. The choice holds for the job (`MineRouteChoice`): every solve keeps it, a new
 station plan's too, and it outlasts the job being down to one member, for as long as the area and the members
 present are those it was made for (one joining or leaving lets it be made again). A new station plan is
-dispatched as below until its first solve lands. A member follows its route (with no stop at all it takes a station by today's dispatch at once, none another's
-route holds, while the routes are solved again; the next solve keeps it as its head): it claims its head when it may
+dispatched as below until its first solve lands. A member follows its route (with no stop at all it takes a station by today's dispatch at once, every station
+looked at, none another holds next, one later in another's route taken off it, while the routes are solved again;
+the next solve keeps it as its head): it claims its head when it may
 set off, at its planned time or sooner when the station is ready and the plan has no other set off first
 there, waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
 another walking up to it, crosses another's claim after 4 seconds (but see *Claims*: one with another station clear takes that), passes
@@ -3758,7 +3759,9 @@ go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaim
 `EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`); but a station whose way crosses another's claim, by
 routes or today's dispatch, is put by for those 20 seconds when another it reaches clear is free (that one is
 taken; on routes the stop is dropped and the routes solved again), and with none it goes through at once:
-waiting for room, again and again, came to 20 to 30 seconds with stations free on a hillside. On today's dispatch a member waiting (not
+waiting for room, again and again, came to 20 to 30 seconds with stations free on a hillside. So too a way
+the pathfinder finds only through another eidolon: another station reached clear is taken, by routes or today's
+dispatch (two each in the other's way stood 20 seconds). On today's dispatch a member waiting (not
 walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
 stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
 left to dig) held by none (`MineOrder.ClearWay`), but not one holding a station, which sets off for it in a
