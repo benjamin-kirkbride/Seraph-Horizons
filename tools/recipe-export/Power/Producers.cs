@@ -11,7 +11,6 @@ namespace SeraphHorizons.RecipeExport.Power;
 /// </summary>
 public static class Producers
 {
-    public const string Millwright = "millwright";
     public const string HandCrank = "handcrank";
     public const string Ppex = "ppex";
     public const string Yang = "yangtransport";
@@ -23,7 +22,6 @@ public static class Producers
         Mods = new Items.ModIndex(live.Api);
         var list = new List<JObject>();
         VanillaWindmills(live, blocks, list);
-        if (live.ModLoaded(Millwright)) MillwrightWindmills(live, blocks, list);
         WaterWheel(live, blocks, list);
         if (live.ModLoaded(HandCrank)) Crank(live, blocks, list);
         if (live.ModLoaded(Ppex)) PpexEngines(live, blocks, list);
@@ -94,59 +92,6 @@ public static class Producers
                 "wind at the rotor; another windmill within 1.5 × sails blocks halves the torque",
                 null, new[] { powerMul, max, cap, quarter }));
         }
-    }
-
-    // BEBehaviorWindmillRotorEnhanced: the blade type multiplies the sail modifier, and caps the sails.
-    private static readonly Dictionary<string, (double Mult, int MaxSails, string Blades)> MillwrightTypes = new()
-    {
-        ["single"] = (1, 7, "4 blades"),
-        ["double"] = (2, 5, "8 blades"),
-        ["three"] = (0.75, 8, "3 blades"),
-        ["six"] = (1.5, 6, "6 blades"),
-    };
-
-    private const string MwConfig = "Millwright.ModConfig.ModConfig";
-
-    /// <summary>Millwright's rotors: TargetSpeed min(0.6 × bm, wind × bm), TorqueFactor sails × bm / 4,
-    /// bm the fitted sail's modifier (config) times the blade type's; no turbulence check.</summary>
-    private static void MillwrightWindmills(Live live, BlockIndex blocks, List<JObject> list)
-    {
-        const string enhanced = "BEBehaviorWindmillRotorEnhanced";
-        var centered = live.Number("SailCenteredModifier", MwConfig, "Loaded.SailCenteredModifier", 2, "ModConfig/millwright.json");
-        foreach (var group in blocks.WithBehavior(enhanced).GroupBy(b => b.Variant?["type"] ?? ""))
-        {
-            if (!MillwrightTypes.TryGetValue(group.Key, out var t))
-            {
-                live.Api.Logger.Warning("[seraphexport] power: Millwright rotor type {0} is not known; left out", group.Key);
-                continue;
-            }
-            var mult = Live.Constant($"blade type {group.Key} × {t.Mult}", t.Mult, enhanced);
-            var maxSails = Live.Constant($"most sails {t.MaxSails}", t.MaxSails, enhanced);
-            AddMillwright(list, blocks, group, $"millwright:windmillrotor-{group.Key}", $"Windmill rotor ({group.Key}, {t.Blades})",
-                centered.Value * t.Mult, t.MaxSails, "centered sails (angled and wide have their own modifier, 2 by default like this one)",
-                new[] { centered, mult, maxSails }, enhanced);
-        }
-
-        const string ud = "BEBehaviorWindmillRotorUD";
-        var wide = live.Number("SailWideModifier", MwConfig, "Loaded.SailWideModifier", 2, "ModConfig/millwright.json");
-        foreach (var group in blocks.WithBehavior(ud).GroupBy(b => b.Variant?["type"] ?? ""))
-        {
-            double m = group.Key == "two" ? 0.667 : 1;
-            var mult = Live.Constant($"blade type {group.Key} × {m}", m, ud);
-            var maxSails = Live.Constant("most sails 8", 8, ud);
-            AddMillwright(list, blocks, group, $"millwright:windmillrotorud-{group.Key}", $"Vertical windmill rotor ({group.Key})",
-                wide.Value * m, 8, "wide sails", new[] { wide, mult, maxSails }, ud);
-        }
-    }
-
-    private static void AddMillwright(List<JObject> list, BlockIndex blocks, IEnumerable<Block> group, string idBase, string name,
-        double bm, int sails, string sailNote, Figure[] figures, string behavior)
-    {
-        var cap = Live.Constant("speed cap 0.6 × modifier", 0.6, behavior);
-        list.Add(Producer($"{idBase}@{sails}", blocks.ItemFor(group), Millwright, $"{name}, {sails} sails", "wind",
-            Wind(bm, 0.6 * bm, sails * bm / 4, false, sails, sails, bm / 4),
-            (int)(sails * (float)bm / 5f * 100f),
-            $"wind at the rotor, {sailNote}", null, figures.Append(cap)));
     }
 
     /// <summary>The water wheel (BEBehaviorMPWaterWheel): TargetSpeed min(0.3, flowRate), TorqueFactor
