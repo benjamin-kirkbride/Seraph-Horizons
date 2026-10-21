@@ -69,15 +69,21 @@ public class EidolonRealGroundScenarios(ITestOutputHelper output) : EidolonRealT
     public Task Three_dig_rough_ground() => Mine(TerrainKind.Rough, 34, -8, 3, "realrough");
 }
 
-/// <summary>The owner's size of area, 37 × 12 × 28, each for <see cref="EidolonRealTerrainBase.Minutes"/>: on a
-/// hillside at spawn, two at it, as the owner's were; on rough ground with trees, gravel and loose stones in it, three.</summary>
+/// <summary>The owner's size of area, 37 × 12 × 28, on a hillside at spawn, two at it for
+/// <see cref="EidolonRealTerrainBase.Minutes"/>, as the owner's were (a class of its own: each large run is a shard).</summary>
 [AtlasWorld(Seed = RealTerrain.Seed, WorldType = "standard")]
-public class EidolonRealLargeScenarios(ITestOutputHelper output) : EidolonRealTerrainBase(output)
+public class EidolonRealLargeHillsideScenarios(ITestOutputHelper output) : EidolonRealTerrainBase(output)
 {
     [AtlasScenario(TimeoutMs = 240_000)]
     public Task Two_on_a_large_hillside_for_eight_minutes() =>
         Mine(TerrainKind.Hillside, -2, 2, 2, "realhilllarge", 37, 12, 28, Minutes);
+}
 
+/// <summary>The owner's size of area, 37 × 12 × 28, on rough ground with trees, gravel and loose stones in it, three at
+/// it for <see cref="EidolonRealTerrainBase.Minutes"/>.</summary>
+[AtlasWorld(Seed = RealTerrain.Seed, WorldType = "standard")]
+public class EidolonRealLargeRoughScenarios(ITestOutputHelper output) : EidolonRealTerrainBase(output)
+{
     [AtlasScenario(TimeoutMs = 240_000)]
     public Task Three_on_large_rough_ground_for_eight_minutes() =>
         Mine(TerrainKind.Rough, 84, 90, 3, "realroughlarge", 37, 12, 28, Minutes);
