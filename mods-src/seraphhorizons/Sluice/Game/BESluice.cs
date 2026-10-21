@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -19,18 +20,22 @@ namespace SeraphHorizons.Mod.Sluice;
 /// concentrate chute out of cell 2's bottom face, whole items carried over from rock to rock
 /// (<see cref="UnitCarry"/>), and the rock goes on as tailings, the same item carrying the rest, by the
 /// tailings chute at the tail's south face, or discarded beside it as gravel in its rock (#694). Nothing in
-/// it wears out. The concentrate is drawn in the riffles while it works.
+/// it wears out. The concentrate is drawn in the riffles while it works, and while it works the ore falls in at
+/// the feed spout, the water splashes at its nozzle and muddy water pours at the concentrate spout.
 /// </summary>
 public class BESluice : BEOreMachine
 {
     public const string Concentrate = "concentrate";
 
-    /// <summary>Where the launder pours down into the concentrate chute (the rig's <c>concentrateSpout</c>).</summary>
-    private static readonly Float3 ConcentrateSpout = new(0.5f, 0.512f, 2.4615f);
+    /// <summary>The rig's points: where the ore falls into the head box, the water nozzle's mouth in the pool, and
+    /// where the launder pours down into the concentrate chute.</summary>
+    private const string FeedSpout = "feedSpout", WaterSpout = "waterSpout", ConcentrateSpout = "concentrateSpout";
     private static readonly AssetLocation PourSound = new("game", "sounds/block/sand");
+    private const float FeedInterval = 0.35f, WaterInterval = 0.3f, PourInterval = 0.3f;
 
     private readonly UnitCarry _carry = new();
     private WorkHours _hours = WorkHours.None;
+    private readonly ParticleTimer _feed = new(FeedInterval), _water = new(WaterInterval), _pour = new(PourInterval);
 
     public override OreMachine? Kind => OreMachine.Sluice;
 
@@ -103,8 +108,32 @@ public class BESluice : BEOreMachine
 
     protected override void OnWorked(ItemStack fed)
     {
-        var at = WorldPoint(ConcentrateSpout);
+        if (Rig?.Point(ConcentrateSpout) is not { } spout)
+            return;
+        var at = WorldPoint(spout);
         Api.World.PlaySoundAt(PourSound, at.X, at.Y, at.Z, null, true, 12, 0.4f);
+    }
+
+    /// <summary>Nothing moves; while it washes, the ore falling in at the feed spout (its colour), a splash at the
+    /// water nozzle and muddy water pouring down at the concentrate spout.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        if (far || !Running || Rig is not { } rig)
+            return input;
+        if (rig.Point(FeedSpout) is { } feed && _feed.Due(dt))
+        {
+            int colour = MachineParticles.MaterialColour(InfeedSlot.Itemstack, 220, MachineParticles.RockDust, Api as ICoreClientAPI);
+            (MachineParticles.Dust(colour) with { Count = 1, MaxCount = 3, MinVelocity = new Vec3f(-0.1f, -0.6f, -0.1f), MaxVelocity = new Vec3f(0.1f, -0.2f, 0.1f) })
+                .Spawn(Api.World, WorldPoint(feed), MachineParticles.Around(0.06));
+        }
+        if (rig.Point(WaterSpout) is { } nozzle && _water.Due(dt))
+            (MachineParticles.Splash() with { Count = 2, MaxCount = 3 })
+                .Spawn(Api.World, WorldPoint(nozzle), MachineParticles.Around(new Float3(0.12f, 0.02f, 0.04f), Side));
+        if (rig.Point(ConcentrateSpout) is { } spout && _pour.Due(dt))
+            (MachineParticles.Drip(MachineParticles.MuddyWater) with { Count = 2, Size = 0.15f })
+                .Spawn(Api.World, WorldPoint(spout), MachineParticles.Around(new Float3(0.1f, 0.02f, 0.03f), Side));
+        return input;
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) => SluiceSystem.FeedExamples(world);
