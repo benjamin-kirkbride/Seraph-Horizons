@@ -429,6 +429,42 @@ public class BEStallRoaster : BEFiredOreMachine
     private static int Course(string requires, string prefix) =>
         int.TryParse(requires.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : int.MaxValue;
 
+    // ---- Client ----
+
+    /// <summary>The bed's top, native y (9 voxels: README "The stall"), from which the courses rise to the rig's <c>heap</c>.</summary>
+    private const float BedTop = 9 / 16f;
+
+    private readonly ParticleTimer _smoke = new(0.5f);
+
+    /// <summary>The middle of the heap's top as charged now: the rig's <c>heap</c> (the full charge's) lowered by the
+    /// courses not there; null with no heap point.</summary>
+    private Float3? HeapTop()
+    {
+        if (StallRig is not { } rig || Rig?.Point("heap") is not { } heap)
+            return null;
+        int courses = StallRoasting.Courses(Rock, rig.PerCourse, rig.Courses);
+        return heap with { Y = BedTop + (heap.Y - BedTop) * courses / rig.Courses };
+    }
+
+    /// <summary>A stall has no fire door: its fire is the heap, smouldering on its top while lit.</summary>
+    protected override Float3? FireDoorPoint => HeapTop();
+
+    /// <summary>The heap smoulders: embers drifting up off its top, no flame.</summary>
+    protected override void FireDoorEffect(ICoreClientAPI capi, Vec3d at) =>
+        (MachineParticles.Embers() with { MaxCount = 3 })
+            .Spawn(capi.World, at, MachineParticles.Around(new Float3(0.55f, 0.05f, 0.4f), Side));
+
+    /// <summary>The fire's (<see cref="BEFiredOreMachine"/>, the heap smouldering); while the heap burns with the
+    /// draught through it (its front walled or half walled, the row drawing), thick yellowish sulfurous smoke rises off its top.</summary>
+    protected override void OnClientTick(float dt)
+    {
+        base.OnClientTick(dt);
+        if (Api is not ICoreClientAPI capi || Phase != StallPhase.Burning || Draught <= 0 || !_smoke.Due(dt) || HeapTop() is not { } top)
+            return;
+        (MachineParticles.Smoke(MachineParticles.Rgb(140, 175, 170, 110)) with { MaxCount = 3, MaxSize = 1f })
+            .Spawn(capi.World, WorldPoint(top), MachineParticles.Around(new Float3(0.5f, 0.05f, 0.35f), Side));
+    }
+
     // ---- Breaking ----
 
     /// <summary>The frame and every stage's items, the cap, and the front's loose brick. The bed, the charge and

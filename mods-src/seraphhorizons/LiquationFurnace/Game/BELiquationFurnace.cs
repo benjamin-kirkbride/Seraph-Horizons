@@ -427,6 +427,21 @@ public class BELiquationFurnace : BEFiredOreMachine
     private static int Layer(string requires, string prefix) =>
         int.TryParse(requires.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : int.MaxValue;
 
+    // ---- Client ----
+
+    private readonly ParticleTimer _drip = new(0.5f);
+
+    /// <summary>The fire's (<see cref="BEFiredOreMachine"/>); while the charge sweats, the metal it gives (the tin) drips
+    /// off the spout's lip into the pot, in its colour, not glowing (it runs far under the game's glow).</summary>
+    protected override void OnClientTick(float dt)
+    {
+        base.OnClientTick(dt);
+        if (Api is not ICoreClientAPI capi || Rig is not { } rig || !_lit || !_sweating || !_drip.Due(dt) || rig.Point("spout") is not { } spout)
+            return;
+        (MachineParticles.Drip(MachineParticles.MetalColour(_metal, 230, MachineParticles.Molten)) with { Life = 0.45f })
+            .Spawn(capi.World, WorldPoint(spout), MachineParticles.Around(0.01));
+    }
+
     // ---- Breaking ----
 
     /// <summary>The frame and every stage's items, the cap, and the tin and lead not yet taken out. The fuel and the bars

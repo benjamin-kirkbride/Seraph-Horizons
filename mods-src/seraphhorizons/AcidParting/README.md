@@ -533,5 +533,8 @@ gameplay reads, and where:
 - **The row** is the crucible furnace's (`FurnaceRow`, `ChimneyColumn`): along native x, the vessel's width (1)
   apart, up to `parting.rowMax`, the chimney from `outletCell` up, at least `parting.minChimney`.
 - **Not drawn:** the fire door's slide (`depth`): it stays at its rest pose, open.
+- **Particles:** lit, the fired machines' flames at `firedoor` and the row's chimney smoke; while a charge parts
+  (lit, the row drawing, the damper not shut), red-brown nitrous fumes off the `vessel`, rising into the hood and
+  drifting a little out of its front.
 - **Tests**: `tests/AcidParting/AcidPartingTests.cs` (the rules, the rig's gameplay half, the build against the rig,
   the figures); `tests/PackTests/AcidPartingScenarios.cs` places, builds, charges, parts and empties it.

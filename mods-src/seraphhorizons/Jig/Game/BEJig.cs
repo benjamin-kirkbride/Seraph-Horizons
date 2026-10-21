@@ -21,17 +21,26 @@ namespace SeraphHorizons.Mod.Jig;
 /// of the front face, whole items carried over from rock to rock (<see cref="UnitCarry"/>), and the rock
 /// goes on over the weir as tailings, the same item carrying the rest, by the tailings chute on the west
 /// face, or is discarded beside it as gravel in its rock (#694). Its load is steady (0.1 once built).
-/// Nothing in it wears out. Its water and ore bed are drawn while it holds water and works.
+/// Nothing in it wears out. Its water and ore bed are drawn while it holds water and works, and while it
+/// works the water splashes up over the sieve at the bottom of each plunger stroke.
 /// </summary>
 public class BEJig : BEOreMachine
 {
     public const string Concentrate = "concentrate";
 
-    /// <summary>The middle of the sieve's top (the rig's <c>sieve.pos</c>): where it splashes.</summary>
-    private static readonly Float3 SievePoint = new(0.5625f, 1.1f, 0.6562f);
+    /// <summary>The rig's middle of the sieve's top (its sound) and the water's surface over it (its splashes).</summary>
+    private const string SievePoint = "sieve", SurfacePoint = "surface";
     private static readonly AssetLocation SplashSound = new("game", "sounds/environment/smallsplash");
+    // The plunger slides by sin θ (its driver's ratio 1): at the bottom of its stroke, three quarters of a turn,
+    // it drives the water up through the sieve.
+    private const double StrokeBottom = 0.75;
+    // Across the sieve compartment, native: wide (x), hardly up, most of its depth (z).
+    private static readonly Float3 SieveSpread = new(0.3f, 0.02f, 0.2f);
+    // The hutch's water, clouded by the bed: a greyish brown.
+    private static readonly int HutchWater = MachineParticles.Rgb(150, 150, 140, 115);
 
     private readonly UnitCarry _carry = new();
+    private double _lastTurns = double.NaN;
 
     public override OreMachine? Kind => OreMachine.Jig;
 
@@ -83,8 +92,25 @@ public class BEJig : BEOreMachine
 
     protected override void OnWorked(ItemStack fed)
     {
-        var at = WorldPoint(SievePoint);
+        if (Rig?.Point(SievePoint) is not { } sieve)
+            return;
+        var at = WorldPoint(sieve);
         Api.World.PlaySoundAt(SplashSound, at.X, at.Y, at.Z, null, true, 12, 0.4f);
+    }
+
+    /// <summary>The default clock's θ; while it works, a splash over the sieve as each plunger stroke reaches its
+    /// bottom (an edge on θ, either way the axle turns).</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        double turns = input.Theta / (2 * Math.PI), before = _lastTurns;
+        _lastTurns = turns;
+        if (far || !Running || double.IsNaN(before) || Math.Floor(turns - StrokeBottom) == Math.Floor(before - StrokeBottom))
+            return input;
+        if (Rig?.Point(SurfacePoint) is { } surface)
+            (MachineParticles.Splash(HutchWater) with { Count = 4, MaxCount = 6 })
+                .Spawn(Api.World, WorldPoint(surface), MachineParticles.Around(SieveSpread, Side));
+        return input;
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) => SluiceSystem.FeedExamples(world);

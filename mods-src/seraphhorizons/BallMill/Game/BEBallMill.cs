@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -15,10 +16,14 @@ namespace SeraphHorizons.Mod.BallMill;
 /// (<see cref="BallMillGrind"/>: ground and screened, its locked shares freed, nothing lost) at
 /// <c>machines.ballmill.perHour</c> (6 an hour at speed 0.6), 25 L of water a rock from its reservoir, into the
 /// output chute low on its back. Its load is steady (1.1 once built, working or idle). No part wears.
+/// While it grinds, the pulp slops out of the output chute's mouth, coloured by the ore going in.
 /// </summary>
 public class BEBallMill : BEOreMachine
 {
     private static readonly AssetLocation GrindSound = new("game", "sounds/block/rock-hit-pickaxe");
+    private const float PulpInterval = 0.3f;
+
+    private readonly ParticleTimer _pulp = new(PulpInterval);
 
     public override OreMachine? Kind => OreMachine.BallMill;
 
@@ -49,6 +54,21 @@ public class BEBallMill : BEOreMachine
     {
         var at = WorldPoint(new Float3(0.5f, 1.25f, 1f));
         Api.World.PlaySoundAt(GrindSound, at.X, at.Y, at.Z, null, true, 16, 0.4f);
+    }
+
+    /// <summary>The default clock's θ; while it grinds, the pulp slopping out at the rig's <c>output</c> point.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        if (!far && Running && Rig?.Point("output") is { } output && _pulp.Due(dt))
+        {
+            int colour = MachineParticles.MaterialColour(InfeedSlot.Itemstack, 200, MachineParticles.Slurry, Api as ICoreClientAPI);
+            // out of the chute's mouth (native south) and falling
+            (MachineParticles.SlurryDrops(colour) with { Count = 1, MaxCount = 3 })
+                .Toward(MachineParticles.WorldDirection(new Float3(0, -0.1f, 0.35f), Side), 0.08f)
+                .Spawn(Api.World, WorldPoint(output), MachineParticles.Around(new Float3(0.08f, 0.02f, 0.02f), Side));
+        }
+        return input;
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) =>

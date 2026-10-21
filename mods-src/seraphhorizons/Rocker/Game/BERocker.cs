@@ -42,7 +42,7 @@ public class BERocker : BEMachine
     private float _pourSeconds;
     private float? _serverRocksPerSecond;
     private readonly RockerClock _clock = new();
-    private float _splashTimer;
+    private readonly ParticleTimer _splash = new(SplashInterval);
 
     public RockerState Washing => _state;
     /// <summary>One item of the charge in the hopper (its kind), or null.</summary>
@@ -398,13 +398,11 @@ public class BERocker : BEMachine
     {
         bool worked = Worked;
         _clock.Advance(dt, worked, RocksPerSecond);
-        if (!far && worked && Rig is { } rig && (_splashTimer += dt) >= SplashInterval)
+        if (!far && worked && Rig is { } rig && _splash.Due(dt))
         {
-            _splashTimer = 0;
             var at = WorldPoint(rig.Posed(rig.Outflow, _clock.Theta));
-            int colour = ColorUtil.ToRgba(140, 160, 190, 220);
-            Api.World.SpawnParticles(3, colour, at.AddCopy(-0.05, -0.02, -0.15), at.AddCopy(0.05, 0.02, 0.15),
-                new Vec3f(-0.6f, -0.2f, -0.2f), new Vec3f(-0.2f, 0.3f, 0.2f), 0.5f, 1f, 0.2f, EnumParticleModel.Quad, null);
+            (MachineParticles.Splash(ColorUtil.ToRgba(140, 160, 190, 220)) with { MinVelocity = new Vec3f(-0.6f, -0.2f, -0.2f), MaxVelocity = new Vec3f(-0.2f, 0.3f, 0.2f) })
+                .Spawn(Api.World, at, MachineParticles.Around(0.05, 0.02, 0.15));
         }
         return new RigInput(_clock.Theta);
     }

@@ -22,4 +22,10 @@ public static class Vanning
 
     /// <summary>The key a product's fraction is carried under: its code, apart for a whole-route concentrate.</summary>
     public static string CarryKey(string code, bool whole) => whole ? code + WholeSuffix : code;
+
+    /// <summary>Whether the axle's angle going from <paramref name="before"/> to <paramref name="now"/> (radians, either
+    /// way) passed an end of the shake: the shaking frame goes across as a sine of θ, once a turn
+    /// (<c>drive.strokesPerTurn</c>), so it turns back at θ = π/2 and 3π/2.</summary>
+    public static bool ShakeTurned(double before, double now) =>
+        Math.Floor((now - Math.PI / 2) / Math.PI) != Math.Floor((before - Math.PI / 2) / Math.PI);
 }

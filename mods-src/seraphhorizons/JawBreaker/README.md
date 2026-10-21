@@ -244,8 +244,10 @@ the rig maths.
   cell's centre line); every other moving part is a sum of `swing` and `slide` harmonics of θ. Nothing reads ψ, the
   axle's travel: the Blake linkage is symmetric, so running backwards it passes the same poses in reverse.
 - **Keys.** `cells` (fifteen, each with its boxes; no `lid`), `powerCell`, `powerFace`, `infeedCell`, `infeedFace`,
-  `infeed` (`pos`), `outputCell`, `outputFace`, `output` (`pos`), `breaker` (`turnsPerBite`: axle turns a turn of
-  the eccentric shaft, 1), `buildStages` (the stages in order, each the requires values it adds) and `parts`. `requires` values: `jaws`,
+  `infeed` (`pos`), `outputCell`, `outputFace`, `output` (`pos`), the particles' points `jaws` (the mouth between
+  the jaws' faces at the cheeks' top) and `discharge` (the gap's foot, over the hopper), `breaker` (`turnsPerBite`:
+  axle turns a turn of the eccentric shaft, 1; `closesAt`: the axle's angle into the turn where the jaw comes nearest
+  the fixed one, the bite), `buildStages` (the stages in order, each the requires values it adds) and `parts`. `requires` values: `jaws`,
   `eccentric`, `toggles`, `springs`, `grizzly`, `chutes`, or null.
 
 **In the viewer** (`site/models.json`, `jaw-breaker`): the axle angle is the θ slider, and Play turns it at 2 s a turn
@@ -370,6 +372,9 @@ rising with the charge in its mouth from 0.16 to 0.8. The block entity is `Game/
 - **Anchors.** The power cell and face take the axle (`machine-cellpower-{face}`); the infeed cell's top face
   takes a chute (`chute-straight-ud`), the output face a chute laid to take from it or a container.
   `breaker.turnsPerBite` is not read: the rate is ore processing's.
+- **Particles.** While it breaks a rock (working, a rock in its mouth), each bite (θ passing `breaker.closesAt`,
+  `JawBreaking.Bit`) throws a little dust and a chip or two up out of the `jaws` point and lets dust fall from
+  `discharge`, coloured by the rock (`MachineParticles.MaterialColour`); the bite's sound is at `jaws` too.
 - **Build.** `config/builds/jawbreaker.json` is the stage table above, the jaw faces the wearing part fitted
   with the jaws (`uses` 1000 rocks).
 - **Tests.** `tests/JawBreaker/JawBreakerRigTests.cs` (the rig through the shared parser, its reference

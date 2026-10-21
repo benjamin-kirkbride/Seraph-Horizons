@@ -25,7 +25,9 @@
 	"outputFace": "north",
 	"infeed": {"pos": [0.5, 3.0, 0.5]},
 	"output": {"pos": [0.5, 0.5, 0.0]},
-	"breaker": {"turnsPerBite": 1.0, "_comment": "Axle turns per turn of the eccentric shaft (coupled straight on): the swinging jaw closes once a turn, either way round."},
+	"jaws": {"pos": [0.6875, 1.9375, 0.9281]},
+	"discharge": {"pos": [0.6875, 1.0, 0.7875]},
+	"breaker": {"turnsPerBite": 1.0, "closesAt": 0.021009, "_comment": "Axle turns per turn of the eccentric shaft (coupled straight on): the swinging jaw closes once a turn, either way round, nearest the fixed jaw at closesAt (the axle's angle, radians into the turn): the bite. The points jaws (the mouth) and discharge (the gap's foot) are where its particles show."},
 	"buildStages": [{"stage": 1, "id": "jaws", "name": "Jaws", "adds": ["jaws"]}, {"stage": 2, "id": "eccentric", "name": "Eccentric shaft and flywheel", "adds": ["eccentric"]}, {"stage": 3, "id": "toggles", "name": "Toggles, rods and springs", "adds": ["toggles", "springs"]}, {"stage": 4, "id": "grizzly", "name": "Grizzly", "adds": ["grizzly"]}, {"stage": 5, "id": "services", "name": "Services", "adds": ["chutes"]}],
 	"parts": [
 		{"id": "eshaft", "match": ["eshaft_*"], "requires": "eccentric", "drivers": [{"type": "rotate", "axis": "x", "pivot": [0.0, 1.5, 1.5], "ratio": 1.0}], "ride": null},

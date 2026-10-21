@@ -965,11 +965,35 @@ ANCHORS = ("infeed", "output")
 CELL_ANCHORS = (("power", POWER_CELL, POWER_FACE), ("infeed", INFEED_CELL, INFEED_FACE), ("output", OUTPUT_CELL, OUTPUT_FACE))
 
 
+POINTS = ("jaws", "discharge")
+
+
 def anchor_points():
     """The anchors' points (build frame, voxels): the infeed chute's mouth (the infeed cell's top face's centre, on a
     vanilla chute's axis) and the output chute's (the output cell's front face's centre)."""
     return {"infeed": (INFEED_CELL[0] * B + 8.0, (INFEED_CELL[1] + 1) * B, INFEED_CELL[2] * B + 8.0),
             "output": (OUTPUT_CELL[0] * B + 8.0, OUTPUT_CELL[1] * B + 8.0, OUTPUT_CELL[2] * B)}
+
+
+def particle_points():
+    """Where the particles hang (build frame, voxels): the jaws' mouth (the chamber's middle, at the cheeks' top,
+    between the jaws' faces, where the bite shows), and the discharge (the gap's foot, over the hopper)."""
+    return {"jaws": (JAW_XC, JAW_TOP_Y, JAW_C - (FIXED_U - GAPE / 2)),
+            "discharge": (JAW_XC, FACE_BOT[0] - 1.5, JAW_C - (FIXED_U - GAP / 2))}
+
+
+def closes_at():
+    """The axle's angle (radians into a turn) where the swinging jaw comes nearest the fixed one at the gap's foot:
+    the bite."""
+    def gap(phi):
+        return FIXED_U - jaw_point(FACE_BOT, jaw_at(phi)[1])[1]
+    n = 720
+    k = min(range(n), key=lambda i: gap(TAU * i / n))
+    lo, hi = TAU * (k - 1) / n, TAU * (k + 1) / n
+    for _ in range(60):
+        a, b = lo + (hi - lo) / 3, hi - (hi - lo) / 3
+        lo, hi = (lo, b) if gap(a) < gap(b) else (a, hi)
+    return r6(at_ecc((lo + hi) / 2)[0] % TAU)
 
 
 def make_rig(parts):
@@ -985,9 +1009,13 @@ def make_rig(parts):
         rig[f"{name}Face"] = face
     for key, p in anchor_points().items():
         rig[key] = {"pos": pt(*p)}
-    rig["breaker"] = {"turnsPerBite": r6(1.0 / abs(JAW_E_RATIO)),
+    for key, p in particle_points().items():
+        rig[key] = {"pos": pt(*p)}
+    rig["breaker"] = {"turnsPerBite": r6(1.0 / abs(JAW_E_RATIO)), "closesAt": closes_at(),
                       "_comment": "Axle turns per turn of the eccentric shaft (coupled straight on): the swinging jaw closes "
-                                  "once a turn, either way round."}
+                                  "once a turn, either way round, nearest the fixed jaw at closesAt (the axle's angle, radians "
+                                  "into the turn): the bite. The points jaws (the mouth) and discharge (the gap's foot) are "
+                                  "where its particles show."}
     rig["buildStages"] = [{"stage": i + 1, "id": sid, "name": name, "adds": list(fits)}
                           for i, (sid, name, fits) in enumerate(BUILD_GROUPS)]
     rig["parts"] = parts
@@ -1011,7 +1039,7 @@ def shipped(els, parts, rig):
     ship = copy.deepcopy(rig)
     for name, _, _ in CELL_ANCHORS:
         ship[f"{name}Cell"] = shift_cell(rig[f"{name}Cell"], ORIGIN_CELL)
-    for key in ANCHORS:
+    for key in ANCHORS + POINTS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
     return ship_els, ship_parts, ship

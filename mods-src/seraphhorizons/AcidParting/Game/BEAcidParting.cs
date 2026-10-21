@@ -522,6 +522,26 @@ public class BEAcidParting : BEFiredOreMachine
         };
     }
 
+    // ---- Client ----
+
+    private readonly ParticleTimer _fumes = new(0.5f);
+
+    /// <summary>Whether the acid works on a charge now: parting, lit, the row drawing and the damper not shut.</summary>
+    private bool PartingNow => Phase == VesselPhase.Parting && _lit && Draught > 0;
+
+    /// <summary>The fire's (<see cref="BEFiredOreMachine"/>); while the charge parts, red-brown nitrous fumes rise off
+    /// the vessel into the hood, drifting a little out of its front. The hood's cell is solid to the game, so they pass
+    /// through it and are short-lived.</summary>
+    protected override void OnClientTick(float dt)
+    {
+        base.OnClientTick(dt);
+        if (Api is not ICoreClientAPI capi || VesselRig is not { } rig || !PartingNow || !_fumes.Due(dt))
+            return;
+        var drift = MachineParticles.WorldDirection(new Float3(0, 0.15f, -0.06f), Side);
+        (MachineParticles.Fume(MachineParticles.FumeNitrous).Toward(drift, 0.05f) with { Life = 1.8f, TerrainCollision = false })
+            .Spawn(capi.World, WorldPoint(rig.Vessel), MachineParticles.Around(new Float3(0.12f, 0.03f, 0.12f), Side));
+    }
+
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)

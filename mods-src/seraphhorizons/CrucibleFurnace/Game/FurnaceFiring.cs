@@ -60,6 +60,18 @@ public sealed class FurnaceFiring
         return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), CrucibleFurnaceSystem.Of(owner.Api).Config);
     }
 
+    /// <summary>Over the top of the chimney <paramref name="height"/> shaft blocks tall on <paramref name="owner"/>'s outlet,
+    /// where its smoke rises: the chimney top stands on the shaft, its pots rising to 12 voxels.</summary>
+    public static Vec3d ChimneyTop(BEMachine owner, FurnaceFlue flue, int height)
+    {
+        var b = owner.CellPos(flue.ChimneyBase);
+        return new Vec3d(b.X + 0.5, b.Y + height + 0.75, b.Z + 0.5);
+    }
+
+    /// <summary>A puff of a lit row's smoke off its chimney's <paramref name="top"/> (client side).</summary>
+    public static void ChimneySmoke(IWorldAccessor world, Vec3d top) =>
+        MachineParticles.ChimneySmoke().SpawnBetween(world, top.AddCopy(-0.2, 0, -0.2), top.AddCopy(0.2, 0.2, 0.2));
+
     /// <summary>The machine of type <typeparamref name="T"/> <paramref name="k"/> widths along <paramref name="owner"/>'s
     /// row (native +x), facing the same way, or null.</summary>
     public static T? Beside<T>(BEMachine owner, FurnaceFlue flue, int k) where T : BEMachine
