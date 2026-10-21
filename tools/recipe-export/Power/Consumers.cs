@@ -60,7 +60,6 @@ public static class Consumers
     private const string Smex = "SteelmakingExpanded.SmexValues";
     private const string SmexFrom = "ModConfig (smex)";
     private const string Ppex = "PipesAndPowerExpanded.PpexValues";
-    private const string MwConfig = "Millwright.ModConfig.ModConfig";
 
     private static Load Times(Load a, Figure b) => new(a.Value * b.Value, a.Sources.Append(b).ToArray());
 
@@ -92,21 +91,6 @@ public static class Consumers
         new("BEBehaviorMPBrake", "brake", Const("most resistance", 3, "BEBehaviorMPBrake"))
         {
             Note = "engaged, it rises from 0 by 1 every 20 seconds to 3; released, it falls 1 every 10 seconds",
-        },
-
-        // Millwright
-        new("BEBehaviorBrakeEnhanced", "brake", live => Times(Load.Of(Live.Constant("most resistance", 3, "BEBehaviorBrakeEnhanced")),
-            live.Number("BrakeResistanceModifier", MwConfig, "Loaded.BrakeResistanceModifier", 2, "ModConfig/millwright.json")))
-        {
-            Mod = "millwright", Note = "the game's brake ramp (to 3), times BrakeResistanceModifier while engaged",
-        },
-        new("BEBehaviorAxlePassthrough", "transmission", Const("friction", 0.0005, "BEBehaviorAxlePassthrough"))
-        {
-            Mod = "millwright", Id = "millwright:woodenaxlepassthrough", ItemPrefix = "millwright:woodenaxlepassthroughfull",
-        },
-        new("BEBehaviorImprovedAxlePassthrough", "transmission", Const("friction", 0.0005, "BEBehaviorAxlePassthrough"))
-        {
-            Mod = "millwright", Id = "millwright:improvedaxlepassthrough", ItemPrefix = "millwright:improvedaxlepassthroughfull",
         },
 
         // Small mechanics mods
