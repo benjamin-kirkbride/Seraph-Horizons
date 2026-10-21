@@ -3665,7 +3665,10 @@ to pass in a heading: it waits for that one to be done, or takes the way round t
 as under *Dispatch*); a member that would otherwise wait 10 seconds takes a station of the next band where
 nothing still to dig is above it (spare work, at most one open band deeper, so the floors may be two climbs
 apart), and a second face (another lane of a covered band while another member holds one) counts 20 seconds
-later (`MineRoutePlanner.SecondFacePenaltySeconds`): the open part and work ahead come first. Each member's stations are then put in their best order exactly (Held-Karp, with when each became
+later (`MineRoutePlanner.SecondFacePenaltySeconds`): the open part and work ahead come first. Stations sharing
+one long approach are one member's trip: one that came to a station by a walk of 15 seconds or more takes the
+stations within 6 seconds of it first, before it walks back (`LongApproachSeconds`, `ClusterSeconds`; a station
+left on a hilltop over a heading once took two trips of 36 seconds each). Each member's stations are then put in their best order exactly (Held-Karp, with when each became
 workable and what must come first) and moved off the member that finishes last, each change simulated again
 and kept only if it holds. For a job of up to 300 stations it chooses how to choose: eight ways (the soonest
 finish, or leaving a station to whoever would finish it sooner; a bonus for the work under a station; a
@@ -3750,7 +3753,9 @@ one on the stair from working them and so from ever getting off it). And a miner
 station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
 another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
 go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
-`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). On today's dispatch a member waiting (not
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`); on today's dispatch a station whose way crosses
+another's claim is put by for those 20 seconds and another it reaches clear taken meanwhile, so it waits only
+with none (one stood 20 seconds at a time, again and again, on a hillside with work elsewhere). On today's dispatch a member waiting (not
 walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
 stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
 left to dig) held by none (`MineOrder.ClearWay`), but not one holding a station, which sets off for it in a

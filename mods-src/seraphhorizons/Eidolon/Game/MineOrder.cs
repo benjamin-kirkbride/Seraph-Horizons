@@ -185,6 +185,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool _stairWait;
     private double? _throughSince;
 
+    // today's dispatch: stands whose way crosses another's claim, put by (until when) for another it reaches clear
+    private readonly Dictionary<PathCell, double> _crossedStands = new();
+
     // when it next asks a member waiting in its way to make room (ClearWay)
     private double _clearWayAt = double.NegativeInfinity;
     private double _yieldUntil;
@@ -1231,7 +1234,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
             var next = MineDispatch.Next(plan, live, me, workers,
-                s => !Taken(s.Stand, workers) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
+                s => !Taken(s.Stand, workers) && !(_crossedStands.TryGetValue(s.Stand, out double until) && now < until)
+                    && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
                 parked.Count > 0 ? Clear : null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
             // a station worked ahead of its band only as the one it works, nothing held behind it
             bool ahead = next != null && MineDispatch.IsAhead(live, next);
@@ -1682,6 +1686,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             Held(eidolon, "its way crosses another's claim", now);
             DropQueue(eidolon);
+            if (!routed)
+            {
+                // today's dispatch: that stand put by while it waits, and another it reaches clear taken meanwhile;
+                // only with none does it wait, and go through once it has waited ThroughSeconds in all
+                _crossedStands[stand] = _throughSince!.Value + ThroughSeconds;
+                _phase = Phase.Seek;
+                return true;
+            }
             _phase = Phase.Wait;
             _waitCheckAt = now + WaitCheckSeconds;
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
