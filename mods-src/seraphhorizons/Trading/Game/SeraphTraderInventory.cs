@@ -57,17 +57,19 @@ public sealed class SeraphTraderInventory : InventoryTrader
 
     /// <summary>
     /// What this trader's sell slots take (#910): anything <see cref="MaySell"/> allows but what the
-    /// trader refuses outright, maps and leads and worthless goods (<see cref="Refusal.MapOrLead"/>,
-    /// <see cref="Refusal.Currency"/>, <see cref="Refusal.Worthless"/>), which would only sit there. A
+    /// trader refuses outright, maps and leads, schematics and worthless goods (<see cref="Refusal.MapOrLead"/>,
+    /// <see cref="Refusal.Currency"/>, <see cref="Refusal.Schematic"/>, <see cref="Refusal.Worthless"/>), which would only sit there. A
     /// good the trader lists is always taken, even with no demand left (it waits, unsold), and so is a
     /// good it merely cannot price: the window says why it does not sell. Both sides.
     /// </summary>
     public bool MayPlace(ItemStack? stack)
     {
         if (!MaySell(stack)) return false;
-        if (TraderEntity is not EntitySeraphTrader trader || EconomySystem.Of(trader.Api) is not { } economy) return true;
+        if (TraderEntity is not EntitySeraphTrader trader) return true;
+        if (EconomySystem.NeverBoughtBack(trader.Api, stack!.Collectible.Code.ToString())) return false;
+        if (EconomySystem.Of(trader.Api) is not { } economy) return true;
         if (GetBuyingConditionsSlot(stack) != null) return true;
-        return economy.QuoteOffList(trader, stack!).Refusal is not (Refusal.MapOrLead or Refusal.Currency or Refusal.Worthless);
+        return economy.QuoteOffList(trader, stack!).Refusal is not (Refusal.MapOrLead or Refusal.Currency or Refusal.Worthless or Refusal.Schematic);
     }
 
     /// <summary>The trade window this player has open on a pack trader, if any: on the server only

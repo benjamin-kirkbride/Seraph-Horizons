@@ -22,7 +22,7 @@ namespace SeraphHorizons.Mod.Trading.Window;
 ///
 /// <list type="bullet">
 /// <item>Header: the trader's name, type and region, the player's standing tier with a bar to the
-/// next ("Regular [310 / 800]"); tabs Trade, Orders (n), Deliveries (n), Maps &amp; leads, Standing
+/// next ("Regular [310 / 800]"); tabs Trade, Orders (n), Deliveries (n), Maps &amp; leads, Schematics, Standing
 /// (a switched-off feature has none); footer: the player's gears, the trader's, its side budget.</item>
 /// <item>Trade: the Sells and Buys shelves are the trader's own slots (item, price and stock on
 /// hover); the goods the player's standing does not unlock yet are hatched with the tier that does.
@@ -34,6 +34,8 @@ namespace SeraphHorizons.Mod.Trading.Window;
 /// alike, as one row each under a small heading per group (<see cref="WindowLayout.Offers"/>): its
 /// icon (the item's tooltip on hover), what it is with its facts under it, the price and a Buy
 /// button, pressed once, not held; one that cannot be bought says why on its greyed-out button.</item>
+/// <item>Schematics (a trader with a catalog): its schematics in rows of the same kind, off the shelf
+/// and never sold out, a locked one greyed with the tier that unlocks it.</item>
 /// <item>Orders, Deliveries, Maps &amp; leads and Standing as their names say, in a scroll area when
 /// they run longer than the screen has room for.</item>
 /// </list>
@@ -73,6 +75,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     private (string Kind, int Id) _selected = ("", -1);
     private string _status = "";
     private DummySlot? _leadIcon;
+    private readonly Dictionary<string, DummySlot> _schematicIcons = new();
 
     public GuiDialogSeraphTrade(ICoreClientAPI capi, EntitySeraphTrader trader) : base(capi)
     {
@@ -228,6 +231,12 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                 scrollBuild = f => WindowLayout.Offers(f, sections, empty);
                 break;
             }
+            case WindowTab.Schematics:
+            {
+                var sections = SchematicSections();
+                scrollBuild = f => WindowLayout.Offers(f, sections, "");
+                break;
+            }
             default:
                 scrollBuild = BuildScrollTab;
                 break;
@@ -316,8 +325,8 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     {
         int gears = InventoryTrader.GetPlayerAssets(capi.World.Player.Entity);
         var rows = new List<(OfferRow Row, string Key, int Id)>();
-        // Camp leads: this player's own, off the shelf; the first map first, then the shelf's leads.
-        foreach (var (row, i) in _state.LeadOffers.Select((row, i) => (row, i)).OrderBy(p => p.row.Pity ? 0 : 1))
+        // Camp leads: this player's own, off the shelf; then the shelf's leads.
+        foreach (var (row, i) in _state.LeadOffers.Select((row, i) => (row, i)))
             rows.Add((TradeWindowModel.CampLeadRow(row), "lead-" + i, i));
         foreach (int id in MapIds()) rows.Add((MapRow(id), "buymap-" + id, id));
 
@@ -336,6 +345,15 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                 sections.Add(new OfferSection(T(TradeWindowModel.GroupHeading(group)), lines, groupNotes));
         }
         return sections;
+    }
+
+    /// <summary>The Schematics tab: the trader's catalog, one row each (as the Maps &amp; leads tab's),
+    /// locked ones greyed with the tier that unlocks them; the note under them.</summary>
+    private List<OfferSection> SchematicSections()
+    {
+        int gears = InventoryTrader.GetPlayerAssets(capi.World.Player.Entity);
+        var lines = _state.Schematics.Select((row, i) => OfferLineOf(TradeWindowModel.SchematicRow(row, _state.Standing), "schematic-" + i, i, gears)).ToList();
+        return [new OfferSection(T(TradeWindowModel.GroupHeading(OfferGroup.Schematics)), lines, [T(TradeWindowModel.SchematicsNote(_state.Switches))])];
     }
 
     private OfferLine OfferLineOf(OfferRow row, string key, int id, int gears)
@@ -481,9 +499,19 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (key.StartsWith("buymap-", StringComparison.Ordinal)) return () => BuyMap(id);
         if (key.StartsWith("lead-", StringComparison.Ordinal) && _state.LeadOffers.ElementAtOrDefault(id) is { } lead)
         {
-            string cell = lead.Pity ? MapsSystem.PityCode : lead.Cell;
+            string cell = lead.Cell;
             int price = lead.Price;
             return () => RequestLead(cell, price);
+        }
+        if (key.StartsWith("schematic-", StringComparison.Ordinal) && _state.Schematics.ElementAtOrDefault(id) is { } schematic)
+        {
+            string code = schematic.Code;
+            int price = schematic.Price;
+            return () =>
+            {
+                System?.Request(_trader.EntityId, TradeAction.BuySchematic, code: code, price: price);
+                return true;
+            };
         }
         return () => true;
     }
@@ -719,6 +747,10 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     private ItemSlot? IconSlot(string key, int id)
     {
         if (key.StartsWith("buymap-", StringComparison.Ordinal)) return _inv[id]?.Itemstack != null ? _inv[id] : null;
+        if (key.StartsWith("schematic-", StringComparison.Ordinal))
+            return _state.Schematics.ElementAtOrDefault(id) is { } row && Orders.TraderFinder.Collectible(capi.World, row.Code) is { } schematic
+                ? _schematicIcons.TryGetValue(row.Code, out var cached) ? cached : _schematicIcons[row.Code] = new DummySlot(new ItemStack(schematic))
+                : null;
         if (_leadIcon is null && capi.World.GetItem(ItemTraderLead.LeadCode) is { } lead) _leadIcon = new DummySlot(new ItemStack(lead));
         return _leadIcon;
     }

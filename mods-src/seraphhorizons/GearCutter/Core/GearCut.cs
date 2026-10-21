@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.GearCutter.Core;
 
 /// <summary>Why a blank can or cannot go on the arbor.</summary>
@@ -67,34 +69,18 @@ public static class GearCut
     /// <paramref name="minSpeed"/> or faster.</summary>
     public static bool Running(bool complete, bool blankOn, float speed, float minSpeed) =>
         complete && blankOn && Math.Abs(speed) >= minSpeed;
-}
 
-/// <summary>A blank on the arbor: its class and the teeth cut so far, W.</summary>
-public readonly record struct CutJob(int Class, double Work)
-{
-    public static readonly CutJob None = new(0, 0);
+    /// <summary>The cut of a blank of class <paramref name="k"/> just put on: a <see cref="MachineJob"/> ending at its
+    /// teeth; none for a class the cutter does not cut.</summary>
+    public static MachineJob Start(int k) => MachineJob.Start(k is 1 or 2 ? k : 0, Teeth(k));
 
-    public bool On => Class is 1 or 2;
+    /// <summary>A saved cut: W clamped to 0..its teeth; none when the class is not a blank's.</summary>
+    public static MachineJob Restore(int k, double work) => MachineJob.Restore(k is 1 or 2 ? k : 0, work, k is 1 or 2 ? Teeth(k) : 0);
 
-    /// <summary>The teeth this gear gets, the work's end.</summary>
-    public int End => GearCut.Teeth(Class);
-
-    public bool Done => On && Work >= End - 1e-9;
-
-    /// <summary>The cut after <paramref name="radians"/> more of the axle, W held at the end; and
-    /// whether this step finished the gear.</summary>
-    public (CutJob Job, bool Finished) Advance(double radians, double turnsPerTooth)
-    {
-        if (!On || Done)
-            return (this, false);
-        double w = Math.Min(End, Work + GearCut.TeethFor(radians, turnsPerTooth));
-        var next = this with { Work = w };
-        return (next, next.Done);
-    }
-
-    /// <summary>A saved cut: W clamped to 0..end; none when the class is not a blank's.</summary>
-    public static CutJob Restore(int k, double work) =>
-        k is 1 or 2 ? new CutJob(k, double.IsFinite(work) ? Math.Clamp(work, 0, GearCut.Teeth(k)) : 0) : None;
+    /// <summary>The cut after <paramref name="radians"/> more of the axle, W held at the end, and whether this step
+    /// finished the gear.</summary>
+    public static (MachineJob Job, bool Finished) Advance(MachineJob job, double radians, double turnsPerTooth) =>
+        job.Advance(TeethFor(radians, turnsPerTooth));
 }
 
 /// <summary>

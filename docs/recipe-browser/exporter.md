@@ -100,6 +100,13 @@ section alone without the cost of a full export.
    `CraftingRecipeIngredient.SatisfiesAsIngredient`. Disabled definitions are records with
    `enabled: false` (or `extra.disabledButRegistered` if a loader registered them anyway). Definitions none of whose forms resolved are records with no variants
    and `extra.resolved: false`. A definition that does not parse is logged and left out.
+7. **Stack names.** Last, `Items/StackNames.cs` gives each variant stack (and an
+   ingredient's `returned` stack) that carries attributes the name the game shows for
+   that exact stack (`GetHeldItemName` with the attributes), when it differs from the
+   bare collectible's and is translated. Clutter is the case it is for: a
+   `game:clutter` block is only a `type` attribute away from being a large crate or an
+   anchor, and the bare code's name is the untranslated `game:clutter-`. The site shows a
+   stack's `name` in place of its item's.
 
 ## Blocks built in place
 
@@ -333,6 +340,15 @@ is left out when its switch is off or what it names is not registered.
   rule `dividedByOilFill`); `MachineOilSettings.CylinderBorer` the oil per cylinder and the tank. The bushings (the
   game's metal parts, a block), bar and feed are `kept`; the output is the bored cylinder (work unit `blocks`). The `CylinderBorer` switch leaves it
   out when off. Its mold's casting comes from the tool molds' reader, as every mold's does.
+- The slitting mill (`Recipes/SlittingMillExport.cs`, `RecipeSection.SlittingMill.cs`, type `slittingmill`,
+  shape `machine`): one record per plate metal, `slittingmill|game:metalplate-{metal}|0`, for the twelve metals it
+  slits whose plate and nails and strips are registered. `config/slittingmill-rig.json` gives the knife strokes a plate
+  (`work.end`), the plate and output codes (`slit.plate`, `slit.output`) and the turns a stroke as a fallback;
+  `SeraphHorizonsConfig.SlittingMillSettings` gives the turns a stroke (`TurnsPerStroke`), the nails a plate
+  (`NailsPerPlate`) and each metal's knife wear (`Metals[metal].KnifeWear`, rule `fixed`); `MachineOilSettings.SlittingMill`
+  the oil per plate and the tank. The five stages' materials are `kept`, summed by item; the knife is the game's three
+  cleavers (the variant's stacks, steel first); the output is the metal's nails and strips (work unit `strokes`). The
+  `SlittingMill` switch leaves it out when off. The cutters' anvil recipe is an ordinary smithing record.
 - The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
   shape `machine`): one record per metal, `pressbrake|seraphhorizons:halfplate-{metal}|0`.
   `config/pressbrake-rig.json` gives each class's half plate and angle (`fold.plates`,
@@ -380,8 +396,9 @@ is left out when its switch is off or what it names is not registered.
   `Riddle` switch (or `OreProcessing`) leaves it out when off.
 - The eidolon (`Recipes/EidolonExport.cs`, `RecipeSection.Eidolon.cs`, type `construction`): the
   gantry's winch and the body on its spine, two blocks built in place that no engine behavior builds.
-  What each stage takes is read by reflection from the mod's game-independent rules,
-  `EidolonGantry/Core/GantryParts.cs` (`Woods`, `CodesFor(stage, wood)`, `Needed`) and `BodyParts.cs`
+  What each stage takes is the mod's own: the winch's its build file, `config/builds/eidolongantry.json`
+  (the shared machine base's, `{wood}` for the gantry's wood), the woods and the body's read by reflection
+  from its game-independent rules, `EidolonGantry/Core/GantryBuild.cs` (`Woods`) and `BodyParts.cs`
   (`BodyBill.Stages`, `Order`), so the records cannot drift from the game. A stage's alternatives
   (iron, meteoric iron or steel) are one wildcard ingredient with `allowedVariants`; the gantry's wood
   is a `{wood}` binding, a variant per wood whose gantry is registered, the record named after the first
@@ -461,6 +478,10 @@ details and the limits (facing, connectors).
   `recipeGroup`, cooking `typeName`, `portionSizeLitres`, `cookedStack` and `isFood`, the
   recipe's own `name` and `attributes`, and the machine values of mod recipes are all in
   `extra`.
+- The pack's own traders' trades (`Items/PackTradeSources.cs`) keep their price range,
+  standing tier, list, region and catalog in the source's `extra`
+  ([item-data.md](item-data.md#the-packs-traders)); `price` stays the typical price, so a
+  reader that knows only the schema's fields still reads a sensible number.
 - Size: every variant lists its accepted stacks in full. With this pack that is about 80 MB
   (80 000 grid variants; doorvariants alone has 10 080 variants per door recipe). A shared
   table of accepted-stack lists, referenced from variants, would shrink it a lot.
@@ -495,6 +516,8 @@ details and the limits (facing, connectors).
 - the cylinder borer (`RecipeExportCylinderBorerScenarios.cs`): a record per metal, a rough cast cylinder in, its kept
   stages, the cutter head worn by the oil's fill, the oil and the bored cylinder; the mold's six-ingot casting; and
   ppex's engines' grid records taking the bored cylinder;
+- the slitting mill (`RecipeExportSlittingMillScenarios.cs`): a record per plate metal, the plate in, its kept stages,
+  the cleavers worn by the metal's figure, the oil and 20 nails and strips; the cutters' smithing record;
 - the amalgam pan (`RecipeExportAmalgamPanScenarios.cs`): a record per crushed gold or silver quartz and
   grade, its charge, mercury and water in, the muller and shoes kept, the amalgam and the quartz out;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its

@@ -125,7 +125,10 @@ export function mergeVariants(variants: readonly EntityVariant[]): MergedRow[] {
         rows.set(key, row);
       }
       if (s.quantity) row.quantity = widen(row.quantity, s.quantity.avg, s.quantity.var, first);
-      if (s.price !== undefined) row.price = widen(row.price, s.price, undefined, first);
+      // A pack trader's trade carries its whole range (lib/trades.ts).
+      const lo = typeof s.extra?.priceMin === "number" ? s.extra.priceMin : s.price;
+      const hi = typeof s.extra?.priceMax === "number" ? s.extra.priceMax : s.price;
+      if (lo !== undefined && hi !== undefined) row.price = widen(widen(row.price, lo, undefined, first), hi, undefined, false);
       if (!seen.has(key)) {
         seen.add(key);
         row.variants++;

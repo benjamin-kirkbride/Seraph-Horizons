@@ -46,7 +46,7 @@ public partial class RecipeExportScenarios
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Power_producers_carry_their_models()
     {
-        Assert.Equal(18, Power["producers"]!.Count());
+        Assert.Equal(13, Power["producers"]!.Count());
         // The game's windmills: 5 wooden sails at powerMul 1, 10 metal ones at 1.25.
         Json("""
             { "kind": "wind", "speedPerWind": 1, "speedCap": 0.6, "torqueFactor": 3.125, "turbulencePenalty": true,
@@ -55,24 +55,6 @@ public partial class RecipeExportScenarios
         Assert.Equal(250, (int)Producer("game:windmillrotor-metal@10")["shownKN"]!);
         Assert.Equal(100, (int)Producer("game:windmillrotor-wood@5")["shownKN"]!);
         Assert.Equal("game:windmillrotor-wood-north", (string)Producer("game:windmillrotor-wood@5")["item"]!);
-
-        // Millwright: modifier 2 × the blade type, no turbulence; the kN its block info shows.
-        foreach (var (id, bm, sails, kn) in new[]
-                 {
-                     ("millwright:windmillrotor-single@7", 2.0, 7, 280), ("millwright:windmillrotor-double@5", 4.0, 5, 400),
-                     ("millwright:windmillrotor-three@8", 1.5, 8, 240), ("millwright:windmillrotor-six@6", 3.0, 6, 360),
-                     ("millwright:windmillrotorud-three@8", 2.0, 8, 320),
-                 })
-        {
-            var p = Producer(id);
-            var m = p["model"]!;
-            Assert.Equal("wind", (string)m["kind"]!);
-            Near(bm, m["speedPerWind"]);
-            Near(0.6 * bm, m["speedCap"]);
-            Near(sails * bm / 4, m["torqueFactor"]);
-            Assert.False((bool)m["turbulencePenalty"]!);
-            Assert.Equal(kn, (int)p["shownKN"]!);
-        }
 
         // The water wheel: 0.004 push × 750, the three bottom cells 0.004 × (1 + √2).
         Json("""{ "kind": "rotor", "targetSpeed": 0.3, "torqueFactor": 3 }""", Producer("game:waterwheel@1")["model"]!);
@@ -120,13 +102,13 @@ public partial class RecipeExportScenarios
                  {
                      ("game:quern", 0.1), ("game:grindingwheel", 0.05), ("game:axlearm", 0.01), ("hydrateordiedrate:winch", 0.1),
                      ("aculinaryartillery:poweredmixingbowl", 0.05), ("game:archimedesscrew", 0.015), ("game:woodenaxle", 0.0005),
-                     ("game:largegear3", 0.004), ("game:brake", 3), ("millwright:brake", 6), ("mpegearbox:gearbox12", 0.001),
+                     ("game:largegear3", 0.004), ("game:brake", 3), ("mpegearbox:gearbox12", 0.001),
                      ("mpecenteredspurgear:centeredspurgear", 0.001), ("madmechanics:transmission", 0.0005),
                      ("immersivewoodworking:sawmill", 0.085), ("immersivewoodworking:sawmill@flywheel", 0.051),
                      ("immersivewoodworking:chopper", 0.085),
                      ("smex:convertertransmission", 0.25), ("ppex:mpfluidpump", 0.125), ("ppex:enginempgenerator", 0.0005),
                      ("seraphhorizons:buckingmill", 0.17), ("seraphhorizons:rosser", 0.2), ("seraphhorizons:gearcutter", 0.2),
-                     ("seraphhorizons:drawbench", 0.2), ("seraphhorizons:cylinderborer", 0.3),
+                     ("seraphhorizons:drawbench", 0.2), ("seraphhorizons:cylinderborer", 0.3), ("seraphhorizons:slittingmill", 0.2),
                  })
             Near(load, Consumer(id)["load"]);
 
@@ -141,11 +123,24 @@ public partial class RecipeExportScenarios
         Json("""{ "dryMultiplier": 1, "tank": 10 }""", Consumer("seraphhorizons:gearcutter")["oil"]!);
         // The cylinder borer's wears its cutter head.
         Json("""{ "dryMultiplier": 1, "tank": 10 }""", Consumer("seraphhorizons:cylinderborer")["oil"]!);
+        // The ore machines on a shaft, their tanks scaled by load (MachineOilSettings), in litres.
+        foreach (var (machine, litres) in new[]
+                 {
+                     ("jawbreaker", 40.0), ("stampbattery", 37.5), ("arrastra", 5.0), ("ballmill", 55.0), ("jig", 5.0),
+                     ("shakingtable", 5.0), ("vanner", 4.0), ("reverberatory", 25.0), ("parkeskettle", 10.0),
+                 })
+        {
+            var oil = Consumer("seraphhorizons:" + machine)["oil"] ?? throw new Xunit.Sdk.XunitException($"{machine} has no oil");
+            Near(3, oil["dryMultiplier"]);
+            Near(litres, oil["tank"]);
+        }
         Near(0.35, Consumer("seraphhorizons:drawbench")["loadMax"]);
+        Near(0.5, Consumer("seraphhorizons:slittingmill")["loadMax"]);
+        Json("""{ "dryMultiplier": 3, "tank": 10 }""", Consumer("seraphhorizons:slittingmill")["oil"]!);
         Near(0.15, Consumer("smex:mpblower")["loadMax"]);
         Near(0.05, Consumer("smex:mpblower")["load"]);
         Assert.Equal("transmission", (string)Consumer("game:woodenaxle")["category"]!);
-        Assert.Equal("brake", (string)Consumer("millwright:brake")["category"]!);
+        Assert.Equal("brake", (string)Consumer("game:brake")["category"]!);
     }
 
     /// <summary>A load read from block JSON agrees with what the placed block's behavior returns.</summary>

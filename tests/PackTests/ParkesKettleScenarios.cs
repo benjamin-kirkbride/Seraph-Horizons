@@ -21,7 +21,7 @@ namespace SeraphHorizons.PackTests;
 // stirred by a vanilla creative rotor on its power face (its load following the charge), stirred through, its crust
 // skimmed and its lead ladled out, then capped and broken back into everything that went in. Built on granite floors
 // 40 above spawn at x -900, z 920; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string KettleFrame = "seraphhorizons:parkeskettle-";
     private const string GalenaBullion = "seraphhorizons:bullion-galena-lead";
@@ -48,23 +48,18 @@ public partial class SharedWorldScenarios
         }
     }
 
-    private static int KettleHeld(IPlayer player, string code) =>
-        new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
-            .SelectMany(inv => player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            .Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
     [AtlasScenario]
     public void Parkes_kettle_loads_with_its_frame_build_recipe_and_figures()
     {
         Assert.True(ParkesKettleSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(KettleFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(KettleFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(KettleFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(KettleFrame + "north"));
         Assert.Equal("parkeskettle", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(ParkesKettleSystem.Of(World.Api).Rig);
         Assert.Equal(KettleRequires.Extra(4, 2).Order(), block.ExtraRequires.Order());
-        var build = OreMachinesSystem.Of(World.Api).Build("parkeskettle")!;
+        var build = MachinesSystem.Of(World.Api).Build("parkeskettle")!;
         Assert.Equal(["brickwork", "lining", "kettle", "stirrer"], build.Stages.Select(s => s.Id).ToArray());
         foreach (var stage in build.Stages)
             foreach (var code in stage.Materials.SelectMany(m => m.Codes))
@@ -112,12 +107,13 @@ public partial class SharedWorldScenarios
             Assert.True(KettleClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(material.Codes[0], missing)) == null, $"{material.Codes[0]} x{missing} was not fitted");
         }
         Assert.True(kettle.Built);
+        MachineTest.FillOil(kettle);
         Assert.True(kettle.ShowsPart("kettle") && kettle.ShowsPart("stirrer") && kettle.ShowsPart("damperopen") && !kettle.ShowsPart("lead1"));
         // empty, the stirrer's load is its empty figure
         Assert.Equal(recovery.LoadAt(OreMachine.ParkesKettle, 0), kettle.Resistance, 3);
 
         // nothing to light yet
-        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, OreMachineFire.IgniteState(player.Entity, pos, 1.5f));
+        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, MachineFire.IgniteState(player.Entity, pos, 1.5f));
         // zinc goes in on the lead; argentiferous galena's bullion is refused; galena's, 24 bars of 30
         Assert.Equal(8, KettleClick(player, pos, CutterItem(ParkesKettling.ZincBit, 8))?.StackSize);
         Assert.Equal(4, KettleClick(player, pos, CutterItem("seraphhorizons:bullion-galena_nativesilver-lead", 4))?.StackSize);
@@ -139,9 +135,9 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, KettleClick(player, pos, CutterItem("game:ore-bituminouscoal", 10))?.StackSize);
         Assert.Equal(8, kettle.Coal);
         Assert.True(kettle.ShowsPart("fuel2") && !kettle.ShowsPart("fire1"));
-        Assert.Equal(EnumIgniteState.IgniteNow, OreMachineFire.IgniteState(player.Entity, cell, 1.5f));
+        Assert.Equal(EnumIgniteState.IgniteNow, MachineFire.IgniteState(player.Entity, cell, 1.5f));
         var handling = EnumHandling.PassThrough;
-        OreMachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
         Assert.True(kettle.Lit);
         Assert.True(kettle.ShowsPart("fire2") && !kettle.ShowsPart("fuel1"));
         // no chimney: no heat, nothing to stir
@@ -192,8 +188,8 @@ public partial class SharedWorldScenarios
 
         // an empty hand skims the crust, then ladles the lead out, 6 at a time
         KettleClick(player, pos, null);
-        Assert.Equal(7, KettleHeld(player, Bullion.RichLeadCode));
-        Assert.Equal(4, KettleHeld(player, ParkesKettling.ZincBit));
+        Assert.Equal(7, MachineTest.Held(player, Bullion.RichLeadCode));
+        Assert.Equal(4, MachineTest.Held(player, ParkesKettling.ZincBit));
         Assert.True(kettle.Skimmed);
         Assert.False(kettle.ShowsPart("crust"));
         // (each click empties the hand first, so a ladling is counted as it comes)
@@ -202,7 +198,7 @@ public partial class SharedWorldScenarios
         {
             KettleClick(player, i++ % 2 == 0 ? pos : cell, null);
             Assert.Equal(left, kettle.LeadOut);
-            ladled += KettleHeld(player, ParkesKettling.Lead);
+            ladled += MachineTest.Held(player, ParkesKettling.Lead);
             foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
                 foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
                     if (slot.Itemstack?.Collectible.Code.ToString() == ParkesKettling.Lead)
@@ -226,6 +222,71 @@ public partial class SharedWorldScenarios
         Assert.Equal(12, drops.Where(d => d.Collectible.Code.ToString() == "game:refractorybrick-fired-tier3").Sum(d => d.StackSize));
         Assert.Equal(11, drops.Where(d => d.Collectible.Code.ToString() == "game:metalplate-iron").Sum(d => d.StackSize));
         Assert.InRange(drops.Where(d => d.Collectible.Code.ToString() == "game:ore-bituminouscoal").Sum(d => d.StackSize), 4, 5);
+        for (int y = 0; y < 8; y++)
+            W.BlockAccessor.SetBlock(0, b.AddCopy(0, y, 0));
+        W.BlockAccessor.BreakBlock(pos, null);
+    }
+
+    // Plain galena's ideal route ends at the kettle (OreRecovery.FinalStep): 24 bars cast from its whole-route roasted
+    // concentrate (WholeRouteBars) desilverize to all of their lead and silver made whole, the silver in rich lead (the
+    // cupellation furnace parts it whole) and carried on, the lead ladled out and carried on; unmarked bars give the
+    // bars' lead and its 3 % silver, as the scenario above.
+    [AtlasScenario(TimeoutMs = 240_000)]
+    public async Task Parkes_kettle_makes_whole_route_galena_whole()
+    {
+        var hand = await CutterHand();
+        var player = hand.Player;
+        var pos = await CutterSite(-980, 980, reach: 6);
+        var sapi = (ICoreServerAPI)World.Api;
+        int size = GlobalConstants.ChunkSize;
+        for (int cx = (pos.X - 6) / size; cx <= (pos.X + 6) / size; cx++)
+            for (int cz = (pos.Z - 6) / size; cz <= (pos.Z + 6) / size; cz++)
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
+        var recovery = OreProcessingSystem.RecoveryFor(World.Api);
+        var spec = recovery.Ore("galena");
+        Assert.Equal(OreMachine.ParkesKettle, recovery.FinalStep(spec));
+        double restore = recovery.WholeRestore(spec);
+
+        var kettle = await PlaceKettle(pos);
+        var rig = kettle.KettleRig!;
+        var cell = kettle.CellPos(new Int3(1, 0, 0));
+        KettleClick(player, cell, CutterItem("game:burnedbrick-red", 64));
+        int i = 0;
+        while (kettle.Assembly!.Build.Next is { } _)
+        {
+            var (material, missing) = kettle.Assembly.Build.NextNeeds().First();
+            Assert.True(KettleClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(material.Codes[0], missing)) == null, $"{material.Codes[0]} x{missing} was not fitted");
+        }
+        Assert.True(kettle.Built);
+        MachineTest.FillOil(kettle);
+
+        // 24 whole-route bars (12 and 12, a bar's stack being 16), then their zinc
+        Assert.Null(KettleClick(player, pos, WholeRouteBars("galena", 12)));
+        Assert.Null(KettleClick(player, cell, WholeRouteBars("galena", 12)));
+        Assert.Equal(2400, kettle.LeadUnits);
+        Assert.Equal(2400, kettle.WholeLeadUnits, 6);
+        Assert.Null(KettleClick(player, pos, CutterItem(ParkesKettling.ZincBit, 5)));
+        Assert.Equal(KettlePhase.Stirring, kettle.Phase);
+
+        // lit under a chimney, stirred through
+        Assert.Null(KettleClick(player, pos, CutterItem("game:ore-bituminouscoal", 8)));
+        var handling = EnumHandling.PassThrough;
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        Assert.True(kettle.Lit);
+        var b = kettle.CellPos(rig.ChimneyBase);
+        for (int y = 0; y < 8; y++)
+            World.SetBlock(y < 6 ? "game:claybricks-good-fire" : y == 6 ? "game:claybrickchimney-four-red-ns" : "game:air", b.AddCopy(0, y, 0));
+        await World.Until(() => kettle.Row.Works, 5000);
+        kettle.StirThrough();
+        Assert.Equal(KettlePhase.Done, kettle.Phase);
+
+        // 2,426.7 lead with 72.8 silver: 7 rich bars of 10 silver (2.8 carried on), 17 ingots (26.7 lead carried on)
+        Assert.Equal((7, 17), (kettle.RichLead, kettle.LeadOut));
+        Assert.Equal(2400 * restore * 0.03, kettle.RichLead * Bullion.RichLeadSilverUnits(recovery) + kettle.SilverCarry, 6);
+        Assert.Equal(2400 * restore, (kettle.RichLead + kettle.LeadOut) * Bullion.UnitsPerItem + kettle.LeadCarry, 6);
+        Assert.InRange(kettle.SilverCarry, 2.7, 2.9);
+        Assert.InRange(kettle.LeadCarry, 26, 27.5);
+
         for (int y = 0; y < 8; y++)
             W.BlockAccessor.SetBlock(0, b.AddCopy(0, y, 0));
         W.BlockAccessor.BreakBlock(pos, null);

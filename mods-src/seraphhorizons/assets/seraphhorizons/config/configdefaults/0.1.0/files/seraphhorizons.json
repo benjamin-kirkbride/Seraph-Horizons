@@ -147,6 +147,7 @@
   "TraderMaps": true,
   "DepositCheckApproachMetres": 1500,
   "DepositCheckPauseSeconds": 5.0,
+  "SpawnProspectorMark": true,
   "AdminTools": true,
   "TravellingMerchants": true,
   "TravellingMerchantMinSupply": 2.0,
@@ -197,6 +198,46 @@
     "CylinderBorer": {
       "Tank": 1000.0,
       "DrainPerJob": 10.0
+    },
+    "SlittingMill": {
+      "Tank": 1000.0,
+      "DrainPerJob": 5.0
+    },
+    "JawBreaker": {
+      "Tank": 4000.0,
+      "DrainPerJob": 3.8
+    },
+    "StampBattery": {
+      "Tank": 3750.0,
+      "DrainPerJob": 14.3
+    },
+    "Arrastra": {
+      "Tank": 500.0,
+      "DrainPerJob": 43.0
+    },
+    "BallMill": {
+      "Tank": 5500.0,
+      "DrainPerJob": 21.0
+    },
+    "Jig": {
+      "Tank": 500.0,
+      "DrainPerJob": 1.4
+    },
+    "ShakingTable": {
+      "Tank": 500.0,
+      "DrainPerJob": 1.6
+    },
+    "Vanner": {
+      "Tank": 400.0,
+      "DrainPerJob": 3.1
+    },
+    "ReverberatoryRoaster": {
+      "Tank": 2500.0,
+      "DrainPerJob": 0.75
+    },
+    "ParkesKettle": {
+      "Tank": 1000.0,
+      "DrainPerJob": 115.0
     }
   },
   "TrunkEntities": true,
@@ -304,6 +345,62 @@
     "HeadWearPerCylinder": 1,
     "Resistance": 0.3,
     "MinSpeed": 0.05
+  },
+  "SlittingMill": true,
+  "SlittingMillSettings": {
+    "TurnsPerStroke": 1.0,
+    "NailsPerPlate": 20,
+    "MinSpeed": 0.05,
+    "Metals": {
+      "gold": {
+        "Resistance": 0.2,
+        "KnifeWear": 4
+      },
+      "silver": {
+        "Resistance": 0.2,
+        "KnifeWear": 4
+      },
+      "copper": {
+        "Resistance": 0.25,
+        "KnifeWear": 6
+      },
+      "electrum": {
+        "Resistance": 0.25,
+        "KnifeWear": 6
+      },
+      "molybdochalkos": {
+        "Resistance": 0.25,
+        "KnifeWear": 8
+      },
+      "brass": {
+        "Resistance": 0.3,
+        "KnifeWear": 8
+      },
+      "tinbronze": {
+        "Resistance": 0.3,
+        "KnifeWear": 10
+      },
+      "bismuthbronze": {
+        "Resistance": 0.3,
+        "KnifeWear": 10
+      },
+      "blackbronze": {
+        "Resistance": 0.3,
+        "KnifeWear": 12
+      },
+      "iron": {
+        "Resistance": 0.4,
+        "KnifeWear": 20
+      },
+      "meteoriciron": {
+        "Resistance": 0.4,
+        "KnifeWear": 24
+      },
+      "steel": {
+        "Resistance": 0.5,
+        "KnifeWear": 40
+      }
+    }
   },
   "PressBrake": true,
   "PressBrakeSettings": {
@@ -495,7 +592,8 @@
   "Springs": true,
   "SpringsSettings": {
     "NormalLitresPerSecond": 4.0,
-    "RapidLitresPerSecond": 10.0
+    "RapidLitresPerSecond": 10.0,
+    "PumpBoostPerTurn": 1.0
   },
   "OreMachinesSettings": {
     "MinSpeed": 0.05,

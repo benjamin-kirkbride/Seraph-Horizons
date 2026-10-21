@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 // concentrate into a chest at its concentrate face and its tailings into one at its tailings face (or onto a
 // gravel heap there), the sluice's tailings worked on, and broken back into everything that went in. Built on
 // granite floors 40 above spawn at x 780, z 780; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string JigFrame = "seraphhorizons:jig-";
 
@@ -46,6 +46,7 @@ public partial class SharedWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(jig.Assembly.Ready);
+        MachineTest.FillOil(jig);
     }
 
     private static int JigChestCount(BlockEntityContainer chest, string code) =>
@@ -91,12 +92,12 @@ public partial class SharedWorldScenarios
     {
         Assert.True(JigSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(JigFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(JigFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(JigFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(JigFrame + "north"));
         Assert.Equal("jig", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.Equal(["water", "bed"], block.ExtraRequires);
-        var build = OreMachinesSystem.Of(World.Api).Build("jig")!;
+        var build = MachinesSystem.Of(World.Api).Build("jig")!;
         Assert.Equal(["timber", "sieve", "drive", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Empty(build.Wearing);
         Assert.Equal("Jig frame", new ItemStack(block).GetName());

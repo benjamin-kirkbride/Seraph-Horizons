@@ -920,6 +920,11 @@ public class SeraphHorizonsConfig
     /// one). Raise it if the checks show as lag on a busy server. Server side.</summary>
     public double DepositCheckPauseSeconds { get; set; } = 5;
 
+    /// <summary>Trader maps: on a player's first join to a world with the camp grid, the nearest
+    /// prospector's camp goes on their map, approximate (±64 m) like a bought lead, and meeting its
+    /// trader makes it exact. Once per player, ever. Needs <c>TraderMaps</c> and the grid. Server side.</summary>
+    public bool SpawnProspectorMark { get; set; } = true;
+
     /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
     /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
     /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
@@ -1033,6 +1038,19 @@ public class SeraphHorizonsConfig
     /// <summary>The cylinder borer's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public CylinderBorer.Core.CylinderBorerConfig CylinderBorerSettings { get; set; } = new();
+
+    /// <summary>The slitting mill (SlittingMill/, README "Slitting mill"): a nail-rod mill's slitter stand with a
+    /// cut-off shear behind it, mechanically powered, built on a frame in five stages (the slitter rolls, of the
+    /// pack's forged slitter cutters; the pinions and great wheel; the drive; the shear with its knife, a cleaver,
+    /// the wearing part; the push bar), that slits one of the game's metal plates into 20 of the game's nails and
+    /// strips of its metal, the metal setting its load and the knife's wear; a MachineOil machine (off means its
+    /// blocks, its cutters and their recipes do not exist, and mills already placed are lost). The server's
+    /// setting decides.</summary>
+    public bool SlittingMill { get; set; } = true;
+
+    /// <summary>The slitting mill's figures; a value out of range falls back to its default with a warning. The
+    /// server's are used.</summary>
+    public SlittingMill.Core.SlittingMillConfig SlittingMillSettings { get; set; } = new();
 
     /// <summary>The press brake (PressBrake/, README "Press brake"): a hand-worked leaf brake of oak
     /// with iron edges and screws, built on a frame in two stages (a rod as its clamp screws, a plate

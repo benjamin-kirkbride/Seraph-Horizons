@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.Riddle.Core;
 
 /// <summary>Why crushed ore can or cannot go on the riddle as a charge.</summary>
@@ -26,7 +28,8 @@ public enum RiddleLoadVerdict
 /// θ turns a shake every <see cref="ShakeSeconds"/>, and the riddling W (0..1) advances by
 /// θ / (2π · shakesPerCharge). At W = 1 the fines are in the box, classified crushed ore, kept there until
 /// the player takes them out; the oversize stays on the mesh until taken out, and goes back to spalling.
-/// No metal is lost: every item of the charge comes back, as fines or as oversize.
+/// No metal is lost: every item of the charge comes back, as fines or as oversize. The charge on the
+/// riddle is a <see cref="MachineJob"/> of class 1 ending at 1 (<see cref="Start"/>).
 /// </summary>
 public static class Riddling
 {
@@ -38,10 +41,6 @@ public static class Riddling
 
     /// <summary>Radians of the riddle's clock a second while held.</summary>
     public const double ShakeRadiansPerSecond = 2 * Math.PI / ShakeSeconds;
-
-    /// <summary>How long a player counts as riddling after the game last said they hold right-click
-    /// on it (the quern forgets a grinding player after a second).</summary>
-    public const long HoldTimeoutMs = 600;
 
     /// <summary>A code with no domain is the game's, as the game reads one.</summary>
     public static string? Normalise(string? code) =>
@@ -76,6 +75,16 @@ public static class Riddling
         return held < lumps ? RiddleLoadVerdict.TooFew : RiddleLoadVerdict.Loads;
     }
 
+    /// <summary>
+    /// Whether a right-click with crushed ore in hand goes round again (the owner's ask, 2026-10-20): the charge on the riddle
+    /// riddled (<paramref name="riddling"/> false), something of it waiting to come out (<paramref name="waiting"/>:
+    /// its oversize on the mesh or its fines in the box), and the held ore a whole charge that goes on once
+    /// they are out. Then the oversize and the fines go to the player and the next charge goes on, so
+    /// holding right-click riddles charge after charge without letting go or emptying the hand.
+    /// </summary>
+    public static bool CanReload(string? code, bool classified, int held, int lumps, bool complete, bool riddling, bool waiting) =>
+        !riddling && waiting && CanLoad(code, classified, held, lumps, complete, false, false) == RiddleLoadVerdict.Loads;
+
     /// <summary>Whether the riddling runs: complete, a charge on not yet riddled, and someone holding.</summary>
     public static bool Running(bool complete, bool chargeOn, bool done, bool held) => complete && chargeOn && !done && held;
 
@@ -88,62 +97,20 @@ public static class Riddling
         oversize = Math.Clamp(oversize, 0, lumps);
         return (lumps - oversize, oversize);
     }
-}
 
-/// <summary>A charge on the riddle: whether one is on and the riddling so far, W (0..1).</summary>
-public readonly record struct RiddleJob(bool On, double Work)
-{
-    public static readonly RiddleJob None = new(false, 0);
+    /// <summary>A charge just put on the riddle (W ends at 1).</summary>
+    public static MachineJob Start() => MachineJob.Start(1, 1);
 
-    public static RiddleJob Start => new(true, 0);
+    /// <summary>The riddling after <paramref name="radians"/> more of the clock, W held at 1, and whether
+    /// this step finished the charge.</summary>
+    public static (MachineJob Job, bool Finished) Advance(MachineJob job, double radians, double shakesPerCharge) =>
+        job.Advance(ChargesFor(radians, shakesPerCharge));
 
-    /// <summary>Riddled: the fines are through, the oversize left on the mesh.</summary>
-    public bool Done => On && Work >= 1 - 1e-9;
-
-    /// <summary>Nothing has been done to the charge yet (it can be taken back).</summary>
-    public bool Untouched => On && Work <= 0;
-
-    /// <summary>The riddling after <paramref name="radians"/> more of the clock, W held at 1, and
-    /// whether this step finished the charge.</summary>
-    public (RiddleJob Job, bool Finished) Advance(double radians, double shakesPerCharge)
-    {
-        if (!On || Done)
-            return (this, false);
-        var next = this with { Work = Math.Min(1, Work + Riddling.ChargesFor(radians, shakesPerCharge)) };
-        return (next, next.Done);
-    }
-
-    /// <summary>A saved charge: W clamped to 0..1.</summary>
-    public static RiddleJob Restore(bool on, double work) =>
-        on ? new RiddleJob(true, double.IsFinite(work) ? Math.Clamp(work, 0, 1) : 0) : None;
+    /// <summary>A saved charge: W clamped to 0..1; none without a charge.</summary>
+    public static MachineJob Restore(bool on, double work) => on ? MachineJob.Restore(1, work, 1) : MachineJob.None;
 
     /// <summary>The shakes (whole turns of the clock) completed between W <paramref name="before"/> and
     /// <paramref name="after"/>: a shake's sound for each.</summary>
     public static int ShakesCrossed(double before, double after, double shakesPerCharge) =>
         shakesPerCharge > 0 ? Math.Max(0, (int)Math.Floor(after * shakesPerCharge + 1e-9) - (int)Math.Floor(before * shakesPerCharge + 1e-9)) : 0;
-}
-
-/// <summary>
-/// The players riddling, as the quern keeps its grinders: each with the time the game last said they
-/// held right-click on the riddle. A player counts until <see cref="Riddling.HoldTimeoutMs"/> after
-/// that, or until they let go.
-/// </summary>
-public sealed class RiddleHolds
-{
-    private readonly Dictionary<string, long> _holds = [];
-
-    public void Hold(string player, long nowMs) => _holds[player] = nowMs;
-
-    public void Release(string player) => _holds.Remove(player);
-
-    public void Clear() => _holds.Clear();
-
-    /// <summary>Forgets every player not heard from for <see cref="Riddling.HoldTimeoutMs"/>, and says
-    /// whether anyone is still riddling.</summary>
-    public bool Any(long nowMs)
-    {
-        foreach (var stale in _holds.Where(h => nowMs - h.Value > Riddling.HoldTimeoutMs).Select(h => h.Key).ToList())
-            _holds.Remove(stale);
-        return _holds.Count > 0;
-    }
 }

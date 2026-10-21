@@ -18,7 +18,7 @@ namespace SeraphHorizons.PackTests;
 // as amalgam and send the rock on amalgamated into a chest at the outlet; the amalgam is scraped off by hand;
 // with the outlet left open the tailings are dumped as sand; broken, everything back. Built on granite floors 40
 // above spawn at x 740 to 760, z 740; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string PlatesFrame = "seraphhorizons:amalgamationplates-";
 
@@ -67,12 +67,12 @@ public partial class SharedWorldScenarios
     {
         Assert.True(AmalgamationPlatesSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(PlatesFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(PlatesFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(PlatesFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(PlatesFrame + "north"));
         Assert.Equal("amalgamationplates", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.Null(block.Rig!.Anchor(OreMachineRig.Power));
-        var build = OreMachinesSystem.Of(World.Api).Build("amalgamationplates")!;
+        var build = MachinesSystem.Of(World.Api).Build("amalgamationplates")!;
         Assert.Equal(["plates", "trap", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Equal("Amalgamation plates", new ItemStack(block).GetName());
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == PlatesFrame + "north" && r.Enabled);

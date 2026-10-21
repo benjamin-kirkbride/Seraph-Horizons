@@ -7,7 +7,8 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// Springs (mods-src/seraphhorizons/Springs/): a hand-written <c>generic</c> record per kind, the
 /// spring (any rock, role <c>station</c>) giving a second's fresh well water from a pipe tapping it,
-/// at the SpringsSettings defaults written down here (4 and 10 litres a second).
+/// at the SpringsSettings defaults written down here (4 and 10 litres a second, and a mechanical pump's
+/// boost of 1, its rate again per turn a second).
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -23,7 +24,8 @@ public partial class RecipeExportScenarios
             Assert.Equal("Springs", (string?)r["switch"]);
             Json($$"""[{ "code": "seraphhorizons:waterspring-{{kind}}-*", "kind": "block", "quantity": 1, "role": "station" }]""", r["ingredients"]!);
             Json($$"""[{ "code": "hydrateordiedrate:waterportion-fresh-well-clean", "kind": "item", "quantity": {{litres * 100}}, "litres": {{litres}} }]""", r["outputs"]!);
-            Json($$"""{ "kind": "{{kind}}", "litresPerSecond": {{litres}}, "pressure": 1 }""", r["extra"]!);
+            Json($$"""{ "kind": "{{kind}}", "litresPerSecond": {{litres}}, "pressure": 1, "pumpBoostPerTurn": 1 }""", r["extra"]!);
+            Assert.Contains(r["requirements"]!, q => ((string)q!).StartsWith($"A Pipes and Power Expanded mechanical pump drawing on its run makes it give {litres} litres a second more"));
             var rocks = Codes(r["variants"]![0]!["ingredients"]![0]!).Select(c => (string)c!).ToList();
             Assert.Contains($"seraphhorizons:waterspring-{kind}-granite", rocks);
             Assert.Contains($"seraphhorizons:waterspring-{kind}-dolostone", rocks);

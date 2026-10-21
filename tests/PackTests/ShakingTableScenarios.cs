@@ -17,7 +17,7 @@ namespace SeraphHorizons.PackTests;
 // rotor on its controller's power face, watered by code (FillWater, as a ppex pipe would), fed by hand, washing on
 // the virtual clock into chests at its concentrate, middlings and tailings faces, its tailings then discarded as
 // sand; and broken back into everything that went in. Built 40 above spawn at x 880 to 900, z 880.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string TableFrame = "seraphhorizons:shakingtable-";
 
@@ -26,15 +26,15 @@ public partial class SharedWorldScenarios
     {
         Assert.True(ShakingTableSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(TableFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(TableFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(TableFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(TableFrame + "north"));
         Assert.Equal("shakingtable", block.Machine);
         Assert.Equal("Shaking table frame", new ItemStack(block).GetName());
         var rig = block.Rig!;
         Assert.Equal(Int3.Zero, rig.Anchor(OreMachineRig.Power)!.Value.Cell);
         foreach (var outlet in new[] { ShakingTabling.Concentrate, ShakingTabling.Middlings, ShakingTabling.Tailings })
             Assert.NotNull(rig.Anchor(outlet));
-        var build = OreMachinesSystem.Of(World.Api).Build("shakingtable");
+        var build = MachinesSystem.Of(World.Api).Build("shakingtable");
         Assert.Equal(["deck", "rectifier", "head", "services"], build!.Stages.Select(s => s.Id));
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == TableFrame + "north" && r.Enabled);
         Assert.Contains(recipe.ResolvedIngredients!, i => i?.Code?.Path == "plank-*" && i.Quantity == 9);
@@ -111,6 +111,7 @@ public partial class SharedWorldScenarios
             Assert.True(_cutterHandled);
         }
         Assert.True(table.Built);
+        MachineTest.FillOil(table);
         Assert.True(table.ShowsPart("pipelead"));
         Assert.False(table.ShowsPart("pipecopper"));
         Assert.Equal(0.1f, table.Resistance, 3);

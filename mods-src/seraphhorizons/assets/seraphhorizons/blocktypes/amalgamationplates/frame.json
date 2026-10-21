@@ -5,9 +5,9 @@
 // parts, drawn by its state. The server disables it with AmalgamationPlates or OreProcessing off.
 {
 	code: "amalgamationplates",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.AmalgamationPlates",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the plates fall away from
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the plates fall away from
 	// the player, the head (the controller) nearest them.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -33,7 +33,7 @@
 		"solder":     { base: "game:block/metal/ingot/leadsolder" }
 	},
 	attributes: {
-		oreMachine: { machine: "amalgamationplates", extraRequires: ["dressing", "amalgam1", "amalgam2", "amalgam3"] },
+		machine: { machine: "amalgamationplates", extraRequires: ["dressing", "amalgam1", "amalgam2", "amalgam3"] },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:amalgamationplates-handbook-card-title", text: "seraphhorizons:amalgamationplates-handbook-card-text" },

@@ -2,27 +2,31 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.GearCutter.Core;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 
 namespace SeraphHorizons.Mod.GearCutter;
 
 /// <summary>
-/// The gear cutter (#480, #481): registers its classes and holds what its blocks share: its
-/// settings (GearCutterSettings in ModConfig/seraphhorizons.json) and the rig
+/// The gear cutter (#480, #481): registers its block entity, names its rig to the shared machine base
+/// (<see cref="MachinesSystem.RegisterRig"/>; its frame, cells and power cell are the shared blocks, its
+/// build <c>config/builds/gearcutter.json</c>, its oil MachineOil's) and holds its settings
+/// (GearCutterSettings in ModConfig/seraphhorizons.json) and the rig
 /// (assets/seraphhorizons/config/gearcutter-rig.json). With the <c>GearCutter</c> switch off the
 /// server leaves its blocks, its new items and their recipes out of the game (<see cref="Disable"/>).
 /// </summary>
 public class GearCutterSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
+
+    /// <summary>The machine's id: its build file's, its frame's first code part.</summary>
+    public const string MachineId = "gearcutter";
     public static readonly AssetLocation RigAsset = new(Domain, "config/gearcutter-rig.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
         new(Domain, "blocktypes/gearcutter/frame.json"),
-        new(Domain, "blocktypes/gearcutter/ghost.json"),
-        new(Domain, "blocktypes/gearcutter/ghostpower.json"),
         new(Domain, "itemtypes/gearcutter/feedscrew.json"),
         new(Domain, "itemtypes/gearcutter/liftcam.json"),
         new(Domain, "itemtypes/gearcutter/kit.json"),
@@ -72,12 +76,8 @@ public class GearCutterSystem : ModSystem
     {
         _api = api;
         _config = LoadConfig(api);
-        api.RegisterBlockClass("seraphhorizons.GearCutter", typeof(BlockGearCutter));
-        api.RegisterBlockClass("seraphhorizons.GearCutterGhost", typeof(BlockGearCutterGhost));
-        api.RegisterBlockClass("seraphhorizons.GearCutterGhostPower", typeof(BlockGearCutterGhostPower));
         api.RegisterBlockEntityClass("seraphhorizons.GearCutter", typeof(BEGearCutter));
-        api.RegisterBlockEntityClass("seraphhorizons.GearCutterGhost", typeof(BEGearCutterGhost));
-        api.RegisterBlockEntityBehaviorClass("seraphhorizons.GearCutterMP", typeof(BEBehaviorGearCutterMP));
+        MachinesSystem.Of(api).RegisterRig(MachineId, () => Rig);
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
@@ -100,13 +100,16 @@ public class GearCutterSystem : ModSystem
     [
         new("en", Domain + ":machineoil-text",
             ", the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a> and the "
-            + "<a href=\"handbook://block-seraphhorizons:gearcutter-frame-north\">gear cutter</a>.",
-            " and the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a>."),
+            + "<a href=\"handbook://block-seraphhorizons:gearcutter-frame-north\">gear cutter</a>, and every ore machine",
+            " and the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a>, and every ore machine"),
         new("en", Domain + ":machineoil-text",
-            ", and the bucking sawmill and the rosser 2 points for each log stored in a trunk, and the gear cutter 10 points a "
-            + "gear (20 a large one). The gear cutter is the exception to the dry rule: dry or oiled it takes the same power, "
-            + "but its oil spares its cutter kit, which wears faster as the tank runs down and breaks on the first gear cut dry.",
-            ", and the bucking sawmill and the rosser 2 points for each log stored in a trunk."),
+            "stored in a trunk, the gear cutter 10 points a gear (20 a large one), and the ore machines",
+            "stored in a trunk, and the ore machines"),
+        new("en", Domain + ":machineoil-text",
+            // the edit is skipped when the text already holds its result, so both ends are its neighbours'
+            "a full charge. The gear cutter is the exception to the dry rule: dry or oiled it takes the same power, "
+            + "but its oil spares its cutter kit, which wears faster as the tank runs down and breaks on the first gear cut dry. A full tank",
+            "a full charge. A full tank"),
     ];
 
     private static readonly Regex CutterLink =

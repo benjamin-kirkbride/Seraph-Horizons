@@ -1,8 +1,9 @@
-// Curio dealer: relics, art, maps, gems and jewelry, exotic schematics.
-// Format: docs/trading.md (Trade lists). Jewelry and fine metalwork are player-supplied; the
-// schematics wave (#457) puts every exotic schematic here.
-// The eidolon's stock (#670): its schematic and the Jonas pump head its torso takes, which nothing
-// else gives; both left off with the Eidolon switch off.
+// Curio dealer: relics, art, maps, gems and jewelry.
+// Format: docs/trading.md (Trade lists). Jewelry and fine metalwork are player-supplied. Its
+// schematics, the exotic ones, are its catalog's (config/schematic-gates.json "sales"), never on a
+// shelf, and never bought back.
+// The eidolon's stock (#670): the Jonas pump head its torso takes, which nothing else gives; left
+// off with the Eidolon switch off.
 // Prices come from the item value table by config/trading/list-prices.json (docs/trading.md, "Trade list format").
 {
 	"type": "curiodealer",
@@ -13,14 +14,6 @@
 		"core": [
 			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": 1, "priceReason": "priced by the maps system at each restock"},
 			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": 1, "priceReason": "priced by the maps system at each restock"},
-			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 180, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
-			{"code": "walkingstick:schematic-flintlock", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 128, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
-			{"code": "game:schematic-glider", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 150, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
-			{"code": "game:schematic-customtranslocator", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 160, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
-			{"code": "betterruins:br-schematic-book", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 20, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-alchemist", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 28, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-textureflipper", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 10, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "seraphhorizons:schematic-eidolon", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 180, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
 			{"code": "game:jonasparts-pumphead", "stacksize": 1, "stock": {"avg": 1, "var": 0.5}, "price": 40, "priceReason": "the eidolon's torso takes one and nothing else gives one (vanilla's loot randomizers and BetterRuins' part conversion leave it out): a hand-set scarce part", "standingTier": 3}
 		],
 		"rotating": { "maxItems": 6,
@@ -148,8 +141,7 @@
 		"core": [
 			{"code": "gear-temporal", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
 			{"code": "ingot-gold", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
-			{"code": "ingot-silver", "stacksize": 1, "stock": {"avg": 3, "var": 0.75}},
-			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 10, "priceReason": "schematic: a hand-set gate"}
+			{"code": "ingot-silver", "stacksize": 1, "stock": {"avg": 3, "var": 0.75}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [

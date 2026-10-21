@@ -1,5 +1,5 @@
 // The machines' schematics (#469, README "Schematics", config/schematic-gates.json): one per
-// machine, kept on crafting by the recipes they gate, sold by traders. The game's schematic sheet
+// machine, kept on crafting by the recipes they gate, sold by traders from their schematic catalogs. The game's schematic sheet
 // and its two drawings: the glider's for wooden machines and vehicles, the translocator's for gear
 // and metal work.
 {
@@ -10,9 +10,13 @@
 	],
 	variantgroups: [
 		{ code: "machine", states: [
-			"windmill", "waterwheel", "handcrank", "transmission", "helvehammer", "pulverizer",
-			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "centeredspurgear",
-			"biplane", "eidolon"
+			"windmill", "waterwheel", "transmission", "helvehammer", "pulverizer",
+			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "eidolon",
+			"jawbreaker", "ballmill", "stampbattery", "arrastra", "sluice", "jig", "shakingtable", "vanner",
+			"cylinderborer", "slittingmill", "handcar", "amalgamationplates", "reverberatory", "parkeskettle", "stallroaster",
+			"liquationfurnace", "cupellationfurnace", "acidparting", "cruciblefurnace", "drawbench", "gearcutter",
+			"steampower", "highpressuresteam", "blastfurnace", "bessemer", "steamengine", "locomotive",
+			"temporalstabilizer", "sprinkler", "spinningwheel", "alchemycauldron"
 		] }
 	],
 	attributes: {
@@ -29,9 +33,31 @@
 		"*-helvehammer": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-pulverizer": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-gearbox": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
-		"*-centeredspurgear": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-eidolon": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
-		"*-handcrank": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-jawbreaker": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-ballmill": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-stampbattery": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-cylinderborer": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-slittingmill": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-amalgamationplates": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-reverberatory": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-parkeskettle": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-stallroaster": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-liquationfurnace": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-cupellationfurnace": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-acidparting": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-cruciblefurnace": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-drawbench": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-gearcutter": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-steampower": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-highpressuresteam": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-blastfurnace": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-bessemer": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-steamengine": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-locomotive": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-temporalstabilizer": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-sprinkler": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-alchemycauldron": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-glider" } }
 	},
 	creativeinventory: { "general": ["*"], "items": ["*"] },

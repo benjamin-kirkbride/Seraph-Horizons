@@ -1,36 +1,35 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.TrunkEntities;
-using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.BuckingSawmill;
 
 /// <summary>
-/// The mill's controller. Holds the fitted parts (Immersive Woodworking's sawmill items), the
-/// blade kit as its own stack (it wears), the loaded trunk as its whole Logging Expanded item
-/// stack, the cut's progress and the saws' depth. The server cuts and winds the saws back up from
-/// the power ghost's shaft angle, pulls trunks from a rack at the infeed side, and keeps the ghost
-/// cells stamped; the client shows it. Every cell's collision and selection boxes, with the
-/// loaded trunk's (<see cref="TrunkBox"/>), come from here.
+/// The mill's controller, on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/buckingmill.json</c>, Immersive Woodworking's sawmill parts, with the blade kit its durable
+/// wearing part; its cells and power cell; its oil (<see cref="OilMachine.BuckingMill"/>); its block info). It
+/// keeps the loaded trunk as its whole Logging Expanded item stack, the cut's progress and the saws' depth.
+/// The server cuts and winds the saws back up from the power cell's shaft angle, pulls trunks from a rack, a
+/// feeder in line (the rosser, <see cref="ITrunkFeeder"/>) or the ground at the infeed side; the client
+/// follows the saws between syncs and draws them (<see cref="MillRenderer"/>). Every cell's collision and
+/// selection boxes, with the loaded trunk's (<see cref="TrunkBox"/>), come from here.
 /// </summary>
-public class BEBuckingMill : BlockEntity, IMillVisualState
+public class BEBuckingMill : BEMachine
 {
     public const string IwDomain = "immersivewoodworking";
     private static readonly AssetLocation BreakSound = new("game", "sounds/effect/toolbreak");
+    private static readonly AssetLocation TrunkSound = new("game", "sounds/block/wood");
 
-    private Parts _parts = new();
-    // The fitted kit's stack; _parts.BladeMetal mirrors its metal.
-    private ItemStack? _blade;
     private ItemStack? _trunk;
     // How the loaded trunk is shown, which picks the cells' boxes: read by collision lookups,
     // which can run off the main thread.
@@ -55,19 +54,13 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     // The loaded trunk's stored logs, read when it was loaded (synced, so the client's progress
     // advances by the server's arithmetic).
     private int _storedLogs;
-    private float _lastAngle;
-    private bool _angleSeeded;
     private float _clientLastAngle;
     private bool _clientAngleSeeded;
-    private float? _serverMinSpeed;
     private float? _serverRevolutions;
     private float? _serverRaiseRevolutions;
     private float? _serverBladeSpeed;
     // What the rack at the infeed end offers, as the server last found it (synced for the info).
     private RackState _rackState;
-    // The oil tank (MachineOil): none with the switch off, or on a client of a server without it.
-    private OilState? _oil;
-    private float _smokeSeconds;
     // Players holding right-click on the mill (server side), by player UID: waiting to load a trunk
     // at the next top of the cycle, or winding the stopped saws up by hand. The server hears a
     // hold's start and its end (stop or cancel) from the client; the mill's own tick does the rest.
@@ -78,48 +71,44 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     // whole, then published; never changed after.
     private volatile BoxTable[]? _boxes;
     private sealed record BoxTable(IReadOnlyDictionary<Int3, Cuboidf[]> Selection, IReadOnlyDictionary<Int3, Cuboidf[]> Collision);
-    private MillRenderer? _renderer;
 
-    public Side Side { get; private set; } = Side.North;
     public BlockFacing Facing => BlockFacing.FromCode(Side.Code());
-    public bool Complete => _parts.Complete;
     public float Progress => _progress;
     /// <summary>The saws' depth, 0 at the top to 1 at the bed (server's value on the client).</summary>
     public float Depth => _depth;
     /// <summary>Whether the saws are being wound up (server's value on the client).</summary>
     public bool Rising => _rising;
-    /// <summary>Complete and turning at <see cref="MinSpeed"/> or faster: the cycle runs.</summary>
-    public bool Running => _parts.Complete && ShaftSpeed >= MinSpeed;
-    /// <summary>The fitted blade kit's stack, or null.</summary>
-    public ItemStack? BladeKit => _blade;
+    /// <summary>Assembled with its blade kit and turning at <see cref="BEMachine.MinSpeed"/> or faster: the cycle runs.</summary>
+    public bool SawsRun => Ready && ShaftSpeed >= MinSpeed;
     /// <summary>What the rack at the infeed end offers, as the server last found it.</summary>
     public RackState RackState => _rackState;
 
-    /// <summary>The mill's oil, or null without the <c>MachineOil</c> switch.</summary>
-    public OilState? Oiling => _oil;
-    /// <summary>The configured slowest shaft speed that cuts. A client uses the server's value,
-    /// which comes with the block entity's data, not its own config file's.</summary>
-    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
+    /// <summary>The fitted blade kit: its code and durability left; null without one (taken out, or worn out).</summary>
+    public (string Code, double Left)? Blade => Assembly?.Wearing.Fitted(BladeKits.Part);
+
+    /// <summary>The fitted blade kit as its item stack, with the durability it has left; null without one.</summary>
+    public ItemStack? BladeKit => Blade is { } b && Api != null ? StackOf(new StageDrop(b.Code, 1, b.Left)) : null;
+
     private float RevolutionsPerStoredLog => _serverRevolutions ?? Config.RevolutionsPerStoredLog;
     private float RaiseRevolutions => _serverRaiseRevolutions ?? Config.RaiseRevolutions;
     /// <summary>How fast the fitted blade kit cuts, a multiple of a copper kit's speed, from its tool
     /// tier (<see cref="BuckingSawmillSystem.BladeSpeed"/>); 1 without a kit. A client uses the
     /// server's figure.</summary>
-    public float BladeSpeed => _serverBladeSpeed ?? (_blade == null || Api == null ? 1f : System.BladeSpeed(_blade));
+    public float BladeSpeed => _serverBladeSpeed ?? (BladeKit is { } kit ? System.BladeSpeed(kit) : 1f);
 
     private BuckingSawmillSystem System => BuckingSawmillSystem.Of(Api);
     private MillConfig Config => System.Config;
-    private Rig? Rig => System.Rig;
+    private new Rig? Rig => System.Rig;
 
-    // IMillVisualState
-    public int SashCount => _parts.Sashes;
-    public bool HasCrankshaft => _parts.Crankshaft;
-    public bool HasLevers => _parts.Levers;
-    public bool HasBladeKit => _blade != null;
-    public string? BladeMetal => _parts.BladeMetal;
+    // What the renderer draws
+    public int SashCount => (ShowsPart("sash1") ? 1 : 0) + (ShowsPart("sash2") ? 1 : 0);
+    public bool HasCrankshaft => Assembly?.Build.Fitted("crankshaft") == true;
+    public bool HasLevers => Assembly?.Build.Fitted("levers") == true;
+    public bool HasBladeKit => Blade != null;
+    public string? BladeMetal => BladeKits.MetalOf(Blade?.Code);
     public ItemStack? Trunk => _trunk;
     public float ClientProgress => _trunk == null ? 0 : Math.Clamp(_clientProgress, 0, 1);
-    public MillPhase Phase => SawDepth.Phase(Running, _trunk != null, _rising);
+    public MillPhase Phase => SawDepth.Phase(SawsRun, _trunk != null, _rising);
     public float ClientSawDepth
     {
         get
@@ -134,71 +123,70 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// <summary>The saws' depth as this side knows it: the client's shown depth, the server's own.</summary>
     public float SideDepth => Api?.Side == EnumAppSide.Client ? ClientSawDepth : _depth;
     public bool ClientRising => _clientRising;
-    public float ShaftAngle => Power?.AngleRad ?? 0;
-    public float ShaftSpeed => Power?.TrueSpeed ?? 0;
 
-    /// <summary>The power ghost's mechanical power behavior, looked up afresh each time.</summary>
-    public BEBehaviorMillMP? Power =>
-        Api != null && Rig is { } rig
-            ? Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.PowerCell))?.GetBehavior<BEBehaviorMillMP>()
-            : null;
+    // ---- The machine base ----
+
+    /// <summary>The blade kit's uses are each kit's own durability, which differs by metal.</summary>
+    protected override MachineBuild? BuildSpec(IWorldAccessor world) =>
+        base.BuildSpec(world)?.WithUses(BladeKits.Part, code =>
+            world.GetItem(new AssetLocation(code)) is { } kit ? kit.GetMaxDurability(new ItemStack(kit)) : 0);
+
+    protected override OilMachine? OilKind => OilMachine.BuckingMill;
+    protected override float ConfigMinSpeed => Config.MinSpeed;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 50;
+
+    /// <summary>Whole with its blade kit in: until then it is the frame, puts the token load on its shaft and
+    /// takes the creative shortcut (the woodworking stations', with <c>UnifiedWoodworking</c>: a steel kit last).</summary>
+    public override bool Complete => Ready;
+    protected override bool LoadsShaft => Ready;
+    protected override bool CreativeFills => !Ready && WoodworkingShortcut;
+    protected override double ShaftLoad => Config.Resistance;
+    protected override Float3? SmokePoint => new Float3(0.5f, 1.2f, 0.5f);
+
+    /// <summary>The cycle runs with the bed empty too (the saws sink and are wound up); with a trunk on it only
+    /// while Logging Expanded is as the mill needs it.</summary>
+    public override bool HasWork => _trunk == null || System.Logging != null;
+    public override double? WorkProgress => _trunk != null ? _progress : null;
+
+    /// <summary>Whether the creative shortcut is on: with <c>UnifiedWoodworking</c>, whose creative
+    /// shortcut on the woodworking stations this is (<see cref="CreativeUpgrades"/>), running.</summary>
+    public bool WoodworkingShortcut => Api?.ModLoader.GetModSystem<SeraphHorizonsSystem>()?.Woodworking is { Active: true };
 
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
         _boxes = BuildBoxes();
         if (api.Side == EnumAppSide.Server)
-        {
-            _oil ??= Oil.NewOwn(api, OilMachine.BuckingMill);
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(OnCutTick, 50);
             RegisterGameTickListener(OnRackTick, 1000);
-        }
         else
         {
             _clientProgress = _progress;
             _clientDepthEstimate = _clientDepth = _clientDepthBefore = _depth;
             _clientRising = _rising;
-            RegisterGameTickListener(OnClientTick, 50);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockBuckingMill)
-                _renderer = new MillRenderer(capi, this, rig);
         }
     }
 
+    protected override IRenderer CreateRenderer(ICoreClientAPI capi, IMachineRig rig) => new MillRenderer(capi, this, (Rig)rig);
+
     // ---- Footprint ----
-
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>Every ghost cell's world position, with whether it is the power cell.</summary>
-    public IEnumerable<(BlockPos Pos, bool Power)> GhostCells() =>
-        Rig is { } rig ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell)) : [];
 
     /// <summary>A cell's selection boxes, turned to the mill's facing, with the loaded trunk's part
     /// in that cell; null when the cell is not the mill's. Safe off the main thread: the tables are
     /// built whole in <see cref="Initialize"/> and only read here.</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Table(cellPos, collision: false);
+    public override Cuboidf[]? CellBoxes(BlockPos cellPos) => Table(cellPos, collision: false);
 
     /// <summary>A cell's collision boxes: its <see cref="CellBoxes"/> and, on a column's top cell,
     /// the rig's collision-only lid, so nothing falls into the mill from above.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Table(cellPos, collision: true);
+    public override Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Table(cellPos, collision: true);
 
     private Cuboidf[]? Table(BlockPos cellPos, bool collision)
     {
         var tables = _boxes ??= BuildBoxes();
         if (tables == null)
             return null;
-        var local = Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
         var table = tables[(int)_trunkClass];
-        return (collision ? table.Collision : table.Selection).GetValueOrDefault(local);
+        return (collision ? table.Collision : table.Selection).GetValueOrDefault(LocalOf(cellPos));
     }
 
     /// <summary>Every cell's boxes, once per trunk class; null before the rig is known.</summary>
@@ -239,100 +227,44 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         return TrunkBox.Contains(TrunkBox.Bounds(bed, _trunkClass), local);
     }
 
-    private Block? GhostBlock(bool power) =>
-        Api.World.GetBlock(new AssetLocation(BuckingSawmillSystem.Domain, power ? "buckingmill-ghostpower-" + Side.Code() : "buckingmill-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        foreach (var (pos, power) in GhostCells())
-            if (GhostBlock(power) is { } ghost)
-                StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEMillGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, power) in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null || GhostBlock(power) is not { } expected)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEMillGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockMillGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, _) in GhostCells())
-            if (ba.GetBlock(pos) is BlockMillGhost && ba.GetBlockEntity(pos) is BEMillGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
-    }
-
     // ---- Interaction ----
 
-    /// <summary>Right-click on the mill or any ghost (<paramref name="onTrunk"/>: on the loaded
-    /// trunk). Ctrl takes the trunk back (into Carry On's hands with trunk entities), else the blade
-    /// kit; a part in hand is fitted; with an empty hand the trunk carried in Carry On's hands (with
-    /// trunk entities), else a trunk in hand or one from the hotbar or backpack, is loaded. Anything else held is
-    /// the item's own business, except on the trunk, where the click is the mill's and does nothing
-    /// (a block would be placed inside the trunk). In creative mode, Ctrl on an unassembled mill fits
-    /// its next part instead (<see cref="CreativeShortcut"/>). Decided and done on the server; the
-    /// client only says whether the click is the mill's.</summary>
-    public bool OnInteract(IPlayer byPlayer, bool onTrunk = false)
+    /// <summary>Before the build's: Ctrl takes the trunk back (into Carry On's hands with trunk entities), else
+    /// the blade kit, with what durability it has left (the creative shortcut comes first while a part is still
+    /// to fit); a blade kit is fitted once both sashes are in, before or after the crankshaft and levers.</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        // Holding oil, a click anywhere on the mill pours it.
-        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
-            return oiled;
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
+        if (CreativeShortcut(byPlayer))
+            return null;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
-        var path = slot?.Itemstack?.Collectible?.Code?.Path;
-        bool part = slot?.Itemstack?.Collectible?.Code?.Domain == IwDomain && Parts.KindOf(path, out _) != PartKind.None;
-        bool trunk = Trunks.IsTrunk(slot?.Itemstack);
-        if (!take && !part && !trunk && slot?.Itemstack != null)
-            return onTrunk;
+        if (controls.CtrlKey && !controls.ShiftKey)
+        {
+            if (Api.Side == EnumAppSide.Server && !TryTakeTrunk(byPlayer))
+                TryTakeBladeKit(byPlayer);
+            return true;
+        }
+        if (BladeKits.MetalOf(slot?.Itemstack?.Collectible?.Code?.ToString()) == null)
+            return null;
+        if (Api.Side == EnumAppSide.Server)
+            TryFitBlade(slot!, byPlayer);
+        return true;
+    }
+
+    /// <summary>After the build's: with an empty hand the trunk carried in Carry On's hands (with trunk entities),
+    /// else a trunk in hand or one from the hotbar or backpack, is loaded; a stopped mill's saws, if they are down,
+    /// are wound up by holding right-click with an empty hand. Anything else held is the item's own business,
+    /// except on the trunk, where the click is the mill's and does nothing (a block would be placed inside the
+    /// trunk).</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
+    {
+        bool trunk = Trunks.IsTrunk(slot.Itemstack);
+        if (!trunk && slot.Itemstack != null)
+            return HitsTrunk(blockSel.Position, blockSel.HitPosition);
         if (Api.Side != EnumAppSide.Server)
             return true;
-
-        if (CreativeShortcutApplies(byPlayer))
-            FitNextPart(byPlayer);
-        else if (take)
-        {
-            if (!TryTakeTrunk(byPlayer))
-                TryTakeBladeKit(byPlayer);
-        }
-        else if (part)
-            TryFitPart(slot!, byPlayer);
-        else if (!trunk && Feeding.WindsUp(Running, _depth))
+        if (!trunk && Feeding.WindsUp(SawsRun, _depth))
             StartHold(byPlayer, HoldKind.Wind);
-        else if (trunk ? !TryLoadFromSlot(slot!, byPlayer) : !TryLoadFromInventory(byPlayer))
+        else if (trunk ? !TryLoadFromSlot(slot, byPlayer) : !TryLoadFromInventory(byPlayer))
         {
             // Not now: if only because the saws are not up yet, it goes on at the next top while
             // the button is held.
@@ -342,10 +274,67 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         return true;
     }
 
+    /// <summary>Fits what <paramref name="slot"/> holds (server side), as a right-click holding it does: a blade
+    /// kit by the mill's rule, any other part into the build. The part is taken from the slot unless the player
+    /// is in creative mode or it is <paramref name="free"/>. False, with an error to the player, when it does
+    /// not go in.</summary>
+    public bool TryFitPart(ItemSlot slot, IPlayer byPlayer, bool free = false)
+    {
+        if (BladeKits.MetalOf(slot.Itemstack?.Collectible?.Code?.ToString()) != null)
+            return TryFitBlade(slot, byPlayer, free);
+        if (free)
+            slot = new DummySlot(slot.Itemstack?.Clone());
+        bool fitted = TryFit(slot, byPlayer) == true;
+        RefreshState();
+        return fitted;
+    }
+
+    /// <summary>Fits the blade kit in <paramref name="slot"/> (server side): one kit, a blade in each saw, so it
+    /// needs both sashes; it goes in with the durability it has left. False, with an error to the player, when
+    /// one is already in or the sashes are not.</summary>
+    public bool TryFitBlade(ItemSlot slot, IPlayer? byPlayer, bool free = false)
+    {
+        if (Assembly is not { } assembly || slot.Itemstack is not { } stack || stack.Collectible?.Code?.ToString() is not { } code)
+            return false;
+        double? uses = stack.Collectible.GetMaxDurability(stack) > 0 ? stack.Collectible.GetRemainingDurability(stack) : null;
+        switch (BladeKits.Fit(assembly, code, uses))
+        {
+            case BladeVerdict.Fits:
+                break;
+            case BladeVerdict.BladeFitted:
+                return Refuse(byPlayer, "error-blade-fitted");
+            case BladeVerdict.NeedsSashes:
+                return Refuse(byPlayer, "error-need-sashes");
+            default:
+                return Refuse(byPlayer, "error-not-a-part");
+        }
+        if (!free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative)
+        {
+            slot.TakeOut(1);
+            slot.MarkDirty();
+        }
+        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
+        MarkDirty(true);
+        RefreshState();
+        return true;
+    }
+
+    /// <summary>The creative shortcut (server side): fits the next stage (every part still missing), then a
+    /// steel blade kit, with nothing taken from the player, whatever they hold.</summary>
+    public bool FitNextPart(IPlayer byPlayer)
+    {
+        if (Assembly is not { } assembly || Ready || !assembly.FillNext())
+            return false;
+        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
+        MarkDirty(true);
+        RefreshState();
+        return true;
+    }
+
     /// <summary>Whether a trunk refused only because the saws are not at the top can wait for them:
     /// the mill is running, its bed is empty and the player has a trunk for it.</summary>
     private bool WaitsForTop(IPlayer byPlayer) =>
-        Running && _trunk == null && !SawDepth.AtTop(_depth) && System.Logging != null
+        SawsRun && _trunk == null && !SawDepth.AtTop(_depth) && System.Logging != null
         && (TrunkStations.Hands(Api) ? TrunkStations.Carried(Api, byPlayer) != null : FindTrunk(byPlayer) != null);
 
     private void StartHold(IPlayer byPlayer, HoldKind kind) =>
@@ -354,18 +343,18 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// <summary>Right-click held on the mill (both sides): whether the hold goes on. The client keeps
     /// it while there is something to wait for, a trunk to load or saws to wind up; the server, while
     /// it has the hold.</summary>
-    public bool OnInteractStep(IPlayer byPlayer)
+    public override bool OnInteractStep(IPlayer byPlayer, float secondsUsed)
     {
         if (Api.Side == EnumAppSide.Server)
             return _holds.ContainsKey(byPlayer.PlayerUID);
         var held = byPlayer.InventoryManager.ActiveHotbarSlot?.Itemstack;
-        if (held == null && Feeding.KeepsWinding(Running, SideDepth))
+        if (held == null && Feeding.KeepsWinding(SawsRun, SideDepth))
             return true;
-        return _trunk == null && Running && (held == null || Trunks.IsTrunk(held));
+        return _trunk == null && SawsRun && (held == null || Trunks.IsTrunk(held));
     }
 
     /// <summary>Right-click let go, or the hold cancelled (both sides): the server forgets it.</summary>
-    public void OnInteractEnd(IPlayer byPlayer)
+    public override void OnInteractStop(IPlayer byPlayer)
     {
         if (Api.Side == EnumAppSide.Server)
             _holds.Remove(byPlayer.PlayerUID);
@@ -384,7 +373,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
                 _holds.Remove(uid);
         foreach (var hold in _holds.Values.Where(h => h.Kind == HoldKind.Wind).ToList())
         {
-            if (!Feeding.KeepsWinding(Running, _depth))
+            if (!Feeding.KeepsWinding(SawsRun, _depth))
             {
                 _holds.Remove(hold.Player.PlayerUID);
                 continue;
@@ -419,74 +408,6 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             MarkDirty();
     }
 
-    /// <summary>Whether the creative shortcut is on: with <c>UnifiedWoodworking</c>, whose creative
-    /// shortcut on the woodworking stations this is (<see cref="CreativeUpgrades"/>), running.</summary>
-    public bool CreativeShortcut => Api?.ModLoader.GetModSystem<SeraphHorizonsSystem>()?.Woodworking is { Active: true };
-
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift (<see cref="CreativeUpgrades.Applies"/>), on a mill with a part still to fit. On an
-    /// assembled mill Ctrl takes the trunk or the blade kit back, as it does in survival.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
-    {
-        var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete && CreativeShortcut
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fits the next missing part (sashes, crankshaft,
-    /// levers, then a blade kit of <see cref="AssembledMachines.DefaultMetal"/>), with nothing taken
-    /// from the player, whatever they hold.</summary>
-    public bool FitNextPart(IPlayer byPlayer)
-    {
-        if (_parts.NextPart(AssembledMachines.DefaultMetal) is not { } path)
-            return false;
-        var item = Api.World.GetItem(new AssetLocation(IwDomain, path))
-                   ?? (Parts.KindOf(path, out _) == PartKind.BladeKit ? FirstBladeKit() : null);
-        if (item == null)
-        {
-            Api.Logger.Warning("[seraphhorizons] Bucking sawmill: no {0}:{1} for the creative shortcut", IwDomain, path);
-            return false;
-        }
-        return TryFitPart(new DummySlot(new ItemStack(item)), byPlayer, free: true);
-    }
-
-    private Item? FirstBladeKit() =>
-        Api.World.Items.FirstOrDefault(i => i?.Code is { Domain: IwDomain } c && Parts.KindOf(c.Path, out _) == PartKind.BladeKit);
-
-    /// <summary>Fits the part in <paramref name="slot"/> (server side); false, with an error to
-    /// the player, when the rules say no. The part is taken from the slot unless the player is in
-    /// creative mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer byPlayer, bool free = false)
-    {
-        var stack = slot.Itemstack;
-        if (stack?.Collectible?.Code is not { Domain: IwDomain } code)
-            return false;
-        var verdict = _parts.Fit(code.Path);
-        if (verdict != FitVerdict.Fits)
-        {
-            Error(byPlayer, verdict switch
-            {
-                FitVerdict.AlreadyFitted => "error-part-fitted",
-                FitVerdict.NeedsSashes => "error-need-sashes",
-                FitVerdict.BladeFitted => "error-blade-fitted",
-                _ => "error-not-a-part",
-            });
-            return false;
-        }
-        var fitted = stack.Clone();
-        fitted.StackSize = 1;
-        if (Parts.KindOf(code.Path, out _) == PartKind.BladeKit)
-            _blade = fitted;
-        if (!free && byPlayer.WorldData.CurrentGameMode != EnumGameMode.Creative)
-        {
-            slot.TakeOut(1);
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
-        return true;
-    }
-
     /// <summary>Gives the trunk back if it is still recoverable (server side).</summary>
     public bool TryTakeTrunk(IPlayer byPlayer)
     {
@@ -494,27 +415,27 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return false;
         if (!Cutting.Recoverable(_progress))
         {
-            Error(byPlayer, "error-trunk-cut");
+            Refuse(byPlayer, "error-trunk-cut");
             return true;
         }
         var trunk = _trunk;
         if (!GiveTrunk(byPlayer, trunk))
             return true;   // hands full: it stays
         ClearTrunk();
-        Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0, byPlayer);
+        Api.World.PlaySoundAt(TrunkSound, Pos, 0, byPlayer);
         MarkDirty(true);
         return true;
     }
 
-    /// <summary>Gives back the blade kit (server side).</summary>
+    /// <summary>Gives back the blade kit, with the durability it has left (server side).</summary>
     public bool TryTakeBladeKit(IPlayer byPlayer)
     {
-        if (_blade is not { } blade)
+        if (Assembly?.Take(BladeKits.Part) is not { } blade)
             return false;
-        _blade = null;
-        _parts.RemoveBladeKit();
-        Give(byPlayer, blade);
+        if (StackOf(new StageDrop(blade.Code, 1, blade.Left)) is { } stack)
+            Give(byPlayer, stack);
         MarkDirty(true);
+        RefreshState();
         return true;
     }
 
@@ -524,7 +445,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return false;
         Load(slot.TakeOutWhole());
         slot.MarkDirty();
-        Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0, byPlayer);
+        Api.World.PlaySoundAt(TrunkSound, Pos, 0, byPlayer);
         return true;
     }
 
@@ -538,7 +459,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return TryLoadFromHands(byPlayer, byPlayer);
         if (FindTrunk(byPlayer, branchedToo: true) is { } slot)
             return TryLoadFromSlot(slot, byPlayer);
-        return Error(byPlayer, "error-no-trunk");
+        return Refuse(byPlayer, "error-no-trunk");
     }
 
     /// <summary>The trunk a player's click loads: the one in hand, else the first in the hotbar,
@@ -573,11 +494,11 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public bool TryLoadFromHands(IPlayer player, IPlayer? errorsTo, bool passedTop = false)
     {
         if (TrunkStations.Carried(Api, player) is not { } carried)
-            return Error(errorsTo, "error-no-trunk");
+            return Refuse(errorsTo, "error-no-trunk");
         if (!CanLoad(carried, errorsTo, passedTop) || player is not IServerPlayer sp || TrunkCarry.Take(sp) is not { } trunk)
             return false;
         Load(trunk);
-        Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0, player);
+        Api.World.PlaySoundAt(TrunkSound, Pos, 0, player);
         return true;
     }
 
@@ -591,11 +512,11 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         if (!Trunks.IsTrunk(trunk))
             return false;
         if (System.Logging == null)
-            return Error(byPlayer, "error-no-logging");
-        if (!_parts.Complete)
-            return Error(byPlayer, "error-incomplete");
+            return Refuse(byPlayer, "error-no-logging");
+        if (!Ready)
+            return Refuse(byPlayer, "error-incomplete");
         if (_trunk != null)
-            return Error(byPlayer, "error-bed-full");
+            return Refuse(byPlayer, "error-bed-full");
         if (BranchedAndRefused(trunk))
         {
             // Logging Expanded's own message, as its sawhorses give it.
@@ -604,9 +525,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return false;
         }
         if (!Feeding.CanTakeTrunk(_depth, passedTop))
-            return Error(byPlayer, Running ? "error-saws-not-up" : "error-saws-down");
+            return Refuse(byPlayer, SawsRun ? "error-saws-not-up" : "error-saws-down");
         if (Trunks.StoredLogs(trunk, Api.World) <= 0)
-            return Error(byPlayer, "error-empty-trunk");
+            return Refuse(byPlayer, "error-empty-trunk");
         return true;
     }
 
@@ -619,6 +540,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         var cycle = SawDepth.Load(new SawCycle(_depth, _rising), TouchDepth(trunk));
         (_depth, _rising, _progress) = (cycle.Depth, cycle.Rising, cycle.Progress);
         MarkDirty(true);
+        RefreshState();
     }
 
     /// <summary>Where the saws come to rest on <paramref name="trunk"/>.</summary>
@@ -658,11 +580,44 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 0.6, 0.5));
     }
 
-    private bool Error(IPlayer? byPlayer, string key, params object[] args)
+    /// <summary>The mill's own message (<c>seraphhorizons:buckingmill-{key}</c>) to the player; false.</summary>
+    private bool Refuse(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
             sp.SendIngameError("buckingsawmill-" + key, Lang.GetL(sp.LanguageCode, BuckingSawmillSystem.Domain + ":buckingmill-" + key, args));
         return false;
+    }
+
+    /// <summary>The help: the base's (the parts still to fit, a blade kit once worn out), a blade kit once both
+    /// sashes are in, a trunk to load, winding the saws up, and Ctrl for the trunk or the blade kit.</summary>
+    public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
+    {
+        var help = base.InteractionHelp(forPlayer).ToList();
+        string Key(string action) => BuckingSawmillSystem.Domain + ":blockhelp-buckingmill-" + action;
+        if (!Built && Blade == null && SashCount == 2 && Stacks(Api.World, [BladeKits.Prefix + "*"], 1) is { Length: > 0 } kits)
+            help.Add(new WorldInteraction { ActionLangCode = Key("fitblades"), MouseButton = EnumMouseButton.Right, Itemstacks = kits });
+        if (!Built)
+            AddCommonHelp(help, Key);
+        return help.ToArray();
+    }
+
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => BuckingSawmillSystem.Domain + ":blockhelp-buckingmill-" + action;
+        if (Ready && _trunk == null && System.TrunkStacks() is { Length: > 0 } trunks)
+            help.Add(new WorldInteraction { ActionLangCode = Key("loadtrunk"), MouseButton = EnumMouseButton.Right, Itemstacks = trunks });
+        AddCommonHelp(help, Key);
+    }
+
+    private void AddCommonHelp(List<WorldInteraction> help, System.Func<string, string> key)
+    {
+        // a stopped mill's saws, if they are down, are wound up by hand
+        if (SashCount > 0 && Feeding.WindsUp(SawsRun, SideDepth))
+            help.Add(new WorldInteraction { ActionLangCode = key("windup"), MouseButton = EnumMouseButton.Right, RequireFreeHand = true });
+        if (_trunk != null && Cutting.Recoverable(_progress))
+            help.Add(new WorldInteraction { ActionLangCode = key("taketrunk"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+        else if (_trunk == null && Blade != null)
+            help.Add(new WorldInteraction { ActionLangCode = key("removeblade"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
     }
 
     // ---- Rack ----
@@ -671,12 +626,10 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// enough, takes the next trunk from a Trunk Storage Rack touching its infeed end at ground
     /// level, or the finished trunk of a feeder in line there (the rosser), or failing both a trunk
     /// entity lying in those cells, unless that trunk is branched (it waits for the player to
-    /// debranch it). Tried every tick the saws are at (or
-    /// pass) the top, and once a second besides; the rack or feeder is looked up every time.</summary>
+    /// debranch it). Tried every tick the saws are at (or pass) the top, and once a second besides;
+    /// the rack or feeder is looked up every time.</summary>
     private void OnRackTick(float dt)
     {
-        // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
-        EnsureGhosts();
         PullFromRack();
         var state = CheckRack(out _);
         if (state != _rackState)
@@ -691,7 +644,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// (<see cref="PullFromGround"/>). Returns whether one went on.</summary>
     public bool PullFromRack(bool passedTop = false)
     {
-        if (_trunk != null || !Feeding.CanTakeTrunk(_depth, passedTop) || !_parts.Complete || ShaftSpeed < Config.MinSpeed
+        if (_trunk != null || !Feeding.CanTakeTrunk(_depth, passedTop) || !Ready || ShaftSpeed < Config.MinSpeed
             || System.Logging is not { } logging)
             return false;
         if (!Feeding.Pulls(CheckRack(out var ready)))
@@ -725,7 +678,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             || TrunkStations.TakeEntity(entity) is not { } trunk)
             return false;
         Load(trunk);
-        Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0);
+        Api.World.PlaySoundAt(TrunkSound, Pos, 0);
         return true;
     }
 
@@ -751,7 +704,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// the <see cref="ITrunkFeeder"/>); otherwise the most telling reason it has none. A rack counts
     /// when its controller or filler cell is one of the ground cells just outside the infeed end
     /// (<see cref="Rig.InfeedNeighbours"/>), however it is turned. A feeder counts when one of its
-    /// outfeed cells is one of them (its controller's or a ghost's) and it faces the mill's way.
+    /// outfeed cells is one of them (its controller's or a cell's) and it faces the mill's way.
     /// AutoPullFromRack covers both.</summary>
     public RackState CheckRack(out object? ready)
     {
@@ -799,23 +752,20 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
 
     // ---- Cutting ----
 
-    // Runs the cycle while assembled and turning fast enough: the saws sink (cutting the loaded
-    // trunk, if any), are wound back up, and sink again.
-    private void OnCutTick(float dt)
+    /// <summary>Stopped (unbuilt, worn out, too slow, or a trunk Logging Expanded cannot cut), the holds still
+    /// run: a hand winds the saws up, and holds lapse. Turning, they run with the cycle (<see cref="Work"/>).</summary>
+    protected override bool Tick(float dt)
     {
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
-        bool work = _trunk == null || System.Logging != null;
-        if (!work || !_parts.Complete || speed < Config.MinSpeed || !_angleSeeded)
-        {
-            _lastAngle = angle;
-            _angleSeeded = true;
+        if (!(Ready && HasWork && MachineRun.Turning(ShaftSpeed, ConfigMinSpeed)))
             RunHolds(dt, false);
-            return;
-        }
-        float advance = Cutting.AngleAdvance(_lastAngle, angle, speed, dt);
-        _lastAngle = angle;
-        Turn(advance, dt);
+        return false;
+    }
+
+    // The cycle syncs itself as it goes (every 5% of the travel or the cut), so the base's full sync is not asked for.
+    protected override bool Work(double radians)
+    {
+        Turn((float)radians, TickMs / 1000f);
+        return false;
     }
 
     /// <summary>Turns the cycle by <paramref name="radians"/> and feeds it (server side): a trunk
@@ -870,7 +820,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         foreach (int size in Cutting.SplitStacks(Cutting.LogYield(stored, Config.LogsPerStoredLog), log.MaxStackSize))
             Api.World.SpawnItemEntity(new ItemStack(log, size), spawnAt, velocity);
         WearBlade(Cutting.BladeWear(stored, Config.BladeWearPerStoredLog));
-        Oil.Drain(_oil, OilDrain.PerTrunk(stored, Oil.DrainPerJob(Api, OilMachine.BuckingMill)));
+        // a stored log's oil, rounded up a trunk (OilDrain.PerTrunk), as jobs of the setting's drain
+        if (Oiling is { } oil && oil.DrainPerJob(Api) is > 0 and var perLog)
+            DrainOil(OilDrain.PerTrunk(stored, perLog) / perLog);
         MarkDirty(true);
     }
 
@@ -885,37 +837,22 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// stops until a new one is fitted.</summary>
     private void WearBlade(int wear)
     {
-        if (wear <= 0 || _blade is not { } blade || blade.Collectible.GetMaxDurability(blade) <= 1)
+        if (wear <= 0 || Blade is not { } blade
+            || Assembly!.Wearing.Parts.First(p => p.Id == BladeKits.Part).UsesFor(blade.Code) <= 1)
             return;
-        int left = blade.Collectible.GetRemainingDurability(blade) - wear;
-        if (left > 0)
-        {
-            blade.Collectible.SetDurability(blade, left);
-            return;
-        }
-        _blade = null;
-        _parts.RemoveBladeKit();
-        Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
+        if (Assembly.Wearing.Wear(BladeKits.Part, wear))
+            Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
     }
 
     // The client turns its own copies of the cycle with the shaft between syncs, by the same
     // arithmetic. The shown depth follows those local steps directly and eases toward the estimate
     // when a sync moves it, so a new trunk's drop is quick rather than a snap.
-    private void OnClientTick(float dt)
+    protected override void OnClientTick(float dt)
     {
-        // The client removes a broken mill at once, and an update the server sent before it heard
-        // of the break then brings the block entity back over air, renderer and all: drop it.
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockBuckingMill)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
+        float angle = ShaftAngle, speed = ShaftSpeed;
         float advance = 0;
-        if (_parts.Complete && speed >= MinSpeed && _clientAngleSeeded)
-            advance = Cutting.AngleAdvance(_clientLastAngle, angle, speed, dt);
+        if (Ready && speed >= MinSpeed && _clientAngleSeeded)
+            advance = ShaftClock.AngleAdvance(_clientLastAngle, angle, speed, dt);
         _clientLastAngle = angle;
         _clientAngleSeeded = true;
 
@@ -937,53 +874,18 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _clientDepth = SawDepth.Ease(Math.Clamp(_clientDepth + stepped, 0, 1), _clientDepthEstimate, dt);
         _clientDepthMs = Api.World.ElapsedMilliseconds;
         _clientDepthSeconds = dt;
-
-        // A dry mill smokes while it turns.
-        if ((_smokeSeconds += dt) >= 0.4f)
-        {
-            _smokeSeconds = 0;
-            if (_oil is { Dry: true } && _parts.Complete && speed >= Oil.TurningSpeed && Api is ICoreClientAPI capi)
-                Oil.Smoke(capi, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
-        }
     }
 
     // ---- Breaking ----
 
-    /// <summary>What breaking the frame gives besides the frame: every fitted part, the blade kit,
-    /// and the trunk while it is recoverable.</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    /// <summary>What breaking the frame gives besides the frame: every fitted part, the blade kit with what it
+    /// has left, and the trunk while it is recoverable.</summary>
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        Item? Part(string path) => Api.World.GetItem(new AssetLocation(IwDomain, path));
-        for (int i = 0; i < _parts.Sashes; i++)
-            if (Part(Parts.SashPath) is { } sash)
-                yield return new ItemStack(sash);
-        if (_parts.Crankshaft && Part(Parts.CrankshaftPath) is { } crankshaft)
-            yield return new ItemStack(crankshaft);
-        if (_parts.Levers && Part(Parts.LeversPath) is { } levers)
-            yield return new ItemStack(levers);
-        if (_blade != null)
-            yield return _blade.Clone();
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
         if (_trunk != null && Cutting.Recoverable(_progress))
             yield return _trunk.Clone();
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -991,13 +893,6 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        tree.SetInt("sashes", _parts.Sashes);
-        tree.SetBool("crankshaft", _parts.Crankshaft);
-        tree.SetBool("levers", _parts.Levers);
-        if (_blade != null)
-            tree.SetItemstack("blade", _blade);
-        else
-            tree.RemoveAttribute("blade");
         if (_trunk != null)
             tree.SetItemstack("trunk", _trunk);
         else
@@ -1008,27 +903,16 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         tree.SetBool("rising", _rising);
         if (Api?.Side == EnumAppSide.Server)
         {
-            tree.SetFloat("minSpeed", Config.MinSpeed);
             tree.SetFloat("revolutionsPerStoredLog", Config.RevolutionsPerStoredLog);
             tree.SetFloat("raiseRevolutions", Config.RaiseRevolutions);
             tree.SetFloat("bladeSpeed", BladeSpeed);
             tree.SetInt("rackState", (int)_rackState);
         }
-        if (_oil != null)
-            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        _blade = tree.GetItemstack("blade");
-        string? metal = null;
-        if (_blade != null && !(_blade.ResolveBlockOrItem(worldForResolving)
-                                && Parts.KindOf(_blade.Collectible.Code.Path, out metal) == PartKind.BladeKit))
-            _blade = null;
-        _parts = new Parts(tree.GetInt("sashes"), tree.GetBool("crankshaft"), tree.GetBool("levers"), _blade == null ? null : metal);
-        if (!_parts.BladeKit)
-            _blade = null;
         _trunk = tree.GetItemstack("trunk");
         if (_trunk != null && !_trunk.ResolveBlockOrItem(worldForResolving))
             _trunk = null;
@@ -1037,10 +921,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _progress = tree.GetFloat("progress");
         _depth = Math.Clamp(tree.GetFloat("depth"), 0, 1);
         _rising = tree.GetBool("rising");
-        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.BuckingMill);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
-            _serverMinSpeed = tree.TryGetFloat("minSpeed");
             _serverRevolutions = tree.TryGetFloat("revolutionsPerStoredLog");
             _serverRaiseRevolutions = tree.TryGetFloat("raiseRevolutions");
             _serverBladeSpeed = tree.TryGetFloat("bladeSpeed");
@@ -1062,55 +944,42 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public override void OnStoreCollectibleMappings(Dictionary<int, AssetLocation> blockIdMapping, Dictionary<int, AssetLocation> itemIdMapping)
     {
         base.OnStoreCollectibleMappings(blockIdMapping, itemIdMapping);
-        foreach (var stack in new[] { _blade, _trunk })
-            stack?.Collectible.OnStoreCollectibleMappings(Api.World, new DummySlot(stack), blockIdMapping, itemIdMapping);
+        _trunk?.Collectible.OnStoreCollectibleMappings(Api.World, new DummySlot(_trunk), blockIdMapping, itemIdMapping);
     }
 
     public override void OnLoadCollectibleMappings(IWorldAccessor worldForResolve, Dictionary<int, AssetLocation> oldBlockIdMapping,
                                                    Dictionary<int, AssetLocation> oldItemIdMapping, int schematicSeed, bool resolveImports)
     {
         base.OnLoadCollectibleMappings(worldForResolve, oldBlockIdMapping, oldItemIdMapping, schematicSeed, resolveImports);
-        foreach (var stack in new[] { _blade, _trunk })
-            stack?.FixMapping(oldBlockIdMapping, oldItemIdMapping, worldForResolve);
+        _trunk?.FixMapping(oldBlockIdMapping, oldItemIdMapping, worldForResolve);
     }
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    private static string L(string key, params object[] args) => Lang.Get(BuckingSawmillSystem.Domain + ":buckingmill-" + key, args);
+
+    /// <summary>The mill's own lines: the blade kit while the parts are still going in (the wearing line says it
+    /// once they are all in), winding the saws up, where the saws are and the trunk on the bed, and why the
+    /// rack's trunks are, or are not, coming.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
-        string L(string key, params object[] args) => Lang.Get(BuckingSawmillSystem.Domain + ":buckingmill-" + key, args);
-        if (!_parts.Complete)
+        if (!Built)
         {
-            dsc.AppendLine(L("info-incomplete"));
-            foreach (var group in _parts.Missing().GroupBy(p => p))
-            {
-                string name = group.Key.EndsWith('*')
-                    ? L("info-bladekit")
-                    : Lang.Get(IwDomain + ":item-" + group.Key);
-                dsc.AppendLine("• " + (group.Count() > 1 ? L("info-count", group.Count(), name) : name));
-            }
-        }
-        if (_blade is { } blade)
-        {
-            int max = blade.Collectible.GetMaxDurability(blade);
-            dsc.AppendLine(max > 1
-                ? L("info-blade-durability", blade.GetName(), blade.Collectible.GetRemainingDurability(blade), max)
-                : blade.GetName());
-            dsc.AppendLine(L("info-blade-speed", BladeSpeed.ToString("0.##")));
+            if (BladeKit is { } blade)
+                dsc.AppendLine(L("info-blade", blade.GetName(), Math.Round(100 * Assembly!.Wearing.ShareLeft(BladeKits.Part)).ToString(CultureInfo.InvariantCulture)));
+            else
+                dsc.AppendLine(L("info-needs-blade"));
         }
         // How far through the travel the saws are: the client's eased depth, the server's own on the server.
         float depth = SideDepth;
-        if (_parts.Sashes > 0 && Feeding.WindsUp(Running, depth))
+        if (SashCount > 0 && Feeding.WindsUp(SawsRun, depth))
             dsc.AppendLine(L("info-windup"));
-        Oil.Info(_oil, dsc);
-        if (!_parts.Complete)
+        if (!Ready)
             return;
         switch (Phase)
         {
             case MillPhase.Cutting:
                 dsc.AppendLine(L("info-trunk", _trunk!.GetName(), _storedLogs));
-                dsc.AppendLine(L("info-progress", (int)(ClientProgress * 100)));
                 if (!Cutting.Recoverable(_progress))
                     dsc.AppendLine(L("info-committed"));
                 break;
@@ -1121,19 +990,29 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
                 dsc.AppendLine(L("info-sinking", (int)(depth * 100)));
                 break;
             default:
-                dsc.AppendLine(L("info-stopped"));
                 if (_trunk != null)
                     dsc.AppendLine(L("info-trunk", _trunk.GetName(), _storedLogs));
                 break;
         }
         if (_trunk == null && SawDepth.AtTop(depth))
             dsc.AppendLine(L("info-attop"));
-        else if (_trunk == null && Running)
+        else if (_trunk == null && SawsRun)
             dsc.AppendLine(L("info-hold-to-load"));
         // Why the rack's trunks are, or are not, coming.
         if (_trunk == null && _rackState != RackState.Unknown)
             dsc.AppendLine(L("info-rack-" + _rackState.ToString().ToLowerInvariant()));
-        float speed = ShaftSpeed;
-        dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
+    }
+
+    /// <summary>With a wrench: how fast the blade kit cuts, and the cut in shaft turns.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (Blade != null)
+            dsc.AppendLine(L("info-blade-speed", BladeSpeed.ToString("0.##", CultureInfo.InvariantCulture)));
+        if (_trunk != null && _storedLogs > 0)
+        {
+            double turns = _storedLogs * Cutting.CutRevolutions(RevolutionsPerStoredLog, BladeSpeed);
+            dsc.AppendLine(L("info-cut-turns", (ClientProgress * turns).ToString("0.#", CultureInfo.InvariantCulture),
+                turns.ToString("0.#", CultureInfo.InvariantCulture)));
+        }
     }
 }

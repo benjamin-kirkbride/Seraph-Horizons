@@ -324,11 +324,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
         // The mod's other blocks are the bucking sawmill's, off here as well, the inn flag and sign,
         // which load with TravellingMerchants off too (a world may hold them), and the springs, which
-        // load with Springs off so that those in a world turn back into water, and the ore machines' shared
+        // load with Springs off so that those in a world turn back into water, and the machine base's shared
         // cells (Machines/Game, #711), which belong to no one machine's switch and nothing places on its own.
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
             && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal)
-            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("oremachine-", StringComparison.Ordinal));
+            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("machine-", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own
@@ -485,6 +485,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("GearCutter", off);
         Assert.Contains("DrawBench", off);
         Assert.Contains("CylinderBorer", off);
+        Assert.Contains("SlittingMill", off);
         Assert.Contains("PressBrake", off);
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
@@ -565,7 +566,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("drawbench") == true);
         Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("drawdie") == true);
         // the parts it takes are the game's, and exist either way
-        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.DrawBench.Core.DrawBenchParts.GearboxCode)));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:jonasframes-gearbox01")));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:(drawbench|drawdie)"))
@@ -579,6 +580,41 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("drawbench", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("draw bench", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>SlittingMill</c>: no slitting mill block, no slitter cutter and no recipe for either, no link to
+    /// them in the mod's own text, the machine oil page without it whatever the other machines' switches (all off
+    /// here, and their edits to that page touch different passages), and nothing logged about them. The game's
+    /// plates, nails and cleavers are left as they are.</summary>
+    [AtlasScenario]
+    public void Slitting_mill_off_there_is_no_slitting_mill()
+    {
+        Assert.True(Off("SlittingMill"));
+        Assert.False(SeraphHorizons.Mod.SlittingMill.SlittingMillSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittingmill"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittercutter"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittingmill"));
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("slittercutter"));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:metalnailsandstrips-iron")));
+        Assert.NotNull(W.GetItem(new AssetLocation("game:cleaver-steel")));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:(slittingmill|slittercutter)"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the slitting mill: " + string.Join(", ", linked));
+        var oil = Lang.Get("seraphhorizons:machineoil-text");
+        Assert.DoesNotContain("slitting mill", oil);
+        Assert.Contains("powered chopper</a>, the <a href=\"handbook://block-seraphhorizons:buckingmill-frame-north\">", oil);
+        Assert.Contains("1 point a log, and the bucking sawmill", oil);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("slittingmill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("slitting mill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("slittercutter", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
@@ -638,7 +674,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.EidolonGantry.EidolonGantrySystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("eidolongantry"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("eidolongantry") == true);
-        Assert.True(W.GetBlock(new AssetLocation(SeraphHorizons.Mod.EidolonGantry.Core.GantryParts.AxleCode)) is { Id: > 0 });
+        Assert.True(W.GetBlock(new AssetLocation("game:woodenaxle-ud")) is { Id: > 0 });
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && e.Value.Contains("handbook://block-seraphhorizons:eidolongantry", StringComparison.Ordinal))
@@ -734,10 +770,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
-    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, and the curio dealer stocks
-    /// neither the eidolon schematic nor the Jonas pump head (the pump head is left out by the
-    /// eidolon's own rule: MachineSchematics, off here too, only takes the schematic). The schematic
-    /// item and the pump head still exist.</summary>
+    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, the curio dealer does not
+    /// stock the Jonas pump head (the eidolon's own rule) and its catalog does not sell the eidolon
+    /// schematic (the gate's switch; MachineSchematics, off here too, would take it as well). The
+    /// schematic item and the pump head still exist.</summary>
     [AtlasScenario]
     public void Eidolon_off_there_is_no_command_tool_and_no_eidolon_stock()
     {
@@ -750,8 +786,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var lists = SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Lists!;
         var core = lists.For("curiodealer")!.Selling.Core;
         Assert.DoesNotContain(core, e => SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.IsTradeStock(e.Code));
-        Assert.Contains(core, e => e.Code == "game:schematic-glider");
-        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
+        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead"));
+        var schematics = SeraphHorizons.Mod.Trading.Schematics.SchematicsSystem.Of(World.Api)!;
+        Assert.True(schematics.IsOff("Eidolon"));
+        var catalog = schematics.Catalog("curiodealer", null);
+        Assert.DoesNotContain(catalog, r => r.Code == SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.SchematicCode);
+        Assert.Contains(catalog, r => r.Code == "game:schematic-glider");
     }
 
     /// <summary><c>Riddle</c>: no riddle block and no recipe for its frame, no link to it in the mod's own text,
@@ -763,7 +803,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.Riddle.RiddleSystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("riddle"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("riddle") == true);
-        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleParts.MeshCodes)
+        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleBuild.MeshCodes)
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
@@ -790,7 +830,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("halfplate"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("squaringshear") == true);
         Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.SquaringShear.Core.Cutting.LeadPlate)));
-        foreach (var code in SeraphHorizons.Mod.SquaringShear.Core.SquaringShearParts.GaugeCodes)
+        foreach (var code in new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" })
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
@@ -1652,12 +1692,13 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal("off", World.Api.WorldManager.SaveGame.GetData<string>(SeraphHorizons.Mod.Trading.TradingSystem.GridStateKey));
     }
 
-    /// <summary><c>TraderStanding</c>, <c>TraderOrders</c>, <c>TraderDeliveries</c>, <c>TraderMaps</c>:
-    /// each system stands down, and the traders see no standing (everyone a stranger).</summary>
+    /// <summary><c>TraderStanding</c>, <c>TraderOrders</c>, <c>TraderDeliveries</c>, <c>TraderMaps</c>
+    /// (and with it <c>SpawnProspectorMark</c>): each system stands down, and the traders see no
+    /// standing (everyone a stranger).</summary>
     [AtlasScenario]
     public void Trader_standing_orders_deliveries_and_maps_off_none_of_them_runs()
     {
-        foreach (var key in new[] { "TraderStanding", "TraderOrders", "TraderDeliveries", "TraderMaps" })
+        foreach (var key in new[] { "TraderStanding", "TraderOrders", "TraderDeliveries", "TraderMaps", "SpawnProspectorMark" })
             Assert.True(Off(key), key);
         Assert.False(SeraphHorizons.Mod.Trading.Standing.StandingSystem.Of(World.Api)!.Enabled);
         Assert.False(SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Standing.Enabled);
@@ -1680,7 +1721,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>TraderSchematics</c>, <c>MachineSchematics</c>: loot is not scrubbed, no recipe is
-    /// gated or removed, and the traders' lists keep no machine schematic.</summary>
+    /// gated or removed, and no catalog sells a machine schematic (the others' stay).</summary>
     [AtlasScenario]
     public void Schematics_off_loot_and_recipes_are_as_the_mods_ship_them()
     {
@@ -1693,6 +1734,9 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Harmony.GetPatchInfo(m)?.Owners.Contains(SeraphHorizons.Mod.Trading.Schematics.SchematicsSystem.HarmonyId) == true);
         Assert.DoesNotContain(W.GridRecipes, r => (r.ResolvedIngredients ?? []).Any(i =>
             i?.Code?.Domain == "seraphhorizons" && i.Code.Path.StartsWith("schematic-", StringComparison.Ordinal)));
+        foreach (string type in new[] { "carpenter", "mechanic", "smith", "curiodealer" })
+            Assert.DoesNotContain(schematics.Catalog(type, null), r => schematics.Table!.IsMachineSchematic(r.Code));
+        Assert.Contains(schematics.Catalog("mechanic", null), r => r.Code == "betterruins:br-schematic-mechanical");
     }
 
     /// <summary><c>AdminTools</c>: no admin map, no overlays, no admin subcommands.</summary>

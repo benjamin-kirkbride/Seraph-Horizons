@@ -9,10 +9,10 @@ namespace SeraphHorizons.Mod.PressBrake.Core;
 /// assets/seraphhorizons/config/pressbrake-rig.json (written by PressBrake/tools/make_shape.py).
 /// Native, south-facing frame, controller cell at (0,0,0) (the leaf end), blocks. The keys are the
 /// model's contract with gameplay (PressBrake/README.md, "Rig schema"); unknown keys are ignored. A
-/// hand machine: a rig naming a power cell or face is refused. Throws <see cref="FormatException"/>
-/// naming what is wrong.
+/// hand machine: a rig naming a power cell or face is refused, and it has no anchors for the shared
+/// machine base (<see cref="IMachineRig"/>). Throws <see cref="FormatException"/> naming what is wrong.
 /// </summary>
-public sealed class PressBrakeRig
+public sealed class PressBrakeRig : IMachineRig
 {
     /// <summary>The part whose gauge windows are the folds (the contract's stable id).</summary>
     public const string LeafPart = "leaf";
@@ -30,6 +30,13 @@ public sealed class PressBrakeRig
     /// <summary>Lever turns per plate of each class, [none, lead, copper], as the model is drawn.</summary>
     public IReadOnlyList<float> LeverTurnsPerPlate { get; }
     public RigParts MovingParts { get; }
+
+    RigParts IMachineRig.Parts => MovingParts;
+
+    /// <summary>None: a hand machine takes no axle, chute or pipe.</summary>
+    public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; } = new Dictionary<string, MachineAnchor>();
+
+    public MachineAnchor? Anchor(string name) => null;
 
     /// <summary>The leaf's swings, as stretches of the fold cycle W (from the <c>leaf</c> part's
     /// gauge windows): the fold, one a plate. Empty when the rig has no parts.</summary>

@@ -1,4 +1,26 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.PressBrake.Core;
+
+/// <summary>The press brake's <c>requires</c> vocabulary: its two build stages (<c>config/builds/pressbrake.json</c>),
+/// and the work's (<c>platelead</c>, <c>platecopper</c>: a half plate of that metal on the bed).</summary>
+public static class PressBrakeRequires
+{
+    public const string Screws = "screws";
+    public const string Edge = "edge";
+    public const string PlateLead = "platelead";
+    public const string PlateCopper = "platecopper";
+
+    /// <summary>The plate <c>requires</c> of class <paramref name="k"/>: 1 lead, 2 copper.</summary>
+    public static string? Plate(int k) => k switch { 1 => PlateLead, 2 => PlateCopper, _ => null };
+
+    /// <summary>Every <c>requires</c> value the rig may use.</summary>
+    public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { Screws, Edge, PlateLead, PlateCopper };
+
+    /// <summary>The metal of the edges' plate (<c>game:metalplate-steel</c> is <c>steel</c>); null for anything else.</summary>
+    public static string? EdgeMetal(string? code) =>
+        code is "game:metalplate-iron" or "game:metalplate-steel" ? code[(code.LastIndexOf('-') + 1)..] : null;
+}
 
 /// <summary>Why a half plate can or cannot go on the bed.</summary>
 public enum FoldLoadVerdict
@@ -18,7 +40,8 @@ public enum FoldLoadVerdict
 /// <see cref="AnglesPerPlate"/> angle (<c>seraphhorizons:angle-{metal}</c>) by the player working the
 /// lever, holding right-click as on the quern. While held, the lever clock θ turns at
 /// <see cref="LeverTurnsPerSecond"/>, and the fold cycle W (0..1) advances by
-/// θ / (2π · leverTurnsPerPlate[k]); at W = 1 the angle comes off and the half plate is used up.
+/// θ / (2π · leverTurnsPerPlate[k]); at W = 1 the angle comes off and the half plate is used up. The
+/// half plate on the bed is a <see cref="MachineJob"/> ending at 1 (<see cref="Start"/>).
 /// "Plate" in the names here is the brake's work, a half plate.
 /// </summary>
 public static class Folding
@@ -33,10 +56,6 @@ public static class Folding
 
     /// <summary>Radians of the lever clock a second while held.</summary>
     public const double LeverRadiansPerSecond = 2 * Math.PI * LeverTurnsPerSecond;
-
-    /// <summary>How long a player counts as working the lever after the game last said they hold
-    /// right-click on it (the quern forgets a grinding player after a second).</summary>
-    public const long HoldTimeoutMs = 600;
 
     /// <summary>The class of a metal: 1 lead, 2 copper, 0 else.</summary>
     public static int ClassOfMetal(string? metal) => metal switch { "lead" => 1, "copper" => 2, _ => 0 };
@@ -70,61 +89,16 @@ public static class Folding
 
     /// <summary>Whether the fold runs: complete, a half plate on, and someone working the lever.</summary>
     public static bool Running(bool complete, bool plateOn, bool held) => complete && plateOn && held;
-}
 
-/// <summary>A half plate on the bed: its class and the fold cycle so far, W (0..1).</summary>
-public readonly record struct FoldJob(int Class, double Work)
-{
-    public static readonly FoldJob None = new(0, 0);
-
-    public bool On => Class is 1 or 2;
-
-    public bool Done => On && Work >= 1 - 1e-9;
-
-    /// <summary>Whether the half plate is still flat: nothing has been done to it (it can be taken back).</summary>
-    public bool Untouched => On && Work <= 0;
-
-    /// <summary>The fold after <paramref name="radians"/> more of the lever, W held at 1, and
-    /// whether this step finished the half plate.</summary>
-    public (FoldJob Job, bool Finished) Advance(double radians, double leverTurnsPerPlate)
-    {
-        if (!On || Done)
-            return (this, false);
-        var next = this with { Work = Math.Min(1, Work + Folding.PlatesFor(radians, leverTurnsPerPlate)) };
-        return (next, next.Done);
-    }
+    /// <summary>The fold of a half plate of class <paramref name="k"/> just laid on the bed (W ends at 1); none
+    /// for a class the brake does not fold.</summary>
+    public static MachineJob Start(int k) => MachineJob.Start(k is 1 or 2 ? k : 0, 1);
 
     /// <summary>A saved fold: W clamped to 0..1; none when the class is not a plate's.</summary>
-    public static FoldJob Restore(int k, double work) =>
-        k is 1 or 2 ? new FoldJob(k, double.IsFinite(work) ? Math.Clamp(work, 0, 1) : 0) : None;
+    public static MachineJob Restore(int k, double work) => MachineJob.Restore(k is 1 or 2 ? k : 0, work, 1);
 
-    /// <summary>The moments in <paramref name="moments"/> (fold cycle positions) that W passed going
-    /// from <paramref name="before"/> to <paramref name="after"/>: a fold made in this step.</summary>
-    public static int Crossed(IEnumerable<double> moments, double before, double after) =>
-        moments.Count(m => before < m && after >= m);
-}
-
-/// <summary>
-/// The players working the lever, as the quern keeps its grinders: each with the time the game last
-/// said they held right-click on the brake. A player counts until <see cref="Folding.HoldTimeoutMs"/>
-/// after that, or until they let go.
-/// </summary>
-public sealed class LeverHolds
-{
-    private readonly Dictionary<string, long> _holds = [];
-
-    public void Hold(string player, long nowMs) => _holds[player] = nowMs;
-
-    public void Release(string player) => _holds.Remove(player);
-
-    public void Clear() => _holds.Clear();
-
-    /// <summary>Forgets every player not heard from for <see cref="Folding.HoldTimeoutMs"/>, and
-    /// says whether anyone is still working the lever.</summary>
-    public bool Any(long nowMs)
-    {
-        foreach (var stale in _holds.Where(h => nowMs - h.Value > Folding.HoldTimeoutMs).Select(h => h.Key).ToList())
-            _holds.Remove(stale);
-        return _holds.Count > 0;
-    }
+    /// <summary>The fold after <paramref name="radians"/> more of the lever at <paramref name="leverTurnsPerPlate"/>,
+    /// W held at 1, and whether this step finished the half plate.</summary>
+    public static (MachineJob Job, bool Finished) Advance(MachineJob job, double radians, double leverTurnsPerPlate) =>
+        job.Advance(PlatesFor(radians, leverTurnsPerPlate));
 }

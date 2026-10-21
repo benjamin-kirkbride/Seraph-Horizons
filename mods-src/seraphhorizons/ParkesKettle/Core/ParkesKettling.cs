@@ -95,8 +95,9 @@ public class ParkesKettleConfig
 
 /// <summary>What a charge leaves: rich lead bars (the crust's, carrying its silver), desilverized lead ingots,
 /// zinc bits back (the retort's work, as a rule), and what is carried over to the next charge short of a whole
-/// item (silver and zinc units).</summary>
-public readonly record struct KettleYield(int RichLead, int Lead, int ZincBits, double SilverCarry, double ZincCarry);
+/// item (silver, zinc and lead units: lead only when the whole route's restore made the charge's lead more than
+/// whole bars).</summary>
+public readonly record struct KettleYield(int RichLead, int Lead, int ZincBits, double SilverCarry, double ZincCarry, double LeadCarry = 0);
 
 /// <summary>
 /// What the Parkes kettle does (#927; README "Ore processing: the Parkes kettle"): a cast-iron kettle of silver-lead
@@ -104,7 +105,8 @@ public readonly record struct KettleYield(int RichLead, int Lead, int ZincBits, 
 /// the zinc for the lead is in, the stirrer works the charge while the fire heats it, at the machine's 2,400 units in
 /// 5 hours at the reference speed (in proportion to shaft speed and the damper's heat). Done, the crust is skimmed:
 /// the charge's silver whole (the kettle is 100 %, ore-processing.json) as rich lead (<see cref="Bullion"/>), with
-/// 80 % of the zinc back; the rest of the lead is ladled out desilverized. The stirrer's load follows how full the
+/// 80 % of the zinc back; the rest of the lead is ladled out desilverized. The kettle is plain galena's final step:
+/// the share of its bars off the whole route is made whole, lead and silver (<see cref="Parted"/>). The stirrer's load follows how full the
 /// kettle is (#927, one of the three loads that follow their job).
 /// </summary>
 public static class ParkesKettling
@@ -210,22 +212,42 @@ public static class ParkesKettling
         perLayer > 0 ? Math.Min(layers, (int)Math.Ceiling(fuel / perLayer - 1e-9)) : 0;
 
     /// <summary>
+    /// What a charge of <paramref name="leadUnits"/> of <paramref name="ore"/>'s silver-lead parts into, lead and silver
+    /// (<see cref="OreRecovery.Smelted(OreSpec, double, PartingStation?, double)"/> at the kettle):
+    /// <paramref name="wholeUnits"/> of it came off the whole route (bars carrying <see cref="Bullion.WholeShareAttribute"/>),
+    /// made whole when the kettle is the ore's final step (plain galena); the rest is the lead as it is and its silver at
+    /// the kettle's 100 %.
+    /// </summary>
+    public static (double Lead, double Silver) Parted(OreRecovery r, OreSpec ore, double leadUnits, double wholeUnits)
+    {
+        if (!(leadUnits > 0)) return (0, 0);
+        var metals = r.Smelted(ore, leadUnits, PartingStation.ParkesKettle, wholeShare: Math.Clamp(wholeUnits, 0, leadUnits) / leadUnits);
+        return (metals.Where(m => m.Metal == ore.Metal).Sum(m => m.Units), metals.Where(m => m.Metal == "silver").Sum(m => m.Units));
+    }
+
+    /// <summary>
     /// A charge done: <paramref name="silverUnits"/> of silver (the charge's whole silver, at the kettle's figure)
     /// with what the last charges carried go into rich lead at <paramref name="richLeadSilver"/> silver a unit of
     /// lead, whole bars (<see cref="Bullion.RichLeadBars"/>), the rest of the silver carried on; each rich bar takes
     /// its 100 units of the lead, the rest is ladled out as desilverized ingots; the zinc put in comes back at
-    /// <paramref name="zincReturn"/> as whole bits, the rest carried on.
+    /// <paramref name="zincReturn"/> as whole bits, the rest carried on. Lead short of a whole ingot (a charge made
+    /// whole off the whole route holds more than its bars) is carried on too, with <paramref name="leadCarry"/> the
+    /// last charges'.
     /// </summary>
     public static KettleYield Finish(double leadUnits, double silverUnits, double silverCarry, double richLeadSilver,
-        int zincBits, double zincCarry, double zincReturn)
+        int zincBits, double zincCarry, double zincReturn, double leadCarry = 0)
     {
         double silver = Math.Max(0, silverUnits) + Math.Max(0, silverCarry);
-        int maxRich = (int)Math.Floor(leadUnits / Bullion.UnitsPerItem + 1e-9);
+        double allLead = Math.Max(0, leadUnits) + Math.Max(0, leadCarry);
+        int maxRich = (int)Math.Floor(allLead / Bullion.UnitsPerItem + 1e-9);
         int rich = richLeadSilver > 0 ? Math.Min(maxRich, (int)Math.Floor(Bullion.RichLeadBars(silver, richLeadSilver) + 1e-9)) : 0;
         double silverLeft = Math.Max(0, silver - rich * Bullion.UnitsPerItem * richLeadSilver);
-        int lead = (int)Math.Floor((leadUnits - rich * Bullion.UnitsPerItem) / Bullion.UnitsPerItem + 1e-9);
+        double leadLeft = Math.Max(0, allLead - rich * Bullion.UnitsPerItem);
+        int lead = (int)Math.Floor(leadLeft / Bullion.UnitsPerItem + 1e-9);
+        double leadRest = leadLeft - lead * Bullion.UnitsPerItem;
         double zinc = zincBits * ZincUnitsPerBit * Math.Clamp(zincReturn, 0, 1) + Math.Max(0, zincCarry);
         int bits = (int)Math.Floor(zinc / ZincUnitsPerBit + 1e-9);
-        return new KettleYield(rich, Math.Max(0, lead), bits, silverLeft, Math.Max(0, zinc - bits * ZincUnitsPerBit));
+        return new KettleYield(rich, Math.Max(0, lead), bits, silverLeft, Math.Max(0, zinc - bits * ZincUnitsPerBit),
+            leadRest > 1e-9 ? leadRest : 0);
     }
 }

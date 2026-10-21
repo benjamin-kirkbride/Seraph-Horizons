@@ -13,12 +13,7 @@
 			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": 1, "priceReason": "priced by the maps system at each restock"},
 			{"type": "block", "code": "plaster-plain", "stacksize": 32, "stock": {"avg": 4, "var": 1}},
 			{"code": "lime", "stacksize": 16, "stock": {"avg": 12, "var": 3}},
-			{"code": "clay-fire", "stacksize": 16, "stock": {"avg": 5, "var": 1.25}},
-			{"code": "betterruins:br-schematic-stone", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 20, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-road", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 12, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-gravedigger", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 12, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-palisade", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 14, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-ancient", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 24, "priceReason": "schematic: a hand-set gate", "standingTier": 1}
+			{"code": "clay-fire", "stacksize": 16, "stock": {"avg": 5, "var": 1.25}}
 		],
 		"rotating": { "maxItems": 7,
 			"list": [

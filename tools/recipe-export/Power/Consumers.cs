@@ -33,6 +33,10 @@ public sealed record Spec(string Behavior, string Category, LoadFn Work)
     /// <summary>True when the behavior is not declared on a block (smex's blower port is added to the
     /// blower's structure in code): the entry exists when <see cref="ItemPrefix"/> resolves.</summary>
     public bool PresenceByItem { get; init; }
+    /// <summary>True when the behavior is the seraphhorizons machine base's shared one
+    /// (<c>BEBehaviorMachineMP</c>, on the shared power cell every machine on the base uses), so it names no
+    /// machine: the entry is found by its frame, the blocks <see cref="ItemPrefix"/> names.</summary>
+    public bool ByFrame { get; init; }
 }
 
 /// <summary>
@@ -56,7 +60,6 @@ public static class Consumers
     private const string Smex = "SteelmakingExpanded.SmexValues";
     private const string SmexFrom = "ModConfig (smex)";
     private const string Ppex = "PipesAndPowerExpanded.PpexValues";
-    private const string MwConfig = "Millwright.ModConfig.ModConfig";
 
     private static Load Times(Load a, Figure b) => new(a.Value * b.Value, a.Sources.Append(b).ToArray());
 
@@ -88,21 +91,6 @@ public static class Consumers
         new("BEBehaviorMPBrake", "brake", Const("most resistance", 3, "BEBehaviorMPBrake"))
         {
             Note = "engaged, it rises from 0 by 1 every 20 seconds to 3; released, it falls 1 every 10 seconds",
-        },
-
-        // Millwright
-        new("BEBehaviorBrakeEnhanced", "brake", live => Times(Load.Of(Live.Constant("most resistance", 3, "BEBehaviorBrakeEnhanced")),
-            live.Number("BrakeResistanceModifier", MwConfig, "Loaded.BrakeResistanceModifier", 2, "ModConfig/millwright.json")))
-        {
-            Mod = "millwright", Note = "the game's brake ramp (to 3), times BrakeResistanceModifier while engaged",
-        },
-        new("BEBehaviorAxlePassthrough", "transmission", Const("friction", 0.0005, "BEBehaviorAxlePassthrough"))
-        {
-            Mod = "millwright", Id = "millwright:woodenaxlepassthrough", ItemPrefix = "millwright:woodenaxlepassthroughfull",
-        },
-        new("BEBehaviorImprovedAxlePassthrough", "transmission", Const("friction", 0.0005, "BEBehaviorAxlePassthrough"))
-        {
-            Mod = "millwright", Id = "millwright:improvedaxlepassthrough", ItemPrefix = "millwright:improvedaxlepassthroughfull",
         },
 
         // Small mechanics mods
@@ -164,34 +152,41 @@ public static class Consumers
         },
 
         // The pack's own mod (mods-src/seraphhorizons)
-        new("BEBehaviorMillMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.BuckingSawmill.BuckingSawmillSystem", "Config.Resistance", 0.17, "ModConfig/seraphhorizons.json (BuckingSawmillSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.BuckingSawmill.BuckingSawmillSystem", "Config.Resistance", 0.17, "ModConfig/seraphhorizons.json (BuckingSawmillSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:buckingmill", ItemPrefix = "seraphhorizons:buckingmill-frame", Name = "Bucking sawmill",
+            Mod = Seraph, Id = "seraphhorizons:buckingmill", ItemPrefix = "seraphhorizons:buckingmill-frame", Name = "Bucking sawmill", ByFrame = true,
             Idle = SeraphIdle, Oil = "BuckingMill",
         },
-        new("BEBehaviorRosserMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.Rosser.RosserSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (RosserSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.Rosser.RosserSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (RosserSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:rosser", ItemPrefix = "seraphhorizons:rosser-frame", Name = "Rosser",
+            Mod = Seraph, Id = "seraphhorizons:rosser", ItemPrefix = "seraphhorizons:rosser-frame", Name = "Rosser", ByFrame = true,
             Idle = SeraphIdle, Oil = "Rosser",
         },
-        new("BEBehaviorGearCutterMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.GearCutter.GearCutterSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (GearCutterSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.GearCutter.GearCutterSystem", "Config.Resistance", 0.2, "ModConfig/seraphhorizons.json (GearCutterSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:gearcutter", ItemPrefix = "seraphhorizons:gearcutter-frame", Name = "Gear cutter",
+            Mod = Seraph, Id = "seraphhorizons:gearcutter", ItemPrefix = "seraphhorizons:gearcutter-frame", Name = "Gear cutter", ByFrame = true,
             Idle = SeraphIdle, Oil = "GearCutter", OilDryLoadFixed = true,
             Note = "a dry tank does not raise its load: it wears the cutter kit faster instead",
         },
-        new("BEBehaviorDrawBenchMP", "machine", Cfg("ResistanceLead", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceLead", 0.2, "ModConfig/seraphhorizons.json (DrawBenchSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("ResistanceLead", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceLead", 0.2, "ModConfig/seraphhorizons.json (DrawBenchSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:drawbench", ItemPrefix = "seraphhorizons:drawbench-frame", Name = "Draw bench",
+            Mod = Seraph, Id = "seraphhorizons:drawbench", ItemPrefix = "seraphhorizons:drawbench-frame", Name = "Draw bench", ByFrame = true,
             Max = Cfg("ResistanceCopper", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceCopper", 0.35, "ModConfig/seraphhorizons.json (DrawBenchSettings)"),
             Idle = SeraphIdle, Oil = "DrawBench",
             Note = "ResistanceLead empty or drawing lead, ResistanceCopper drawing copper",
         },
-        new("BEBehaviorCylinderBorerMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem", "Config.Resistance", 0.3, "ModConfig/seraphhorizons.json (CylinderBorerSettings)"))
+        new("BEBehaviorMachineMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem", "Config.Resistance", 0.3, "ModConfig/seraphhorizons.json (CylinderBorerSettings)"))
         {
-            Mod = Seraph, Id = "seraphhorizons:cylinderborer", ItemPrefix = "seraphhorizons:cylinderborer-frame", Name = "Cylinder borer",
+            Mod = Seraph, Id = "seraphhorizons:cylinderborer", ItemPrefix = "seraphhorizons:cylinderborer-frame", Name = "Cylinder borer", ByFrame = true,
             Idle = SeraphIdle, Oil = "CylinderBorer", OilDryLoadFixed = true,
             Note = "a dry tank does not raise its load: it wears the cutter head faster instead",
+        },
+        new("BEBehaviorMachineMP", "machine", Cfg("LightestResistance", "SeraphHorizons.Mod.SlittingMill.SlittingMillSystem", "LightestResistance", 0.2, "ModConfig/seraphhorizons.json (SlittingMillSettings.Metals)"))
+        {
+            Mod = Seraph, Id = "seraphhorizons:slittingmill", ItemPrefix = "seraphhorizons:slittingmill-frame", Name = "Slitting mill", ByFrame = true,
+            Max = Cfg("HeaviestResistance", "SeraphHorizons.Mod.SlittingMill.SlittingMillSystem", "HeaviestResistance", 0.5, "ModConfig/seraphhorizons.json (SlittingMillSettings.Metals)"),
+            Idle = SeraphIdle, Oil = "SlittingMill",
+            Note = "each plate metal's Resistance in SlittingMillSettings.Metals: gold and silver the lightest, empty too, steel the heaviest",
         },
     };
 
@@ -199,8 +194,9 @@ public static class Consumers
     private static string Brass(string name, string part) =>
         part.EndsWith("brass", StringComparison.Ordinal) && !name.Contains("brass", StringComparison.OrdinalIgnoreCase) ? name + ", brass" : name;
 
+    // every pack machine's token load until it is built (the shared machine base's)
     private static Load SeraphIdle(Live live) => Load.Of(live.Number("IncompleteResistance (until assembled)",
-        "SeraphHorizons.Mod.BuckingSawmill.BEBehaviorMillMP", "IncompleteResistance", 0.005, "BEBehaviorMillMP.IncompleteResistance"));
+        "SeraphHorizons.Mod.Machines.Core.MachineLoad", "Unassembled", 0.005, "MachineLoad.Unassembled"));
 
     // Notes for the game's plain MPConsumer blocks, by id.
     private static readonly Dictionary<string, string> ConsumerNames = new()
@@ -222,7 +218,7 @@ public static class Consumers
         foreach (var spec in Specs)
         {
             if (spec.Mod != null && !live.ModLoaded(spec.Mod)) continue;
-            var found = blocks.WithBehavior(spec.Behavior);
+            var found = spec.ByFrame ? blocks.Matching(spec.ItemPrefix!) : blocks.WithBehavior(spec.Behavior);
             if (found.Count == 0 && spec.PresenceByItem && spec.ItemPrefix != null && blocks.Matching(spec.ItemPrefix) is { Count: > 0 } byItem)
                 found = byItem;
             if (found.Count == 0)
@@ -277,20 +273,28 @@ public static class Consumers
             o["idleLoad"] = PowerSection.Num(idle.Value);
             figures.AddRange(idle.Sources);
         }
-        if (spec.Oil != null && Oil(live, spec.Oil) is { } oil)
-        {
-            var (dry, tank) = oil;
-            o["oil"] = new JObject
-            {
-                ["dryMultiplier"] = spec.OilDryLoadFixed ? 1 : PowerSection.Num(dry.Value),
-                ["tank"] = PowerSection.Num(tank.Value / 100),
-            };
-            if (!spec.OilDryLoadFixed) figures.Add(dry);
-            figures.Add(tank);
-        }
+        if (spec.Oil != null)
+            AddOil(live, spec.Oil, spec.OilDryLoadFixed, o, figures);
         if (spec.Note != null) o["note"] = spec.Note;
         o["sources"] = PowerSection.Sources(figures);
         return o;
+    }
+
+    /// <summary>An entry's <c>oil</c> for the machine whose MachineOilSettings entry is <paramref name="machine"/>,
+    /// with its figures: none when the mod or its MachineOil switch is off. <paramref name="dryLoadFixed"/>: a
+    /// dry tank wears the machine's cutter rather than loading its shaft (multiplier 1).</summary>
+    internal static void AddOil(Live live, string machine, bool dryLoadFixed, JObject o, List<Figure> figures)
+    {
+        if (Oil(live, machine) is not { } oil)
+            return;
+        var (dry, tank) = oil;
+        o["oil"] = new JObject
+        {
+            ["dryMultiplier"] = dryLoadFixed ? 1 : PowerSection.Num(dry.Value),
+            ["tank"] = PowerSection.Num(tank.Value / 100),
+        };
+        if (!dryLoadFixed) figures.Add(dry);
+        figures.Add(tank);
     }
 
     /// <summary>The seraphhorizons MachineOil multiplier and the machine's tank (points), or null

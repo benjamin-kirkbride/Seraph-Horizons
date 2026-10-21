@@ -3,12 +3,12 @@ namespace SeraphHorizons.Mod.Eidolon.Core;
 /// <summary>
 /// A mining eidolon's tries at its walk back to where it was ordered (README "Eidolon", mining): stopped short of
 /// its place (stuck, off an edge into the pit) it sets off again up to <see cref="Tries"/> times; stopped short of
-/// another standing in its way (a crew by routes stops a third of a block before their boxes touch) it waits a
-/// moment and sets off again up to <see cref="Bumps"/> times; a walk that gets no nearer its place for
-/// <see cref="StallSeconds"/> (pressing against one in its way, which the game's walk takes for walking) is stopped
-/// short. Past either count the order ends where it stands. The stops
-/// short of another were once free, so one walking home into a member that never moved (waiting for the job it had
-/// just reported done) set off again every 3 seconds for ever, its order never ending and nothing told.
+/// another standing in its way (a third of a block before their boxes touch, or falling in behind one ahead in
+/// single file) it waits a moment and sets off again up to <see cref="Bumps"/> times; a walk that gets no nearer
+/// its place for <see cref="StallSeconds"/> (pressing against one in its way, which the game's walk takes for
+/// walking) is stopped short. Past either count the order ends where it stands. The stops short of another were
+/// once free, so one walking home into a member that never moved (waiting for the job it had just reported done)
+/// set off again every 3 seconds for ever, its order never ending and nothing told.
 /// </summary>
 public sealed class MineReturn
 {

@@ -25,13 +25,15 @@ public partial class TradingScenarios
         var trader = await SpawnTrader("mason", -65, 10);
         var sp = await Trading(Customer(), trader);
         var inv = (SeraphTraderInventory)trader.Inventory;
-        // A cut block the mason takes off its list by more than one slot of it to the gear.
+        // A cut block the mason takes off its list by more than one slot of it to the gear: a full
+        // block, stacking to 16, not a building shape, which stacks to 32 (RockStackRules.ShapeCap).
         string? code = null;
         Offer? offer = null;
         int tried = 0;
         foreach (var b in W.Blocks)
         {
-            if (b?.Code is null || b.Id == 0 || RockStackSystem.StackBeforeCut(b) <= b.MaxStackSize) continue;
+            if (b?.Code is null || b.Id == 0 || RockStackSystem.StackBeforeCut(b) <= b.MaxStackSize
+                || b.MaxStackSize != RockStackRules.Cap) continue;
             tried++;
             if (inv.GetBuyingConditionsSlot(new ItemStack(b, 1)) is not OffListSlot { Offer: { Accepted: true } o } || o.UnitSize <= b.MaxStackSize) continue;
             // Worth a gear by its unit (a block worth under a gear for all four slots, its unit priced

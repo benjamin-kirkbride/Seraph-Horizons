@@ -21,6 +21,9 @@ public class BEStampBattery : BEOreMachine
 
     public override OreMachine? Kind => OreMachine.StampBattery;
 
+    /// <summary>Oiled, its job a rock stamped (<see cref="BEOreMachine.WorkItem"/>).</summary>
+    protected override OilMachine? OilKind => OilMachine.StampBattery;
+
     protected override IReadOnlyList<string> OutputAnchors => [OutputAnchor];
 
     public override bool Takes(ItemStack stack) =>

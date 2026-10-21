@@ -22,7 +22,7 @@ namespace SeraphHorizons.PackTests;
 // its roasted concentrate and native sulfur's powder pushed into a chest at its output face; the damper shut stops it,
 // the coal running short puts the fire out, a furnace back to back with it shares the chimney once capped; broken, every
 // item back. Built on granite floors 40 above spawn at x 780, z 700; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string ReverbFrame = "seraphhorizons:reverberatory-";
 
@@ -58,12 +58,12 @@ public partial class SharedWorldScenarios
     {
         Assert.True(ReverberatorySystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(ReverbFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(ReverbFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(ReverbFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(ReverbFrame + "north"));
         Assert.Equal("reverberatory", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(ReverberatorySystem.Of(World.Api).Rig);
-        var build = OreMachinesSystem.Of(World.Api).Build("reverberatory")!;
+        var build = MachinesSystem.Of(World.Api).Build("reverberatory")!;
         Assert.Equal(["masonry", "hopperdoors", "drive", "feeding", "services"], build.Stages.Select(s => s.Id).ToArray());
         // every item the build names is in the game
         foreach (var code in build.Stages.SelectMany(s => s.Materials).SelectMany(m => m.Codes))
@@ -125,13 +125,14 @@ public partial class SharedWorldScenarios
             Assert.True(CutterClick(player, i++ % 2 == 0 ? pos : cell, CutterItem(code, missing)) == null, $"{code} x{missing} was not fitted");
         }
         Assert.True(f.Built);
+        MachineTest.FillOil(f);
         Assert.True(f.ShowsPart("arch") && f.ShowsPart("rabbles") && f.ShowsPart("pipecopper") && !f.ShowsPart("pipelead"));
         Assert.True(f.ShowsPart("damperopen") && !f.ShowsPart("dampershut") && !f.ShowsPart("fire") && !f.ShowsPart("charge"));
         // the rabbles' load follows the bed: empty 0.1
         Assert.Equal(0.1f, f.Resistance, 3);
 
         // nothing to light it on: no coal
-        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, OreMachineFire.IgniteState(player.Entity, pos, 1.5f));
+        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, MachineFire.IgniteState(player.Entity, pos, 1.5f));
         // coal by a chute into the bunker (the fuel side feed); not firewood
         var (fuelCell, fuelFace) = MachineChutes.World(pos, f.Side, f.Rig!.Anchor("fuel")!.Value);
         var fuelChutePos = fuelCell.AddCopy(fuelFace);
@@ -149,9 +150,9 @@ public partial class SharedWorldScenarios
         await World.Until(() => f.Coal == 2, 20000);
 
         // lit with a firestarter or a torch on any cell
-        Assert.Equal(EnumIgniteState.IgniteNow, OreMachineFire.IgniteState(player.Entity, cell, 1.5f));
+        Assert.Equal(EnumIgniteState.IgniteNow, MachineFire.IgniteState(player.Entity, cell, 1.5f));
         var handling = EnumHandling.PassThrough;
-        OreMachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
         Assert.True(f.Lit && f.ShowsPart("fire"));
 
         // a chest at the output face
@@ -208,7 +209,7 @@ public partial class SharedWorldScenarios
         f.FillWater(f.ReservoirCapacity);
         Assert.Null(CutterClick(player, pos, CutterItem("game:coke", 8)));
         Assert.Equal(8, f.Coal);
-        OreMachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
         Assert.True(f.Lit);
         var ashFace = BlockFacing.FromCode(Footprint.ToWorld(rig.AshSide, f.Side).Code());
         ReverbClickFace(player, pos, ashFace);
@@ -251,6 +252,7 @@ public partial class SharedWorldScenarios
         while (partner.Assembly!.FillNext()) { }
         partner.MarkDirty(true);
         Assert.True(partner.Built);
+        MachineTest.FillOil(partner);
         Assert.Same(f, partner.Partner());
         Assert.Same(partner, f.Partner());
         await World.Until(() => f.Row.Problem == RowProblem.OutletOpen, 5000);

@@ -1,4 +1,6 @@
+using System.Text.Json;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.Ore.Core;
 
 namespace SeraphHorizons.Mod.Tests;
 
@@ -102,7 +104,7 @@ public class MachineOilTests
         Assert.Equal(0.5f, c.LumpLitres("fat-rendered"));
         Assert.Equal(0f, c.LumpLitres("game:fat"));
         Assert.Equal(3f, c.DryResistanceMultiplier);
-        foreach (var machine in Enum.GetValues<OilMachine>())
+        foreach (var machine in Workshop)
             Assert.Equal(1000f, c.For(machine).Tank);
         Assert.Equal(0.1f, c.HelveHammer.DrainPerJob);
         Assert.Equal(0.5f, c.Pulverizer.DrainPerJob);
@@ -113,7 +115,57 @@ public class MachineOilTests
         Assert.Equal(10f, c.GearCutter.DrainPerJob);
         Assert.Equal(2f, c.DrawBench.DrainPerJob);
         Assert.Equal(10f, c.CylinderBorer.DrainPerJob);
+        Assert.Equal(5f, c.SlittingMill.DrainPerJob);
         Assert.Empty(c.Sanitise());
+    }
+
+    /// <summary>The machines whose tank is one bucket; the ore machines' are scaled by load.</summary>
+    private static readonly OilMachine[] Workshop =
+    [
+        OilMachine.HelveHammer, OilMachine.Pulverizer, OilMachine.Sawmill, OilMachine.Chopper, OilMachine.BuckingMill,
+        OilMachine.Rosser, OilMachine.GearCutter, OilMachine.DrawBench, OilMachine.CylinderBorer, OilMachine.SlittingMill,
+    ];
+
+    private static readonly OreRecovery Recovery = new(JsonSerializer.Deserialize<OreProcessingConfig>(
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "ore-processing.json")),
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })!);
+
+    // The ore machines' defaults are scaled by load from the shipped ore-processing.json (each machine's
+    // README, "Oil"): a tank of 5000 points a unit of working load, and 2 points a job a unit of load and a
+    // shaft turn of the job, rounded; so each runs the same hours on a full tank, and a stamp battery
+    // drinks more than a jig.
+    [Theory]
+    [InlineData(OilMachine.JawBreaker, OreMachine.JawBreaker)]
+    [InlineData(OilMachine.StampBattery, OreMachine.StampBattery)]
+    [InlineData(OilMachine.Arrastra, OreMachine.Arrastra)]
+    [InlineData(OilMachine.BallMill, OreMachine.BallMill)]
+    [InlineData(OilMachine.Jig, OreMachine.Jig)]
+    [InlineData(OilMachine.ShakingTable, OreMachine.Table)]
+    [InlineData(OilMachine.Vanner, OreMachine.Vanner)]
+    [InlineData(OilMachine.ReverberatoryRoaster, OreMachine.Reverberatory)]
+    [InlineData(OilMachine.ParkesKettle, OreMachine.ParkesKettle)]
+    public void An_ore_machines_oil_is_scaled_by_its_load(OilMachine machine, OreMachine ore)
+    {
+        var spec = Recovery.Machine(ore);
+        // a job: an item (a rock, or a roaster's item of weight 1); the arrastra's a rock of its charge, the kettle's a charge
+        double turns = machine switch
+        {
+            OilMachine.Arrastra => spec.TurnsPerCharge / spec.ChargeItems,
+            OilMachine.ParkesKettle => spec.TurnsPerCharge,
+            _ => spec.TurnsPerItem,
+        };
+        var entry = new MachineOilConfig().For(machine);
+        Assert.Equal(5000 * spec.Load, entry.Tank, 6);
+        double drain = 2 * spec.Load * turns;
+        Assert.True(Math.Abs(entry.DrainPerJob - drain) <= 0.05 * drain, $"{machine}: {entry.DrainPerJob} a job, {drain:0.###} by its load");
+    }
+
+    [Fact]
+    public void A_stamp_battery_drinks_more_than_a_jig()
+    {
+        var c = new MachineOilConfig();
+        Assert.True(c.StampBattery.DrainPerJob > 10 * c.Jig.DrainPerJob);
+        Assert.True(c.BallMill.DrainPerJob > c.StampBattery.DrainPerJob);
     }
 
     // The README's arithmetic: a full tank (one bucket) lasts this many jobs.

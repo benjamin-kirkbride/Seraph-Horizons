@@ -3,9 +3,9 @@
 // with PressBrake off.
 {
 	code: "pressbrake",
-	class: "seraphhorizons.PressBrake",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.PressBrake",
-	// No HorizontalOrientable: BlockPressBrake.TryPlaceBlock picks the side so the brake extends
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the brake extends
 	// away from the player, as the draw bench does.
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },

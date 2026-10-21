@@ -4,9 +4,9 @@
 // (config/builds/sluice.json). The server disables it with Sluice or OreProcessing off.
 {
 	code: "sluice",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.Sluice",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the sluice runs away
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the sluice runs away
 	// from the player, its head box (the controller) nearest them.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -29,7 +29,7 @@
 		"concentrate": { base: "game:block/stone/sand/basalt" }
 	},
 	attributes: {
-		oreMachine: { machine: "sluice", extraRequires: ["concentrate"] },
+		machine: { machine: "sluice", extraRequires: ["concentrate"] },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:sluice-handbook-build-title", text: "seraphhorizons:sluice-handbook-build-text" },

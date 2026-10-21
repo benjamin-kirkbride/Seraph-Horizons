@@ -1,5 +1,5 @@
+using System.Globalization;
 using System.Text;
-using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.DrawBench.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
@@ -14,332 +14,122 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.DrawBench;
 
 /// <summary>
-/// The draw bench's controller. Holds the fitted parts (<see cref="DrawBenchParts"/>: every item's
-/// code and the die's durability), the hollow section on the bench as its item stack and the draw
-/// (<see cref="DrawJob"/>: W, the pipe sections drawn), and its MachineOil tank. The server draws
-/// from the power ghost's shaft angle, drops a pipe section at the output face as each section's draw
-/// finishes (W crossing m + <see cref="Drawing.HandOut"/>), wears the die when the hollow is done
-/// (W = 4), and keeps the ghost cells stamped; the client draws it (<see cref="DrawBenchRenderer"/>, through <see cref="IDrawBenchView"/>). The rules are
-/// DrawBench/Core's.
+/// The draw bench's controller, on the shared machine base (<see cref="BEMachine"/>: its build from
+/// <c>config/builds/drawbench.json</c> with the die its durable wearing part, its cells and power cell, its
+/// oil (<see cref="OilMachine.DrawBench"/>), its block info, its renderer). It keeps the hollow section on
+/// the bench as its item stack and the draw (<see cref="MachineJob"/>: W, the pipe sections drawn, 0..4).
+/// The server draws from the power cell's shaft angle, drops a pipe section at the output face as each
+/// section's draw finishes (W crossing m + <see cref="Drawing.HandOut"/>), draining a section's oil, and
+/// wears the die when the hollow is done (W = 4); the client poses the rig from the shaft and its own W
+/// (<see cref="DrawBenchClock"/>). The rules are DrawBench/Core's.
 /// </summary>
-public class BEDrawBench : BlockEntity, IDrawBenchView
+public class BEDrawBench : BEMachine
 {
     private static readonly AssetLocation BreakSound = new("game", "sounds/effect/toolbreak");
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation SectionSound = new("game", "sounds/block/ingot");
     private static readonly AssetLocation DrawSound = new("game", "sounds/effect/gears");
-    private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (sections); the renderer follows the shaft between.
     private const double SyncStep = 0.05;
+    private const float DustInterval = 0.15f;
+    private const float DripInterval = 0.35f;
 
-    private DrawBenchParts _parts = new();
     private ItemStack? _hollow;
-    private DrawJob _job = DrawJob.None;
-    private OilState? _oil;
-    private float _lastAngle;
-    private bool _angleSeeded;
-    private float _smokeSeconds;
+    private MachineJob _job = MachineJob.None;
     private float _soundSeconds;
-    private float? _serverMinSpeed;
     private float? _serverTurnsLead;
     private float? _serverTurnsCopper;
     private string[]? _serverDieDraws;
-    private Dictionary<Int3, Cuboidf[]>? _cells;
-    private Dictionary<Int3, Cuboidf[]>? _collision;
-    private DrawBenchRenderer? _renderer;
+    private readonly DrawBenchClock _clock = new();
+    private double _lastPsi;
+    private float _dustTimer;
+    private float _dripTimer;
 
-    public Side Side { get; private set; } = Side.North;
-    public DrawBenchParts Parts => _parts;
-    public bool Complete => _parts.Complete;
     public bool JobOn => _job.On && _hollow != null;
     public ItemStack? Hollow => _hollow;
-    public DrawJob Job => _job;
-    /// <summary>The bench's oil, or null without the <c>MachineOil</c> switch.</summary>
-    public OilState? Oiling => _oil;
-    /// <summary>The tank's fill, 0..1: 1 without a tank (MachineOil off).</summary>
-    public double OilFill => _oil == null ? 1 : OilDrain.Fill(_oil.Tank);
-    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
+    public MachineJob Job => _job;
+
+    /// <summary>The fitted die: its code and durability left; null without one (taken out, or spent).</summary>
+    public (string Code, double Left)? Die => Assembly?.Wearing.Fitted(Drawing.DiePart);
+
+    /// <summary>The fitted die's metal (<c>iron</c>, <c>steel</c>), or null.</summary>
+    public string? DieMetal => Drawing.DieMetalOf(Die?.Code);
+
+    /// <summary>The die's durability left; 0 without a die.</summary>
+    public int DieLeft => Die is { } d ? (int)Math.Round(d.Left) : 0;
+
     public double TurnsPerSection(int k) => k switch
     {
         1 => _serverTurnsLead ?? Config.TurnsPerSectionLead,
         2 => _serverTurnsCopper ?? Config.TurnsPerSectionCopper,
         _ => 0,
     };
+
     /// <summary>The metals the fitted die draws (none without a die), by the server's settings.</summary>
     public IReadOnlyList<string> DieDraws =>
-        _parts.DieMetal == null ? [] : _serverDieDraws ?? Config.MetalsFor(_parts.DieMetal);
-    public float ShaftAngle => Power?.AngleRad ?? 0;
-    public float ShaftSpeed => Math.Abs(Power?.TrueSpeed ?? 0);
-    /// <summary>Complete, a hollow on and the shaft fast enough: the draw runs.</summary>
-    public bool Running => Drawing.Running(_parts.Complete, JobOn, ShaftSpeed, MinSpeed);
-
-    // IDrawBenchView
-    public bool PartFitted(string? requires) => _parts.Fitted(requires);
-    public string? DieMetal => _parts.DieMetal;
-    public int JobClass => JobOn ? _job.Class : 0;
-    public double JobWork => _job.Work;
+        DieMetal == null ? [] : _serverDieDraws ?? Config.MetalsFor(DieMetal);
 
     private DrawBenchSystem System => DrawBenchSystem.Of(Api);
     private DrawBenchConfig Config => System.Config;
-    private DrawBenchRig? Rig => System.Rig;
+    private new DrawBenchRig? Rig => base.Rig as DrawBenchRig;
 
-    /// <summary>The power ghost's mechanical power behavior, looked up afresh each time.</summary>
-    public BEBehaviorDrawBenchMP? Power =>
-        Api != null && Rig is { } rig
-            ? Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.PowerCell))?.GetBehavior<BEBehaviorDrawBenchMP>()
-            : null;
+    /// <summary>The die's uses are the setting's durability, as the die item's own.</summary>
+    protected override MachineBuild? BuildSpec(IWorldAccessor world) =>
+        base.BuildSpec(world)?.WithUses(Drawing.DiePart, DrawBenchSystem.Of(world.Api).Config.DieDurability);
 
-    /// <summary>Whether springs exist in this world (the mandrel station's spring item, the
-    /// <c>MandrelSprings</c> switch): the mandrel stage then takes one.</summary>
-    public static bool SpringsExist(IWorldAccessor world) =>
-        world.GetItem(new AssetLocation(DrawBenchParts.SpringCode)) is { Id: > 0, IsMissing: false };
+    protected override OilMachine? OilKind => OilMachine.DrawBench;
+    protected override float ConfigMinSpeed => Config.MinSpeed;
+    protected override int TickMs => 50;
+    protected override int ClientTickMs => 200;
+    public override int RenderRange => 48;
 
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        _parts.Springs = SpringsExist(api.World);
-        Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        BuildBoxes();
-        if (api.Side == EnumAppSide.Server)
-        {
-            _oil ??= Oil.NewOwn(api, OilMachine.DrawBench);
-            RegisterDelayedCallback(_ =>
-            {
-                if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
-                    EnsureGhosts();
-            }, 100);
-            RegisterGameTickListener(OnTick, 50);
-            RegisterGameTickListener(OnSlowTick, 1000);
-        }
-        else
-        {
-            RegisterGameTickListener(OnClientTick, 200);
-            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockDrawBench)
-                _renderer = new DrawBenchRenderer(capi, this, this, rig);
-        }
-    }
+    /// <summary>Whole with its die in: until then it is the frame, puts the token load on its shaft, and takes
+    /// the creative shortcut (a new steel die last).</summary>
+    public override bool Complete => Ready;
+    protected override bool LoadsShaft => Ready;
+    protected override bool CreativeFills => !Ready;
 
-    // ---- Footprint ----
+    /// <summary>The configured resistance of the metal on the bench (lead's when empty).</summary>
+    protected override double ShaftLoad => Config.Resistance(_job.Class);
 
-    public BlockPos CellPos(Int3 local)
-    {
-        var w = Footprint.ToWorld(local, Side);
-        return Pos.AddCopy(w.X, w.Y, w.Z);
-    }
-
-    /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native) =>
-        MachinePoints.WorldPoint(Pos, native, Side);
-
-    /// <summary>Every ghost cell's world position, and whether it is the power ghost.</summary>
-    public IEnumerable<(BlockPos Pos, bool Power)> GhostCells() =>
-        Rig is { } rig ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell)) : [];
-
-    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Lookup(_cells, cellPos);
-
-    /// <summary>A cell's selection boxes and, on a column's top cell, the rig's collision-only lid.</summary>
-    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Lookup(_collision, cellPos);
-
-    private Cuboidf[]? Lookup(Dictionary<Int3, Cuboidf[]>? table, BlockPos cellPos) =>
-        table?.GetValueOrDefault(Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side));
-
-    // The boxes never change: built once, then only read (collision lookups can run off the main thread).
-    private void BuildBoxes()
-    {
-        if (Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
-            return;
-        Cuboidf World(Box b)
-        {
-            var w = Footprint.ToWorld(b, side);
-            return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
-        }
-        var cells = rig.Cells.ToDictionary(c => c.Pos, c => c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
-        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
-        foreach (var c in rig.Cells)
-            if (c.LidBox is { } lid)
-                collision[c.Pos] = [.. cells[c.Pos], World(lid)];
-        _cells = cells;
-        _collision = collision;
-    }
-
-    private Block? GhostBlock(bool power) =>
-        Api.World.GetBlock(new AssetLocation(DrawBenchSystem.Domain, power ? "drawbench-ghostpower-" + Side.Code() : "drawbench-ghost"));
-
-    public void PlaceGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        foreach (var (pos, power) in GhostCells())
-            if (GhostBlock(power) is { } ghost)
-                StampGhost(ghost, pos);
-    }
-
-    private void StampGhost(Block ghost, BlockPos pos)
-    {
-        Api.World.BlockAccessor.SetBlock(ghost.BlockId, pos);
-        if (Api.World.BlockAccessor.GetBlockEntity(pos) is BEDrawBenchGhost be)
-        {
-            be.Principal = Pos.Copy();
-            be.MarkDirty(true);
-        }
-    }
-
-    /// <summary>Restores ghost cells that went missing, and points every ghost back here.</summary>
-    public void EnsureGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, power) in GhostCells())
-        {
-            if (ba.GetChunkAtBlockPos(pos) == null || GhostBlock(power) is not { } expected)
-                continue;
-            var current = ba.GetBlock(pos);
-            if (current.Id == expected.Id)
-            {
-                if (ba.GetBlockEntity(pos) is BEDrawBenchGhost be && !Pos.Equals(be.Principal))
-                {
-                    be.Principal = Pos.Copy();
-                    be.MarkDirty(true);
-                }
-            }
-            else if (current.Id == 0 || current is BlockDrawBenchGhost)
-                StampGhost(expected, pos);
-        }
-    }
-
-    public void RemoveGhosts()
-    {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        var ba = Api.World.BlockAccessor;
-        foreach (var (pos, _) in GhostCells())
-            if (ba.GetBlock(pos) is BlockDrawBenchGhost && ba.GetBlockEntity(pos) is BEDrawBenchGhost be && Pos.Equals(be.Principal))
-                ba.SetBlock(0, pos);
-    }
+    public override bool HasWork => JobOn;
+    public override double? WorkProgress => JobOn ? _job.Progress : null;
+    protected override Float3? SmokePoint => Rig?.Die;
 
     // ---- Interaction ----
 
-    /// <summary>
-    /// Right-click on the bench or any ghost. Holding oil, it pours (MachineOil). In creative mode,
-    /// Ctrl on an incomplete bench fits its next stage with nothing taken. Ctrl takes the die back
-    /// once no hollow is on the bench. A part in hand is fitted if it is the next stage's; a lead or
-    /// copper hollow section (the game's chute section) goes on (an ingot, an angle or a pipe section,
-    /// what comes off, never does). Anything else held is the item's own business. Decided and done on the
-    /// server; the client only says whether the click is the bench's.
-    /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    /// <summary>Ctrl + right-click takes the die back out, with what durability it has left, once no hollow
+    /// is on the bench (the creative shortcut comes first while a stage or the die is missing).</summary>
+    protected override bool? InteractContent(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
-            return oiled;
-        var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
-        string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
-        bool part = DrawBenchParts.IsPart(code);
-        bool hollow = Drawing.ClassOfHollow(code) != 0;
-        if (!take && !part && !hollow)
-            return false;
-        if (Api.Side != EnumAppSide.Server)
-            return true;
-        if (CreativeShortcutApplies(byPlayer))
-            FitNextPart(byPlayer);
-        else if (take)
-            TakeBack(byPlayer);
-        else if (part)
-            TryFitPart(slot!, byPlayer);
-        else
-            TryLoadHollow(slot!, byPlayer);
+        if (!controls.CtrlKey || controls.ShiftKey || CreativeShortcut(byPlayer))
+            return null;
+        if (Api.Side == EnumAppSide.Server)
+            TakeDie(byPlayer);
         return true;
     }
 
-    /// <summary>Whether a click is the creative shortcut's: a player in creative mode, Ctrl without
-    /// Shift, on a bench with a stage still to fit.</summary>
-    public bool CreativeShortcutApplies(IPlayer byPlayer)
+    /// <summary>A lead or copper hollow section (the game's chute section) goes on (an ingot, an angle or a
+    /// pipe section, what comes off, never does).</summary>
+    protected override bool InteractWork(IPlayer byPlayer, ItemSlot slot, BlockSelection blockSel)
     {
-        var controls = byPlayer.Entity.Controls;
-        return !_parts.Complete
-               && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
-    }
-
-    /// <summary>The creative shortcut (server side): fits the next stage's first item (a new steel
-    /// die last) with nothing taken from the player.</summary>
-    public bool FitNextPart(IPlayer? byPlayer)
-    {
-        if (_parts.NextPart is not { } next)
+        if (Drawing.ClassOfHollow(slot.Itemstack?.Collectible?.Code?.ToString()) == 0)
             return false;
-        if (Api.World.GetItem(new AssetLocation(next)) is not { } item)
-        {
-            Api.Logger.Warning("[seraphhorizons] Draw bench: no {0} for the creative shortcut", next);
-            return false;
-        }
-        return TryFitPart(new DummySlot(new ItemStack(item)), byPlayer, free: true);
-    }
-
-    /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
-    /// false, with an error to the player, when the rules say no. As many as the stage takes
-    /// (<see cref="DrawBenchParts.Needed"/>) are taken from the slot unless the player is in creative
-    /// mode or it is <paramref name="free"/>.</summary>
-    public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
-    {
-        var stack = slot.Itemstack;
-        string? code = stack?.Collectible?.Code?.ToString();
-        if (stack == null)
-            return false;
-        int left = 0, capacity = 0;
-        if (DrawBenchParts.StagesOf(code).Contains(DrawBenchStage.Die))
-        {
-            capacity = Math.Max(1, stack.Collectible.GetMaxDurability(stack));
-            left = stack.Collectible.GetRemainingDurability(stack);
-        }
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
-        var verdict = _parts.CanFit(code, out var stage, capacity > 0 ? left : 1, consumes ? stack.StackSize : int.MaxValue);
-        if (verdict != DrawBenchFitVerdict.Fits)
-        {
-            switch (verdict)
-            {
-                case DrawBenchFitVerdict.OutOfOrder:
-                    Error(byPlayer, "error-order", StageName(_parts.Next));
-                    break;
-                case DrawBenchFitVerdict.AlreadyFitted:
-                    Error(byPlayer, "error-part-fitted");
-                    break;
-                case DrawBenchFitVerdict.DieSpent:
-                    Error(byPlayer, "error-die-spent");
-                    break;
-                case DrawBenchFitVerdict.TooFew:
-                    Error(byPlayer, "error-too-few", DrawBenchParts.NeededOf(code, _parts.Next!.Value));
-                    break;
-                default:
-                    Error(byPlayer, "error-not-a-part");
-                    break;
-            }
-            return false;
-        }
-        _parts.Fit(code, left, capacity);
-        if (consumes)
-        {
-            slot.TakeOut(DrawBenchParts.NeededOf(code, stage));
-            slot.MarkDirty();
-        }
-        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
-        MarkDirty(true);
+        if (Api.Side == EnumAppSide.Server)
+            TryLoadHollow(slot, byPlayer);
         return true;
     }
-
-    /// <summary>A stage's name as the block info and the errors show it.</summary>
-    public static string StageName(DrawBenchStage? stage) =>
-        stage is { } s ? Lang.Get(DrawBenchSystem.Domain + ":drawbench-info-stage-" + DrawBenchRequires.Name(s)) : "";
 
     /// <summary>Ctrl + right-click (server side): the die, with what durability it has left, once
     /// no hollow is on the bench.</summary>
-    public bool TakeBack(IPlayer byPlayer)
+    public bool TakeDie(IPlayer byPlayer)
     {
-        if (!_parts.Has(DrawBenchStage.Die))
+        if (Die == null)
             return false;
-        if (!_parts.CanTakeDie(JobOn))
+        if (JobOn)
             return Error(byPlayer, "error-busy");
-        if (_parts.RemoveDie() is not { } die || DieStack(die.Code, die.Left) is not { } stack)
+        if (Assembly!.Take(Drawing.DiePart) is not { } die || DieStack(die.Code, (int)Math.Round(die.Left)) is not { } stack)
             return false;
         Give(byPlayer, stack);
         Api.World.PlaySoundAt(LatchSound, Pos, 0, byPlayer);
@@ -367,17 +157,17 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     public bool TryLoadHollow(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-        switch (Drawing.CanLoad(code, _parts.Complete, JobOn, DieDraws.ToList()))
+        switch (Drawing.CanLoad(code, Ready, JobOn, DieDraws.ToList()))
         {
             case DrawLoadVerdict.Loads:
                 break;
             case DrawLoadVerdict.Incomplete:
-                return Error(byPlayer, _parts.Next == DrawBenchStage.Die && _parts.Has(DrawBenchStage.Mandrel) ? "error-no-die" : "error-incomplete");
+                return Error(byPlayer, Built ? "error-no-die" : "error-incomplete");
             case DrawLoadVerdict.Occupied:
                 return Error(byPlayer, "error-occupied");
             case DrawLoadVerdict.DieRefuses:
                 return Error(byPlayer, "error-die-refuses-" + Drawing.MetalOf(Drawing.ClassOfHollow(code)),
-                    Lang.Get(DrawBenchSystem.Domain + ":drawbench-die-" + _parts.DieMetal));
+                    Lang.Get(DrawBenchSystem.Domain + ":drawbench-die-" + DieMetal));
             default:
                 return false;
         }
@@ -391,7 +181,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     private void Load(ItemStack hollow)
     {
         _hollow = hollow;
-        _job = new DrawJob(Drawing.ClassOfHollow(hollow.Collectible.Code.ToString()), 0);
+        _job = Drawing.Start(Drawing.ClassOfHollow(hollow.Collectible.Code.ToString()));
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
     }
@@ -399,7 +189,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     private void ClearJob()
     {
         _hollow = null;
-        _job = DrawJob.None;
+        _job = MachineJob.None;
     }
 
     private void Give(IPlayer byPlayer, ItemStack stack)
@@ -408,6 +198,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
     }
 
+    /// <summary>The bench's own message (<c>seraphhorizons:drawbench-{key}</c>) to the player; false.</summary>
     private bool Error(IPlayer? byPlayer, string key, params object[] args)
     {
         if (byPlayer is IServerPlayer sp)
@@ -415,21 +206,31 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         return false;
     }
 
+    /// <summary>The help once built: the hollow sections the fitted die draws on an empty bench, and Ctrl to
+    /// take the die out with none on.</summary>
+    protected override void WorkHelp(IPlayer? forPlayer, List<WorldInteraction> help)
+    {
+        string Key(string action) => DrawBenchSystem.Domain + ":blockhelp-drawbench-" + action;
+        if (Ready && !JobOn)
+        {
+            var draws = DieDraws;
+            var hollows = Stacks(Api.World, [Drawing.LeadHollow, Drawing.CopperHollow], 1)
+                .Where(s => draws.Contains(Drawing.MetalOf(Drawing.ClassOfHollow(s.Collectible.Code.ToString()))!)).ToArray();
+            if (hollows.Length > 0)
+                help.Add(new WorldInteraction { ActionLangCode = Key("loadhollow"), MouseButton = EnumMouseButton.Right, Itemstacks = hollows });
+        }
+        bool creative = forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
+        if (Die != null && !JobOn && !(creative && CreativeFills))
+            help.Add(new WorldInteraction { ActionLangCode = Key("takedie"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+    }
+
     // ---- The draw ----
 
-    private void OnTick(float dt)
+    // The draw syncs itself as it goes (SyncStep), so the base's full sync is not asked for.
+    protected override bool Work(double radians)
     {
-        var power = Power;
-        float angle = power?.AngleRad ?? 0, speed = Math.Abs(power?.TrueSpeed ?? 0);
-        if (!Drawing.Running(_parts.Complete, JobOn, speed, Config.MinSpeed) || !_angleSeeded)
-        {
-            _lastAngle = angle;
-            _angleSeeded = true;
-            return;
-        }
-        float advance = ShaftClock.AngleAdvance(_lastAngle, angle, speed, dt);
-        _lastAngle = angle;
-        Draw(advance);
+        Draw(radians);
+        return false;
     }
 
     /// <summary>Draws by <paramref name="radians"/> of shaft rotation (server side; call only while
@@ -439,13 +240,13 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     /// sections that came off.</summary>
     public int Draw(double radians)
     {
-        if (!JobOn || !_parts.Complete)
+        if (!JobOn || !Ready)
             return 0;
         var before = _job;
-        (_job, int sections, bool finished) = _job.Advance(radians, Config.TurnsPerSection(_job.Class));
+        (_job, int sections, bool finished) = Drawing.Advance(_job, radians, Config.TurnsPerSection(_job.Class));
         if (sections > 0 && SectionItem(_job.Class) is { } section)
         {
-            Oil.Drain(_oil, Oil.DrainPerJob(Api, OilMachine.DrawBench) * sections);
+            DrainOil(sections);
             for (int i = 0; i < sections; i++)
                 Deliver(new ItemStack(section));
         }
@@ -460,7 +261,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     /// tool-break sound and the bench stops until a new one goes in), and the bench clears.</summary>
     private void Finish()
     {
-        if (_parts.WearDie(Config.DieWearPerHollow))
+        if (Assembly!.Wearing.Wear(Drawing.DiePart, Config.DieWearPerHollow))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         ClearJob();
         MarkDirty(true);
@@ -477,31 +278,10 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         Api.World.PlaySoundAt(SectionSound, at.X, at.Y, at.Z);
     }
 
-    // Once a second: the ghosts. A ghost can vanish without being broken (an explosion, another
-    // mod), the power ghost included.
-    private void OnSlowTick(float dt) => EnsureGhosts();
-
-    // The client's own: the client removes a broken bench at once, and an update the server sent
-    // before it heard of the break then brings the block entity back over air: drop it. A dry bench
-    // smokes while it draws, and a drawing bench is heard.
-    private void OnClientTick(float dt)
+    // A drawing bench is heard.
+    protected override void OnClientTick(float dt)
     {
-        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockDrawBench)
-        {
-            DisposeRenderer();
-            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
-            return;
-        }
-        if (Api is not ICoreClientAPI capi || Rig is not { } rig)
-            return;
-        bool running = Running;
-        if ((_smokeSeconds += dt) >= 0.4f)
-        {
-            _smokeSeconds = 0;
-            if (_oil is { Dry: true } && running)
-                Oil.Smoke(capi, WorldPoint(rig.Die));
-        }
-        if (!running)
+        if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Running)
         {
             _soundSeconds = 0;
             return;
@@ -514,44 +294,92 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         }
     }
 
+    // ---- The renderer's ----
+
+    /// <summary>The billets (<c>billetlead</c>, <c>billetcopper</c>) as the clock shows them; every other part as
+    /// its stage (and the die, its set) is fitted.</summary>
+    public override bool ShowsPart(string? requires) =>
+        requires is DrawBenchRequires.BilletLead or DrawBenchRequires.BilletCopper ? _clock.ShowsBillet(requires) : base.ShowsPart(requires);
+
+    /// <summary>The shaft turns the drive whether or not the bench is complete.</summary>
+    public override bool Animates => true;
+
+    /// <summary>The die's texture follows its metal.</summary>
+    public override string TextureKey => DieMetal ?? "";
+
+    /// <summary>The block's textures with the die's metal in place of <c>die</c>.</summary>
+    public override ITexPositionSource PartTextures(ICoreClientAPI capi) =>
+        new DieTextureSource(base.PartTextures(capi), DieMetal is { } metal ? MachineMeshes.MetalTexture(capi, metal) : null);
+
+    /// <summary>θ and ψ the shaft's (about the entry shaft's native x axis), W, k and p from the clock, and the
+    /// oil's fill for the oiler's level; while the bench draws, metal dust at the die's mouth and, with oil in
+    /// the tank, drips from the oiler's spout.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var (theta, psi) = AdvanceShaft();
+        double turned = Math.Max(0, psi - _lastPsi);
+        _lastPsi = psi;
+        int k = JobOn ? _job.Class : 0;
+        bool running = Running;
+        _clock.Advance(dt, turned, k, _job.Work, running, TurnsPerSection(k));
+        if (!far && running && Rig is { } rig)
+        {
+            if ((_dustTimer += dt) >= DustInterval)
+            {
+                _dustTimer = 0;
+                SpawnDust(rig, k);
+            }
+            if (OilFill > 0 && (_dripTimer += dt) >= DripInterval)
+            {
+                _dripTimer = 0;
+                SpawnDrip(rig);
+            }
+        }
+        return _clock.Input(theta, psi, OilFill);
+    }
+
+    private void SpawnDust(DrawBenchRig rig, int k)
+    {
+        var at = WorldPoint(rig.Die);
+        // fine metal from the die's mouth: lead grey, copper red
+        int colour = k == 2 ? ColorUtil.ToRgba(220, 70, 120, 190) : ColorUtil.ToRgba(220, 120, 110, 105);
+        Api.World.SpawnParticles(2, colour,
+            at.AddCopy(-0.03, -0.03, -0.03), at.AddCopy(0.03, 0.03, 0.03),
+            new Vec3f(-0.3f, -0.1f, -0.3f), new Vec3f(0.3f, 0.3f, 0.3f), 0.6f, 1f, 0.15f, EnumParticleModel.Cube, null);
+        // and a wisp of the lubricant burning off
+        if (OilFill > 0 && Api.World.Rand.NextDouble() < 0.25)
+            Api.World.SpawnParticles(1, ColorUtil.ToRgba(60, 200, 200, 200),
+                at, at.AddCopy(0.02, 0.02, 0.02),
+                new Vec3f(-0.05f, 0.1f, -0.05f), new Vec3f(0.05f, 0.25f, 0.05f), 1.2f, -0.02f, 0.4f, EnumParticleModel.Quad, null);
+    }
+
+    private void SpawnDrip(DrawBenchRig rig)
+    {
+        var at = WorldPoint(rig.Drip);
+        Api.World.SpawnParticles(1, ColorUtil.ToRgba(190, 40, 140, 190),
+            at.AddCopy(-0.01, -0.02, -0.01), at.AddCopy(0.01, 0, 0.01),
+            new Vec3f(0, -0.4f, 0), new Vec3f(0, -0.2f, 0), 0.6f, 1f, 0.12f, EnumParticleModel.Quad, null);
+    }
+
+    /// <summary>The block's textures with the die's metal in place of <c>die</c>.</summary>
+    private sealed class DieTextureSource(ITexPositionSource inner, TextureAtlasPosition? metal) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+        public TextureAtlasPosition this[string textureCode] =>
+            textureCode == "die" && metal != null ? metal : inner[textureCode]!;
+    }
+
     // ---- Breaking ----
 
     /// <summary>What breaking the frame gives besides the frame: every fitted part (the die with its
     /// durability), and the hollow if no section has been drawn from it yet (once one has, the rest of
     /// it is lost with the bench).</summary>
-    public IEnumerable<ItemStack> PartDrops()
+    public override IEnumerable<ItemStack> AssemblyDrops()
     {
-        foreach (var drop in _parts.Returns())
-        {
-            if (drop.Durability is { } left)
-            {
-                if (DieStack(drop.Code, left) is { } die)
-                    yield return die;
-            }
-            else if (Api.World.GetItem(new AssetLocation(drop.Code)) is { } item)
-                yield return new ItemStack(item, drop.Count);
-        }
-        if (JobOn && _job.SectionsDone == 0)
+        foreach (var stack in base.AssemblyDrops())
+            yield return stack;
+        if (JobOn && Drawing.SectionsDone(_job) == 0)
             yield return _hollow!.Clone();
-    }
-
-    public override void OnBlockRemoved()
-    {
-        base.OnBlockRemoved();
-        RemoveGhosts();
-        DisposeRenderer();
-    }
-
-    public override void OnBlockUnloaded()
-    {
-        base.OnBlockUnloaded();
-        DisposeRenderer();
-    }
-
-    private void DisposeRenderer()
-    {
-        _renderer?.Dispose();
-        _renderer = null;
     }
 
     // ---- Saving and syncing ----
@@ -559,13 +387,6 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        foreach (var stage in DrawBenchRequires.Stages)
-            tree.RemoveAttribute(PartKeyPrefix + DrawBenchRequires.Name(stage));
-        tree.RemoveAttribute(PartKeyPrefix + DrawBenchParts.SpringKey);
-        foreach (var (requires, code) in _parts.Snapshot())
-            tree.SetString(PartKeyPrefix + requires, code);
-        tree.SetInt("dieLeft", _parts.DieLeft);
-        tree.SetInt("dieCapacity", _parts.DieCapacity);
         if (JobOn)
             tree.SetItemstack("hollow", _hollow);
         else
@@ -574,35 +395,23 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         tree.SetDouble("work", _job.Work);
         if (Api?.Side == EnumAppSide.Server)
         {
-            tree.SetFloat("minSpeed", Config.MinSpeed);
             tree.SetFloat("turnsPerSectionLead", Config.TurnsPerSectionLead);
             tree.SetFloat("turnsPerSectionCopper", Config.TurnsPerSectionCopper);
-            tree.SetString("dieDraws", string.Join(",", Config.MetalsFor(_parts.DieMetal)));
+            tree.SetString("dieDraws", string.Join(",", Config.MetalsFor(DieMetal)));
         }
-        if (_oil != null)
-            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        var fitted = new Dictionary<string, string>();
-        foreach (var stage in DrawBenchRequires.Stages)
-            if (tree.GetString(PartKeyPrefix + DrawBenchRequires.Name(stage)) is { Length: > 0 } code)
-                fitted[DrawBenchRequires.Name(stage)] = code;
-        if (tree.GetString(PartKeyPrefix + DrawBenchParts.SpringKey) is { Length: > 0 } spring)
-            fitted[DrawBenchParts.SpringKey] = spring;
-        _parts = DrawBenchParts.Restore(fitted, tree.GetInt("dieLeft"), tree.GetInt("dieCapacity"), SpringsExist(worldForResolving));
         _hollow = tree.GetItemstack("hollow");
         if (_hollow != null && !_hollow.ResolveBlockOrItem(worldForResolving))
             _hollow = null;
-        _job = _hollow == null ? DrawJob.None : DrawJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
+        _job = _hollow == null ? MachineJob.None : Drawing.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
             _hollow = null;
-        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.DrawBench);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
-            _serverMinSpeed = tree.TryGetFloat("minSpeed");
             _serverTurnsLead = tree.TryGetFloat("turnsPerSectionLead");
             _serverTurnsCopper = tree.TryGetFloat("turnsPerSectionCopper");
             _serverDieDraws = tree.GetString("dieDraws") is { } draws
@@ -626,34 +435,25 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
 
     // ---- Info ----
 
-    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    /// <summary>The die and what it draws, and the hollow on the bench with its sections drawn.</summary>
+    protected override void AppendContents(StringBuilder dsc)
     {
-        base.GetBlockInfo(forPlayer, dsc);
         string L(string key, params object[] args) => Lang.Get(DrawBenchSystem.Domain + ":drawbench-" + key, args);
-        if (_parts.Next is { } next)
-        {
-            dsc.AppendLine(L("info-next", StageName(next)));
-            var after = DrawBenchRequires.Stages.Where(s => s > next && !_parts.Has(s)).ToList();
-            if (after.Count > 0)
-                dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));
-        }
-        if (_parts.DieMetal is { } die)
+        if (DieMetal is { } die)
         {
             var draws = DieDraws.Select(m => L("metal-" + m)).ToList();
-            dsc.AppendLine(L("info-die", L("die-" + die), draws.Count == 0 ? L("info-draws-nothing") : string.Join(", ", draws),
-                _parts.DieLeft, _parts.DieCapacity));
+            dsc.AppendLine(L("info-die", L("die-" + die), draws.Count == 0 ? L("info-draws-nothing") : string.Join(", ", draws)));
         }
         if (JobOn)
-        {
-            string metal = L("metal-" + Drawing.MetalOf(_job.Class));
-            dsc.AppendLine(Running
-                ? L("info-drawing", metal, _job.SectionsDone, Drawing.SectionsPerHollow)
-                : L("info-stopped", metal, _job.SectionsDone, Drawing.SectionsPerHollow));
-        }
-        else if (_parts.Complete)
-            dsc.AppendLine(L("info-empty"));
-        Oil.Info(_oil, dsc);
-        float speed = ShaftSpeed;
-        dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
+            dsc.AppendLine(L("info-hollow", L("metal-" + Drawing.MetalOf(_job.Class)), Drawing.SectionsDone(_job), Drawing.SectionsPerHollow));
+    }
+
+    /// <summary>For a wrench: the draw's W exactly, and the shaft turns a section of its metal takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (JobOn)
+            dsc.AppendLine(Lang.Get(DrawBenchSystem.Domain + ":drawbench-info-draw",
+                _job.Work.ToString("0.000", CultureInfo.InvariantCulture), Drawing.SectionsPerHollow,
+                TurnsPerSection(_job.Class).ToString("0.###", CultureInfo.InvariantCulture)));
     }
 }

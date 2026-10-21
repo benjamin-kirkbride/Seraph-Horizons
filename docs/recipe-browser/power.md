@@ -30,8 +30,8 @@ the figures are taken once it has settled there. The game's windmill and water w
 and so are Manual Crank's crank and Yang Transport's engines.
 
 **Wind** (`wind`): a rotor whose target speed is min(speedCap, wind × speedPerWind).
-`turbulencePenalty`: the game halves a vanilla windmill's torque factor when another windmill
-is within 1.5 × sails blocks. Millwright's rotors do not check. `sails` gives the count the
+`turbulencePenalty`: whether the torque factor is halved when another windmill is within 1.5 ×
+sails blocks, as the game does for its own windmill. `sails` gives the count the
 entry assumes, the most the rotor takes, and the torque factor one sail adds.
 
 **Constant power** (`constantPower`): ppex's engine generator. torque(s) = budget / max(s,
@@ -47,8 +47,6 @@ uses when the JSON leaves the key out.
 | Producer | Model | Figures |
 |---|---|---|
 | Windmill rotor, wood and metal (`BEBehaviorWindmillRotor`) | wind, at the most sails | TargetSpeed min(0.6, wind); TorqueFactor sails / 4 × `powerMul` (behavior property `powerMulByType`: wood 1, metal 1.25), halved by turbulence; most sails from attributes `sailedShapesByType.maxLength` (5, 10). shownKN = (int)(sails / 5 × 100 × powerMul): 100, 250. |
-| Millwright rotors, single, double, three, six (`BEBehaviorWindmillRotorEnhanced`) | wind | bm = the fitted sail's modifier (`SailCenteredModifier`, `SailAngledModifier`, `SailWideModifier`, all 2 by default, `Millwright.ModConfig.ModConfig.Loaded`) × the blade type's (1, 2, 0.75, 1.5, code constants). TargetSpeed min(0.6 × bm, wind × bm); TorqueFactor sails × bm / 4; most sails 7, 5, 8, 6 (code constants). The entry assumes centered sails; with the three modifiers equal the sail does not matter. shownKN (int)(sails × bm / 5 × 100). |
-| Millwright vertical rotor (`BEBehaviorWindmillRotorUD`) | wind | Same, with `SailWideModifier` × 1 (× 0.667 for a "two" type, which the pack does not have), at most 8 sails. |
 | Water wheel (`BEBehaviorMPWaterWheel`) | rotor | TargetSpeed min(0.3, flowRate); TorqueFactor flowRate. Two entries, below. |
 | Hand crank (Manual Crank, `BEBehaviorManualCrank`) | rotor | `TargetSpeed` 0.5, `TorquePerPlayer` 0.5 per player, `HungerCostPerSecond` 2.5 (`ManualCrank.ManualCrankModSystem.Config`). One entry, one player. |
 | ppex Watt and Cornish engines (`BEBehaviorEngineMPGenerator`) | constantPower | P = `WattEngineMaxPower` 0.3, or `CornishEnginePowerLow/Normal/High` 0.2, 0.4, 0.8 (`PipesAndPowerExpanded.PpexValues`). budget = P × `MpLoadPerEnginePower` 2 × `MpRatedSpeed` 1; shaftSpeed = (0.5 + P) × π / 5 (`BlockEntityEngine`); minSpeed 0.25 × MpRatedSpeed; taperFrom shaftSpeed × 2/3. Cost: `WattEngineSteamRate` 30, `CornishEngineSteamLow/Normal/High` 8, 16, 32 L/s. Conditions: inlet steam in the engine's pressure band (`…EngagePressure…`, `…BreakPressure…`). |
@@ -76,16 +74,17 @@ defaults).
 |---|---|
 | Blocks with the game's own `MPConsumer` behavior: quern, grinding wheel, linkage arm, Hydrate or Diedrate's well winch, A Culinary Artillery's powered mixing bowl | behavior property `resistance`, 0.1 when unset (`BEBehaviorMPConsumer`). Found by scanning every block, one entry per domain and first code part. Whatever attaches to a linkage arm may raise its load at runtime. |
 | Pulverizer 0.085 (0.005 without an axle), helve hammer 0.125 with a hammer (0.0005 without; the load is on the toggle on the axle, `game:woodentoggle`, which the entry links to), axles, angled gears, transmission and spur gear 0.0005, large gear 0.004, brake 3 | code constants (`BEBehaviorMPPulverizer`, `BEBehaviorMPToggle`, ...). The Archimedes screw is the behavior property `resistance`, 0.015 when unset, per block. The brake rises from 0 by 1 every 20 seconds while engaged, up to 3. The clutch is not a network node and adds nothing. |
-| Millwright's brake 6, axle passthroughs 0.0005 | The game's brake ramp × `BrakeResistanceModifier` (2); code constant. |
 | MPE gearbox and centered spur gear 0.001, Mad Mechanics' transmission 0.0005, ppex's MP generator 0.0005 | code constants. |
 | Immersive Woodworking's sawmill and chopper | `SawmillResistance`, `ChopperResistance` 0.085 (`ImmersiveWoodworkingModSystem.Config`); 0.005 until assembled. A sawmill with a flywheel takes × 0.6, a separate entry. |
 | smex's Bessemer transmission; mechanical blower | `BessemerTransmissionResistance` 0.25. The blower takes `MpBlowerBaseLoad` 0.05 + `MpBlowerLoadPerAtm` 0.05 per atm of back-pressure, up to `MpBlowerMaxPressure` 2: load 0.05, loadMax 0.15 (`SteelmakingExpanded.SmexValues`). Its port behavior is added to the blower's structure in code, so the entry is found by the block `smex:mpblower`. |
 | ppex's mechanical fluid pump | `MpPumpBaseLoad` 0.05 + `MpPumpLoadPerAtm` 0.05 × `MpPumpDeliveryPressure` 1.5 = 0.125. |
-| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`BEBehaviorMillMP.IncompleteResistance`). |
+| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench, slitting mill | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax; the slitting mill's lightest and heaviest metal's `Resistance` in `SlittingMillSettings.Metals`, 0.2 (gold and silver, and empty) and 0.5 (steel) as loadMax (`SlittingMillSystem.LightestResistance`, `HeaviestResistance`). 0.005 until assembled (`MachineLoad.Unassembled`, the shared machine base's). |
 
 **Oil.** The pack's MachineOil (`mods-src/seraphhorizons/README.md`, "Machines need oil") gives
 some machines an oil tank: the helve hammer, the pulverizer, Immersive Woodworking's sawmill and
-chopper, the bucking sawmill, the rosser, the gear cutter, the draw bench and the cylinder borer. A dry machine
+chopper, the bucking sawmill, the rosser, the gear cutter, the draw bench, the cylinder borer, the slitting mill, and every
+ore machine on a shaft (the jaw breaker, stamp battery, arrastra, ball mill, jig, shaking table, vanner,
+reverberatory roaster and Parkes kettle, whose tanks are sized to their loads). A dry machine
 loads its shaft `DryResistanceMultiplier` (3) times. Such an entry has `oil: { dryMultiplier,
 tank }`, with the tank in litres (`MachineOilSettings.<machine>.Tank` points / 100). The gear
 cutter and the cylinder borer are the exceptions. A dry tank wears the cutter kit or the cutter head faster
@@ -153,7 +152,13 @@ that is not loaded leaves its entries out.
   (`Power/OreMachineConsumers.cs`), its load the machine's `machines` entry in
   `config/ore-processing.json` (constant, or from `emptyLoad` to `load` for the machines whose load
   follows their job), 0.005 until built. Their power cells all carry `seraphhorizons.MachineMP`, so a
-  `Spec` could not tell them apart.
+  `Spec` could not tell them apart. A machine that takes oil is named in `OreMachineConsumers.Oiled`
+  (its build id to its `MachineOilSettings` entry), which gives it its `oil` as `Spec.Oil` does
+  (`Consumers.AddOil`).
+- **A seraphhorizons workshop machine on the shared machine base** (the draw bench, the gear cutter, the cylinder borer, the slitting mill; docs/modeling/machine-base.md)
+  has the same shared power cell, so its `Spec` names `BEBehaviorMachineMP` with `ByFrame`: it is found
+  by its frame (`ItemPrefix`), not by the behavior. Its build file has no `block`, so the ore
+  machines' scan leaves it out.
 - **A producer** is a method in `Power/Producers.cs`. Read block JSON with
   `Live.BlockNumber`, config with `Live.Number` and literals with `Live.Constant`, and build
   the model with `Rotor` or `Wind`, or a `constantPower` object. If no model fits, add one to

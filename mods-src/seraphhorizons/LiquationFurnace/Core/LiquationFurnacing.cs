@@ -91,8 +91,9 @@ public class LiquationFurnaceConfig
     }
 }
 
-/// <summary>One kind of bar on the plate: its ore (<c>teallite</c>) and how many.</summary>
-public readonly record struct LiquationBars(string Ore, int Count);
+/// <summary>One kind of bar on the plate: its ore (<c>teallite</c>), how many, and the share of their units off the
+/// whole route (<see cref="Bullion.WholeShareAttribute"/>), which the furnace, the ore's final step, makes whole.</summary>
+public readonly record struct LiquationBars(string Ore, int Count, double Whole = 0);
 
 /// <summary>What a sweated charge gives, in metal units: the tin run into the pot and the lead left on the plate.</summary>
 public readonly record struct LiquationFurnaceYield(string Metal, double MetalUnits, string ByProduct, double ByProductUnits);
@@ -213,7 +214,8 @@ public static class LiquationFurnacing
     /// <summary>The units of tin a charge of bars holds.</summary>
     public static double ChargeUnits(IEnumerable<LiquationBars> bars) => bars.Sum(b => Math.Max(0, b.Count)) * Bullion.UnitsPerItem;
 
-    /// <summary>What a charge gives: every bar's tin whole, and its lead at the ore's share × the furnace's recovery.</summary>
+    /// <summary>What a charge gives: every bar's tin whole, and its lead at the ore's share × the furnace's recovery; the
+    /// share of a bar off the whole route made whole, tin and lead (<see cref="LiquationBars.Whole"/>).</summary>
     public static LiquationFurnaceYield Yield(OreRecovery r, IEnumerable<LiquationBars> bars)
     {
         string metal = "", byProduct = "";
@@ -222,7 +224,7 @@ public static class LiquationFurnacing
         {
             if (b.Count <= 0) continue;
             var spec = r.Ore(b.Ore);
-            foreach (var m in r.Smelted(spec, b.Count * Bullion.UnitsPerItem, Station))
+            foreach (var m in r.Smelted(spec, b.Count * Bullion.UnitsPerItem, Station, wholeShare: b.Whole))
                 if (m.Metal == spec.Metal)
                 {
                     metal = m.Metal;

@@ -30,19 +30,18 @@ namespace SeraphHorizons.Mod.LiquationFurnace;
 /// <para>Its inventory: slot 0 (the shared infeed slot) the fuel on the grate, the rest the bars on the plate; all
 /// drop when it is broken, with the cap.</para>
 /// </summary>
-public class BELiquationFurnace : BEOreMachine
+public class BELiquationFurnace : BEFiredOreMachine
 {
     private const int FirstChargeSlot = 1;
     private static readonly AssetLocation MetalSound = new("game", "sounds/block/ingot");
 
-    private bool _capped, _lit, _doorShut, _sweating;
+    private bool _lit, _doorShut, _sweating;
     private Damper _damper;
     private double _sweated, _fuelBurnt;
     private double _tinUnits, _leadUnits;
     private string _metal = "tin", _byProduct = "lead";
     private double _lastHours = double.NaN;
     private double _syncedSweated;
-    private FurnaceRow _row = new(0, 1, null, 0, null, RowProblem.NoChimney);
 
     public override OreMachine? Kind => OreMachine.LiquationFurnace;
 
@@ -56,13 +55,12 @@ public class BELiquationFurnace : BEOreMachine
     private LiquationFurnaceSystem Furnace => LiquationFurnaceSystem.Of(Api);
     private LiquationFurnaceConfig FurnaceConfig => Furnace.Config;
     public LiquationFurnaceRig? FurnaceRig => Api == null ? null : Furnace.Rig;
+    protected override FiredRig? FiredRig => FurnaceRig;
     private OreRecovery Recovery => OreProcessingSystem.RecoveryFor(Api);
 
-    public bool Capped => _capped;
-    public bool Lit => _lit;
+    public override bool Lit => _lit;
     public bool DoorShut => _doorShut;
     public Damper Damper => _damper;
-    public FurnaceRow Row => _row;
 
     /// <summary>Whether the charge sweated in the last tick: the tin running.</summary>
     public bool Sweating => _sweating;
@@ -83,9 +81,10 @@ public class BELiquationFurnace : BEOreMachine
     public int Bars => ChargeSlots.Sum(s => s.StackSize);
 
     public IEnumerable<LiquationBars> Charge => ChargeSlots
-        .Select(s => (Ore: s.Itemstack is { } st ? LiquationFurnacing.OreOf(Recovery, st.Collectible.Code.ToString()) : null, s.StackSize))
+        .Select(s => (Ore: s.Itemstack is { } st ? LiquationFurnacing.OreOf(Recovery, st.Collectible.Code.ToString()) : null, s.StackSize,
+            Whole: s.Itemstack is { } bar ? OreStreamAttributes.WholeShareOf(bar) : 0))
         .Where(b => b.Ore != null)
-        .Select(b => new LiquationBars(b.Ore!, b.StackSize));
+        .Select(b => new LiquationBars(b.Ore!, b.StackSize, b.Whole));
 
     public double ChargeUnits => LiquationFurnacing.ChargeUnits(Charge);
 
@@ -101,11 +100,7 @@ public class BELiquationFurnace : BEOreMachine
     public double PerHour => Spec?.ItemsPerHour ?? 0;
 
     /// <summary>The share of its full pace the charge sweats at now.</summary>
-    public double Pace => LiquationFurnacing.Pace(_lit, _row.Works, _damper, _doorShut, FurnaceConfig);
-
-    /// <summary>The fired brick type of its brickwork (<c>red</c>), once the first is in.</summary>
-    public string? BrickType =>
-        Assembly?.Build.CodeIn(0, 0) is { } code && FurnaceRig is { } rig ? rig.Bricks.TypeOf(code) : null;
+    public double Pace => LiquationFurnacing.Pace(_lit, Row.Works, _damper, _doorShut, FurnaceConfig);
 
     /// <summary>The fire burns while lit, charge or none.</summary>
     public override bool HasWork => _lit;
@@ -114,57 +109,6 @@ public class BELiquationFurnace : BEOreMachine
 
     /// <summary>The fire door: shut (1) or slid up open (0, the rest pose).</summary>
     public override double PartDepth => _doorShut ? 1 : 0;
-
-    public override void Initialize(ICoreAPI api)
-    {
-        base.Initialize(api);
-        if (api.Side == EnumAppSide.Server)
-            RegisterGameTickListener(OnRowTick, 1000);
-    }
-
-    // ---- The row and its chimney ----
-
-    private void OnRowTick(float dt)
-    {
-        if (!Built)
-            return;
-        var row = FindRow();
-        if (row != _row)
-        {
-            _row = row;
-            MarkDirty(true);
-        }
-    }
-
-    /// <summary>The chimney standing on the outlet, counted as the crucible furnace counts its own.</summary>
-    public ChimneyColumn ChimneyOnOutlet()
-    {
-        if (FurnaceRig is not { } rig)
-            return default;
-        var ba = Api.World.BlockAccessor;
-        var pos = CellPos(rig.ChimneyBase);
-        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), CrucibleFurnaceSystem.Of(Api).Config);
-    }
-
-    /// <summary>The furnace at offset <paramref name="k"/> along its row (built, facing the same way), or null.</summary>
-    private BELiquationFurnace? Neighbour(int k)
-    {
-        if (FurnaceRig is not { } rig)
-            return null;
-        var w = Footprint.ToWorld(new Int3(k * rig.Width, 0, 0), Side);
-        return Api.World.BlockAccessor.GetBlockEntity(Pos.AddCopy(w.X, w.Y, w.Z)) is BELiquationFurnace { Built: true } f && f.Side == Side ? f : null;
-    }
-
-    /// <summary>Its row: furnaces side by side along their width, one chimney on any outlet, the others capped.</summary>
-    public FurnaceRow FindRow()
-    {
-        if (FurnaceRig is not { } rig || !Built)
-            return new FurnaceRow(0, 1, null, 0, null, RowProblem.NoChimney);
-        RowMember? At(int k) => k == 0
-            ? new RowMember(_capped, ChimneyOnOutlet())
-            : Neighbour(k) is { } other ? new RowMember(other.Capped, other.ChimneyOnOutlet()) : null;
-        return FurnaceRow.Find(At, rig.RowMax, rig.MinChimney);
-    }
 
     // ---- The fire and the sweating ----
 
@@ -243,33 +187,19 @@ public class BELiquationFurnace : BEOreMachine
 
     // ---- Fire ----
 
-    public override bool Ignitable => Built;
-
-    public override bool Burning => _lit;
-
     public override string? CannotIgnite() =>
         !Built ? Lang.Get("seraphhorizons:liquationfurnace-error-notbuilt")
         : LiquationFurnacing.CannotLight(_lit, Fuel) is var r and not LiquationFurnaceRefusal.None ? RefusalText(r)
         : null;
 
-    public override void Ignite(IPlayer? byPlayer)
+    protected override void Light(IPlayer? byPlayer)
     {
-        if (Api.Side != EnumAppSide.Server)
-            return;
-        if (CannotIgnite() is { } why)
-        {
-            if (byPlayer is IServerPlayer sp)
-                sp.SendIngameError("liquationfurnace", why);
-            return;
-        }
         _lit = true;
         _fuelBurnt = 0;
         _lastHours = Api.World.Calendar.TotalHours;
-        _row = FindRow();
         Api.World.PlaySoundAt(new AssetLocation("game", "sounds/torch-ignite"), Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, byPlayer, true, 16, 0.6f);
         if (byPlayer != null)
             Api.World.Logger.Audit("{0} lit the liquation furnace at {1} ({2} bars).", byPlayer.PlayerName, Pos, Bars);
-        MarkDirty(true);
     }
 
     // ---- Interaction ----
@@ -283,9 +213,6 @@ public class BELiquationFurnace : BEOreMachine
             sp.SendIngameError("liquationfurnace-" + r.ToString().ToLowerInvariant(), RefusalText(r, args));
         return true;
     }
-
-    private bool IsOutletTop(BlockSelection sel) =>
-        FurnaceRig is { } rig && sel.Face == BlockFacing.UP && sel.Position.Equals(CellPos(rig.OutletCell));
 
     /// <summary>Whether a click is on the back face (the fire door and the ash mouth), and if so whether on the ash
     /// mouth (under the midpoint between them, <see cref="LiquationFurnaceRig.IsAsh"/>).</summary>
@@ -329,14 +256,9 @@ public class BELiquationFurnace : BEOreMachine
                 }
                 return true;
             }
-            if (_capped && IsOutletTop(blockSel))
+            if (Capped && IsOutletTop(blockSel))
             {
-                if (server && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-                {
-                    _capped = false;
-                    Give(byPlayer, new ItemStack(plate, rig.CapCount));
-                    MarkDirty(true);
-                }
+                Uncap(byPlayer);
                 return true;
             }
             if (LiquationFurnacing.Waiting(_tinUnits))
@@ -368,20 +290,8 @@ public class BELiquationFurnace : BEOreMachine
             }
             return true;
         }
-        if (!_capped && code == rig.CapCode)
-        {
-            if (stack.StackSize < rig.CapCount)
-                return false;
-            if (server)
-            {
-                slot!.TakeOut(rig.CapCount);
-                slot.MarkDirty();
-                _capped = true;
-                Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/anvil1"), Pos, -0.25, byPlayer);
-                MarkDirty(true);
-            }
-            return true;
-        }
+        if (!Capped && code == rig.CapCode)
+            return Cap(byPlayer, slot!);
         if (Bullion.OreOf(code) != null)
         {
             if (LiquationFurnacing.OreOf(Recovery, code) == null)
@@ -434,21 +344,13 @@ public class BELiquationFurnace : BEOreMachine
         {
             if (moved >= count || from.Empty)
                 break;
-            if (!target.Empty && !target.Itemstack.Equals(Api.World, from.Itemstack, GlobalConstants.IgnoredStackAttributes))
+            if (!target.Empty && !OreStreamAttributes.SameBar(Api.World, target.Itemstack, from.Itemstack!))
                 continue;
             int before = from.StackSize;
             MoveInto(from, target, count - moved);
             moved += before - from.StackSize;
         }
         return moved;
-    }
-
-    private void Give(IPlayer byPlayer, ItemStack? stack)
-    {
-        if (stack == null || stack.StackSize <= 0)
-            return;
-        if (!byPlayer.InventoryManager.TryGiveItemstack(stack, true))
-            Api.World.SpawnItemEntity(stack, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
     }
 
     public override WorldInteraction[] InteractionHelp(IPlayer forPlayer)
@@ -480,11 +382,11 @@ public class BELiquationFurnace : BEOreMachine
             help.Add(new WorldInteraction
             {
                 ActionLangCode = Key("light"), MouseButton = EnumMouseButton.Right,
-                Itemstacks = ObjectCacheUtil.GetOrCreate(world.Api, "liquationfurnace-ignitestacks", () => BlockBehaviorCanIgnite.CanIgniteStacks(world.Api, true).ToArray()),
+                Itemstacks = FurnaceFiring.IgniteStacks(world.Api),
             });
         help.Add(new WorldInteraction { ActionLangCode = Key(_doorShut ? "opendoor" : "shutdoor"), MouseButton = EnumMouseButton.Right });
         help.Add(new WorldInteraction { ActionLangCode = Key("damper"), MouseButton = EnumMouseButton.Right });
-        help.Add(_capped
+        help.Add(Capped
             ? new WorldInteraction { ActionLangCode = Key("uncap"), MouseButton = EnumMouseButton.Right }
             : new WorldInteraction { ActionLangCode = Key("cap"), MouseButton = EnumMouseButton.Right, Itemstacks = Of([rig.CapCode]) });
         return help.ToArray();
@@ -509,7 +411,7 @@ public class BELiquationFurnace : BEOreMachine
             case LiquationRequires.TinRun: return _sweating;
             case LiquationRequires.Tin: return LiquationFurnacing.Waiting(_tinUnits);
             case LiquationRequires.Lead: return LiquationFurnacing.Waiting(_leadUnits);
-            case LiquationRequires.OutletCap: return _capped;
+            case LiquationRequires.OutletCap: return Capped;
         }
         foreach (var d in Enum.GetValues<Damper>())
             if (requires == LiquationRequires.DamperPart(d))
@@ -525,30 +427,6 @@ public class BELiquationFurnace : BEOreMachine
     private static int Layer(string requires, string prefix) =>
         int.TryParse(requires.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : int.MaxValue;
 
-    public override string TextureKey => BrickType ?? "";
-
-    /// <summary>The block's textures, the brickwork's <c>brick</c> code in the furnace's brick type: its base with its
-    /// overlays, composed into the block atlas as the crucible furnace's are.</summary>
-    public override ITexPositionSource PartTextures(ICoreClientAPI capi)
-    {
-        var inner = capi.Tesselator.GetTextureSource(Block);
-        if (FurnaceRig is not { } rig || (rig.Bricks.Get(BrickType) ?? rig.Bricks.Get(rig.Bricks.Default)) is not { } brick)
-            return inner;
-        var composite = new CompositeTexture(new AssetLocation(brick.Base))
-        {
-            BlendedOverlays = brick.Overlays.Select(o => new BlendedOverlayTexture { Base = new AssetLocation(o) }).ToArray(),
-        };
-        return capi.BlockTextureAtlas.GetOrInsertTexture(composite, out _, out var pos) && pos != null
-            ? new CodeTextureSource(inner, rig.Bricks.TextureCode, pos)
-            : inner;
-    }
-
-    private sealed class CodeTextureSource(ITexPositionSource inner, string code, TextureAtlasPosition pos) : ITexPositionSource
-    {
-        public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] => textureCode == code ? pos : inner[textureCode]!;
-    }
-
     // ---- Breaking ----
 
     /// <summary>The frame and every stage's items, the cap, and the tin and lead not yet taken out. The fuel and the bars
@@ -557,10 +435,6 @@ public class BELiquationFurnace : BEOreMachine
     {
         foreach (var drop in base.AssemblyDrops())
             yield return drop;
-        if (FurnaceRig is not { } rig)
-            yield break;
-        if (_capped && Api.World.GetItem(new AssetLocation(rig.CapCode)) is { Id: > 0 } plate)
-            yield return new ItemStack(plate, rig.CapCount);
         foreach (var (metal, units) in new[] { (_metal, _tinUnits), (_byProduct, _leadUnits) })
         {
             var (ingots, bits, _) = LiquationFurnacing.Whole(units);
@@ -576,7 +450,6 @@ public class BELiquationFurnace : BEOreMachine
     public override void ToTreeAttributes(ITreeAttribute tree)
     {
         base.ToTreeAttributes(tree);
-        tree.SetBool("capped", _capped);
         tree.SetBool("lit", _lit);
         tree.SetBool("doorShut", _doorShut);
         tree.SetBool("sweating", _sweating);
@@ -588,18 +461,11 @@ public class BELiquationFurnace : BEOreMachine
         tree.SetString("metal", _metal);
         tree.SetString("byProduct", _byProduct);
         tree.SetDouble("lastHours", _lastHours);
-        tree.SetInt("rowFirst", _row.First);
-        tree.SetInt("rowCount", _row.Count);
-        tree.SetInt("rowChimneyAt", _row.ChimneyAt ?? int.MinValue);
-        tree.SetInt("rowChimneyHeight", _row.ChimneyHeight);
-        tree.SetInt("rowOpenOutlet", _row.OpenOutlet ?? int.MinValue);
-        tree.SetInt("rowProblem", (int)_row.Problem);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        _capped = tree.GetBool("capped");
         _lit = tree.GetBool("lit");
         _doorShut = tree.GetBool("doorShut");
         _sweating = tree.GetBool("sweating");
@@ -611,9 +477,6 @@ public class BELiquationFurnace : BEOreMachine
         _metal = tree.GetString("metal", "tin");
         _byProduct = tree.GetString("byProduct", "lead");
         _lastHours = tree.GetDouble("lastHours", double.NaN);
-        int? Opt(string key) => tree.GetInt(key, int.MinValue) is var v && v != int.MinValue ? v : null;
-        _row = new FurnaceRow(tree.GetInt("rowFirst"), Math.Max(1, tree.GetInt("rowCount", 1)), Opt("rowChimneyAt"),
-            tree.GetInt("rowChimneyHeight"), Opt("rowOpenOutlet"), (RowProblem)tree.GetInt("rowProblem", (int)RowProblem.NoChimney));
     }
 
     // ---- Info ----
@@ -645,16 +508,7 @@ public class BELiquationFurnace : BEOreMachine
         dsc.AppendLine(_lit ? L("lit", Fuel, FurnaceConfig.GrateFuel) : Fuel > 0 ? L("laid", Fuel, FurnaceConfig.GrateFuel) : L("nofuel"));
         dsc.AppendLine(L("door-" + (_doorShut ? "shut" : "open")) + " " + L("damper-" + _damper.ToString().ToLowerInvariant()));
         if (_lit && Bars > 0 && !ProductWaiting && Pace <= 0)
-            dsc.AppendLine(L(!_row.Works ? "nodraught-chimney" : "nodraught-damper"));
-        dsc.AppendLine(_row.Problem switch
-        {
-            RowProblem.None => L("row", _row.Count, _row.ChimneyHeight),
-            RowProblem.TooManyFurnaces => L("row-toomany", rig.RowMax),
-            RowProblem.OutletOpen => L("row-open"),
-            RowProblem.ChimneyTooShort => L("row-short", _row.ChimneyHeight, rig.MinChimney),
-            RowProblem.NoChimneyTop => L("row-notop"),
-            RowProblem.ChimneyTopBuried => L("row-buried"),
-            _ => L(_capped && _row.Count == 1 ? "row-capped" : "row-none", rig.MinChimney),
-        });
+            dsc.AppendLine(L(!Row.Works ? "nodraught-chimney" : "nodraught-damper"));
+        dsc.AppendLine(RowLine());
     }
 }

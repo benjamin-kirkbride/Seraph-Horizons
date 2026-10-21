@@ -1,5 +1,5 @@
 {
- "//": "Every entry of vanilla's nine trader lists and every trade entry the pack's mods add (docs/trading.md), with the pack's trader types that took it in ('type side'). ShippedTradeListsTests holds the shipped lists to it. 'not for trade (lore is never priced)' marks the lore books and scrolls the pack keeps off every list; 'not in the pack' marks entries naming mods the pack does not have; 'cook buy (as its kind)' a Culinary Artillery colour or metal variant whose kind the cook buys under its first variant.",
+ "//": "Every entry of vanilla's nine trader lists and every trade entry the pack's mods add (docs/trading.md), with the pack's trader types that took it in ('type side'). ShippedTradeListsTests holds the shipped lists to it. 'not for trade (lore is never priced)' marks the lore books and scrolls the pack keeps off every list; 'not in the pack' marks entries naming mods the pack does not have; 'cook buy (as its kind)' a Culinary Artillery colour or metal variant whose kind the cook buys under its first variant; 'schematic catalog (...)' a schematic the pack sells from those types' catalogs (config/schematic-gates.json), never a shelf; 'never bought' one no trader buys.",
  "entries": [
   {
    "source": "vanilla",
@@ -8507,8 +8507,7 @@
    "side": "sell",
    "code": "abyssaldepths:ad-schematic-divinggear",
    "homes": [
-    "curiodealer sell",
-    "treasurehunter sell"
+    "schematic catalog (curiodealer, treasurehunter)"
    ]
   },
   {
@@ -8517,8 +8516,7 @@
    "side": "buy",
    "code": "abyssaldepths:ad-schematic-divinggear",
    "homes": [
-    "curiodealer buy",
-    "treasurehunter buy"
+    "never bought (traders do not buy schematics)"
    ]
   },
   {
@@ -8536,8 +8534,7 @@
    "side": "sell",
    "code": "walkingstick:schematic-flintlock",
    "homes": [
-    "curiodealer sell",
-    "treasurehunter sell"
+    "schematic catalog (curiodealer, treasurehunter)"
    ]
   },
   {

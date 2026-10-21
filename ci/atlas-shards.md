@@ -24,11 +24,13 @@ SharedWorldScenarios is every feature that needs only the plain world, Woodworki
 the woodworking chain, WoodworkingRosserScenarios the rosser and its debarked trunks,
 TradingScenarios every trading feature on the plain world, PackFixScenarios the
 pack-authored fix mods, each a partial class over one file per feature (a new feature adds
-a file, not a class). The item and recipe classes are the exception: each builds the pack's
+a file, not a class). MillWorldScenarios, the ore machines, is on the plain world too, a
+class apart from SharedWorldScenarios only because the two on one boot ran past the time
+limit (`mill`, below). The item and recipe classes are the exception: each builds the pack's
 export (over a minute) and fills parts of it again to compare, so each has a shard to
 itself. `fixes` is the fix mods' class and `tidy` is Tidy Variants', both matched by name,
 so a new class of either kind joins its shard. `fixes` also runs ChutesNoBacktrackScenarios,
-a plain world of its own kept out of `rest` (which sits at its time limit).
+a plain world of its own kept out of `rest`.
 
 `woodworking`, `woodworking-rosser` and `woodworking-eidolon` (the eidolon's haul and crew
 orders, WoodworkingEidolonScenarios) are the three woodworking classes, each a world of
@@ -107,6 +109,18 @@ icon export and ore survey mods and runs the rusty gear check (`if: matrix.shard
 'rest'` steps in ci.yml), so the planner keeps `rest` in any sliced plan whose change
 touches their inputs (`REST_STEP_INPUTS` in ci/paths.py).
 
+`mill` is MillWorldScenarios, the ore machines (their shared code, the crushers, mills,
+washers, concentrators, roasters and furnaces, one partial file each), split out of
+SharedWorldScenarios when the shard's test run reached 271-275 s with every test passing,
+over the time limit below. In that run (PR #1355's) the class's scenarios were 195 s of
+test time in a 272 s span, the other 77 s its boot; the ore machines' 50 scenarios were 76 s of it,
+so each of the two classes now boots on its own: about 155 s for `mill` (77 + 76) and 200 s
+for `rest` (77 + 120). Both share their build helpers (a site, the player gearcutterhand, a
+click, a held click) through PlainWorldScenarioBase, so a machine part moves between the two
+by its class line alone. A new ore machine joins `mill`; when `rest` grows again, the next
+group of plain-world parts to move out is the hand machines' (gear cutter, draw bench, press
+brake, squaring shear, mandrel station, cylinder borer: about 30 s).
+
 Each shard's dotnet test run (compiling excluded: that is the step before it) must finish
 in four and a half minutes or the shard fails (`Shard ran within its time limit`), so a
 growing shard is split when it grows and not after it has crept up for months; aim for
@@ -136,7 +150,8 @@ always runs five, `always` in the map, because every feature can break them:
   (ConfigDefaultsFreshScenarios) and the pack check.
 
 So a machine whose scenarios are all SharedWorldScenarios and RecipeExportScenarios parts (the
-draw bench, the press brake, ...) runs those five; the eidolon adds its nine, trading its five,
+draw bench, the press brake, ...) runs those five, an ore machine `mill` too (its part of
+MillWorldScenarios names its code); the eidolon adds its nine, trading its five,
 the ore code its seven. A new shard does not need the map: a feature lists classes, not shards,
 and the filters pick the shards. A new class that exercises a feature without naming its code
 (a woodworking class that the trunk entities move trunks in) is added to that feature's

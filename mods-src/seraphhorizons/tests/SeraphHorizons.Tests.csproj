@@ -13,7 +13,7 @@
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
        travelling merchants' inns (../Trading/Visitors/Core), the trade window's view model
        (../Trading/Window/Core), the trunk entities' weights
-       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the cylinder borer's (../CylinderBorer/Core), the press brake's (../PressBrake/Core), the squaring shear's (../SquaringShear/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core), the handbook's kept place (../HandbookPlace/Core), the recipe selector's search (../RecipeSelector/Core) and the NaN motion diagnostics' trackers and report formatting (../NanMotion/Core).
+       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the cylinder borer's (../CylinderBorer/Core), the slitting mill's (../SlittingMill/Core), the press brake's (../PressBrake/Core), the squaring shear's (../SquaringShear/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core), the handbook's kept place (../HandbookPlace/Core), the recipe selector's search (../RecipeSelector/Core) and the NaN motion diagnostics' trackers and report formatting (../NanMotion/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -115,6 +115,11 @@
     <Compile Include="../CylinderBorer/Core/**/*.cs" Link="CylinderBorer/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/cylinderborer-rig.json" Link="cylinderborer-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="CylinderBorer/rig-reference.json" Link="cylinderborer-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The slitting mill's gameplay rules: the build, the slitting, the knife's wear, the renderer's clock,
+         settings and its rig; and the shipped rig and its reference poses (SlittingMill/tools/make_shape.py). -->
+    <Compile Include="../SlittingMill/Core/**/*.cs" Link="SlittingMill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/slittingmill-rig.json" Link="slittingmill-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="SlittingMill/rig-reference.json" Link="slittingmill-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The press brake's gameplay rules: parts, the fold, the renderer's clock, settings and its rig;
          and the shipped rig and its reference poses (PressBrake/tools/make_shape.py), once they exist
          (the rig tests skip until then). -->
@@ -201,6 +206,8 @@
     <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/schematic.json" Link="schematic-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/lang/en.json" Link="lang-en.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The config class's source, read for its switch names (the gates' "switch"). -->
+    <None Include="../SeraphHorizons.cs" Link="schematic-switches/SeraphHorizons.cs.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- Standing orders and deliveries (#453, #454): generation, premiums, deadlines, state machines. -->
     <Compile Include="../Trading/Orders/Core/**/*.cs" Link="Trading/Orders/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Trading/Deliveries/Core/**/*.cs" Link="Trading/Deliveries/Core/%(RecursiveDir)%(Filename)%(Extension)" />

@@ -10,18 +10,7 @@
 		"core": [
 			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": 1, "priceReason": "priced by the maps system at each restock"},
 			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": 1, "priceReason": "priced by the maps system at each restock"},
-			{"code": "firewood", "stacksize": 16, "stock": {"avg": 12, "var": 3}},
-			{"code": "betterruins:br-schematic-carpenter", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 30, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-door", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 14, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-bed", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 16, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-table", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 16, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-wood", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 18, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-roofing", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 20, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "cartwrightscaravan:cartschematics-signs", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 14, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "seraphhorizons:schematic-windmill", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 30, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "seraphhorizons:schematic-waterwheel", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 35, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "seraphhorizons:schematic-sawmill", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 60, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-chopper", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 50, "priceReason": "schematic: a hand-set gate", "standingTier": 2}
+			{"code": "firewood", "stacksize": 16, "stock": {"avg": 12, "var": 3}}
 		],
 		"rotating": { "maxItems": 10,
 			"list": [

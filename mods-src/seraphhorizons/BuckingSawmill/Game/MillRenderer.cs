@@ -12,9 +12,11 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 /// <see cref="BEBuckingMill"/>). One mesh per rig part from <c>shapes/block/buckingmill.json</c>
 /// (<see cref="MachineMeshes.PartMeshes"/>, one tessellation split by part, shared by every mill
 /// through <see cref="MachinePartMeshes"/>, the blades in a cached set per blade metal); each is drawn with its rig matrix (<see cref="RigParts.Matrices"/>, from the shaft angle,
-/// the saw depth and whether the saws are being raised) turned to the mill's facing. The static frame part is not drawn here: the block's own shape (buckingmill_frame.json,
-/// the same elements) draws it in the chunk mesh. The renderer polls <see cref="IMillVisualState"/>
-/// every frame; there is no change event.
+/// the saw depth and whether the saws are being raised) turned to the mill's facing, and only while
+/// <see cref="BEMachine.ShowsPart"/> (its part fitted, the blades while a blade kit is). The static frame part is not drawn here: the block's own shape (buckingmill_frame.json,
+/// the same elements) draws it in the chunk mesh. The renderer polls the block entity every frame; there is no
+/// change event. Its own rather than the shared <see cref="MachineRenderer"/>: it draws the loaded trunk, the
+/// blades in the kit's metal, and the sawing's sound and sawdust.
 /// </summary>
 public sealed class MillRenderer : IRenderer
 {
@@ -172,7 +174,7 @@ public sealed class MillRenderer : IRenderer
         {
             var c = Middle;
             var light = Footprint.ToWorld(new Int3((int)MathF.Floor(c.X), 1, (int)MathF.Floor(c.Z)), _be.Side);
-            prog = rapi.PreparedStandardShader(pos.X + light.X, pos.Y + light.Y, pos.Z + light.Z);
+            prog = MachineShading.Prepare(_capi, pos.AddCopy(light.X, light.Y, light.Z));
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
@@ -190,8 +192,7 @@ public sealed class MillRenderer : IRenderer
 
     private float[][] Matrices() => _parts.Matrices(_theta, _be.ClientSawDepth, _lifting, _travel);
 
-    private bool Fitted(int part) =>
-        MillRequires.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.HasBladeKit, _be.HasLevers);
+    private bool Fitted(int part) => _be.ShowsPart(_parts.Parts[part].Requires);
 
     private void Draw(MultiTextureMeshRef mesh, float[] native, IStandardShaderProgram? prog, Vec3d cam, BlockPos pos)
     {
@@ -244,7 +245,7 @@ public sealed class MillRenderer : IRenderer
             _theta -= wrap;
             before -= wrap;
         }
-        bool running = _be.Complete && speed >= _be.MinSpeed && !far;
+        bool running = _be.SawsRun && !far;
         if (!running || phase != MillPhase.Cutting || _be.Trunk == null)
             return;
         int strokes = MillMotion.StrokesBetween(before, _theta);

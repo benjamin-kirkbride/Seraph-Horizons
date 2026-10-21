@@ -35,6 +35,15 @@ test.describe("ore routes", () => {
     await expect(step).toContainText(`Smelt now: ${fmtUnits(units)} units of copper`);
   });
 
+  test("offers the Parkes kettle for plain galena only, and cupels argentiferous galena directly", async ({ page }) => {
+    test.skip(!exp.oreProcessing?.ores.some((o) => o.ore === "galena_nativesilver"), "the export has no argentiferous galena");
+    await page.goto(`./#/${V}/ores?ore=galena`);
+    await expect(page.locator('[data-step="parkeskettle"]').first()).toBeVisible();
+    await page.goto(`./#/${V}/ores?ore=galena_nativesilver`);
+    await expect(page.locator('[data-step="cupellationfurnace"]').first()).toBeVisible();
+    await expect(page.locator('[data-step="parkeskettle"]')).toHaveCount(0);
+  });
+
   test("keeps the ore and grade in the address", async ({ page }) => {
     await page.goto(`./#/${V}/ores`);
     await page.getByTestId("ore-picker").selectOption("galena");
