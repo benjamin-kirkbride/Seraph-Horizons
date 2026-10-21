@@ -43,7 +43,7 @@ public class SchematicTests
         var table = Table.Value;
         Assert.Contains("MachineSchematics", Switches.Value);
         Assert.Empty(table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier, Switches.Value));
-        Assert.Equal(43, table.Gates.Count);
+        Assert.Equal(42, table.Gates.Count);
         Assert.Equal("game:paper-parchment", table.Replacement);
         Assert.All(table.Gates, g => Assert.True(table.IsSold(g.Schematic), g.Schematic));
         // The switches named are the machines' own: every one of the pack's own machines names its
@@ -189,7 +189,6 @@ public class SchematicTests
             Assert.True(sale.Sellers.Count > 0, sale.Code);
         }
         Assert.Equal(75, Table.Value.Sales.Single(s => s.Code == "game:schematic-glider").Price);
-        Assert.Equal(125, Table.Value.Sales.Single(s => s.Code == "seraphhorizons:schematic-biplane").Price);
         Assert.Equal(18, Table.Value.Sales.Single(s => s.Code == "seraphhorizons:schematic-waterwheel").Price);
     }
 
@@ -203,7 +202,7 @@ public class SchematicTests
         Assert.Equal(all.OrderBy(r => r.Tier).ThenBy(r => r.Price).Select(r => r.Code), all.Select(r => r.Code));
         var known = SchematicCatalog.For(table, "mechanic", AllOn, 2);
         Assert.All(known, r => Assert.Equal(r.Tier <= 2, r.Unlocked));
-        Assert.Contains(known, r => r.Code == "seraphhorizons:schematic-biplane" && !r.Unlocked && r.Tier == 4 && r.Price == 125);
+        Assert.Contains(known, r => r.Code == "betterruins:br-schematic-mechanical" && !r.Unlocked && r.Tier == 3 && r.Price == 60);
         Assert.Contains(known, r => r.Code == "seraphhorizons:schematic-transmission" && r.Unlocked);
         // Both sellers of the diving gear sell it at one price.
         var curio = SchematicCatalog.For(table, "curiodealer", AllOn, 0).Single(r => r.Code == "abyssaldepths:ad-schematic-divinggear");
@@ -282,13 +281,14 @@ public class SchematicTests
         Assert.Equal("gearbox", table.GateFor("mpegearbox:gearbox12brass-north", _ => true)?.Machine);
         Assert.Null(table.GateFor("mpegearbox:gearbox12brass-north", mod => mod != "mpegearbox"));
         Assert.Equal("transmission", table.GateFor("game:clutch-north", _ => true)?.Machine);
-        Assert.Equal("biplane", table.GateFor("flyingmachine:trestles", _ => true)?.Machine);
-        Assert.Null(table.GateFor("flyingmachine:wing", _ => true));
+        Assert.Equal("sawmill", table.GateFor("immersivewoodworking:sawmill-frame-north", _ => true)?.Machine);
+        Assert.Null(table.GateFor("immersivewoodworking:sawmill-frame-north", mod => mod != "immersivewoodworking"));
+        Assert.Null(table.GateFor("immersivewoodworking:sawmillcarriage", _ => true));
         Assert.Null(table.GateFor("madmechanics:clutch-north-down", _ => true));
         Assert.True(table.IsSold("betterruins:br-schematic-door"));
         Assert.True(table.IsSold("schematic-glider"));
         Assert.False(table.IsSold("scrolled:br-rolled-schematic-door"));
-        Assert.True(table.IsMachineSchematic("seraphhorizons:schematic-biplane"));
+        Assert.True(table.IsMachineSchematic("seraphhorizons:schematic-eidolon"));
         Assert.False(table.IsMachineSchematic("betterruins:br-schematic-door"));
     }
 
@@ -365,7 +365,7 @@ public class SchematicTests
             { "type": "mechanic", "wallet": {"avg": 100, "var": 0},
               "selling": { "core": [
                 {"code": "rope"},
-                {"code": "seraphhorizons:schematic-biplane", "price": 250, "priceReason": "a gate", "standingTier": 4},
+                {"code": "seraphhorizons:schematic-eidolon", "price": 180, "priceReason": "a gate", "standingTier": 4},
                 {"code": "seraphhorizons:schematic-windmill", "price": 30, "priceReason": "a gate", "standingTier": 1}
               ], "rotating": { "maxItems": 2, "list": [ {"code": "stick", "standingTier": 2} ] } } }
             """, Options)!;
@@ -374,7 +374,7 @@ public class SchematicTests
         Assert.Equal(["item:game:rope"], TradeListResolver.Resolve(def.Selling, region, 0).Core.Select(e => e.Key));
         Assert.Empty(TradeListResolver.Resolve(def.Selling, region, 0).Rotating);
         // Lowest tier first after the ungated core.
-        Assert.Equal(["item:game:rope", "item:seraphhorizons:schematic-windmill", "item:seraphhorizons:schematic-biplane"],
+        Assert.Equal(["item:game:rope", "item:seraphhorizons:schematic-windmill", "item:seraphhorizons:schematic-eidolon"],
             TradeListResolver.Resolve(def.Selling, region, 4).Core.Select(e => e.Key));
         Assert.Single(TradeListResolver.Resolve(def.Selling, region, 2).Rotating);
         Assert.Empty(TradeListResolver.Problems(def));

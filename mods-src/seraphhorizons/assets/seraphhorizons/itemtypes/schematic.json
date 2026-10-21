@@ -11,7 +11,7 @@
 	variantgroups: [
 		{ code: "machine", states: [
 			"windmill", "waterwheel", "transmission", "helvehammer", "pulverizer",
-			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "biplane", "eidolon",
+			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "eidolon",
 			"jawbreaker", "ballmill", "stampbattery", "arrastra", "sluice", "jig", "shakingtable", "vanner",
 			"cylinderborer", "slittingmill", "handcar", "amalgamationplates", "reverberatory", "parkeskettle", "stallroaster",
 			"liquationfurnace", "cupellationfurnace", "acidparting", "cruciblefurnace", "drawbench", "gearcutter",

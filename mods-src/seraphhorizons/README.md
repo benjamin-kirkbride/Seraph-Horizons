@@ -1906,7 +1906,6 @@ number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcu
 | Steelmaking Expanded | bell hopper (8), air blower (2), converter transmission (16) |
 | BetterRuins | Jonas gearbox (3, 5), oscillator (3), spring (2), gears (3, 5); the unlit Jonas lamps (1) |
 | Immersive Woodworking | sawmill carriage (1) |
-| Flying Machine | chain drive (2) |
 | Player Corpse Forked | corpse compass (4) |
 | Spinning Wheel | the wheel's mechanism (1) |
 | Sprinklers | tier one sprinkler (2), tier two (4) |
@@ -7865,7 +7864,6 @@ machine's first-stage grid recipe, kept on crafting:
 | `sawmill`, `chopper` | Immersive Woodworking's frames | carpenter, 2 |
 | `buckingmill`, `rosser` | this mod's frames (switches `BuckingSawmill`, `Rosser`) | mechanic, 2 |
 | `gearbox` | Mechanical Power Expanded's gearboxes | smith, 2 |
-| `biplane` | the biplane's trestles | mechanic, 4 |
 | `eidolon` | the eidolon gantry's frame and the eidolon command tool (switch `Eidolon`) | curio dealer, 3 |
 | `arrastra`, `sluice` | this mod's arrastra and sluice frame (switches `Arrastra`, `Sluice`) | mechanic, 1 |
 | `jawbreaker`, `ballmill`, `jig`, `shakingtable` | this mod's jaw breaker frame, ball mill, jig frame and shaking table frame (switches `JawBreaker`, `BallMill`, `Jig`, `ShakingTable`) | mechanic, 2 |
@@ -7918,7 +7916,7 @@ families are tier 1 at the carpenter, mason, smith, tailor, farmer, general stor
 cart and ship wrights and Cartwright's carts are tier 2 at the mechanic, and BetterRuins' mechanical
 blueprint (cheap axles and gears in bulk, which also takes the transmission schematic) tier 3 there at
 60 gears; the glider, translocator, flintlock, diving gear and eidolon are tier 3 at the curio dealer
-(the flintlock and diving gear at the treasure hunter too). Prices run 5 to 125 gears, half what the
+(the flintlock and diving gear at the treasure hunter too). Prices run 5 to 90 gears, half what the
 shelves asked, rounded up. Cartwright's canopies and sides schematics gate nothing in 1.9.1 and are
 not sold.
 
