@@ -22,11 +22,7 @@
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-*" }
 	],
 	"gates": [
-		{ "machine": "windmill", "outputs": [
-			{ "mod": "game", "code": "game:windmillrotor-*" },
-			{ "mod": "millwright", "code": "millwright:windmillrotor-*" },
-			{ "mod": "millwright", "code": "millwright:windmillrotorud-*" }
-		] },
+		{ "machine": "windmill", "outputs": [ { "mod": "game", "code": "game:windmillrotor-*" } ] },
 		{ "machine": "waterwheel", "outputs": [ { "mod": "game", "code": "game:waterwheel-*" } ] },
 		{ "machine": "handcrank", "outputs": [ { "mod": "handcrank", "code": "handcrank:handcrank-*" } ] },
 		// Axles, gears, clutch, transmission and brake as one (#469). MadMechanics' vertical clutch
@@ -39,10 +35,7 @@
 			{ "mod": "game", "code": "game:largegearsection-*" },
 			{ "mod": "game", "code": "game:clutch-*" },
 			{ "mod": "game", "code": "game:transmission-*" },
-			{ "mod": "game", "code": "game:brake-*" },
-			{ "mod": "millwright", "code": "millwright:brake-*" },
-			{ "mod": "millwright", "code": "millwright:woodenaxlepassthroughfull" },
-			{ "mod": "millwright", "code": "millwright:improvedaxlepassthroughfull" }
+			{ "mod": "game", "code": "game:brake-*" }
 		] },
 		// The base is the first stage; the toggle and the hammer head are fitted to it.
 		{ "machine": "helvehammer", "outputs": [ { "mod": "game", "code": "game:helvehammerbase-*" } ] },

@@ -252,6 +252,26 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         }
     }
 
+    // BetterRuins' recipes/grid/schematic-crate/chestsandmore.json, entry 0: an aged crate
+    // over the crate schematic makes game:clutter with attributes { collected: true,
+    // type: "crate/crate-large-empty" }. Clutter's name comes from its type (BlockClutter,
+    // lang "clutter-crate-crate-large-empty": "Large crate (Empty)"); the bare code has none.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Attribute_named_output_carries_the_name_of_its_exact_stack()
+    {
+        var r = Recipe("grid|betterruins:recipes/grid/schematic-crate/chestsandmore.json|0");
+        var output = (JObject)r["variants"]![0]!["outputs"]![0]!;
+        Assert.Equal("game:clutter", (string)output["code"]!);
+        Assert.Equal("crate/crate-large-empty", (string)output["attributes"]!["type"]!);
+        Assert.Equal("Large crate (Empty)", (string?)output["name"]);
+        // The recipe-level output is the definition's: no name.
+        Assert.Null(r["outputs"]![0]!["name"]);
+        // A stack without attributes is named by its item.
+        var schematic = r["variants"]![0]!["ingredients"]![1]![0]!;
+        Assert.Equal("betterruins:br-schematic-crate", (string)schematic["code"]!);
+        Assert.Null(schematic["name"]);
+    }
+
     // A Culinary Artillery's assets/aculinaryartillery/recipes/simmering/boiledbark.json:
     // 100 waterportion and 1 aculinaryartillery:bark-oak-dry simmer into bark-oak-boiled
     // (Simmering: meltingPoint 100, meltingDuration 200, smeltedRatio 1). A mod registry with
