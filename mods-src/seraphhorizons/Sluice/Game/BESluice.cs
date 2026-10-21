@@ -21,7 +21,7 @@ namespace SeraphHorizons.Mod.Sluice;
 /// (<see cref="UnitCarry"/>), and the rock goes on as tailings, the same item carrying the rest, by the
 /// tailings chute at the tail's south face, or discarded beside it as gravel in its rock (#694). Nothing in
 /// it wears out. The concentrate is drawn in the riffles while it works, and while it works the ore falls in at
-/// the feed spout, the water splashes at its nozzle and muddy water pours at the concentrate spout.
+/// the feed spout, the water splashes at its nozzle and the pulp pours at the concentrate spout.
 /// </summary>
 public class BESluice : BEOreMachine
 {
@@ -115,7 +115,7 @@ public class BESluice : BEOreMachine
     }
 
     /// <summary>Nothing moves; while it washes, the ore falling in at the feed spout (its colour), a splash at the
-    /// water nozzle and muddy water pouring down at the concentrate spout.</summary>
+    /// water nozzle and the pulp (its colour too) pouring down at the concentrate spout.</summary>
     public override RigInput FrameInput(float dt, bool far)
     {
         var input = base.FrameInput(dt, far);
@@ -131,7 +131,8 @@ public class BESluice : BEOreMachine
             (MachineParticles.Splash() with { Count = 2, MaxCount = 3 })
                 .Spawn(Api.World, WorldPoint(nozzle), MachineParticles.Around(new Float3(0.12f, 0.02f, 0.04f), Side));
         if (rig.Point(ConcentrateSpout) is { } spout && _pour.Due(dt))
-            (MachineParticles.Drip(MachineParticles.MuddyWater) with { Count = 2, Size = 0.15f })
+            (MachineParticles.Drip(MachineParticles.MaterialColour(InfeedSlot.Itemstack, 180, MachineParticles.Slurry, Api as ICoreClientAPI))
+                with { Count = 2, Size = 0.15f })
                 .Spawn(Api.World, WorldPoint(spout), MachineParticles.Around(new Float3(0.1f, 0.02f, 0.03f), Side));
         return input;
     }

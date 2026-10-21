@@ -142,11 +142,14 @@ public class BEAmalgamationPlates : BEOreMachine
         Api.World.PlaySoundAt(RunSound, at.X, at.Y, at.Z, null, true, 12, 0.3f);
     }
 
+    /// <summary>The pulp's colour: the ore going over the plates'.</summary>
+    private int Pulp() => MachineParticles.MaterialColour(InfeedSlot.Itemstack, 200, MachineParticles.Slurry, Api as ICoreClientAPI);
+
     /// <summary>A point of the rig in the world; the block's middle if the rig has none of that name.</summary>
     private Vec3d At(string point) => Rig?.Point(point) is { } p ? WorldPoint(p) : Pos.ToVec3d().Add(0.5, 0.5, 0.5);
 
     /// <summary>Nothing moves; while it runs, the spray falling over the head of the plates, the pulp (its ore's
-    /// colour) leaving the distributor onto them, and muddy water dripping off the lip into the trap.</summary>
+    /// colour) leaving the distributor onto them and dripping off the lip into the trap.</summary>
     public override RigInput FrameInput(float dt, bool far)
     {
         var input = base.FrameInput(dt, far);
@@ -156,13 +159,10 @@ public class BEAmalgamationPlates : BEOreMachine
             (MachineParticles.Splash() with { Count = 2, MaxCount = 4, MinVelocity = new Vec3f(-0.1f, -0.5f, -0.1f), MaxVelocity = new Vec3f(0.1f, -0.1f, 0.1f), Size = 0.12f })
                 .Spawn(Api.World, WorldPoint(spray), MachineParticles.Around(HeadSpread, Side));
         if (rig.Point(FeedSpout) is { } feed && _feed.Due(dt))
-        {
-            int colour = MachineParticles.MaterialColour(InfeedSlot.Itemstack, 200, MachineParticles.Slurry, Api as ICoreClientAPI);
-            (MachineParticles.SlurryDrops(colour) with { Count = 1, MaxCount = 2 })
+            (MachineParticles.SlurryDrops(Pulp()) with { Count = 1, MaxCount = 2 })
                 .Spawn(Api.World, WorldPoint(feed), MachineParticles.Around(HeadSpread, Side));
-        }
         if (rig.Point(Lip) is { } lip && _lip.Due(dt))
-            (MachineParticles.Drip(MachineParticles.MuddyWater) with { Count = 2 })
+            (MachineParticles.Drip(Pulp()) with { Count = 2 })
                 .Spawn(Api.World, WorldPoint(lip), MachineParticles.Around(new Float3(0.3f, 0.01f, 0.01f), Side));
         return input;
     }

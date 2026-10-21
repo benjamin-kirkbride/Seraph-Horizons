@@ -60,7 +60,7 @@ water code):
 | `concentrateCell`, `concentrateFace` | `[0,0,2]`, `down` | The concentrate chute leaves through the bottom face, continuously, while the sluice runs: a vanilla chute (or a container) in the block below takes it |
 | `feedSpout.pos` | `[0.5, 0.906, 0.5]` | Where the ore falls into the head box (the infeed chute's mouth): while it washes, grit of the ore's colour falling |
 | `waterSpout.pos` | `[0.5, 0.806, 0.4375]` | The nozzle's mouth, in the pool: while it washes, a splash of clear water |
-| `concentrateSpout.pos` | `[0.5, 0.512, 2.4615]` | Where the launder pours down into the concentrate chute: sound, and while it washes muddy water pouring |
+| `concentrateSpout.pos` | `[0.5, 0.512, 2.4615]` | Where the launder pours down into the concentrate chute: sound, and while it washes the pulp pouring, the ore's colour |
 
 There is no `powerCell`, `powerFace`, `infeedSide`, `outputSide` or work, no return-water anchor (the water is used
 up, #694), and no hand clean-up point.

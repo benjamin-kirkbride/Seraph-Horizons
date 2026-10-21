@@ -36,6 +36,8 @@ public class BEJig : BEOreMachine
     private const double StrokeBottom = 0.75;
     // Across the sieve compartment, native: wide (x), hardly up, most of its depth (z).
     private static readonly Float3 SieveSpread = new(0.3f, 0.02f, 0.2f);
+    // The hutch's water, clouded by the bed: a greyish brown.
+    private static readonly int HutchWater = MachineParticles.Rgb(150, 150, 140, 115);
 
     private readonly UnitCarry _carry = new();
     private double _lastTurns = double.NaN;
@@ -106,7 +108,7 @@ public class BEJig : BEOreMachine
         if (far || !Running || double.IsNaN(before) || Math.Floor(turns - StrokeBottom) == Math.Floor(before - StrokeBottom))
             return input;
         if (Rig?.Point(SurfacePoint) is { } surface)
-            (MachineParticles.Splash(MachineParticles.MuddyWater) with { Count = 4, MaxCount = 6 })
+            (MachineParticles.Splash(HutchWater) with { Count = 4, MaxCount = 6 })
                 .Spawn(Api.World, WorldPoint(surface), MachineParticles.Around(SieveSpread, Side));
         return input;
     }

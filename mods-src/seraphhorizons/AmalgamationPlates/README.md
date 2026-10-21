@@ -49,7 +49,7 @@ continues (#939: the plates before the sluice).
 | `feedSpout` | `[0.5, 0.7125, 0.8438]` | Where the pulp leaves the distributor through its holes onto the head of the plates: while it runs, slurry of the ore's colour |
 | `spray` | `[0.5, 0.61, 0.775]` | The spray's nozzles, over the head of the plates: while it runs, water falling across them |
 | `amalgam` | `[0.5, 0.5263, 1.5437]` | The middle of the plates, on the dressing: scraping sounds and particles |
-| `lip` | `[0.5, 0.4263, 2.35]` | The bed's foot, its lip, where the pulp falls into the tail box and the trap: while it runs, muddy drips |
+| `lip` | `[0.5, 0.4263, 2.35]` | The bed's foot, its lip, where the pulp falls into the tail box and the trap: while it runs, drips of the pulp, the ore's colour |
 | `trapWell` | `[0.5, 0.1062, 2.4406]` | The mercury in the trap's well (the trap's clean-up) |
 | `buildStages` | | The build stages in order, each with the `requires` it adds: the table and plates, the trap, and last services (the chutes and the water line). The dressing is in none |
 | `amalgamStates` | | The three amalgam states, one drawn at a time |
