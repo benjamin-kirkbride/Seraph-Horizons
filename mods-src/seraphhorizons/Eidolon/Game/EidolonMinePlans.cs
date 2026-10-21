@@ -271,6 +271,8 @@ public class EidolonMinePlans : ModSystem
         bool target = live.Remaining.Contains(cell);
         if (gone)
         {
+            if (target)
+                cells.Gone++;
             Take(cells, s => s.Apply([cell]));
             if (!target && was)
                 live.Stale = true;

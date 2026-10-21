@@ -3679,10 +3679,12 @@ to today's: where today's wins (a pit that holds one at a time, a narrow tunnel'
 as below, with no routes. The choice holds for the job (`MineRouteChoice`): every solve keeps it, a new
 station plan's too, and it outlasts the job being down to one member, for as long as the area and the members
 present are those it was made for (one joining or leaving lets it be made again). A new station plan is
-dispatched as below until its first solve lands. A member follows its route: it claims its head when it may
+dispatched as below until its first solve lands. A member follows its route (with no stop at all it takes a station by today's dispatch at once, none another's
+route holds, while the routes are solved again; the next solve keeps it as its head): it claims its head when it may
 set off, at its planned time or sooner when the station is ready and the plan has no other set off first
 there, waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
-another walking up to it, crosses another's claim after 4 seconds, passes another eidolon only briefly and
+another walking up to it, crosses another's claim after 4 seconds (but see *Claims*: one with another station clear takes that), passes
+another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
 standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
 is asked to make room, stepping aside to a place with nothing left to dig and no claim, but not one holding a
@@ -3756,9 +3758,10 @@ one on the stair from working them and so from ever getting off it). And a miner
 station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
 another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
 go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
-`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`); on today's dispatch a station whose way crosses
-another's claim is put by for those 20 seconds and another it reaches clear taken meanwhile, so it waits only
-with none (one stood 20 seconds at a time, again and again, on a hillside with work elsewhere). On today's dispatch a member waiting (not
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`); but a station whose way crosses another's claim, by
+routes or today's dispatch, is put by for those 20 seconds when another it reaches clear is free (that one is
+taken; on routes the stop is dropped and the routes solved again), and with none it goes through at once:
+waiting for room, again and again, came to 20 to 30 seconds with stations free on a hillside. On today's dispatch a member waiting (not
 walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
 stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
 left to dig) held by none (`MineOrder.ClearWay`), but not one holding a station, which sets off for it in a
@@ -3796,7 +3799,10 @@ all the same and the plan made again (three once waited by a stand none could ge
 failing and taking it again, with nothing in the log, for 40 minutes). Each member keeps
 why it last let go of a station (`MineOrder.DebugState`, in `/sh eidolon info`), and a run of them for one
 reason with no strike that goes on 30 seconds is logged at Debug (`[eidolon-mine]`), at most every 30
-seconds. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
+seconds. A target that goes with no strike of its job's (the game's rock caving in where a strike left it
+hanging, as granite does at random beside a block broken, breaking into its drops; a player) is counted
+(`MineJobCells.Gone`), never as mined: a strike that comes to a block of its group already gone so passes it
+by. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
 plan's, the same for all. *Waiting at the rim*: one with no station it may take (all held by
 others, under another, or of a band whose turn has not come) frees its columns and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,

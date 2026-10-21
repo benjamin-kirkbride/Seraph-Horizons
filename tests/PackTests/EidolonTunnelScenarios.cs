@@ -170,7 +170,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.NotNull(order.Tunnel);
         Assert.Equal((1, 0), (order.Tunnel!.DriveX, order.Tunnel.DriveZ));
         Assert.All(cells, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(cells.Count, order.Mined);
+        Assert.InRange((cells.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         Assert.Equal(0, order.EmptyStrikes);
         // up to four a strike: two a slice
@@ -251,7 +251,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Empty(faults);
         Assert.Null(e.Orders.OrderCode);
         Assert.All(cells, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(cells.Count, order.Mined);
+        Assert.InRange((cells.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         Assert.Equal(0, order.EmptyStrikes);
         // The last heading driven was the lower one, from its own face.
@@ -333,7 +333,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Empty(faults);
         Assert.Equal((1, 0), (o1.Tunnel!.DriveX, o1.Tunnel.DriveZ));
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, o1.Mined + o2.Mined);
+        Assert.InRange((toMine.Count) - (o1.Mined + o2.Mined), -(o1.Job?.Shared.Gone ?? 0), o1.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, o1.Unreachable + o2.Unreachable);
         Assert.Equal(0, o1.EmptyStrikes + o2.EmptyStrikes);
         // A heading each, the nearer: e1 the north one (z 0 to 1), e2 the south; both worked theirs.
