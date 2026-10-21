@@ -45,6 +45,12 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// to a planned station counts as work: one station on the hilltop is a 36 s walk from the heading.</summary>
     private const double LongestGap = 25;
 
+    /// <summary>The most stands the game may find no way to (each one the plan made again). The walk graph and the
+    /// pathfinder agree on these blocks, which are all whole; the 1 to 6 a run once found bad were stands still in
+    /// rock that a route set off for before the stops opening them were dug, and now and then one on a block that
+    /// had fallen away, which the live state had not yet seen.</summary>
+    private const int MostBadStands = 1;
+
     private void Log(string what)
     {
         W.Logger.Notification("[eidolon-hillside-test] {0}", what);
@@ -163,7 +169,8 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
         }, 400_000);
 
         int total = orders.Sum(o => o.Mined);
-        Log($"mined {string.Join(" + ", orders.Select(o => o.Mined))} = {total} in {Minutes} minutes (at least {Before * Faster:0}: {Faster} x main's {Before}); longest neither striking nor walking to its station: "
+        int bad = orders[0].Job?.Shared.BadStandsFound ?? 0;
+        Log($"mined {string.Join(" + ", orders.Select(o => o.Mined))} = {total} in {Minutes} minutes (at least {Before * Faster:0}: {Faster} x main's {Before}), {bad} bad stands; longest neither striking nor walking to its station: "
             + string.Join(", ", longest.Select((l, i) => $"{eidolons[i].EntityId} {l.Seconds:0.0} s to {l.At:0} s"))
             + "; longest with no block broken: " + string.Join(", ", unbroken.Select((l, i) => $"{eidolons[i].EntityId} {l.Seconds:0.0} s to {l.At:0} s")));
         for (int i = 0; i < orders.Count; i++)
@@ -172,6 +179,7 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
             e.Die(EnumDespawnReason.Removed);
         Assert.NotNull(planned);
         Assert.True(total >= Before * Faster, $"{total} mined, under {Faster} x {Before}");
+        Assert.True(bad <= MostBadStands, $"{bad} stands found bad, over {MostBadStands}");
         Assert.All(longest, l => Assert.True(l.Seconds <= LongestGap, $"{l.Seconds:0.0} s neither striking nor walking to its station, to {l.At:0} s: {l.Doing}"));
     }
 }

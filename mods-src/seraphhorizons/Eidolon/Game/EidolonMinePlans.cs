@@ -286,6 +286,37 @@ public class EidolonMinePlans : ModSystem
             Retry(work, cell);
     }
 
+    /// <summary>
+    /// The blocks round each of <paramref name="nodes"/> (its box and a column round it, from two under its feet
+    /// to its head) read again from the world into the job's live state (<see cref="Seen"/>), ahead of the sweep:
+    /// how many it had wrong. Asked before a stand is called bad (README "Eidolon", mining, *Stations*): the live
+    /// state can be behind the world there (a block that fell or caved in is seen only by the sweep), and a stand
+    /// it holds out on a block that is gone is no disagreement between the walk graph and the game's pathfinder.
+    /// </summary>
+    public int Look(MineJobCells cells, IEnumerable<PathCell> nodes)
+    {
+        if (cells.Live is not { } live || _work.FirstOrDefault(w => w.Cells == cells) is not { } work)
+            return 0;
+        var site = live.Site;
+        var seen = new HashSet<MarkPos>();
+        int wrong = 0;
+        foreach (var n in nodes)
+        for (int x = n.X - 2; x <= n.X + 1; x++)
+        for (int z = n.Z - 2; z <= n.Z + 1; z++)
+        for (int y = n.Y - 2; y <= n.Y + 3; y++)
+        {
+            var cell = new MarkPos(x, y, z);
+            if (!site.InWindow(x, y, z) || site.Unloaded(x, z) || !seen.Add(cell) || !work.World.Loaded(x, z))
+                continue;
+            var voxel = work.World.Read(x, y, z);
+            if (voxel.Solid == site.Solid(x, y, z))
+                continue;
+            wrong++;
+            Seen(cells, cell, voxel);
+        }
+        return wrong;
+    }
+
     // A stand found bad near a block that changed is tried again, once.
     private static void Retry(Work work, MarkPos cell)
     {

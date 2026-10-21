@@ -738,8 +738,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// Holds its route's head (README "Eidolon", working together, *Routes*) in place of what dispatch would
     /// give it: a stop with nothing left is finished, a planned wait waited (ended at once when the station
     /// after it is ready), and a station claimed when it may set off: at its planned time, or sooner when the
-    /// station is ready for it and the plan has no other set off first there (<see cref="Ready"/>); a station
-    /// whose claim stays taken for <see cref="RouteClaimSeconds"/> is dropped and the routes solved again.
+    /// station is ready for it and the plan has no other set off first there (<see cref="Ready"/>), and either way
+    /// only with its stand out in the live state (one still shut at its time is dropped at once); a station whose
+    /// claim stays taken for <see cref="RouteClaimSeconds"/> is dropped and the routes solved again.
     /// With no stop at all it has none, and asks for routes once (its job's stations may be all others').
     /// </summary>
     private void RefillRoute(EntityLaborEidolon eidolon, MinePlan plan, MineState live, List<MineWorker> workers, double now)
@@ -813,6 +814,17 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             {
                 _routeWait = head;
                 return;
+            }
+            // Its time come, it sets off only for a stand out in the live state: the plan has the stops before it
+            // (often another member's) open it by now, and where the world is behind the plan the stand is still
+            // in rock, or cut off, and the game's pathfinder finds no way to it (it would be taken as bad, and the
+            // plan made again for nothing). Nor does it wait for it: the stops that open it are late by however
+            // long they are, and it would stand idle meanwhile; the stop is dropped and the next taken (or, with
+            // none, today's dispatch), as one whose claim stays taken is.
+            if (!live.Walk.Out(station.Stand))
+            {
+                Repaired(DropStop(id, station.Id, now));
+                continue;
             }
             var fit = MineDispatch.Fit(station with { Cells = cells }, plan.Tunnel, u => board == null || board.Free(id, u, now));
             if (fit != null && !Taken(fit.Stand, workers) && !BlockedBy(eidolon, fit.Stand, now) && (board == null || board.TryClaim(id, fit.Id, MineDispatch.Claim(fit, plan.Tunnel), now)))
@@ -1824,12 +1836,27 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <see cref="BlockedTries"/> times at that stand (by any member, since its job's last strike); then it is
     /// bad all the same. (Unbounded, three
     /// once waited by a stand none could get onto, each taking it, failing and taking it again, for good, and
-    /// logging nothing.)
+    /// logging nothing.) But first the blocks round the stand and round where it stands are read again into the
+    /// live state (<see cref="EidolonMinePlans.Look"/>): a stand the live state had wrong, or one it does not hold
+    /// out, is not bad but not open (yet): the station is let go and the plan kept. On whole blocks the walk graph
+    /// and the pathfinder agree (tests/Eidolon/MineWalkPathTests.cs), so that is all of them there.
     /// </summary>
     private void BadStand(EntityLaborEidolon eidolon, MineStation head, double now)
     {
         _nav?.Stop();
         var stand = head.Stand;
+        int wrong = Plans?.Look(Cells, [stand, WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z)]) ?? 0;
+        if (wrong > 0 || Cells.Live is { } live && !live.Walk.Out(stand))
+        {
+            Held(eidolon, "its stand is not open", now);
+            eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId}: no way to stand ({stand.X},{stand.Y},{stand.Z}) (station {head.Id}), "
+                + (wrong > 0 ? $"{wrong} blocks round it not as the live state had them" : "not out in the live state") + ": let go, not bad");
+            DropQueue(eidolon);
+            if (Routed(eidolon))
+                Repaired(DropStop(eidolon.EntityId, head.Id, now) ?? "shut");
+            _phase = Phase.Seek;
+            return;
+        }
         var by = NearStand(eidolon, stand);
         if (by.Count > 0)
         {
@@ -1848,6 +1875,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         Held(eidolon, "no way to its stand", now);
         Cells.BadStands.Add(head.Stand);
+        Cells.BadStandsFound++;
         eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}"
             + (by.Count > 0 ? $", with another by it once more than {BlockedTries} times" : "") + ": bad");
         DropHead(eidolon);

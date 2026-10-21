@@ -3540,7 +3540,11 @@ window by the server's events; anything else (water, falling sand, a column that
 area's columns every 10 seconds, each taken in locally. Only what can change the plan has it made again: a
 block placed, a new target, a block that holds its column up, a block near the area going, a stand the
 game's pathfinder finds no way to (a *bad stand*, partial blocks the plan took as whole:
-`MineJobCells.BadStands`, tried again once when a block near it changes); a target turned into one it
+`MineJobCells.BadStands`, tried again once when a block near it changes; on whole blocks the walk graph joins
+two places exactly where the pathfinder steps from one to the other, `MineWalkPathTests`, so first the blocks
+round the stand and round where it stands are read again into the live state, `EidolonMinePlans.Look`, and a
+stand the live state had wrong there, a block fallen or caved in that only the sweep would have seen, or one it
+does not hold out, is no bad stand but one not open: the station is let go and the plan kept); a target turned into one it
 leaves, a liquid over dug ground, a thin cover (snow, a carpet: under half a block counts as air) or a
 change more than 5 columns from the area does not. It is made again at most every 2 seconds, from a copy
 of the live state, the old plan serving meanwhile and the new one swapped in whole; a member walking to a
@@ -3682,7 +3686,10 @@ dispatched as below until its first solve lands. A member follows its route (wit
 looked at, none another holds next, one later in another's route taken off it, while the routes are solved again;
 the next solve keeps it as its head): it claims its head when it may
 set off, at its planned time or sooner when the station is ready and the plan has no other set off first
-there, waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
+there, and either way only once its stand is out in the live state (the plan has the stops before it, often
+another member's, open it by its time; set off for while still in rock, the game found no way to it and took
+it for a bad stand, 1 to 6 a run on the hillside, each one the plan made again; one still shut at its time is
+dropped at once, not waited for, as the stops opening it are late by however long they are), waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
 another walking up to it, crosses another's claim after 4 seconds (but see *Claims*: one with another station clear takes that), passes
 another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
