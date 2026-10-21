@@ -1,0 +1,23 @@
+// The slitting mill (SlittingMill/, README "Slitting mill"). The server disables it with SlittingMill off.
+[
+	{
+		// The frame: oak sills and pedestals (two logs), the feed table's bed and the nail box (two
+		// planks), the two housings with their chocks and screws (a plate each), the table's guides and
+		// the entry's standard (two rods, in one slot), bolted up with 12 nails and strips, with a hammer:
+		// iron, meteoric iron or steel, as the other frames. The frame carries no gearing: every working
+		// part goes in afterwards, fitted by hand at the frame, stage by stage
+		// (config/builds/slittingmill.json).
+		ingredientPattern: "MHM,LNL,PRP",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"M": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 12 },
+			"L": { type: "block", code: "game:log-placed-oak-ud" },
+			"P": { type: "item", code: "game:plank-oak" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:slittingmill-frame-north" }
+	}
+]

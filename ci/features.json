@@ -196,6 +196,13 @@
       "switches": ["CylinderBorer", "CylinderBorerSettings"],
       "classes": []
     },
+    "SlittingMill": {
+      "code": ["SlittingMill/"],
+      "codes": ["slittingmill", "slittercutter"],
+      "export": ["Recipes/SlittingMillExport.cs", "RecipeSection.SlittingMill.cs"],
+      "switches": ["SlittingMill", "SlittingMillSettings"],
+      "classes": []
+    },
     "PressBrake": {
       "code": ["PressBrake/"],
       "codes": ["pressbrake", "angle"],

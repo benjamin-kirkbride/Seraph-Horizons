@@ -17,14 +17,43 @@ knife, is left whole: the **strips**. The operator's **push bar**, which has fol
 the feed table, pushes them out past the knife (its fingers run in the rods' own channels between the
 collars), and they fall into the nail box with the nails.
 
-This pass is the model only: its generator, its validation and its rig (`tools/`), with the site's viewer
-entry. There is no block, recipe, gameplay or export record yet, and no build stages; the `requires` ids
-below are provisional (see "Open for the owner").
+The model (its generator, its validation and its rig, `tools/`, with the site's viewer entry) is described
+here; the gameplay (the block, the build, the slitting, the oil, the knife's wear, the settings, the export
+record and the tests) is in the mod's README, "Slitting mill", its rules in `Core/` and the game side in
+`Game/`. "Build order" below gives the stages and why their items are what they are.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. The generic half of the generator
 is `Machines/tools/machinegen/`, unchanged by this machine (no new driver: every motion is a `rotate`, a
 `slide` or a `gauge`, the work's growth a stretching gauge).
+
+## Build order
+
+Five stages after the frame, in this order only (`assets/seraphhorizons/config/builds/slittingmill.json`, the
+owner's order), each the rig's `requires` of the same name. Every material is the game's, as the other machines
+take Jonas parts, gears, rods, plates and metal parts, except the cutters, the one part the game has nothing for.
+
+| # | Stage | Takes | Why |
+|---|---|---|---|
+| 1 | `rolls`, slitter rolls | Ten `seraphhorizons:slittercutter-steel`, two rods (iron, meteoric iron or steel) | The model's five cutters an arbor, on two arbors. The cutter is forged on the anvil, two from a steel ingot. |
+| 2 | `pinions`, pinions and great wheel | A Jonas gear frame (`jonasframes-gears01` or `-gears02`), one `metal-parts` (a block) | A matched pair and the large wheel from salvaged gearing, as the gear cutter's dividing head takes; the parts for the hub and the keys |
+| 3 | `drive` | A Jonas gearbox (`jonasframes-gearbox01` or `-gearbox02`), two rods | The rectifier and the cone clutch in one gearbox, as the draw bench's clutch is; the rectified shaft and the crankshaft |
+| 4 | `shear` (and `knife`) | A heavy bracket and a plate (iron, meteoric iron or steel), then the knife | The crank, yoke and crosshead; the bed knife; the knife the wearing part |
+| 5 | `pusher`, push bar | Two rods, an oak plank | The bar's iron head and fingers, its oak handle |
+
+**The knife is the game's cleaver** (`cleaver-iron`, `-meteoriciron`, `-steel`): a heavy, square, single-edged
+blade, the game's nearest thing to a guillotine's knife, and a tool with durability of its own (800, 950, 2000).
+The shared base's durable wearing part carries the durability of the item fitted (`BEMachine.DurabilityOf`), so a
+cleaver goes in with what it has left, Ctrl takes it back out with what is left of it (a fresh durability bar in
+the inventory, as the draw bench's die), and a spent one breaks: no item of the pack's and no durability patched
+onto a vanilla item. A plate (the other candidate) has no durability: the wear would be lost on taking it back, or
+the game's plates would all need a durability. Its uses are each cleaver's own durability
+(`BESlittingMill.BuildSpec`, `WearingPart.UsesOf`), its wear a plate by the plate's metal
+(`SlittingMillSettings.Metals[metal].KnifeWear`). The bronze, gold and silver cleavers are not taken.
+
+The great wheel was the drive's in the model's first passes and the knife the shear's; the stages took the wheel
+to the pinions (`requires` `pinions`) and gave the knife a `requires` of its own (`knife`), so the crank and the bed
+knife stay while the knife is out. Only the rig's `requires` changed when the model was regenerated.
 
 ## The period machine and this one
 
@@ -72,9 +101,10 @@ standard, the feed table and its guides, the nail box, and the entry shaft):
 | `requires` | Draws |
 |---|---|
 | `rolls` | The slitters: both arbors, each with five steel cutters and five spacers, their necks and collars |
-| `pinions` | The two equal spur gears (16 teeth, module 0.375) on the arbors' west necks |
-| `drive` | The rectifier (the entry's two pinions, the two loose wheels with their catches, the idler), the rectified shaft and its gear, the clutch gear with the cup, the cone and its fork, the crankshaft with its mutilated gear, the great wheel |
-| `shear` | The crank disc and its pin, the knife (blade, crosshead, ram and yoke) and the bed knife |
+| `pinions` | The two equal spur gears (16 teeth, module 0.375) on the arbors' west necks, and the great wheel |
+| `drive` | The rectifier (the entry's two pinions, the two loose wheels with their catches, the idler), the rectified shaft and its gear, the clutch gear with the cup, the cone and its fork, the crankshaft with its mutilated gear |
+| `shear` | The crank disc and its pin and the bed knife |
+| `knife` | The knife (blade, crosshead, ram and yoke): the shear's wearing part, drawn while one is in |
 | `pusher` | The push bar: its head between the table's guides, eight fingers (one a rod, at its layer), a handle back to the table's north end |
 | `plate` | The work: the plate, its rods (the strips) and its nails, all wearing the texture code `metal` |
 
@@ -180,9 +210,9 @@ Every moving part:
 | Fork, shifter rod and knob (`clutchfork`) [drive] | The operator: in as a plate goes on, out after the hand-out | The cone | `gauge` slide x −0.5 (`present`) |
 | Crankshaft and mutilated gear (`crankshaft`) [drive] | The cone | The great wheel (in its sector); the crank | `rotate` x 2π (W) |
 | Crank disc and pin (`crank`) [shear] | Keyed on the crankshaft | The yoke | `rotate` x 2π (W) |
-| Knife: blade, crosshead, ram, yoke (`knife`) [shear] | The crank pin in the yoke's slot | The nails (the cut) | `slide` y, amplitude 2, ratio 2π, phase −π/2 (W) |
+| Knife: blade, crosshead, ram, yoke (`knife`) [knife] | The crank pin in the yoke's slot | The nails (the cut) | `slide` y, amplitude 2, ratio 2π, phase −π/2 (W) |
 | Bed knife (`bedknife`) [shear] | Fixed | — | none |
-| Great wheel (`wheel`) [drive] | The mutilated gear | The top arbor (keyed) | the step: `rotate` x −π/5 a stroke (W), `gauge` rotate +π/5 W (scaled by p), and a `gauge` rotate −π/5 in each step's window |
+| Great wheel (`wheel`) [pinions] | The mutilated gear | The top arbor (keyed) | the step: `rotate` x −π/5 a stroke (W), `gauge` rotate +π/5 W (scaled by p), and a `gauge` rotate −π/5 in each step's window |
 | Top arbor (`rolltop`) [rolls], top pinion (`piniontop`) [pinions] | The great wheel | The bottom pinion; the plate | as the great wheel, about the top arbor |
 | Bottom pinion (`pinionbottom`) [pinions], bottom arbor (`rollbottom`) [rolls] | The top pinion | The plate | the same, the other way, about the bottom arbor |
 | Plate (`plate`) [plate] | The slitters | — | stretching `gauge` z about the nip, a quarter of it in each of steps 0..3 |
@@ -301,13 +331,13 @@ The cylinder borer's schema (`../CylinderBorer/README.md`), with nothing added t
   before the clutch. Gameplay advances W with the shaft at its own pace and starts each plate at 0.
 
 **Keys.** `cells`, `powerCell`, `powerFace`, `infeedSide`, `outputSide`, `output`, `plate`, `nip`, `knife`,
-`work`, `slit` and `parts`. `requires` values: `rolls`, `pinions`, `drive`, `shear`, `pusher`, `plate`, or null.
+`work`, `slit` and `parts`. `requires` values: `rolls`, `pinions`, `drive`, `shear`, `knife`, `pusher`, `plate`, or null.
 
 **In the viewer** (`site/models.json`): the axle's slider (Play turns it and moves W with it, a stroke a turn);
 the knife strokes' slider stops at 5; the size select names "None" and "Plate" (the viewer's size select offers
 one class for a work quantity of one class: `topClass` in `site/src/lib/model-scenario.ts`); the plate's metal is
-a texture select over eleven metals' ingot textures; the work shows only with a plate (`requiresClass`); the
-presence slider throws the clutch.
+a texture select over the twelve metals' ingot textures it slits; the work shows only with a plate (`requiresClass`); the
+presence slider throws the clutch; a build select sets the stages, the knife taken out among them.
 
 ### Editing by hand
 
@@ -393,10 +423,10 @@ every rod, from the nip to the cut, stays there unless something pushes it out o
    two classes (say soft and hard metals) would avoid that change but double the work's parts.
 8. **The plate** is drawn 8 × 8, as the squaring shear lays it; the game's plate item is 9 × 9.
 9. **No flatting or pinch rolls**; the slitters take the plate straight from the table.
-10. **The `requires` ids** (`rolls`, `pinions`, `drive`, `shear`, `pusher`) are provisional; the stages and their items are
-   still to be decided with the owner.
-11. **Renderer rule (later):** the work should be drawn only while a plate is on, not while p eases out after the
-    hand-out (as the squaring shear does), or the plate would grow back on the table as p falls.
+10. **The `requires` ids** are the build's stages ("Build order"), decided with the owner: `rolls`, `pinions` (with the
+   great wheel), `drive`, `shear`, `knife` (the wearing part) and `pusher`.
+11. **Renderer rule:** the work is drawn only while a plate is on, not while p eases out after the hand-out, so the
+    plate never grows back on the table as p falls (`SlittingMillClock.ShowsWork`, as the cylinder borer's casting).
 
 ## Known weak spots, and what is not checked
 

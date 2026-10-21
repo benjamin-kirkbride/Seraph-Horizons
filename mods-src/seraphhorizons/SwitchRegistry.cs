@@ -49,6 +49,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.ParkesKettle), ParkesKettle.ParkesKettleSystem.RecipeAssets, ParkesKettle.ParkesKettleSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.AcidParting), AcidParting.AcidPartingSystem.RecipeAssets, AcidParting.AcidPartingSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.CylinderBorer), CylinderBorer.CylinderBorerSystem.RecipeAssets, CylinderBorer.CylinderBorerSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.SlittingMill), SlittingMill.SlittingMillSystem.RecipeAssets, SlittingMill.SlittingMillSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.PressBrake), PressBrake.PressBrakeSystem.RecipeAssets, PressBrake.PressBrakeSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.AmalgamPan), AmalgamPan.AmalgamPanSystem.RecipeAssets, AmalgamPan.AmalgamPanSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.SquaringShear), SquaringShear.SquaringShearSystem.RecipeAssets, SquaringShear.SquaringShearSystem.TypeAssets);
