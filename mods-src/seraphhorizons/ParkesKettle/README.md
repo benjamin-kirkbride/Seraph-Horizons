@@ -201,6 +201,9 @@ quarters to 27.28 and a charge to 28.82, 2.2 under the rim. Each level is a surf
 the wall. The zinc floats on the full bath beyond the paddles' reach, half sunk; the crust (0.7 thick, with lumps)
 covers it.
 
+**Particles.** Lit, the fired machines' flames at `fireDoor` and the row's chimney smoke. While the stirrer works a
+charge, each half turn of the paddles lifts a shimmer of zinc fume off the `mouth`.
+
 ### Regenerating
 
 ```sh
