@@ -9,6 +9,7 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
 namespace SeraphHorizons.Mod.Arrastra;
@@ -88,6 +89,35 @@ public class BEArrastra : BEOreMachine
         "paste" => Built && IsGround,
         _ => base.ShowsPart(requires),
     };
+
+    private const float GritInterval = 0.35f;
+    private readonly ParticleTimer _grit = new(GritInterval);
+
+    /// <summary>The default clock; while it grinds a wet charge, wet grit (the charge's colour) and flecks of water
+    /// thrown up at one of the drag stones (the rig's <c>stone1</c>..<c>stone4</c>, carried round by the stones'
+    /// part) now and then.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        if (!far && Running && Rig is { } rig && _grit.Due(dt))
+            SpawnGrit(rig, input);
+        return input;
+    }
+
+    private void SpawnGrit(OreMachineRig rig, RigInput input)
+    {
+        int stones = rig.Parts.IndexOf("stones");
+        if (stones < 0 || rig.Point($"stone{1 + Api.World.Rand.Next(4)}") is not { } stone)
+            return;
+        var at = WorldPoint(Mat4.Apply(rig.Parts.Matrices(input)[stones], stone));
+        var round = MachineParticles.Around(0.12, 0.02, 0.12);
+        (MachineParticles.SlurryDrops(MachineParticles.MaterialColour(InfeedSlot.Itemstack, 220, MachineParticles.Slurry, Api as ICoreClientAPI)) with
+        {
+            MinVelocity = new Vec3f(-0.2f, 0.15f, -0.2f), MaxVelocity = new Vec3f(0.2f, 0.4f, 0.2f), Life = 0.5f,
+        }).Spawn(Api.World, at, round);
+        if (Api.World.Rand.NextDouble() < 0.5)
+            (MachineParticles.Splash(MachineParticles.Rgb(150, 135, 120, 100)) with { Count = 1, MaxCount = 2, Size = 0.15f }).Spawn(Api.World, at, round);
+    }
 
     protected override bool Work(double radians)
     {

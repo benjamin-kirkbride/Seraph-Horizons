@@ -53,6 +53,23 @@ public class JawBreakerRigTests
     }
 
     [Fact]
+    public void The_bite_and_the_particle_points_are_the_rigs()
+    {
+        using var doc = JsonDocument.Parse(File("jawbreaker-rig.json"));
+        var breaker = doc.RootElement.GetProperty("breaker");
+        Assert.Equal(1.0, breaker.GetProperty("turnsPerBite").GetDouble());
+        Assert.Equal(Mod.JawBreaker.Core.JawBreaking.ClosesAt, breaker.GetProperty("closesAt").GetDouble());
+        var rig = OreMachineRig.Parse(File("jawbreaker-rig.json"));
+        Assert.NotNull(rig.Point("jaws"));
+        Assert.NotNull(rig.Point("discharge"));
+        // once a turn, either way round, and not again until the next
+        Assert.True(Mod.JawBreaker.Core.JawBreaking.Bit(-0.1, 0.1));
+        Assert.True(Mod.JawBreaker.Core.JawBreaking.Bit(0.1, -0.1));
+        Assert.False(Mod.JawBreaker.Core.JawBreaking.Bit(0.1, 6.2));
+        Assert.True(Mod.JawBreaker.Core.JawBreaking.Bit(6.2, 6.4));
+    }
+
+    [Fact]
     public void The_shipped_rig_matches_the_python_reference_poses()
     {
         var parts = Shipped();

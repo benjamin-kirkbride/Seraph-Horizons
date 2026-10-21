@@ -77,8 +77,8 @@ public sealed class RosserRenderer : IRenderer
     private float _presence;
     private int _shownClass;
     private double _shownTravel;
-    private float _chipTimer;
-    private float _dripTimer;
+    private readonly ParticleTimer _chips = new(ChipInterval);
+    private readonly ParticleTimer _drips = new(DripInterval);
     private float _scrapeTimer;
     private int _scrape;
 
@@ -300,23 +300,15 @@ public sealed class RosserRenderer : IRenderer
                 _scrapeTimer = ScrapeInterval;
                 PlayScrape();
             }
-            _chipTimer += dt;
-            if (_chipTimer >= ChipInterval)
-            {
-                _chipTimer = 0;
+            if (_chips.Due(dt))
                 SpawnChips();
-            }
         }
         else
             _scrapeTimer = 0;
         if (_be.DripWet && _path.Stations.TryGetValue(RosserRig.DripStation, out float drip) && tail <= drip && drip <= nose)
         {
-            _dripTimer += dt;
-            if (_dripTimer >= DripInterval)
-            {
-                _dripTimer = 0;
+            if (_drips.Due(dt))
                 SpawnDrips(drip);
-            }
         }
     }
 
@@ -345,9 +337,10 @@ public sealed class RosserRenderer : IRenderer
             : new Float3(tips, o.Y + up, o.Z + across);
         var lo = WorldPoint(At(-r, -r));
         var hi = WorldPoint(At(r, r));
-        _capi.World.SpawnParticles(4, ColorUtil.ToRgba(255, 70, 92, 120),
-            new Vec3d(Math.Min(lo.X, hi.X), lo.Y, Math.Min(lo.Z, hi.Z)), new Vec3d(Math.Max(lo.X, hi.X), hi.Y, Math.Max(lo.Z, hi.Z)),
-            new Vec3f(-0.6f, -0.2f, -0.6f), new Vec3f(0.6f, 0.4f, 0.6f), 1.4f, 1f, 0.5f, EnumParticleModel.Cube, null);
+        (MachineParticles.Chips(ColorUtil.ToRgba(255, 120, 92, 70)) with
+        {
+            Count = 4, MinVelocity = new Vec3f(-0.6f, -0.2f, -0.6f), MaxVelocity = new Vec3f(0.6f, 0.4f, 0.6f), Life = 1.4f, Size = 0.5f,
+        }).SpawnBetween(_capi.World, lo, hi);
     }
 
     private void SpawnDrips(float drip)
@@ -359,9 +352,8 @@ public sealed class RosserRenderer : IRenderer
             : new Float3(drip, o.Y + r + 0.15f, o.Z + across);
         var lo = WorldPoint(At(-r * 0.6f));
         var hi = WorldPoint(At(r * 0.6f));
-        _capi.World.SpawnParticles(1, ColorUtil.ToRgba(180, 190, 160, 70),
-            new Vec3d(Math.Min(lo.X, hi.X), lo.Y, Math.Min(lo.Z, hi.Z)), new Vec3d(Math.Max(lo.X, hi.X), hi.Y, Math.Max(lo.Z, hi.Z)),
-            new Vec3f(0, -0.2f, 0), new Vec3f(0, -0.1f, 0), 0.6f, 1f, 0.25f, EnumParticleModel.Quad, null);
+        (MachineParticles.Drip(ColorUtil.ToRgba(180, 70, 160, 190)) with { MinVelocity = new Vec3f(0, -0.2f, 0), MaxVelocity = new Vec3f(0, -0.1f, 0), Size = 0.25f })
+            .SpawnBetween(_capi.World, lo, hi);
     }
 
     // the middle of the machine (native frame): the trunk's path at the ring

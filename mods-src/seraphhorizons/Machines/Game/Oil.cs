@@ -191,23 +191,11 @@ public static class Oil
         return load;
     }
 
-    private static SimpleParticleProperties? _smoke;
+    private static readonly Puff DrySmoke = MachineParticles.Smoke();
 
     /// <summary>A puff of dark smoke at <paramref name="at"/> (client side): a dry machine turning.</summary>
-    public static void Smoke(ICoreClientAPI capi, Vec3d at)
-    {
-        _smoke ??= new SimpleParticleProperties(1, 2, ColorUtil.ToRgba(110, 45, 42, 40), new Vec3d(), new Vec3d(),
-            new Vec3f(-0.08f, 0.15f, -0.08f), new Vec3f(0.08f, 0.35f, 0.08f), 2.5f, -0.01f, 0.35f, 0.8f, EnumParticleModel.Quad)
-        {
-            SizeEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, 1.2f),
-            OpacityEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, -40f),
-            SelfPropelled = true,
-            WindAffected = true,
-        };
-        _smoke.MinPos.Set(at.X - 0.4, at.Y, at.Z - 0.4);
-        _smoke.AddPos.Set(0.8, 0.3, 0.8);
-        capi.World.SpawnParticles(_smoke);
-    }
+    public static void Smoke(ICoreClientAPI capi, Vec3d at) =>
+        DrySmoke.SpawnBetween(capi.World, at.AddCopy(-0.4, 0, -0.4), at.AddCopy(0.4, 0.3, 0.4));
 }
 
 public enum OilKind

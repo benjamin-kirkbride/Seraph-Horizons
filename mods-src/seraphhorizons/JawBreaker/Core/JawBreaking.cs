@@ -47,4 +47,13 @@ public static class JawBreaking
     /// <summary>The stream of the crushed ore it gives for a raw ore's: the same ore, grade, units and
     /// host rock, its state as it came (breaking classifies nothing).</summary>
     public static OreStream Crush(OreStream raw) => raw;
+
+    /// <summary>The axle's angle into a turn (radians) where the swinging jaw comes nearest the fixed one, the bite:
+    /// the rig's <c>breaker.closesAt</c>. It closes once a turn (<c>breaker.turnsPerBite</c>), either way round.</summary>
+    public const double ClosesAt = 0.021009;
+
+    /// <summary>Whether the axle's angle going from <paramref name="before"/> to <paramref name="now"/> (radians,
+    /// either way) passed a bite.</summary>
+    public static bool Bit(double before, double now) =>
+        Math.Floor((now - ClosesAt) / (2 * Math.PI)) != Math.Floor((before - ClosesAt) / (2 * Math.PI));
 }

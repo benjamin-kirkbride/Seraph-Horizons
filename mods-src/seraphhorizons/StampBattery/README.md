@@ -289,12 +289,18 @@ maths. Rotations on θ and ψ, slides on ψ.
   frame, every stage and the copper water line); every column's top cell carries a `lid`, so the top is one deck, where the
   player stands to feed by hand at the infeed's mouth.
 - **`stamps`:** `turnsPerRev` (2, axle turns a camshaft turn as drawn), `dropsPerRev` (2, a stamp), `firingOrder`
-  ([1, 3, 5, 2, 4]) and `lift` (0.25 blocks).
+  ([1, 3, 5, 2, 4]), `lift` (0.25 blocks) and `landsAt` (radians of the camshaft from a stamp's pick-up to its
+  landing on its die as drawn, the drops a fifth of π apart in the firing order, stamp 1's first pick-up at 0).
+- **Points:** `mortar1`..`mortar5` (the mortar's top over each die) and `screen` (the middle of the screen's outer
+  face), where the particles show. While it stamps a rock, each drop (`Stamping.Landed` on ψ, `Core/Stamping.cs`,
+  held to the rig's drawn stamps by `tests/StampBattery/StampDropTests.cs`) throws up water and grit at that stamp's
+  `mortarN` (the stamping sound is at `mortar3`), and pulp trickles steadily out of the `screen`; grit and pulp take
+  the rock's colour.
 - **`buildStages`:** each stage's number, name and what it `adds`, in order, the services last (the amalgamation
   plates' pattern).
 - **The water line's metal:** `pipecopper` or `pipelead`, one of them fitted with the services (the rosser's pattern).
 - **Keys.** `cells`, `powerCell`/`powerFace`, `waterCell`/`waterFace`/`water`, `infeedCell`/`infeedFace`/`infeed`,
-  `outputCell`/`outputFace`/`output`, `stamps`, `buildStages` and `parts`.
+  `outputCell`/`outputFace`/`output`, `mortar1`..`mortar5`, `screen`, `stamps`, `buildStages` and `parts`.
 
 **In the viewer** (`site/models.json`, `stamp-battery`): a **Build stage** select (the scenario's `states`): the frame,
 then 1 the timber, 2 the mortar, 3 the stamps, 4 the camshaft, belt and feed box, and 5 services with the water line in copper (the

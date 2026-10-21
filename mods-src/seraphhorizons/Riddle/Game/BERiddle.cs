@@ -44,7 +44,7 @@ public class BERiddle : BEMachine
     private ItemStack? _oversize;
     private float? _serverShakes;
     private readonly RiddleClock _clock = new();
-    private float _dustTimer;
+    private readonly ParticleTimer _dust = new(DustInterval);
 
     /// <summary>A charge is on the mesh being riddled.</summary>
     public bool Riddling => _job.On && _charge != null;
@@ -380,9 +380,8 @@ public class BERiddle : BEMachine
         bool on = ChargeOn;
         bool held = Held && on;
         _clock.Advance(dt, on, RiddleWork, held, ShakesPerCharge);
-        if (!far && held && _clock.Work < 1 && Rig is { } rig && (_dustTimer += dt) >= DustInterval)
+        if (!far && held && _clock.Work < 1 && Rig is { } rig && _dust.Due(dt))
         {
-            _dustTimer = 0;
             SpawnDust(rig);
         }
         return _clock.Input();
@@ -392,10 +391,10 @@ public class BERiddle : BEMachine
     private void SpawnDust(RiddleRig rig)
     {
         var at = WorldPoint(rig.Charge);
-        int colour = ColorUtil.ToRgba(200, 105, 95, 90);
-        Api.World.SpawnParticles(3, colour,
-            at.AddCopy(-0.25, -0.12, -0.25), at.AddCopy(0.25, -0.1, 0.25),
-            new Vec3f(-0.02f, -0.6f, -0.02f), new Vec3f(0.02f, -0.3f, 0.02f), 0.4f, 1f, 0.15f, EnumParticleModel.Cube, null);
+        (MachineParticles.Dust(MachineParticles.RockDust) with
+        {
+            Count = 3, MinVelocity = new Vec3f(-0.02f, -0.6f, -0.02f), MaxVelocity = new Vec3f(0.02f, -0.3f, 0.02f), Life = 0.4f,
+        }).SpawnBetween(Api.World, at.AddCopy(-0.25, -0.12, -0.25), at.AddCopy(0.25, -0.1, 0.25));
     }
 
     /// <summary>The block's textures with the crushed ore's in place of <c>ore</c> and the host rock's in place of <c>rock</c>.</summary>

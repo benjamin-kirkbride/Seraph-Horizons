@@ -53,7 +53,8 @@ machine's water is used up (no return water, #711).
 3. *Out:* the ground pulp passes the coarse screen (perforated plate) and the fine screen (wire cloth) and
    falls into the **discharge hopper** under them: its floor's wings fall from the end plates (7.2) to the
    middle channel (5.6), which falls south to the output chute's floor (5.0) at its mouth in the south wall;
-   the chute runs level to the face.
+   the chute runs level to the face. While the mill grinds, a little pulp slops out of the chute's mouth
+   (`output.pos`), coloured by the ore going in.
 
 ### Every turning part
 

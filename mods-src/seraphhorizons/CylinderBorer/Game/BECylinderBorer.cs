@@ -49,8 +49,8 @@ public class BECylinderBorer : BEMachine
     private Dictionary<Int3, Cuboidf[]>? _collisionLoaded;
     private readonly CylinderBorerClock _clock = new();
     private double _lastPsi;
-    private float _chipTimer;
-    private float _dripTimer;
+    private readonly ParticleTimer _chips = new(ChipInterval);
+    private readonly ParticleTimer _drip = new(DripInterval);
 
     public bool BlankOn => _job.On && _blank != null;
     public ItemStack? Blank => _blank;
@@ -402,16 +402,10 @@ public class BECylinderBorer : BEMachine
         _clock.Advance(dt, turned, k, _job.Work, running, TurnsPerBlock(k));
         if (!far && running && Rig is { } rig)
         {
-            if ((_chipTimer += dt) >= ChipInterval)
-            {
-                _chipTimer = 0;
+            if (_chips.Due(dt))
                 SpawnChips(rig, k);
-            }
-            if (OilFill > 0 && (_dripTimer += dt) >= DripInterval)
-            {
-                _dripTimer = 0;
+            if (OilFill > 0 && _drip.Due(dt))
                 SpawnDrip(rig);
-            }
         }
         return _clock.Input(theta, psi, OilFill);
     }
@@ -420,18 +414,15 @@ public class BECylinderBorer : BEMachine
     {
         var at = WorldPoint(rig.Chips);
         // turnings curling out of the bore's mouth: iron dark grey, steel bluish
-        int colour = k == 2 ? ColorUtil.ToRgba(230, 150, 145, 130) : ColorUtil.ToRgba(230, 95, 100, 105);
-        Api.World.SpawnParticles(2, colour,
-            at.AddCopy(-0.08, -0.08, -0.03), at.AddCopy(0.08, 0.08, 0.03),
-            new Vec3f(-0.4f, 0f, -0.4f), new Vec3f(0.4f, 0.4f, 0.4f), 0.8f, 1f, 0.2f, EnumParticleModel.Cube, null);
+        int colour = MachineParticles.MetalColour(k == 2 ? "steel" : "iron", 230, 0);
+        (MachineParticles.Chips(colour) with { MinVelocity = new Vec3f(-0.4f, 0f, -0.4f), MaxVelocity = new Vec3f(0.4f, 0.4f, 0.4f), Size = 0.2f })
+            .Spawn(Api.World, at, MachineParticles.Around(0.08, 0.08, 0.03));
     }
 
     private void SpawnDrip(CylinderBorerRig rig)
     {
         var at = WorldPoint(rig.Drip);
-        Api.World.SpawnParticles(1, ColorUtil.ToRgba(190, 40, 140, 190),
-            at.AddCopy(-0.01, -0.02, -0.01), at.AddCopy(0.01, 0, 0.01),
-            new Vec3f(0, -0.4f, 0), new Vec3f(0, -0.2f, 0), 0.6f, 1f, 0.12f, EnumParticleModel.Quad, null);
+        MachineParticles.Drip(MachineParticles.Oil).SpawnBetween(Api.World, at.AddCopy(-0.01, -0.02, -0.01), at.AddCopy(0.01, 0, 0.01));
     }
 
     // ---- Breaking ----

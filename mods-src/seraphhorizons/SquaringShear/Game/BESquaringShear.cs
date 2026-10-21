@@ -39,7 +39,7 @@ public class BESquaringShear : BEMachine
     private float? _serverStrokesLead;
     private float? _serverStrokesCopper;
     private readonly SquaringShearClock _clock = new();
-    private float _dustTimer;
+    private readonly ParticleTimer _dust = new(DustInterval);
 
     /// <summary>A plate is on the table.</summary>
     public bool PlateOn => _job.On && _plate != null;
@@ -281,9 +281,8 @@ public class BESquaringShear : BEMachine
         int k = PlateOn ? _job.Class : 0;
         bool held = Held && k != 0;
         _clock.Advance(dt, k, _job.Work, held, StrokesPerPlate(k));
-        if (!far && held && Rig is { } rig && rig.IsCutting(_clock.Work) && (_dustTimer += dt) >= DustInterval)
+        if (!far && held && Rig is { } rig && rig.IsCutting(_clock.Work) && _dust.Due(dt))
         {
-            _dustTimer = 0;
             SpawnDust(rig, k);
         }
         return _clock.Input();
@@ -293,10 +292,9 @@ public class BESquaringShear : BEMachine
     {
         var at = WorldPoint(rig.Edge);
         // fine metal off the blades: lead grey, copper red
-        int colour = k == 2 ? ColorUtil.ToRgba(200, 70, 120, 190) : ColorUtil.ToRgba(200, 120, 110, 105);
-        Api.World.SpawnParticles(2, colour,
-            at.AddCopy(-0.35, -0.02, -0.03), at.AddCopy(0.35, 0.02, 0.03),
-            new Vec3f(-0.15f, 0f, -0.15f), new Vec3f(0.15f, 0.25f, 0.15f), 0.6f, 1f, 0.12f, EnumParticleModel.Cube, null);
+        int colour = MachineParticles.MetalColour(k == 2 ? "copper" : "lead", 200, 0);
+        (MachineParticles.Dust(colour) with { MinVelocity = new Vec3f(-0.15f, 0f, -0.15f), MaxVelocity = new Vec3f(0.15f, 0.25f, 0.15f), Size = 0.12f })
+            .Spawn(Api.World, at, MachineParticles.Around(0.35, 0.02, 0.03));
     }
 
     /// <summary>The block's textures with the blades' and gauge's metals in place of <c>blade</c> and <c>gauge</c>.</summary>

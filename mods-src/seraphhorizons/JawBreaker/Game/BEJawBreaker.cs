@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -50,8 +51,47 @@ public class BEJawBreaker : BEOreMachine
 
     protected override void OnWorked(ItemStack fed)
     {
-        var at = WorldPoint(new Float3(0.6f, 1.6f, 0.6f));
+        if (Rig?.Point("jaws") is not { } jaws)
+            return;
+        var at = WorldPoint(jaws);
         Api.World.PlaySoundAt(BiteSound, at.X, at.Y, at.Z, null, true, 16, 0.5f);
+    }
+
+    // ---- The renderer's ----
+
+    private double _lastTheta;
+
+    /// <summary>The default clock; on each bite (<see cref="JawBreaking.Bit"/>) while it breaks a rock, rock dust and
+    /// chips thrown up out of the jaws' mouth and dust falling from the discharge, coloured by the rock.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        bool bit = JawBreaking.Bit(_lastTheta, input.Theta);
+        _lastTheta = input.Theta;
+        if (bit && !far && Running && Rig is { } rig)
+            SpawnBite(rig);
+        return input;
+    }
+
+    private void SpawnBite(OreMachineRig rig)
+    {
+        var rock = InfeedSlot.Itemstack;
+        var capi = Api as ICoreClientAPI;
+        int dust = MachineParticles.MaterialColour(rock, 200, MachineParticles.RockDust, capi);
+        if (rig.Point("jaws") is { } jaws)
+        {
+            var at = WorldPoint(jaws);
+            var across = MachineParticles.Around(new Float3(0.3f, 0.02f, 0.1f), Side);
+            (MachineParticles.Dust(dust) with { Count = 3, MinVelocity = new Vec3f(-0.2f, 0.3f, -0.2f), MaxVelocity = new Vec3f(0.2f, 0.9f, 0.2f) })
+                .Spawn(Api.World, at, across);
+            (MachineParticles.Chips(MachineParticles.MaterialColour(rock, 255, MachineParticles.RockDust, capi)) with
+            {
+                Count = 1, MaxCount = 3, MinVelocity = new Vec3f(-0.6f, 0.6f, -0.6f), MaxVelocity = new Vec3f(0.6f, 1.4f, 0.6f),
+            }).Spawn(Api.World, at, across);
+        }
+        if (rig.Point("discharge") is { } discharge)
+            (MachineParticles.Dust(dust) with { MinVelocity = new Vec3f(-0.05f, -0.5f, -0.05f), MaxVelocity = new Vec3f(0.05f, -0.2f, 0.05f) })
+                .Spawn(Api.World, WorldPoint(discharge), MachineParticles.Around(new Float3(0.25f, 0.02f, 0.04f), Side));
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) =>

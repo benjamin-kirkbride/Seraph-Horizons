@@ -61,7 +61,7 @@ from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
 from machinegen.geometry import IDENT, El, flatten, rotate, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
-                               worst_shift_error)
+                               shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
@@ -651,9 +651,25 @@ def make_rig(parts):
         "powerFace": POWER_FACE,
         "drawCell": list(DRAW_CELL),
         "drawFace": DRAW_FACE,
+        **{key: {"pos": pt(*p), "part": "stones"} for key, p in stone_points().items()},
         "build": build_json(),
         "parts": parts,
     }
+
+
+POINTS = tuple(f"stone{i + 1}" for i in range(4))
+
+
+def stone_points():
+    """Where the particles hang (build frame, voxels, at rest): stone1..stone4, the middle of each drag stone's run
+    at the charge's top, where it drags through the wet charge. They ride the stones part round with the post."""
+    c = (CX, CHARGE_TOP, CZ)
+    r = (STONE_R[0] + STONE_R[1]) / 2
+    out = {}
+    for i in range(4):
+        d = radial_dir("y", math.radians(ARM_ANGLE) + TAU * i / 4)
+        out[f"stone{i + 1}"] = (c[0] + r * d[0], c[1], c[2] + r * d[2])
+    return out
 
 
 # ---------------------------------------------------------------- shipped
@@ -677,6 +693,8 @@ def shipped(els, parts, rig):
     ship["cells"] = [{**c, "pos": shift_cell(c["pos"], ORIGIN_CELL)} for c in rig["cells"]]
     for key in CELL_KEYS:
         ship[key] = shift_cell(rig[key], ORIGIN_CELL)
+    for key in POINTS:
+        ship[key] = {**rig[key], "pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
     return ship_els, ship_parts, ship
 
