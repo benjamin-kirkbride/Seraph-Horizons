@@ -280,6 +280,21 @@ const en = {
   andMore: (n: number) => `and ${n} more`,
   quantity: "Quantity",
   price: (gears: number) => `${gears} rusty gear${gears === 1 ? "" : "s"}`,
+  priceRange: (min: number, max: number) => (min === max ? `${min} rusty gear${min === 1 ? "" : "s"}` : `${min}–${max} rusty gears`),
+  // What limits a trade of one of the pack's own traders (lib/trades.ts).
+  tradeNotes: {
+    standing: (tier: string) => `from standing ${tier.charAt(0).toUpperCase()}${tier.slice(1)}`,
+    region: (key: string) => (["cold", "temperate", "hot"].includes(key) ? `${key} regions only` : `${key} rock regions only`),
+    rotating: "in rotating stock",
+    rare: "rare stock",
+    playerSupplied: "once players have sold enough in the region",
+    catalog: (catalog: string) => (catalog === "schematics" ? "schematic catalog, flat price" : `${catalog} catalog`),
+  },
+  tradeNotesHeading: "Notes",
+  packPricesVary:
+    "The pack's traders price by a roll at each restock, by your standing with them and by regional supply: a range covers all of them. Catalog schematics have one flat price.",
+  keptIngredient: "kept, not consumed",
+  keptMark: "K",
   attr: {
     maxStackSize: "Stack size",
     durability: "Durability",

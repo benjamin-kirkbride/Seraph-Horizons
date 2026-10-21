@@ -53,6 +53,17 @@ public sealed class LeadOfferRow
     [JsonPropertyName("ring")] public int Ring { get; set; }
 }
 
+/// <summary>A schematic of this trader's catalog (Schematics tab, off the shelf, never sold out):
+/// its code, flat price, the tier that unlocks it, and whether this player (or their groups) reach
+/// it (<c>SchematicCatalog</c>).</summary>
+public sealed class SchematicOfferRow
+{
+    [JsonPropertyName("code")] public string Code { get; set; } = "";
+    [JsonPropertyName("price")] public int Price { get; set; }
+    [JsonPropertyName("tier")] public int Tier { get; set; }
+    [JsonPropertyName("unlocked")] public bool Unlocked { get; set; }
+}
+
 /// <summary>A player's standing at one trader, with every tier, for the header, the Standing tab and
 /// the dialogue's "How do you see me these days?".</summary>
 public sealed class StandingSummary
@@ -179,6 +190,9 @@ public sealed class TradeWindowState
     /// their map as precisely or more, or a copy carried. Shown greyed out, "you have this"; the
     /// server refuses the buy.</summary>
     [JsonPropertyName("owned")] public List<int> OwnedMaps { get; set; } = [];
+    /// <summary>This trader's schematic catalog for this player, lowest tier first (empty: no
+    /// Schematics tab).</summary>
+    [JsonPropertyName("schematics")] public List<SchematicOfferRow> Schematics { get; set; } = [];
 
     private static readonly JsonSerializerOptions Options = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
@@ -208,6 +222,9 @@ public enum TradeAction
     /// <summary>The camp lead to cell <see cref="TradeRequest.Code"/> (<c>x,z</c>) at
     /// <see cref="TradeRequest.Price"/>.</summary>
     BuyLead,
+    /// <summary>The schematic <see cref="TradeRequest.Code"/> from the trader's catalog at
+    /// <see cref="TradeRequest.Price"/>.</summary>
+    BuySchematic,
 }
 
 public sealed class TradeRequest
@@ -216,7 +233,7 @@ public sealed class TradeRequest
     [JsonPropertyName("slot")] public int Slot { get; set; }
     [JsonPropertyName("id")] public int Id { get; set; }
     /// <summary>Buy: the item the player saw in the slot (its full code), or null not to check; BuyLead:
-    /// the camp's cell.</summary>
+    /// the camp's cell; BuySchematic: the schematic.</summary>
     [JsonPropertyName("code")] public string? Code { get; set; }
     /// <summary>Buy: the price the player saw, or null not to check.</summary>
     [JsonPropertyName("price")] public int? Price { get; set; }
