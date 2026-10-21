@@ -3696,7 +3696,9 @@ band left under it, any clear of the stair and of the columns others hold: two i
 neither could step away from stood touching for 400 seconds), the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
 out keeps its box over its foot until near the top: stopped and begun again every 0.6 seconds, two walking
 home out of a spiral pit stood so for good, #971), and two still touching after 10 seconds change over, the
-one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
+one that waited stepping away; still touching after 30 seconds they stop parting until they come apart, each going on
+with its order (one walking home into a member already home, which never steps away, found nowhere to step to and tried
+again for ever, its order never ending and nothing told) (`Core/EidolonParting.cs`). It lets its claims go while it waits, drops a stop whose claim stays taken 2
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold

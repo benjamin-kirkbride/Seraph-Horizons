@@ -22,6 +22,17 @@ public static class EidolonParting
     /// on it, the other tries.</summary>
     public const double SwapSeconds = 10;
 
+    /// <summary>How long two may stay touching, unparted, before they stop parting until they come apart: three
+    /// changes over in which neither found a way apart (or one with no mining order of the crew's, which never steps
+    /// away, stands by it). Each then goes on with its order as if they did not touch (its walk and its tries, its
+    /// idle and stall clocks): the one walking home into a member already home stepped away, found nowhere, and
+    /// tried again every 0.6 s for ever, its order never ending and nothing told.</summary>
+    public const double GiveUpSeconds = 3 * SwapSeconds;
+
+    /// <summary>Whether two that have touched unparted for <paramref name="touching"/> seconds have stopped
+    /// parting (<see cref="GiveUpSeconds"/>).</summary>
+    public static bool GivesUp(double touching) => touching >= GiveUpSeconds;
+
     /// <summary>Whether it steps away now (else it waits for the other): <paramref name="givesWay"/> by the
     /// rule of who gives way, turned round for each whole <see cref="SwapSeconds"/> the two have touched
     /// unparted (<paramref name="touching"/>).</summary>

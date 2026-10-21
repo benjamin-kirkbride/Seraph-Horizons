@@ -1055,6 +1055,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 waiting.MakeRoom(other, now, (x, z) => FromWay(x, z) >= Clear);
     }
 
+    // whether it gave up parting from the ones it touches now (logged once)
+    private bool _partingGivenUp;
+
     /// <summary>
     /// A crew by routes (README "Eidolon", working together, *Routes*): two whose boxes have been in each
     /// other's for <see cref="EidolonParting.TouchSeconds"/> part, rather than stand so (the game pushing them
@@ -1064,7 +1067,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// it. Its step away is left to go on while their boxes still touch (<see cref="EidolonParting.StepSeconds"/>
     /// at most: a climb keeps its box over its foot until near the top, and stopped and begun again at every
     /// look it never got there, #971), and two still touching after <see cref="EidolonParting.SwapSeconds"/>
-    /// change over, the one that waited stepping away. Never while it strikes. True when it acted this tick.
+    /// change over, the one that waited stepping away; still touching after <see cref="EidolonParting.GiveUpSeconds"/>,
+    /// they stop parting until they come apart and each goes on with its order. Never while it strikes. True when it
+    /// acted this tick.
     /// </summary>
     private bool Untangle(EntityLaborEidolon eidolon, double now)
     {
@@ -1073,6 +1078,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             _touchSince = null;
             _tangledSince = null;
             _partingSince = null;
+            _partingGivenUp = false;
             return false;
         }
         long id = eidolon.EntityId;
@@ -1084,9 +1090,20 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             _touchSince = null;
             _tangledSince = null;
             _partingSince = null;
+            _partingGivenUp = false;
             return false;
         }
         _tangledSince ??= now;
+        // touching unparted too long (neither finds a way apart, or the other never steps away): parting is given
+        // up until they come apart, and its order goes on (EidolonParting.GiveUpSeconds)
+        if (EidolonParting.GivesUp(now - _tangledSince.Value))
+        {
+            if (!_partingGivenUp)
+                eidolon.World.Logger.Debug($"[eidolon-mine] {id} on {EidolonMinePlans.Describe(area)}: touching "
+                    + $"{string.Join(", ", touching.Select(t => t.EntityId))} unparted for {EidolonParting.GiveUpSeconds:0} s: it stops parting ({DebugState})");
+            _partingGivenUp = true;
+            return false;
+        }
         // stepping away already: the step is left to part them, not stopped and begun again
         if (EidolonParting.KeepsStepping(_partingSince, _nav?.Active == true, now))
             return true;
