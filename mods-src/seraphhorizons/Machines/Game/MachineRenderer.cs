@@ -21,7 +21,7 @@ namespace SeraphHorizons.Mod.Machines;
 /// <para>The rig is posed every frame from <see cref="BEMachine.FrameInput"/>, asked once a frame in the
 /// opaque pass: by default the shaft's θ and ψ and the machine's depth; a machine with a clock of its own
 /// (the work's W, a hand lever) gives its own. The parts are lit from the cell above the footprint's middle
-/// (<see cref="MachineRigs.LightCell"/>), outside the model.</para>
+/// (<see cref="MachineRigs.LightCell"/>), outside the model, and drawn with <see cref="MachineShading.Prepare"/>.</para>
 /// </summary>
 public class MachineRenderer : IRenderer
 {
@@ -98,8 +98,9 @@ public class MachineRenderer : IRenderer
         IStandardShaderProgram? prog = null;
         if (stage == EnumRenderStage.Opaque)
         {
-            var light = _be.CellPos(_lightCell);
-            prog = rapi.PreparedStandardShader(light.X, light.Y, light.Z);
+            // .sh machinelight cell off: the cell above the controller, as the ore machines' renderer once lit them
+            var light = MachineShading.Cell ? _be.CellPos(_lightCell) : _be.Pos.UpCopy();
+            prog = MachineShading.Prepare(_capi, light);
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
