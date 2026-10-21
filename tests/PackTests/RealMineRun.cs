@@ -86,9 +86,6 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
         var toMine = cells.Where(c => !blocks.GetBlock(c).IsLiquid() && blocks.GetBlock(c).Id != 0).ToList();
         var codes = toMine.ToDictionary(c => c, c => blocks.GetBlock(c).Code.ToShortString());
         var solid = toMine.ToDictionary(c => c, c => GameMineWorld.Solid(blocks.GetBlock(c).GetCollisionBoxes(blocks, c)));
-        // the game's own falls: rock that caves in where it hangs free (UnstableRock), sand and gravel (UnstableFalling)
-        var unstable = toMine.ToDictionary(c => c, c => blocks.GetBlock(c).BlockBehaviors.Any(b => b.GetType().Name.Contains("Unstable")));
-        int falling = toMine.Count(c => blocks.GetBlock(c).HasBehavior<Vintagestory.GameContent.BlockBehaviorUnstableFalling>());
         var rules = cells.GroupBy(c => reader.Read(c.X, c.Y, c.Z).Rule).ToDictionary(g => g.Key, g => g.Count());
         log($"{where}: {toMine.Count} blocks; rules {string.Join(", ", rules.Select(r => $"{r.Key} {r.Value}"))}");
 
@@ -266,20 +263,16 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
         foreach (var o in orders)
             if (o.ToldStalled is { } stalled)
                 faults.Add($"told stalled: {stalled}");
-        // The shares are the blocks gone but what the game took by itself: a plant or vine whose footing a strike broke
-        // drops (none solid), and rock left hanging caves in (the game's unstable rock) as sand and gravel fall. What
-        // went with no strike seen holding it is those, and the few a strike broke as its group was let go that tick.
-        // The other way, sand or gravel that fell into a dug cell is mined again there: the shares may be over the
-        // blocks gone by at most the area's sand and gravel.
+        // The shares are the blocks gone but what the game took by itself, which the job counts (MineJobCells.Gone: a
+        // plant or vine whose footing a strike broke, rock left hanging that caved in, sand and gravel that fell); and
+        // sand or gravel that fell into a dug cell is mined again there. So the two are at most that count apart.
         var gone = toMine.Where(c => blocks.GetBlock(c).Id == 0).ToList();
         var others = gone.Except(watch.Broke.Values.SelectMany(b => b)).ToList();
-        int loose = others.Count(c => !solid[c] || unstable[c]);
-        if (others.Count > 0)
-            log($"{gone.Count} gone, {others.Count} with no strike seen ({loose} not solid or falling by the game's rules): "
-                + string.Join(" ", others.Take(20).Select(c => $"{c} ({codes[c]})")));
-        if (total - gone.Count > falling || gone.Count - total > loose)
-            faults.Add($"{total} mined by the shares, {gone.Count} of the area's blocks gone, {loose} of those plants, vines or falling ground "
-                + $"gone with no strike seen, {falling} sand or gravel to fall");
+        int byGame = job!.Shared.Gone;
+        log($"{gone.Count} gone, {total} mined, {byGame} gone by the game's own rules (the job's count); {others.Count} with no strike seen: "
+            + string.Join(" ", others.Take(20).Select(c => $"{c} ({codes[c]}{(solid[c] ? "" : ", not solid")})")));
+        if (Math.Abs(gone.Count - total) > byGame)
+            faults.Add($"{total} mined by the shares, {gone.Count} of the area's blocks gone: more apart than the {byGame} the job counts gone by the game");
 
         if (minutes == null)
         {
