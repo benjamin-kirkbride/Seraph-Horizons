@@ -1063,7 +1063,10 @@ the trade window's own **Schematics** tab, never sold out and never restocked.
 `Core/SchematicCatalog.cs` resolves a catalog: sales × trader type × switches × tier → rows
 `CatalogRow(Code, Price, Tier, Unlocked)`, lowest tier first, then cheapest. A machine schematic
 (`seraphhorizons:schematic-*`) is in it only with `MachineSchematics` on and its gate's `switch`
-(`BuckingSawmill`, `Rosser`, `Eidolon`) on; this replaced `TradingSystem.Exclude` for schematics
+(every one of the pack's own machines names its own: `BuckingSawmill`, `Rosser`, `Eidolon`, the ore
+machines', `Handcar`, `CylinderBorer`, `DrawBench`, `GearCutter`, `StainlessSteel` for the crucible
+furnace) on; one switch per gate, so the ore machines' schematics stay for sale with only
+`OreProcessing` off. This replaced `TradingSystem.Exclude` for schematics
 (it still takes the eidolon's pump head off the curio dealer's list). `SchematicTable.Problems`
 checks a switch is one of `SeraphHorizonsConfig`'s bools (the server passes their names; the unit
 test reads them from the config class's source).
@@ -1089,6 +1092,17 @@ test reads them from the config class's source).
 - **Consolidated** (2026-10-20): the centred spur gear's schematic folded into the transmission's
   (its outputs are the transmission gate's now), and the hand crank's went (its recipe takes none);
   both item states, their names and texts are deleted, not kept as legacy items.
+- **Every machine** (2026-10-20, 42 gates): the pack's own powered and fired machines and the
+  handcar, each at its frame or first stage, and other mods' machines: ppex's steam (`steampower`:
+  Cornish boiler and Watt engine; `highpressuresteam`: Lancashire boiler and Cornish engine; only the
+  recipes left live, their `ppex:gear-*` twins are switched off by `gearconsumers-ppex.json`), smex's
+  `blastfurnace` (door, twin-tub blower frame, Cowper stove intake) and `bessemer` (converter
+  control), Yang's `steamengine` (primitive, simple) and `locomotive` (standard, advanced, the
+  upgrade recipe too), the temporal stabilizer, the tier-one sprinkler (the higher tiers are made
+  from it; the one-slot up and down conversions are skipped), the spinning wheel's and fly-shuttle
+  loom's final assemblies, and Alchemy's potion cauldron. Not gated: the hand ore tools, the
+  squaring shear, press brake and mandrel station, the pickling tub and the slitting mill. The item
+  texts no longer say who sells a schematic: the handbook's generated "Sold by" line does.
 
 The core was cut at 16 slots with the gated entries lowest tier first; slot pressure had decided
 the sellers (the wooden machines at the carpenter, the metal gear work at the smith, five

@@ -63,7 +63,70 @@
 			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidolongantry-*" },
 			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidolontorso" },
 			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidoloncommander" }
-		] }
+		] },
+		// The pack's own machines (#469): each gated at the grid recipe that makes its frame or first
+		// stage, and for sale only with its switch on.
+		{ "machine": "jawbreaker", "switch": "JawBreaker", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:jawbreaker-*" } ] },
+		{ "machine": "ballmill", "switch": "BallMill", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:ballmill-*" } ] },
+		{ "machine": "stampbattery", "switch": "StampBattery", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:stampbattery-*" } ] },
+		{ "machine": "arrastra", "switch": "Arrastra", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:arrastra-*" } ] },
+		{ "machine": "sluice", "switch": "Sluice", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:sluice-*" } ] },
+		{ "machine": "jig", "switch": "Jig", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:jig-*" } ] },
+		{ "machine": "shakingtable", "switch": "ShakingTable", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:shakingtable-*" } ] },
+		{ "machine": "vanner", "switch": "Vanner", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:vanner-*" } ] },
+		{ "machine": "cylinderborer", "switch": "CylinderBorer", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cylinderborer-frame-*" } ] },
+		{ "machine": "handcar", "switch": "Handcar", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:handcar" } ] },
+		{ "machine": "amalgamationplates", "switch": "AmalgamationPlates", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:amalgamationplates-*" } ] },
+		{ "machine": "reverberatory", "switch": "ReverberatoryRoaster", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:reverberatory-*" } ] },
+		{ "machine": "parkeskettle", "switch": "ParkesKettle", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:parkeskettle-*" } ] },
+		{ "machine": "stallroaster", "switch": "StallRoaster", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:stallroaster-*" } ] },
+		{ "machine": "liquationfurnace", "switch": "LiquationFurnace", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:liquationfurnace-*" } ] },
+		{ "machine": "cupellationfurnace", "switch": "CupellationFurnace", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cupellationfurnace-*" } ] },
+		{ "machine": "acidparting", "switch": "AcidParting", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:acidparting-*" } ] },
+		{ "machine": "cruciblefurnace", "switch": "StainlessSteel", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:cruciblefurnace-frame-*" } ] },
+		{ "machine": "drawbench", "switch": "DrawBench", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:drawbench-frame-*" } ] },
+		{ "machine": "gearcutter", "switch": "GearCutter", "outputs": [ { "mod": "seraphhorizons", "code": "seraphhorizons:gearcutter-frame-*" } ] },
+		// Pipes and Power Expanded's steam: the Cornish boiler and the Watt engine, then the
+		// high-pressure Lancashire boiler and Cornish engine. Their twin recipes taking ppex's gears are
+		// switched off (gearconsumers-ppex.json), so only the live ones are gated.
+		{ "machine": "steampower", "outputs": [
+			{ "mod": "ppex", "code": "ppex:boilercornish-*" },
+			{ "mod": "ppex", "code": "ppex:enginewatt-*" }
+		] },
+		{ "machine": "highpressuresteam", "outputs": [
+			{ "mod": "ppex", "code": "ppex:boilerlancashire-*" },
+			{ "mod": "ppex", "code": "ppex:enginecornish-*" }
+		] },
+		// Steelmaking Expanded's blast furnace (its door, the twin-tub blower's frame and the Cowper
+		// stove's intake) and Bessemer converter (its control, the converter's first part).
+		{ "machine": "blastfurnace", "outputs": [
+			{ "mod": "smex", "code": "smex:blastfurnacedoor-*" },
+			{ "mod": "smex", "code": "smex:mpblower-*" },
+			{ "mod": "smex", "code": "smex:cowperstove-intake-*" }
+		] },
+		{ "machine": "bessemer", "outputs": [ { "mod": "smex", "code": "smex:convertercontrol-*" } ] },
+		// Yang's Transport's steam engines: the primitive and simple ones, then the locomotive's
+		// standard and advanced ones (the advanced one's upgrade from a standard one too).
+		{ "machine": "steamengine", "outputs": [
+			{ "mod": "yangtransport", "code": "yangtransport:steamengine-primitive-*" },
+			{ "mod": "yangtransport", "code": "yangtransport:steamengine-simple-*" }
+		] },
+		{ "machine": "locomotive", "outputs": [
+			{ "mod": "yangtransport", "code": "yangtransport:steamengine-standard-*" },
+			{ "mod": "yangtransport", "code": "yangtransport:steamengine-advanced-*" }
+		] },
+		{ "machine": "temporalstabilizer", "outputs": [ { "mod": "vcftemporalstabilizer", "code": "vcftemporalstabilizer:temporalstabilizer" } ] },
+		// The first sprinkler: each higher tier is made from the one below, so the chain needs it. Its
+		// one-slot up and down conversions are no gate's (they duplicate nothing).
+		{ "machine": "sprinkler", "outputs": [ { "mod": "sprinklersmod", "code": "sprinklersmod:t_one_sprinkler-*" } ] },
+		// The final assemblies of the spinning wheel and the fly-shuttle loom; their parts and the drop
+		// spindle are free.
+		{ "machine": "spinningwheel", "outputs": [
+			{ "mod": "spinningwheel", "code": "spinningwheel:hpspinningwheel-*" },
+			{ "mod": "spinningwheel", "code": "spinningwheel:hpflyshuttleloom-*" }
+		] },
+		// Alchemy's potion cauldron, at its first construction stage.
+		{ "machine": "alchemycauldron", "outputs": [ { "mod": "alchemy", "code": "alchemy:potioncauldron-*" } ] }
 	],
 	"rolledCopies": [
 		{ "mod": "scrolled", "code": "*:*rolled-schematic-*" }
@@ -124,6 +187,38 @@
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-gearbox", "sellers": ["smith"], "tier": 2, "price": 23 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-biplane", "sellers": ["mechanic"], "tier": 4, "price": 125 },
 		// The eidolon's, with the game's other exotic schematics.
-		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-eidolon", "sellers": ["curiodealer"], "tier": 3, "price": 90 }
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-eidolon", "sellers": ["curiodealer"], "tier": 3, "price": 90 },
+		// The pack's own machines.
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-jawbreaker", "sellers": ["mechanic"], "tier": 2, "price": 30 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-ballmill", "sellers": ["mechanic"], "tier": 2, "price": 35 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-stampbattery", "sellers": ["mechanic"], "tier": 3, "price": 50 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-arrastra", "sellers": ["mechanic"], "tier": 1, "price": 18 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-sluice", "sellers": ["mechanic"], "tier": 1, "price": 13 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-jig", "sellers": ["mechanic"], "tier": 2, "price": 23 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-shakingtable", "sellers": ["mechanic"], "tier": 2, "price": 30 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-vanner", "sellers": ["mechanic"], "tier": 3, "price": 35 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-cylinderborer", "sellers": ["mechanic"], "tier": 3, "price": 50 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-handcar", "sellers": ["mechanic"], "tier": 2, "price": 20 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-amalgamationplates", "sellers": ["smith"], "tier": 2, "price": 23 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-reverberatory", "sellers": ["smith"], "tier": 2, "price": 35 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-parkeskettle", "sellers": ["smith"], "tier": 2, "price": 30 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-stallroaster", "sellers": ["smith"], "tier": 1, "price": 18 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-liquationfurnace", "sellers": ["smith"], "tier": 2, "price": 23 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-cupellationfurnace", "sellers": ["smith"], "tier": 2, "price": 25 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-acidparting", "sellers": ["smith"], "tier": 2, "price": 25 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-cruciblefurnace", "sellers": ["smith"], "tier": 2, "price": 35 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-drawbench", "sellers": ["smith"], "tier": 2, "price": 30 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-gearcutter", "sellers": ["smith"], "tier": 3, "price": 60 },
+		// Other mods' machines.
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-steampower", "sellers": ["mechanic"], "tier": 2, "price": 50 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-highpressuresteam", "sellers": ["mechanic"], "tier": 3, "price": 70 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-blastfurnace", "sellers": ["smith"], "tier": 2, "price": 60 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-bessemer", "sellers": ["smith"], "tier": 3, "price": 80 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-steamengine", "sellers": ["mechanic"], "tier": 2, "price": 45 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-locomotive", "sellers": ["mechanic"], "tier": 3, "price": 80 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-temporalstabilizer", "sellers": ["curiodealer"], "tier": 3, "price": 70 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-sprinkler", "sellers": ["farmer"], "tier": 2, "price": 25 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-spinningwheel", "sellers": ["tailor"], "tier": 1, "price": 15 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-alchemycauldron", "sellers": ["curiodealer"], "tier": 1, "price": 13 }
 	]
 }

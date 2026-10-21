@@ -109,8 +109,11 @@ public partial class SharedWorldScenarios
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("meteoriciron") && i.Quantity == 2);
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "rod-*" && i.Quantity == 2);
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 12);
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:log-placed-oak-ud"));
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:plank-oak"));
+        // two of each, counted over the slots: the cylinder borer's schematic (MachineSchematics) takes a
+        // slot of the full grid by putting two slots of one in one (Trading/Schematics/Core/GridGate.cs)
+        Assert.Equal(2, frame.ResolvedIngredients!.Where(i => i?.Code?.ToString() == "game:log-placed-oak-ud").Sum(i => i!.Quantity));
+        Assert.Equal(2, frame.ResolvedIngredients!.Where(i => i?.Code?.ToString() == "game:plank-oak").Sum(i => i!.Quantity));
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:schematic-cylinderborer" && !i.Consume);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 2);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the bushings are the game's metal parts, and the bar and the feed take their materials at the

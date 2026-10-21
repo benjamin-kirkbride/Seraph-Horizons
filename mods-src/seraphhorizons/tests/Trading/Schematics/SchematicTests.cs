@@ -43,11 +43,17 @@ public class SchematicTests
         var table = Table.Value;
         Assert.Contains("MachineSchematics", Switches.Value);
         Assert.Empty(table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier, Switches.Value));
-        Assert.Equal(12, table.Gates.Count);
+        Assert.Equal(42, table.Gates.Count);
         Assert.Equal("game:paper-parchment", table.Replacement);
         Assert.All(table.Gates, g => Assert.True(table.IsSold(g.Schematic), g.Schematic));
-        // The switches named are the machines' own.
-        Assert.Equal(["BuckingSawmill", "Eidolon", "Rosser"], table.Gates.Where(g => g.Switch != null).Select(g => g.Switch!).Order());
+        // The switches named are the machines' own: every one of the pack's own machines names its
+        // switch (the crucible furnace's is stainless steel's), and no other mod's machine does.
+        Assert.Equal(["AcidParting", "AmalgamationPlates", "Arrastra", "BallMill", "BuckingSawmill", "CupellationFurnace",
+                      "CylinderBorer", "DrawBench", "Eidolon", "GearCutter", "Handcar", "JawBreaker", "Jig", "LiquationFurnace",
+                      "ParkesKettle", "ReverberatoryRoaster", "Rosser", "ShakingTable", "Sluice", "StainlessSteel", "StallRoaster",
+                      "StampBattery", "Vanner"],
+            table.Gates.Where(g => g.Switch != null).Select(g => g.Switch!).Order(StringComparer.Ordinal));
+        Assert.All(table.Gates.Where(g => g.Outputs.Any(o => o.Mod == "seraphhorizons")), g => Assert.NotNull(g.Switch));
     }
 
     [Fact]
@@ -90,11 +96,10 @@ public class SchematicTests
         foreach (var gate in Table.Value.Gates)
         {
             Assert.True(lang.ContainsKey($"item-schematic-{gate.Machine}"), gate.Machine);
-            var sale = Table.Value.Sales.Single(s => s.Code == gate.Schematic);
+            Assert.Single(Table.Value.Sales, s => s.Code == gate.Schematic);
             string text = (string)lang[$"itemdesc-schematic-{gate.Machine}"]!;
-            // The handbook says who sells it and from which tier, as the table does.
-            Assert.Contains($"standing tier {sale.Tier} ", text);
-            Assert.Contains(sale.Sellers[0] switch { "generalstore" => "general store", "curiodealer" => "curio dealer", var other => other }, text);
+            // Who sells it and from which tier is the handbook's generated line, not the text's.
+            Assert.DoesNotContain("standing tier", text);
         }
         // No item, name or text is left of the schematics that went.
         foreach (string gone in new[] { "handcrank", "centeredspurgear" })
