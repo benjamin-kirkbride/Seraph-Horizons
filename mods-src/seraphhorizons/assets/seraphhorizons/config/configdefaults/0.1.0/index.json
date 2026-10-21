@@ -72,7 +72,6 @@
     "materialneeds": "2.0.0",
     "meapineappleturpentine": "1.0.3",
     "metalpots": "1.8.2",
-    "millwright": "1.3.5",
     "mnflowers": "2.0.0",
     "mngeology": "2.0.10",
     "morepiles": "3.0.1",
@@ -622,12 +621,6 @@
       "format": "json",
       "owners": [
         "metalpots"
-      ]
-    },
-    "millwright.json": {
-      "format": "json",
-      "owners": [
-        "millwright"
       ]
     },
     "naturalfertilizer-server.json": {

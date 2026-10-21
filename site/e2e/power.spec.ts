@@ -1,6 +1,6 @@
 // The power page against the real export's power section. Producers are found by their
 // parameters rather than by id, so a renamed entry still finds the vanilla metal windmill
-// with its full set of sails and Millwright's double windmill. The reference figures are in
+// with its full set of sails. The reference figures are in
 // docs/recipe-browser/power.md; the wind averages depend on the simulated histogram, so they
 // are only checked to within 10%.
 import { readFileSync } from "node:fs";
@@ -16,12 +16,6 @@ function vanillaWindmill(): Producer {
     (p) => p.id.startsWith("game:") && p.model.kind === "wind" && /metal/i.test(p.id) && (!p.model.sails || p.model.sails.count === p.model.sails.max),
   );
   expect(p, "the export has the vanilla metal windmill at full sails").toBeTruthy();
-  return p!;
-}
-
-function doubleWindmill(): Producer {
-  const p = power!.producers.find((p) => p.id.startsWith("millwright:") && p.model.kind === "wind" && /double/i.test(`${p.id} ${p.name}`));
-  expect(p, "the export has Millwright's double windmill").toBeTruthy();
   return p!;
 }
 
@@ -50,9 +44,6 @@ test("the power page lists producers with the reference figures", async ({ page 
   await expect(row(vanilla.id, "free")).toHaveText("0.6");
   await expect(row(vanilla.id, "stall")).toHaveText("1.88");
   await expect(row(vanilla.id, "peak")).toHaveText("0.281");
-  const double = doubleWindmill();
-  await expect(row(double.id, "stall")).toHaveText("12");
-  await expect(row(double.id, "peak")).toHaveText("7.2");
   await expect(page.getByTestId("producers").locator("tbody tr")).toHaveCount(power!.producers.length);
   await expect(page.getByTestId("torque-chart").locator("path.curve")).toHaveCount(power!.producers.length);
   await expect(page.getByTestId("reference-load")).toContainText("0.125");
@@ -65,13 +56,10 @@ test("wind averages match the simulation, at sea level and 50 blocks up", async 
   await openPower(page);
   const avg = (p: Producer) => `[data-testid="wind-averages"] tr[data-producer="${q(p.id)}"] [data-col="avg-peak"]`;
   const vanilla = vanillaWindmill();
-  const double = doubleWindmill();
   // About 28.5% of the time at or above 0.6 at sea level.
   await expect(page.getByTestId("wind-stats")).toContainText(/at least 0\.6 for (2[6-9]|3[01])%/);
   expect(await num(page, avg(vanilla))).toBeGreaterThan(0.13 * 0.9);
   expect(await num(page, avg(vanilla))).toBeLessThan(0.13 * 1.1);
-  expect(await num(page, avg(double))).toBeGreaterThan(3.41 * 0.9);
-  expect(await num(page, avg(double))).toBeLessThan(3.41 * 1.1);
 
   const slider = page.getByTestId("power-wind").getByRole("slider");
   await slider.fill("50");
@@ -79,8 +67,6 @@ test("wind averages match the simulation, at sea level and 50 blocks up", async 
   await expect(page.getByTestId("wind-histogram")).toContainText("Wind speed at 50 blocks");
   expect(await num(page, avg(vanilla))).toBeGreaterThan(0.17 * 0.9);
   expect(await num(page, avg(vanilla))).toBeLessThan(0.17 * 1.1);
-  expect(await num(page, avg(double))).toBeGreaterThan(4.23 * 0.9);
-  expect(await num(page, avg(double))).toBeLessThan(4.23 * 1.1);
 });
 
 test("the load explorer settles each producer under four helve hammers", async ({ page }) => {

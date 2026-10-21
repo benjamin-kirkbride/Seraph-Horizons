@@ -93,7 +93,7 @@ public class SchematicTests
     [Theory]
     [InlineData("game:windmillrotor-*", "game:windmillrotor-wood-north", true)]
     [InlineData("windmillrotor-*", "game:windmillrotor-wood-north", true)]
-    [InlineData("game:windmillrotor-*", "millwright:windmillrotor-single-north", false)]
+    [InlineData("game:windmillrotor-*", "othermod:windmillrotor-single-north", false)]
     [InlineData("mpegearbox:gearbox*", "mpegearbox:gearbox12brass-north", true)]
     [InlineData("game:largegear3", "game:largegear3", true)]
     [InlineData("game:largegear3", "game:largegearsection-wood", false)]
@@ -106,8 +106,8 @@ public class SchematicTests
     public void GatesFindTheirOutputsOnlyWithTheirModLoaded()
     {
         var table = Table.Value;
-        Assert.Equal("windmill", table.GateFor("millwright:windmillrotor-six-north", _ => true)?.Machine);
-        Assert.Null(table.GateFor("millwright:windmillrotor-six-north", mod => mod != "millwright"));
+        Assert.Equal("gearbox", table.GateFor("mpegearbox:gearbox12brass-north", _ => true)?.Machine);
+        Assert.Null(table.GateFor("mpegearbox:gearbox12brass-north", mod => mod != "mpegearbox"));
         Assert.Equal("transmission", table.GateFor("game:clutch-north", _ => true)?.Machine);
         Assert.Equal("biplane", table.GateFor("flyingmachine:trestles", _ => true)?.Machine);
         Assert.Null(table.GateFor("flyingmachine:wing", _ => true));
