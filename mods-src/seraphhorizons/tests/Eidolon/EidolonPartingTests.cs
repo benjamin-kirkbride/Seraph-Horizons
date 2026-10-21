@@ -58,4 +58,28 @@ public class EidolonPartingTests
         // a step away is looked at again before the two change over
         Assert.True(EidolonParting.StepSeconds < EidolonParting.SwapSeconds);
     }
+
+    [Fact]
+    public void Two_unparted_for_three_changes_over_stop_parting()
+    {
+        // one walking home into a member already home: it steps away, finds nowhere, and the other never steps away
+        Assert.False(EidolonParting.GivesUp(0));
+        Assert.False(EidolonParting.GivesUp(EidolonParting.GiveUpSeconds - 0.01));
+        Assert.True(EidolonParting.GivesUp(EidolonParting.GiveUpSeconds));
+        Assert.True(EidolonParting.GivesUp(1000));
+        // after three changes over: the one that gives way has had two turns to step away, the other one
+        Assert.Equal(3, (int)(EidolonParting.GiveUpSeconds / EidolonParting.SwapSeconds));
+    }
+
+    [Fact]
+    public void A_moment_apart_while_one_presses_against_another_is_not_parted()
+    {
+        // pressing against one it cannot pass, it rocks back and forth: clear of it for a tick now and then
+        Assert.False(EidolonParting.Parted(0));
+        Assert.False(EidolonParting.Parted(0.1));
+        Assert.False(EidolonParting.Parted(EidolonParting.ApartSeconds - 0.01));
+        Assert.True(EidolonParting.Parted(EidolonParting.ApartSeconds));
+        // longer than the look for a touch, so a tick clear never begins the touch over
+        Assert.True(EidolonParting.ApartSeconds > EidolonParting.TouchSeconds);
+    }
 }

@@ -47,11 +47,18 @@ public sealed class MinePlan
     /// <summary>How many times the simulation ran again holding what it stranded (0 when none was).</summary>
     public int Reruns { get; init; }
 
+    /// <summary>The cells its last sweep dug where precedence had stalled (README "Eidolon", mining,
+    /// *Stations*): each may be dug whatever band's turn it is.</summary>
+    public IReadOnlySet<MarkPos> Free { get; init; } = new HashSet<MarkPos>();
+
     /// <summary>A cell's band (<see cref="MineBands"/>): <see cref="MineBands.Never"/> for one it does not dig.</summary>
     public int Band(MarkPos cell) => Targets.Contains(cell) ? MineBands.BandOf(Area, Tunnel, Stair, cell) : MineBands.Never;
 
     /// <summary>The bands over <paramref name="remaining"/> (a live state's), for dispatch.</summary>
-    public MineBands Bands(IEnumerable<MarkPos> remaining) => new(Area, Tunnel, Stair, remaining.Where(Targets.Contains), widen: false);
+    public MineBands Bands(IEnumerable<MarkPos> remaining) => new(Area, Tunnel, Stair, remaining.Where(Targets.Contains), widen: false)
+    {
+        Free = Free,
+    };
 }
 
 /// <summary>
@@ -60,9 +67,13 @@ public sealed class MinePlan
 /// <see cref="EidolonTunnels.HeadingHeight"/> layers band 0, the next 1, and so on; only the lowest
 /// covered band with a cell left is open. A cell in the open is in the open band, numbered after them:
 /// open while its layer is at most one under the highest open layer with a cell left (the floors within a
-/// climb, <see cref="EidolonTeamwork.Lowest"/>) and, while a covered band is being driven, not under that
-/// band's floor (the ground in front of a heading is its approach). A stair's cells
-/// (<see cref="Stair"/>) only once nothing else is left.
+/// climb, <see cref="EidolonTeamwork.Lowest"/>). While a covered band is being driven, the open part's
+/// approach (<see cref="Approach"/>: the columns within <see cref="ApproachColumns"/> of a covered one, where
+/// the face is struck from and walked to) is not dug under that band's floor, and keeps its own floors within
+/// a climb; the rest of the open part is quarried meanwhile, its floors within a climb of its own highest
+/// layer and at most a climb under that band's floor (so the heading's floor and the open ground stay a walk
+/// apart). Once no covered band is left the two are one again. A stair's cells (<see cref="Stair"/>) only once
+/// nothing else is left.
 /// </summary>
 public sealed class MineBands
 {
@@ -75,11 +86,17 @@ public sealed class MineBands
     private readonly HashSet<MarkPos> _remaining;
     private readonly int[] _covered;
     private readonly List<MarkPos>[] _bandCells;
-    private readonly int[] _open;
-    private readonly List<MarkPos>[] _layerCells;
+    // the open part by layer: [0] away from the covered part, [1] its approach (Approach)
+    private readonly int[][] _open;
+    private readonly List<MarkPos>[][] _layerCells;
+    private readonly bool[]? _approach;
+    // the approach's columns within reach of a covered one, and the approach's cells left in each band's layers there
+    private readonly bool[]? _nearColumns;
+    private readonly int[] _near;
+    private readonly bool[] _released;
     private readonly List<MarkPos> _stairCells;
     private int _nonStair;
-    private int _layer;
+    private readonly int[] _layer;
     private readonly List<MarkPos> _widened = new();
     private readonly bool _widen;
 
@@ -95,8 +112,12 @@ public sealed class MineBands
         CoveredBands = tunnel == null ? 0 : (tunnel.Top - area.Min.Y) / EidolonTunnels.HeadingHeight + 1;
         _covered = new int[CoveredBands];
         _bandCells = Enumerable.Range(0, CoveredBands).Select(_ => new List<MarkPos>()).ToArray();
-        _open = new int[area.SizeY];
-        _layerCells = Enumerable.Range(0, area.SizeY).Select(_ => new List<MarkPos>()).ToArray();
+        _open = [new int[area.SizeY], new int[area.SizeY]];
+        _layerCells = [Layers(area), Layers(area)];
+        _approach = tunnel == null ? null : ApproachOf(area, tunnel);
+        _nearColumns = tunnel == null ? null : NearOf(area, tunnel);
+        _near = new int[CoveredBands];
+        _released = new bool[CoveredBands];
         _stairCells = new List<MarkPos>();
         MineWork.Add(_remaining.Count);
         foreach (var c in widen ? Ordered(area, _remaining) : _remaining)
@@ -113,16 +134,68 @@ public sealed class MineBands
             }
             else if (c.Y >= area.Min.Y && c.Y <= area.Max.Y)
             {
-                _open[c.Y - area.Min.Y]++;
+                int g = Group(c.X, c.Z);
+                _open[g][c.Y - area.Min.Y]++;
                 if (widen)
-                    _layerCells[c.Y - area.Min.Y].Add(c);
+                    _layerCells[g][c.Y - area.Min.Y].Add(c);
                 _nonStair++;
+                if (NearBand(c) is { } nb)
+                    _near[nb]++;
             }
         }
-        _layer = area.SizeY - 1;
-        while (_layer >= 0 && _open[_layer] == 0)
-            _layer--;
+        _layer = [area.SizeY - 1, area.SizeY - 1];
+        for (int g = 0; g < 2; g++)
+            while (_layer[g] >= 0 && _open[g][_layer[g]] == 0)
+                _layer[g]--;
     }
+
+    private static List<MarkPos>[] Layers(MarkArea area) => Enumerable.Range(0, area.SizeY).Select(_ => new List<MarkPos>()).ToArray();
+
+    /// <summary>How far from a covered column, in columns, the open part is its approach: a stand's box
+    /// (2 wide) and its reach (2 past it) in front of the face.</summary>
+    public const int ApproachColumns = 3;
+
+    // The area's columns not covered within ApproachColumns of one that is.
+    private static bool[] ApproachOf(MarkArea area, MineTunnel tunnel)
+    {
+        var approach = new bool[area.SizeX * area.SizeZ];
+        MineWork.Add(tunnel.Covered.Count * (2 * ApproachColumns + 1) * (2 * ApproachColumns + 1));
+        foreach (var (cx, cz) in tunnel.Covered)
+            for (int x = Math.Max(area.Min.X, cx - ApproachColumns); x <= Math.Min(area.Max.X, cx + ApproachColumns); x++)
+            for (int z = Math.Max(area.Min.Z, cz - ApproachColumns); z <= Math.Min(area.Max.Z, cz + ApproachColumns); z++)
+                if (!tunnel.Covered.Contains((x, z)))
+                    approach[(x - area.Min.X) * area.SizeZ + z - area.Min.Z] = true;
+        return approach;
+    }
+
+    // The approach's columns within reach (EidolonMining.Reach) of a covered one.
+    private static bool[] NearOf(MarkArea area, MineTunnel tunnel)
+    {
+        var near = new bool[area.SizeX * area.SizeZ];
+        int r = EidolonMining.Reach;
+        MineWork.Add(tunnel.Covered.Count * (2 * r + 1) * (2 * r + 1));
+        foreach (var (cx, cz) in tunnel.Covered)
+            for (int x = Math.Max(area.Min.X, cx - r); x <= Math.Min(area.Max.X, cx + r); x++)
+            for (int z = Math.Max(area.Min.Z, cz - r); z <= Math.Min(area.Max.Z, cz + r); z++)
+                if (!tunnel.Covered.Contains((x, z)))
+                    near[(x - area.Min.X) * area.SizeZ + z - area.Min.Z] = true;
+        return near;
+    }
+
+    // The covered band in whose layers an approach cell within reach of a covered column lies, or null.
+    private int? NearBand(MarkPos c)
+    {
+        if (_nearColumns == null || _tunnel == null || !_nearColumns[(c.X - _area.Min.X) * _area.SizeZ + c.Z - _area.Min.Z] || c.Y > _tunnel.Top)
+            return null;
+        int b = (_tunnel.Top - c.Y) / EidolonTunnels.HeadingHeight;
+        return b < CoveredBands ? b : null;
+    }
+
+    /// <summary>Whether an open column is the covered part's approach (<see cref="ApproachColumns"/> from it).</summary>
+    public bool Approach(int x, int z) =>
+        _approach != null && _area.Contains(x, _area.Min.Y, z) && _approach[(x - _area.Min.X) * _area.SizeZ + z - _area.Min.Z];
+
+    private int Group(int x, int z) => Approach(x, z) ? 1 : 0;
 
     // The cells by x, then y, then z: read off the area in that order where they all lie in it and that
     // is the cheaper (a lookup a block of the area; the planner's targets always lie in it), else sorted.
@@ -151,15 +224,22 @@ public sealed class MineBands
         CoveredBands = other.CoveredBands;
         _covered = (int[])other._covered.Clone();
         _bandCells = other._bandCells;
-        _open = (int[])other._open.Clone();
+        _open = [(int[])other._open[0].Clone(), (int[])other._open[1].Clone()];
         _layerCells = other._layerCells;
+        _approach = other._approach;
+        _nearColumns = other._nearColumns;
+        _near = (int[])other._near.Clone();
+        _released = (bool[])other._released.Clone();
         _stairCells = other._stairCells;
         _nonStair = other._nonStair;
-        _layer = other._layer;
+        _layer = (int[])other._layer.Clone();
         _widen = other._widen;
     }
 
-    public MineBands Clone() => new(this);
+    public MineBands Clone() => new(this) { Free = Free };
+
+    /// <summary>Cells that may be dug whatever band's turn it is (<see cref="MinePlan.Free"/>).</summary>
+    public IReadOnlySet<MarkPos> Free { get; init; } = new HashSet<MarkPos>();
 
     /// <summary>How many tunnel bands the covered part has (0 without one); the open band's number.</summary>
     public int CoveredBands { get; }
@@ -182,31 +262,58 @@ public sealed class MineBands
     public int Bottom(int band) =>
         _tunnel == null ? _area.Min.Y : Math.Max(_area.Min.Y, _tunnel.Top - band * EidolonTunnels.HeadingHeight - EidolonTunnels.HeadingHeight + 1);
 
-    /// <summary>The covered band being driven: the lowest with a cell left; null for none.</summary>
+    /// <summary>The covered band being driven: the lowest with a cell left, or one with none left while the approach
+    /// still has cells at or over its floor and a band under it has cells; null for none.</summary>
     public int? Covered
     {
         get
         {
             for (int b = 0; b < CoveredBands; b++)
+            {
                 if (_covered[b] > 0)
                     return b;
+                // done with its own cells, it is still the band driven while the approach has cells in its layers
+                // within reach of a covered column and a band under it has cells left: driving the next would dig
+                // away the floor this one's stands are on, the only places those are reached from. Only in the
+                // planner's simulation (it orders the plan; the live job follows the plan's order), and only until
+                // the simulation finds no station with it (Release)
+                if (_widen && !_released[b] && _near[b] > 0 && Under(b))
+                    return b;
+            }
             return null;
         }
     }
 
-    /// <summary>The highest open layer with a cell left; null for none.</summary>
-    public int? Layer => _layer >= 0 ? _area.Min.Y + _layer : null;
-
-    /// <summary>The lowest open layer it may dig now.</summary>
-    public int OpenFloor
+    // Whether a covered band under the band has cells left.
+    private bool Under(int band)
     {
-        get
-        {
-            if (Layer is not { } l)
-                return int.MaxValue;
-            int floor = l - EidolonTeamwork.FloorStep + 1;
-            return Covered is { } b ? Math.Max(floor, Bottom(b)) : floor;
-        }
+        for (int b = band + 1; b < CoveredBands; b++)
+            if (_covered[b] > 0)
+                return true;
+        return false;
+    }
+
+    /// <summary>The highest open layer with a cell left; null for none.</summary>
+    public int? Layer => Math.Max(_layer[0], _layer[1]) is var l and >= 0 ? _area.Min.Y + l : null;
+
+    /// <summary>The lowest open layer it may dig now, anywhere in the open part.</summary>
+    public int OpenFloor => Math.Min(Floor(0), Floor(1));
+
+    /// <summary>The lowest layer it may dig now in an open column: in the approach while a covered band is
+    /// being driven, within a climb of the approach's highest layer and not under that band's floor; else
+    /// within a climb of the highest layer of the rest and, while a covered band is being driven, at most a
+    /// climb under its floor (of all the open part, once no covered band is left).</summary>
+    public int OpenFloorAt(int x, int z) => Floor(Group(x, z));
+
+    /// <summary>The lowest open layer of the approach (1) or of the rest (0) it may dig now.</summary>
+    public int Floor(int group)
+    {
+        var covered = Covered;
+        int layer = covered == null ? Math.Max(_layer[0], _layer[1]) : _layer[group];
+        if (layer < 0)
+            return int.MaxValue;
+        int floor = _area.Min.Y + layer - EidolonTeamwork.FloorStep + 1;
+        return covered is { } b ? Math.Max(floor, Bottom(b) - (group == 1 ? 0 : EidolonTeamwork.FloorStep)) : floor;
     }
 
     /// <summary>Whether the stair's turn has come: nothing else left.</summary>
@@ -221,12 +328,14 @@ public sealed class MineBands
     {
         if (!_remaining.Contains(cell))
             return false;
+        if (Free.Count > 0 && Free.Contains(cell))
+            return true;
         int band = Band(cell);
         if (band == Stair)
             return StairOpen;
         if (band < CoveredBands)
             return Covered == band;
-        return cell.Y >= OpenFloor;
+        return cell.Y >= OpenFloorAt(cell.X, cell.Z);
     }
 
     /// <summary>A cell dug (or gone): what it opens is noted (<see cref="TakeWidened"/>).</summary>
@@ -234,9 +343,7 @@ public sealed class MineBands
     {
         if (!_remaining.Contains(cell))
             return;
-        var covered = Covered;
-        int floor = OpenFloor;
-        bool stairOpen = StairOpen;
+        var before = Before();
         _remaining.Remove(cell);
         int band = Band(cell);
         if (band == Stair) { }
@@ -247,20 +354,46 @@ public sealed class MineBands
         }
         else if (cell.Y >= _area.Min.Y && cell.Y <= _area.Max.Y)
         {
-            _open[cell.Y - _area.Min.Y]--;
+            int g = Group(cell.X, cell.Z);
+            _open[g][cell.Y - _area.Min.Y]--;
             _nonStair--;
-            while (_layer >= 0 && _open[_layer] == 0)
-                _layer--;
+            if (NearBand(cell) is { } nb)
+                _near[nb]--;
+            while (_layer[g] >= 0 && _open[g][_layer[g]] == 0)
+                _layer[g]--;
         }
-        if (!_widen)
-            return;
-        if (Covered is { } b && b != covered)
+        if (_widen)
+            Opened(before);
+    }
+
+    /// <summary>The covered band held by the wait for its approach (<see cref="Covered"/>: none of its own cells left),
+    /// or null.</summary>
+    public int? Waiting => Covered is { } b && _covered[b] == 0 ? b : null;
+
+    /// <summary>The simulation found no station with <paramref name="band"/> held for its approach: the wait is let go
+    /// for it, the next band opened (what that opens is noted, <see cref="TakeWidened"/>).</summary>
+    public void Release(int band)
+    {
+        var before = Before();
+        _released[band] = true;
+        Opened(before);
+    }
+
+    private (int? Covered, int Floor0, int Floor1, bool StairOpen) Before() => (Covered, Floor(0), Floor(1), StairOpen);
+
+    // What a change opened since `before`: a new covered band's cells, the open layers its floors went down to, the stair.
+    private void Opened((int? Covered, int Floor0, int Floor1, bool StairOpen) before)
+    {
+        if (Covered is { } b && b != before.Covered)
             Widen(_bandCells[b]);
-        int now = OpenFloor;
-        if (now < floor)
-            for (int y = Math.Max(now, _area.Min.Y); y < Math.Min(floor, _area.Max.Y + 1); y++)
-                Widen(_layerCells[y - _area.Min.Y]);
-        if (StairOpen && !stairOpen)
+        for (int g = 0; g < 2; g++)
+        {
+            int now = Floor(g), floor = g == 0 ? before.Floor0 : before.Floor1;
+            if (now < floor)
+                for (int y = Math.Max(now, _area.Min.Y); y < Math.Min(floor, _area.Max.Y + 1); y++)
+                    Widen(_layerCells[g][y - _area.Min.Y]);
+        }
+        if (StairOpen && !before.StairOpen)
             Widen(_stairCells);
     }
 

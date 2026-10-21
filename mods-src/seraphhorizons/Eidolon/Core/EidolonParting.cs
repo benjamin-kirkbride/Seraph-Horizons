@@ -22,6 +22,25 @@ public static class EidolonParting
     /// on it, the other tries.</summary>
     public const double SwapSeconds = 10;
 
+    /// <summary>How long two may stay touching, unparted, before they stop parting until they come apart: three
+    /// changes over in which neither found a way apart (or one with no mining order of the crew's, which never steps
+    /// away, stands by it). Each then goes on with its order as if they did not touch (its walk and its tries, its
+    /// idle and stall clocks): the one walking home into a member already home stepped away, found nowhere, and
+    /// tried again every 0.6 s for ever, its order never ending and nothing told.</summary>
+    public const double GiveUpSeconds = 3 * SwapSeconds;
+
+    /// <summary>Whether two that have touched unparted for <paramref name="touching"/> seconds have stopped
+    /// parting (<see cref="GiveUpSeconds"/>).</summary>
+    public static bool GivesUp(double touching) => touching >= GiveUpSeconds;
+
+    /// <summary>How long two must stay apart to count as parted: one pressing against another it cannot pass rocks
+    /// back and forth, their boxes clear of each other for a tick now and then, and its time touching unparted
+    /// (<see cref="GivesUp"/>, <see cref="Moves"/>) is not begun again for that.</summary>
+    public const double ApartSeconds = 2;
+
+    /// <summary>Whether two apart for <paramref name="apart"/> seconds have parted (<see cref="ApartSeconds"/>).</summary>
+    public static bool Parted(double apart) => apart >= ApartSeconds;
+
     /// <summary>Whether it steps away now (else it waits for the other): <paramref name="givesWay"/> by the
     /// rule of who gives way, turned round for each whole <see cref="SwapSeconds"/> the two have touched
     /// unparted (<paramref name="touching"/>).</summary>

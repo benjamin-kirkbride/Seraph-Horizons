@@ -3640,8 +3640,9 @@ never digs its footprint or under it.
 `MinePlanner.cs`, `MineStations.cs`; the game side `Eidolon/Game/EidolonMinePlans.cs`, `GameMineWorld.cs`).
 The area is planned once, when the job's first member starts, as *stations*: a place it stands (a path
 node) and the blocks it clears from there, struck a group at a time before it moves on. The plan reads a
-window of the world round the area (`MineSite`: 6 columns each side, 2 under, 8 over; each block solid or
-not by its collision box, and what it is to the order, `GameMineWorld`), and knows where the eidolon may
+window of the world round the area (`MineSite`: 6 columns each side, 2 under, 8 over, grown for a crew
+member standing outside it, *Routes* below; each block solid or not by its collision box, and what it is
+to the order, `GameMineWorld`), and knows where the eidolon may
 stand (its box free, a block under one of its four columns) and which of those places are *out*: joined,
 a step of at most 2 up or down each way (the least of `MaxClimbBlocks` and `MaxFallBlocks`), to the
 window's side or to where it was ordered (`MineWalk`). What it could reach under any order of digging is
@@ -3651,24 +3652,45 @@ reach for good (`MinePlan.OutOfReach`), held with its floor as above, the bound 
 holds. The plan then digs the area in its head, station by station, each accepted only past a guard
 (`MineState.Check`, after TERMES' and BFD's): its place is one to stand at and out, its blocks are in
 reach, and once they are dug its place is still out (it can walk away) and no block still to dig has
-lost its last place it could be reached from. Precedence is by band (`MineBands`): a tunnel's bands
+lost its last place it could be reached from (the bound's places are kept as the bound found them: a
+block that loses the place it was first reached from, with none found before it to take its place, is
+found again from the places left or goes, and the places standing in it go with it, so ceiling blocks
+each reached only from under another go together once the places they began from are dug away, and the
+dig that would leave them is refused, in the plan and in the world; the job's own strikes and digs
+follow the places a dig cuts off from the ways out too, `MineReach.Exact`: a place led out only by one
+dug away, with no way round found through what is dug or air, goes, so a ceiling reached only from a
+place joined to the rest through the ceiling itself is not counted reached; the plan's simulation and
+the dispatch over the next stations do not, a search of the potential graph on every try costing too
+much on a deep pit, and there the count is an upper bound). Precedence is by band (`MineBands`): a tunnel's bands
 first, top down (*Tunnels*, below); in the open the highest layer with blocks left and the one under it
-(floors within a climb, `EidolonTeamwork.Lowest`), never under the floor of the tunnel band being driven;
-the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
+(floors within a climb, `EidolonTeamwork.Lowest`), while a tunnel band is driven its approach (the open
+columns within 3 of a covered one, `MineBands.Approach`) never under that band's floor and the rest at most
+a climb under it, each with floors within a climb of its own, and in the plan's simulation the next band
+driven only once the approach has nothing left in this band's layers within reach of a covered column (driving
+it digs away the floor that is the only place those are reached from: the large hillside on real ground, its
+approach left a wall over a quarry 7 deep, 95 held out of reach), unless no station is found while it waits,
+when the wait is let go before anything is dug out of its turn (`MineBands.Covered`, `Release`; the live job
+follows the plan's order, its own bands never wait); the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
 open, rows a station wide along the area's longer side, from the far side back toward where it was
 ordered, each row the other way to the last (a sweep). When no station is left to place, every place it
 could stand is asked again (a few times at most: one the guard refused waits for a dig near it, and what
 refused it may have gone far off), and a tunnel band its lanes alone cannot finish is struck from any place
 that reaches its face, not only one in the lane (a lane whose front is on low ground, beside one whose
-front has a step). What the plan still cannot place a station for, of the blocks its precedence lets it
+front has a step). When even that is dry with blocks left, a last sweep takes any block left that the
+guard lets it, whatever its band (the plan marks those, `MinePlan.Free`, and the job lets them be dug
+out of their band's turn), so a ceiling reached only by way of ground the bands would have it dig first
+is struck from a step left in that ground, the step dug after. What the plan still cannot place a station for, of the blocks its precedence lets it
 dig next, is held as out of reach and the plan made again, at most twice (`MinePlanner.MaxReruns`); the
 blocks only waiting behind those (the open part under the band's floor, the bands under it) are planned
 again, not held. *The stair*: where the
 last places it would stand to clear the area would have no way out (a pit deeper than it climbs with no
 shelf), the plan leaves a stair: a straight one 2 wide against the side facing the way out, rising 2 a
 column, or, for a pit deeper than about twice its width, a spiral round its walls, 2 wide, a step of 2 a
-column and a landing at each corner (`MinePlan.Stair`); it is dug last, and what it must stand on to
-leave stays, its way out (`MinePlan.WayOut`). In the game a block of it whose loss would leave another of
+column and a landing at each corner (`MinePlan.Stair`), its treads solid ground (not grass grown on a dug
+floor, which, taken for a tread, passed a stair a step short); it is dug last, and what it must stand on to
+leave stays, its way out (`MinePlan.WayOut`). What the plan holds as out of reach that its way out stands on
+(a stair found only once its top step was held, the job having dug round its old one) is told as the way
+out, with the column under it. In the game a block of it whose loss would leave another of
 it with nothing under it or beside it is left too (the game's rock caves in where it hangs free, and a
 tread that fell would take the way out with it: `MineOrder.Unhung`); and a plan made again late, which
 would take what is left of the stair for blocks out of reach, does not make them so: the job keeps every
@@ -3701,7 +3723,11 @@ window by the server's events; anything else (water, falling sand, a column that
 area's columns every 10 seconds, each taken in locally. Only what can change the plan has it made again: a
 block placed, a new target, a block that holds its column up, a block near the area going, a stand the
 game's pathfinder finds no way to (a *bad stand*, partial blocks the plan took as whole:
-`MineJobCells.BadStands`, tried again once when a block near it changes); a target turned into one it
+`MineJobCells.BadStands`, tried again once when a block near it changes; on whole blocks the walk graph joins
+two places exactly where the pathfinder steps from one to the other, `MineWalkPathTests`, so first the blocks
+round the stand and round where it stands are read again into the live state, `EidolonMinePlans.Look`, and a
+stand the live state had wrong there, a block fallen or caved in that only the sweep would have seen, or one it
+does not hold out, is no bad stand but one not open: the station is let go and the plan kept); a target turned into one it
 leaves, a liquid over dug ground, a thin cover (snow, a carpet: under half a block counts as air) or a
 change more than 5 columns from the area does not. It is made again at most every 2 seconds, from a copy
 of the live state, the old plan serving meanwhile and the new one swapped in whole; a member walking to a
@@ -3710,7 +3736,8 @@ checked against the live state (`MineDispatch.Executable`, `MineState.Check`), s
 a worse order, never a stranding. *Out of reach*: the owner is told once, by the job (`eidolon-mine-outofreach`: how many, how
 many kept under them, and how high a step in front of the face would bring them in reach,
 `MinePlan.StepNeeded`; `-nostep` without), again only when that grows, or when the world changes so it
-can reach them (`eidolon-mine-inreach-now`), the count saved with the order (`outofreach`); and the boxes
+can reach them; a block kept under one out of reach stays kept, so one dug round (a pillar left
+standing) is told as kept still, never as newly out of reach (`MinePlanInput.Kept`, the last plan's) (`eidolon-mine-inreach-now`), the count saved with the order (`outofreach`); and the boxes
 of those blocks go to the owner's client (`MineOutOfReachPacket`, channel `seraphhorizons-eidolonmine`,
 `MineOutlines.Boxes`), outlined in red while they hold the command tool in mine mode (sent again when
 they join), until the job is done. The marking itself is never refused for it: the plan runs after the click.
@@ -3724,12 +3751,18 @@ column), and the covered part is driven in face-first: in bands 4 high from the 
 ceiling, so the ceiling is always the first thing struck; each band in lanes 2 wide across the way in
 (an odd width's last lane 3), each lane's face struck upright, two blocks across and two high at a time,
 the top half first, then the bottom half, then a step in to the next slice (`EidolonTunnels.LaneFront`,
-`MineStations.NextGroup`), never more than a slice past the face at a layer, so the face goes in level.
+`MineStations.NextGroup`), never more than a slice past the face at a layer, so the face goes in level
+(the face counted by the heading's own blocks: one of the open part standing in a lane where the
+hill's edge wanders across the tunnel, reached only from inside it, is quarried with the open part and
+never holds the face).
 The way in is the side whose first slice it reaches most of from in front of the mouth, standing on what
 is there now (the ground, a ledge, a step against the face: the reach bound, `EidolonTunnels.Shape`),
 the one nearest where it was ordered on a tie. A band with no face of its own at its level is driven from
 the floor over it, or from the steps it digs as it goes, whichever the plan finds; the open part of the
-area is quarried with it, never under the floor of the band being driven (that ground is its approach).
+area is quarried with it: its approach, the open columns within 3 of a covered one (a stand's box and its
+reach in front of the face, `MineBands.ApproachColumns`), never under the floor of the band being driven,
+and the rest of it down to a climb under that floor (so a member the face has no room for quarries it, and
+the heading's floor and the open ground stay a walk apart), each part with its floors within a climb.
 What no order could reach (a tunnel 6 or more high into a flat face, its top over its head from the
 ground) is told and kept with its floor (*Stations*, above), and the rest dug: a step 2 high in front of
 the face brings 6 high in reach, the hint says how high. An area covered all over is refused as it is
@@ -3765,8 +3798,10 @@ a time to loaded ground (the columns it holds round it load ahead of it, "Chunk 
 way, waits, looking again every 10 seconds. Done when no station is left that it or another of its job
 may work, nothing but the stair's way out is left and none of the area is unloaded: it tells its owner
 how many it mined, how many it left as they were, how many were out of its reach, how many it kept under
-those as their floor and how many it left as its way out (`eidolon-mine-done`), walks back to where it was ordered (if it finds a way; stopped
-short, stuck or off an edge, it sets off again, up to 3 times) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
+those as their floor and how many it left as its way out (`eidolon-mine-done`), and of those left any it
+planned to dig, why (`eidolon-mine-leftwhy`, working together, *When none may work*), walks back to where it was ordered (if it finds a way; stopped
+short, stuck or off an edge, or getting no nearer for 20 seconds, pressing against one it cannot pass, it sets off
+again, up to 3 times; stopped short of another standing in its way, up to 10, `MineReturn`) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
 job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` (the rules, what it digs and what
@@ -3797,14 +3832,31 @@ owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one pe
 saved. *Routes* (mining; `Eidolon/Core/MineRoutes.cs`, `MineRoutePlanner.cs`, `MineOrdering.cs`,
 `MineCosts.cs`, `MineChokes.cs`, `MineSlots.cs`, `MineAhead.cs`; the host `EidolonMinePlans`): a job of more
 than one member present gets look-ahead routes, each member's next 5 to 10 stations, solved together off the
-main thread from a copy of the live state. The solver simulates the crew working forward with the same guard
+main thread from a copy of the live state. A member stands where the solve must place it on the walk graph
+(the out node at its feet, or one a column or a step off it): one outside the window, which the planner
+only reads round the area, would get no stops at all, so the job's window is grown to take in each member
+outside it within 32 columns (or layers) of the area, with the usual margins round where it stands
+(`MineSite.Grown`, `GrowColumns`; at most 38 columns past the area each way, which bounds its memory). It is
+one window for the plan, the reach, the walk and the routes, so the job's first plan reads it grown round
+the crew present, and a member outside it joining later (or seen outside it by a solve) has it read again
+grown, a column at a time as the first, and the plan made again over it (what changes meanwhile is
+journalled from the read's start; the old plan serves, dispatched as today's, until the new plan's first
+solve); it never shrinks. A member farther than 32 columns is not taken in: it gets no stops, as before,
+until the crew's stall (below) leaves the plan to today's dispatch, which walks it in. Each solve
+logs (`[eidolon-mine]`, debug) a member it gave no stops because it could not place it, and why (outside the
+window, beyond the 32, or no out node near it: `MineCosts.Unplaced`). The solver simulates the crew working forward with the same guard
 as live: each station's work timed strike by strike at its blocks' pace (the quicker of the steel pick and
 shovel), the walk on the walk graph, a way crossing another's claim only after waiting 4 seconds for it (as
-the game goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots
+the game goes through), but never into another's box at a stand in the covered part while it works there (no room
+to pass in a heading: it waits for that one to be done, or takes the way round the claims) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots
 (the slots set only when each sets off: in the game no one holds a narrow way, the stair keeping its own turn
 as under *Dispatch*); a member that would otherwise wait 10 seconds takes a station of the next band where
 nothing still to dig is above it (spare work, at most one open band deeper, so the floors may be two climbs
-apart). Each member's stations are then put in their best order exactly (Held-Karp, with when each became
+apart), and a second face (another lane of a covered band while another member holds one) counts 20 seconds
+later (`MineRoutePlanner.SecondFacePenaltySeconds`): the open part and work ahead come first. Stations sharing
+one long approach are one member's trip: one that came to a station by a walk of 15 seconds or more takes the
+stations within 6 seconds of it first, before it walks back (`LongApproachSeconds`, `ClusterSeconds`; a station
+left on a hilltop over a heading once took two trips of 36 seconds each). Each member's stations are then put in their best order exactly (Held-Karp, with when each became
 workable and what must come first) and moved off the member that finishes last, each change simulated again
 and kept only if it holds. For a job of up to 300 stations it chooses how to choose: eight ways (the soonest
 finish, or leaving a station to whoever would finish it sooner; a bonus for the work under a station; a
@@ -3814,10 +3866,18 @@ to today's: where today's wins (a pit that holds one at a time, a narrow tunnel'
 as below, with no routes. The choice holds for the job (`MineRouteChoice`): every solve keeps it, a new
 station plan's too, and it outlasts the job being down to one member, for as long as the area and the members
 present are those it was made for (one joining or leaving lets it be made again). A new station plan is
-dispatched as below until its first solve lands. A member follows its route: it claims its head when it may
+dispatched as below until its first solve lands. A member follows its route (with no stop at all it takes a station by today's dispatch at once, every station
+looked at, none another holds next, one later in another's route taken off it, while the routes are solved again;
+the next solve keeps it as its head): it claims its head when it may
 set off, at its planned time or sooner when the station is ready and the plan has no other set off first
-there, waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
-another walking up to it, crosses another's claim after 4 seconds, passes another eidolon only briefly and
+there, and either way only once its stand is out in the live state (the plan has the stops before it, often
+another member's, open it by its time; set off for while still in rock, the game found no way to it and took
+it for a bad stand, 1 to 6 a run on the hillside, each one the plan made again; one still shut at its time is
+dropped at once, not waited for, as the stops opening it are late by however long they are), waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
+another walking up to it (but with over 8 seconds of it left and a station free meanwhile, it takes that
+station instead, the wait given up: the solve's stops reach only so far, and one waited 46 seconds with
+stations free on a large hillside), crosses another's claim after 4 seconds (but see *Claims*: one with another station clear takes that), passes
+another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
 standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
 is asked to make room, stepping aside to a place with nothing left to dig and no claim, but not one holding a
@@ -3826,7 +3886,9 @@ seconds where it found its place clear, #1244; the stop is dropped when one stay
 before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
 for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
 ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
-eidolon, the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
+eidolon (one with nothing left to dig under it, or, with none near, as in a heading where every column has a
+band left under it, any clear of the stair and of the columns others hold: two in a hillside's heading that
+neither could step away from stood touching for 400 seconds), the other waits. Its step away goes on while their boxes still touch, for 4 seconds at most (a climb
 out keeps its box over its foot until near the top: stopped and begun again every 0.6 seconds, two walking
 home out of a spiral pit stood so for good, #971), and two still touching after 10 seconds change over, the
 one that waited stepping away (`Core/EidolonParting.cs`). A member walking home with its job done stops
@@ -3834,14 +3896,18 @@ short and parts so whatever its job's dispatch, today's too (nothing is mined an
 parted two walking home: in single file along a trench 5 wide, the one behind pressed into the one ahead for
 11 seconds, #1329); two walking home in single file part by the way they go, not their ids: the one behind
 stops and sets off again a little later, the one ahead walks on, and neither steps aside (on one level, the
-one ahead walking: one standing ahead, or a climb between them, they part by ids as before). It lets its claims go while it waits, drops a stop whose claim stays taken 2
+one ahead walking: one standing ahead, or a climb between them, they part by ids as before). Still touching
+after 30 seconds they stop parting until they come apart, each going on with its order (one walking home into
+a member already home, which never steps away, found nowhere to step to and tried again for ever, its order
+never ending and nothing told). It lets its claims go while it waits, drops a stop whose claim stays taken 2
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
 each member for another, a stair's slots run off the plan), or with a member's stops dropped 4 times and no
 strike of its own between (the live guard refusing what each solve hands straight back, two each waiting over
 the other's next work, while the other's odd strike keeps the crew's clock going, #1244), has the rest of that
-station plan dispatched as today's (only while its routes hold stations and no member is on its way home); its members still part, stop
+station plan dispatched as today's (only while its routes hold stations and no member is on its way home; asked
+while a member parts too, which holds it from its route); its members still part, stop
 short of one standing and make room on a stand still to work, to the job's end. Small events are repaired in
 place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve follows a failed
 repair, a member joining, a new station plan, or every 15 seconds (no two within 2 seconds, or half a second
@@ -3851,9 +3917,13 @@ measuring), or routes not made yet: the job is dispatched as below. *Dispatch*
 (mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
 holds a short queue of stations (`MineDispatch.QueueLength`, 2: the one it works and the next) and takes
 the next from the first 24 in the plan's order that nobody holds, whose columns are free and that pass
-the guard against the live state with the others where they stand (`MineDispatch.Executable`): the one
-no other would reach sooner, then the one it reaches soonest, then the first (an estimate: the octile
-distance, 3 a block climbed). So one whose part is mined out takes the next near station in another's,
+the guard against the live state with the others where they stand (`MineDispatch.Executable`): while a
+tunnel band is driven, the face while no other member holds a station of it, then the open part, a second
+face (another lane) last (`MineDispatch.Rank`); then the one no other would reach sooner, then the one it
+reaches soonest, then the first (an estimate: the octile distance, 3 a block climbed). With nothing of the
+face nor of the open part to take, while a tunnel band is driven, it takes a station worked ahead of its band
+(the bench behind the face, the open part a band deeper, as on routes, `MineAhead`; the guard asked of 8 at
+most, `MineDispatch.AheadTries`) before a second face, alone in its queue. So one whose part is mined out takes the next near station in another's,
 and none idles while a station is free. It holds a second station only while no other member holds
 none, and just done with one it leaves the next for 3 seconds to a member waiting with under half as much
 mined, making for the rim meanwhile (in an area too small for two stations at once, the one at work is
@@ -3887,7 +3957,12 @@ one on the stair from working them and so from ever getting off it). And a miner
 station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
 another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
 go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
-`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). On today's dispatch a member waiting (not
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`); but a station whose way crosses another's claim, by
+routes or today's dispatch, is put by for those 20 seconds when another it reaches clear is free (that one is
+taken; on routes the stop is dropped and the routes solved again), and with none it goes through at once:
+waiting for room, again and again, came to 20 to 30 seconds with stations free on a hillside. So too a way
+the pathfinder finds only through another eidolon: another station reached clear is taken, by routes or today's
+dispatch (two each in the other's way stood 20 seconds). On today's dispatch a member waiting (not
 walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
 stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
 left to dig) held by none (`MineOrder.ClearWay`), but not one holding a station, which sets off for it in a
@@ -3899,17 +3974,36 @@ or giving way for ever) is stopped and it looks again from where it got to. The 
 for it to move, so with no member at work, one waiting over blocks still to dig steps aside onto ground with
 nothing left to dig; three once waited so for good, one standing on the last blocks (#1156). *The floors within a climb*: the open band (*Stations*, above)
 keeps every member within a layer of the highest with blocks left, so it walks from anywhere in the pit
-to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
-is made again at once, once until a block is broken; with another still working or parked over the area,
-it waits; with nothing changing for 30 seconds and no other eidolon over the area, the job is done, the
-rest reported left. No member waits on another for good: one that finds no way to a stand (or arrives short
+to anywhere else. *When none may work*: a member waiting for its turn (a route's, a lane's at the face, the
+stair's) or for a claim to come free is never stuck, however long: with blocks left and no member holding
+a station, each asks whether any station of the plan passes the guard against the live state for it, with
+the others where they stand and its stand clear of them (`MineDispatch.Workable`, found again only when
+the plan, the live state, the stands found bad or where the others stand change: what the board and the
+routes hold, claims and turns, clears by itself and is never asked), and while one does it waits (two once
+waited their turns with no station held for 30 seconds under a hill and the job ended with some 2500
+blocks they could reach left). Only with none does it make the plan again at once, once until a block is
+broken, and then, still none for 30 seconds (`MineOrder.StuckSeconds`) and no eidolon of no member's
+parked on blocks to dig (*Footing*), end its part, the job ending once every member has: none it could
+work is either nothing left that any member could (the way out, another station's stand, a stand found
+bad), or members in one another's way for good, each on the other's cells or stand and boxed in, with no
+ground clear to step aside onto (three at the end of a trench 5 wide). The report then says why the blocks
+still to dig were left in a second line (`MineDispatch.WhyLeft`, `eidolon-mine-leftwhy`: under or beside
+an eidolon that could not move, in no station left, their band's turn never came, no place to stand, no
+way to or out of the stand, or digging them would cut off the stand's way out, leave other blocks with
+nowhere to stand, or take a stand other blocks are worked from). A job never ends while a station is workable: none at work and no strike for 5 minutes
+(`MineOrder.HangSeconds`) with a station the guard allows, which dispatch then never gives anyone, its owner
+is told the job looks stalled and where it could work from (`eidolon-mine-stalled`, logged as a warning),
+once, and again only after a strike and 5 minutes more with none; it goes on waiting. No member waits on another for good: one that finds no way to a stand (or arrives short
 of it) with another eidolon within 3 blocks of it lets the station go and waits, but only 3 times at that
 stand, by any member, since the job's last strike (`MineJobCells.BlockedStands`); the 4th the stand is bad
 all the same and the plan made again (three once waited by a stand none could get onto, each taking it,
 failing and taking it again, with nothing in the log, for 40 minutes). Each member keeps
 why it last let go of a station (`MineOrder.DebugState`, in `/sh eidolon info`), and a run of them for one
 reason with no strike that goes on 30 seconds is logged at Debug (`[eidolon-mine]`), at most every 30
-seconds. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
+seconds. A target that goes with no strike of its job's (the game's rock caving in where a strike left it
+hanging, as granite does at random beside a block broken, breaking into its drops; a player) is counted
+(`MineJobCells.Gone`), never as mined: a strike that comes to a block of its group already gone so passes it
+by. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
 plan's, the same for all. *Waiting at the rim*: one with no station it may take (all held by
 others, under another, or of a band whose turn has not come) frees its columns and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
@@ -3954,12 +4048,17 @@ back with no report of its own, so nothing is counted twice; an order given anew
 mates saved) makes a new job. Plans, claims and the live state are not saved (made again on load), and the
 shares after a restart count from then. Chunks, oil and
 the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` (claims),
-`tests/Eidolon/MineDispatchTests.cs` (earliest arrival, the face cap, claims) and the team cases of
+`tests/Eidolon/MineDispatchTests.cs` (earliest arrival, the face cap, claims, what is workable with the others out of the way or where they stand, and why what is not was left) and the team cases of
 `MinePlannerTests.cs` (two on a tunnel 4 wide and on spiral pits, each strike checked: claims apart, none
 in another's columns, everyone out after every dig), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
 never holding the same column, the floors within a climb, one report with both shares,
 each back to its place; one ordered later joining the job running; one whose part is mined out
-taking stations in the other's, never pushing into it), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
+taking stations in the other's, never pushing into it; two kept from any station for 310 seconds, every column held by
+another on the job board, waiting, told once that the job looks stalled, and then mining the whole area), `tests/Eidolon/MineSiteWindowTests.cs` (the window
+grown round a member 10 columns off the area, routed on the first solve, none past 32) and
+`tests/PackTests/EidolonMineWindowScenarios.cs` (Atlas, on a player's hillside, `fixtures/eidolon-hillside`:
+one 10 columns outside the area routed on the first solve and both mining, ordered with the other or joining
+the job running), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
 16 × 3 × 12 area each breaking only in its station's columns, on average 5 or more apart, never pushing into each other
 (`MineWatcher.Pushing`: boxes may brush, each contact under half a second and a second in all, the centres
 never under a block apart), the floors

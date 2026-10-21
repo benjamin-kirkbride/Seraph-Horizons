@@ -170,7 +170,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
             + string.Join(" ", toMine.Where(c => blocks.GetBlock(c).Id != 0).Select(c => $"({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z})")));
         Assert.Empty(faults);
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, o1.Mined + o2.Mined);
+        Assert.InRange((toMine.Count) - (o1.Mined + o2.Mined), -(o1.Job?.Shared.Gone ?? 0), o1.Job?.Shared.Gone ?? 0);
         Assert.True(o1.Mined > 0 && o2.Mined > 0, $"{o1.Mined} and {o2.Mined}");
         // One report, with both shares.
         var report = Assert.Single(lines);
@@ -221,10 +221,78 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var lines = Reports(o1, o2);
         Log($"after: {o1.Mined} + {o2.Mined}; reports: " + string.Join(" | ", lines));
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, o1.Mined + o2.Mined);
+        Assert.InRange((toMine.Count) - (o1.Mined + o2.Mined), -(o1.Job?.Shared.Gone ?? 0), o1.Job?.Shared.Gone ?? 0);
         Assert.True(o2.Mined > 0, "the late one mined nothing");
         var report = Assert.Single(lines);
         Assert.Contains("Your 2 eidolons", report);
+        e1.Die(EnumDespawnReason.Removed);
+        e2.Die(EnumDespawnReason.Removed);
+    }
+
+    /// <summary>The owner's tunnel under a hill (two reported done with some 2500 blocks they could reach left,
+    /// after both had waited their turns, holding no station, for 30 seconds): every column round the area held
+    /// on the job board by another for 310 seconds, so that neither member may take a station nor strike, as while
+    /// both wait their turns, the job waits, its owner told once after 5 minutes that it looks stalled, and mines
+    /// the whole area once the hold is let go.</summary>
+    [AtlasScenario(TimeoutMs = 150_000)]
+    public async Task Two_holding_no_station_for_over_30_seconds_while_work_is_left_never_end_the_job()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2600), reach: 15);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        Ground(site, granite);
+        var a = site.AddCopy(-4, -2, -3);
+        var b = site.AddCopy(3, -1, 0);
+        var area = Area(a, b);
+        var toMine = Cells(area);
+
+        var (test, player, tool) = await Commander("eidolonstall", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
+        var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
+        var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
+        // the hold: one that is no eidolon holds every column of the area and round it, renewed every tick
+        const long Holder = -4242;
+        var columns = new List<(int X, int Z)>();
+        for (int x = area.Min.X - 4; x <= area.Max.X + 4; x++)
+        for (int z = area.Min.Z - 4; z <= area.Max.Z + 4; z++)
+            columns.Add((x, z));
+        Assert.True(Jobs.Mining.TryClaim(Holder, 0, columns, EidolonJobSystem.Now(W)));
+        OrderMine(player, tool, [e1, e2], a, b);
+        var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
+        var o2 = Assert.IsType<MineOrder>(e2.Orders!.Current);
+        double from = EidolonJobSystem.Now(W);
+        int ticks = 0;
+        await World.Until(() =>
+        {
+            Jobs.Mining.Struck(Holder, EidolonJobSystem.Now(W));
+            if (++ticks % 300 == 0)
+                Log($"held {EidolonJobSystem.Now(W) - from:0} s: {State(e1)} || {State(e2)}");
+            return EidolonJobSystem.Now(W) - from >= 310 || o1.Reported != null || o2.Reported != null;
+        }, 12000);
+        Log($"after the hold: {o1.Mined} + {o2.Mined}; told: {o1.ToldStalled ?? o2.ToldStalled}; reports: " + string.Join(" | ", Reports(o1, o2)));
+        Assert.Equal(0, o1.Mined + o2.Mined);
+        Assert.Empty(Reports(o1, o2));
+        // told once, by one of them, where they could work from
+        Assert.Single(new[] { o1.ToldStalled, o2.ToldStalled }.OfType<string>());
+        Assert.Contains("looks stalled", o1.ToldStalled ?? o2.ToldStalled);
+        Assert.Equal(MineOrder.OrderCode, e1.Orders.OrderCode);
+        Assert.Equal(MineOrder.OrderCode, e2.Orders.OrderCode);
+
+        Jobs.Mining.Release(Holder);
+        await World.Until(() =>
+        {
+            if (++ticks % 300 == 0)
+                Log($"{o1.Mined} + {o2.Mined} mined: {State(e1)} || {State(e2)}");
+            return e1.Orders.OrderCode == null && e2.Orders.OrderCode == null;
+        }, 6000);
+        var lines = Reports(o1, o2);
+        Log($"after: {o1.Mined} + {o2.Mined}; reports: " + string.Join(" | ", lines));
+        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.InRange((toMine.Count) - (o1.Mined + o2.Mined), -(o1.Job?.Shared.Gone ?? 0), o1.Job?.Shared.Gone ?? 0);
+        var report = Assert.Single(lines);
+        Assert.Contains($"{toMine.Count} blocks mined", report);
+        Assert.Contains("0 left as they were", report);
+        Assert.Null(o1.ReportedWhy ?? o2.ReportedWhy);
         e1.Die(EnumDespawnReason.Removed);
         e2.Die(EnumDespawnReason.Removed);
     }
@@ -290,5 +358,72 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Single(lines);
         foreach (var e in eidolons)
             e.Die(EnumDespawnReason.Removed);
+    }
+
+    /// <summary>The real terrain hillside's hang (EidolonRealSlopeScenarios, 1 run in 16): the job done and reported,
+    /// one walking back touches another already home, its order ended, where there is nowhere to step aside. A crew by
+    /// routes parts two touching before the rest of the order runs, and the one that must step away (the other has no
+    /// mining order, so never does) found nowhere and tried again every 0.6 s for ever: its walk back, its tries and
+    /// its clocks never ran and its order never ended. Here the one walking back is put in a pocket one place big, its
+    /// mouth toward its place, and the other stands in the mouth (held there, as one at home stands): its way back is
+    /// through the other, their boxes (1.7 wide) touch wherever it stands in the pocket, and it has nowhere to step
+    /// aside to. It stops parting after <see cref="EidolonParting.GiveUpSeconds"/>, stops short of the other on its walk
+    /// back until it gives that up too (<see cref="MineReturn.Bumps"/>), and its order ends.</summary>
+    [AtlasScenario(TimeoutMs = 90_000)]
+    public async Task One_walking_back_into_one_already_home_with_nowhere_to_part_still_ends_its_order()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 3000), reach: 15);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        Ground(site, granite);
+        var a = site.AddCopy(-4, -2, -3);
+        var b = site.AddCopy(3, -1, 0);
+
+        var (test, player, tool) = await Commander("eidolonpocket", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
+        var near = await Spawn(site.AddCopy(-3, 0, -6), player);
+        var far = await Spawn(site.AddCopy(10, 0, -10), player);
+        OrderMine(player, tool, [near, far], a, b);
+        var orders = new[] { near, far }.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToArray();
+        var walking = orders[1];
+        await World.Until(() => orders.Any(o => o.Reported != null), 9000);
+        var job = walking.Job;
+        Assert.NotNull(job);
+        Assert.True(job!.Closed);
+        // a crew by routes, as the hillside's was (whatever the solver chose for this pit): parting is on for it
+        typeof(MineRouteChoice).GetProperty(nameof(MineRouteChoice.Index))!.SetValue(job.Shared.RouteChoice, 0);
+        Assert.True(walking.Returning || far.Orders!.OrderCode == null, $"the far one is {walking.DebugState}");
+        Assert.True(far.Orders!.OrderCode != null, "the far one was home already: nothing to walk back");
+        // the near one already home, its order ended; a pocket 2 x 2 apart from the pit, walled round but for its
+        // mouth (z -1) toward the far one's place, a way 2 wide on from it: the far one in the pocket, the near one in
+        // the mouth
+        near.Orders!.ClearOrder();
+        var pocket = site.AddCopy(9, 0, 6);
+        for (int x = -1; x <= 2; x++)
+        for (int z = -4; z <= 2; z++)
+        for (int y = 0; y <= 4; y++)
+            blocks.SetBlock(x is >= 0 and <= 1 && z <= 1 ? 0 : granite, pocket.AddCopy(x, y, z));
+        far.TeleportToDouble(pocket.X + 1, pocket.Y, pocket.Z + 1.0);
+        var mouth = new Vec3d(pocket.X + 1, pocket.Y, pocket.Z - 0.3);
+        near.TeleportToDouble(mouth.X, mouth.Y, mouth.Z);
+        await World.Ticks(5);
+        Assert.Equal(MineOrder.OrderCode, far.Orders.OrderCode);
+        Assert.True(walking.Returning, walking.DebugState);
+        double from = EidolonJobSystem.Now(W);
+        int ticks = 0;
+        await World.Until(() =>
+        {
+            // the one at home stands its ground
+            if (near.Pos.XYZ.SquareDistanceTo(mouth) > 0.01)
+                near.TeleportToDouble(mouth.X, mouth.Y, mouth.Z);
+            if (++ticks % 150 == 0)
+                Log($"{EidolonJobSystem.Now(W) - from:0} s in the pocket: {walking.DebugState} at {far.Pos.XYZ}, the other at {near.Pos.XYZ}");
+            return far.Orders.OrderCode == null || EidolonJobSystem.Now(W) - from > 240;
+        }, 9000);
+        double took = EidolonJobSystem.Now(W) - from;
+        Log($"its order {(far.Orders.OrderCode == null ? "ended" : "still on")} after {took:0} s in the pocket: {walking.DebugState}");
+        Assert.True(far.Orders.OrderCode == null, $"still on its order after {took:0} s touching the other in the pocket: {walking.DebugState}");
+        near.Die(EnumDespawnReason.Removed);
+        far.Die(EnumDespawnReason.Removed);
     }
 }

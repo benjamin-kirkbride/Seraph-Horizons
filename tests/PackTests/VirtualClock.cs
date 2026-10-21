@@ -39,6 +39,13 @@ namespace SeraphHorizons.PackTests;
 /// (<see cref="EidolonMinePlans.BudgetReads"/>, <see cref="EidolonMinePlans.TypicalReads"/>), so a job's
 /// window is read in the same ticks on any runner.</para>
 ///
+/// <para>Each run plays alike (tests/PackTests/README.md, *Every run alike*): <see cref="Start"/> sets every phase the
+/// engine keeps in game time from itself alone (the master clock on a whole millisecond, every system's and tick
+/// listener's last call, physics' accumulators), physics on the game thread alone, the game thread's
+/// <c>World.Rand</c> seeded (<see cref="RandSeed"/>) and the path traversers and unstable rock drawing from streams
+/// of their own (<see cref="TraverserRand"/>, <see cref="BlockRand"/>), random block ticks picked on the game thread
+/// in game time, the eidolon mine planner's workers inline (<see cref="RunInline"/>) and autosave off.</para>
+///
 /// <para>Every engine member reached by reflection, and the transpiler's pattern, is checked at
 /// <see cref="Start"/>, which throws <see cref="NotSupportedException"/> naming what is missing (a game or
 /// .NET update can rename them). A scenario that ends with its clock still on (no <c>using</c>) fails and
@@ -87,6 +94,7 @@ public sealed class VirtualClock : IDisposable
     private System.Threading.Timer? _watch;
     private long _lastPrefix = Environment.TickCount64;
     private int? _readsBefore;
+    private object? _autosaveBefore;
 
     /// <summary>The clock running now, if any.</summary>
     public static VirtualClock? Current
@@ -139,12 +147,137 @@ public sealed class VirtualClock : IDisposable
             var watch = server.totalUnpausedTime;
             watch.Stop();
             clock._elapsed = (long)e.Elapsed.GetValue(watch)!;
+            clock.Align(watch);
             _current = clock;
             clock._readsBefore = EidolonMinePlans.BudgetReads;
+            // no autosave while it runs: one falls at a game time set by how long the server ran before Start, and
+            // while it saves the engine runs the master clock on wall time (two runs parted after one at 459 s)
+            clock._autosaveBefore = e.Autosave.GetValue(null);
+            e.Autosave.SetValue(null, Convert.ChangeType(0, e.Autosave.FieldType));
             EidolonMinePlans.BudgetReads = EidolonMinePlans.TypicalReads;
             clock._watch = new System.Threading.Timer(_ => clock.WatchPatch(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
             return clock;
         }
+    }
+
+    private static readonly ConditionalWeakTable<Vintagestory.API.Common.Entities.Entity, Random> TraverserRands = new();
+
+    /// <summary>The random numbers a path traverser draws for <paramref name="entity"/> (a Harmony transpiler puts
+    /// this in place of its <c>entity.World.Rand</c>): while a clock runs, its own, seeded from <see cref="RandSeed"/>
+    /// and the order its first draw came in since the clock started (not its id, which depends on what else
+    /// spawned before), so its walks turn alike every run; else the world's, as the game has it.</summary>
+    public static Random TraverserRand(Vintagestory.API.Common.Entities.Entity entity) =>
+        _current is not { } clock ? entity.World.Rand
+            : TraverserRands.GetValue(entity, _ => new Random(RandSeed * 7919 + ++clock._traversers));
+
+    private int _traversers;
+
+    private Random _blockRand = new(RandSeed);
+
+    /// <summary>The eidolon mine planner's <c>Task.Run(func)</c> (a Harmony transpiler puts this in its place): while a
+    /// clock runs, <paramref name="func"/> run there and then on the game thread, so a plan or a route solve is always
+    /// done before anything in its pass could cancel it; else on the thread pool, as the game has it.</summary>
+    public static Task<T> RunInline<T>(Func<T> func) => _current == null ? Task.Run(func) : Task.FromResult(func());
+
+    /// <summary>The random numbers the game's unstable rock and falling ground draw (a Harmony transpiler puts this in
+    /// place of their <c>world.Rand</c>): while a clock runs, its own stream, seeded at <see cref="Start"/>, so a
+    /// cave-in comes alike every run; else the world's.</summary>
+    public static Random BlockRand(Vintagestory.API.Common.IWorldAccessor world) => _current?._blockRand ?? world.Rand;
+
+    /// <summary>The seed the game thread's <c>World.Rand</c> and the clock's own streams are given at
+    /// <see cref="Start"/>: 1, or <c>SH_CLOCK_SEED</c> from the environment (to measure a scenario over several runs
+    /// that differ only in it: each seed plays the same every run).</summary>
+    public static int RandSeed => int.TryParse(Environment.GetEnvironmentVariable("SH_CLOCK_SEED"), out int seed) ? seed : 1;
+
+    // Every phase the engine keeps in game time made the same at Start, so what happens from here depends on game
+    // time since Start alone, not on how much wall time came before (setting the world up, the runner's load): the
+    // master clock on a whole millisecond (each pass then 33, 33, 34 ms the same way), every server system's last
+    // tick, every tick listener's last call and physics' accumulators set to it, and the game thread's World.Rand
+    // seeded. Each run of a scenario then steps alike, its eidolons' positions the same to the last digit
+    // (two hillside runs once parted at the fourth decimal on their first step).
+    private void Align(Stopwatch watch)
+    {
+        long perMs = Stopwatch.Frequency / 1000;
+        _elapsed = (_elapsed / perMs + 1) * perMs;
+        _e.Elapsed.SetValue(watch, _elapsed);
+        long now = _elapsed / perMs;
+        foreach (var system in (ServerSystem[])_e.Systems.GetValue(_server)!)
+            system.millisecondsSinceStart = now;
+        foreach (var field in new[] { _e.ListenersEntity, _e.ListenersBlock })
+            if (field.GetValue(_server.EventManager) is IEnumerable listeners)
+                foreach (var listener in listeners)
+                    if (listener is GameTickListenerBase l)
+                        l.LastUpdateMilliseconds = now;
+        if (((ServerSystem[])_e.Systems.GetValue(_server)!).OfType<ServerUdpNetwork>().FirstOrDefault()?.physicsManager is { } physics)
+        {
+            _e.PhysicsAccum.SetValue(physics, 0f);
+            _e.PhysicsAttrAccum.SetValue(physics, 0f);
+            // over 800 entities physics is split across its worker threads, which race (dropped items pile up in a
+            // class's world, scenario after scenario): one thread, the game's, while the clock runs
+            _physicsManager = physics;
+            _physicsThreadsBefore = (int)_e.PhysicsThreads.GetValue(physics)!;
+            _e.PhysicsThreads.SetValue(physics, 1);
+        }
+        _seeded = false;
+        _blockSim = ((ServerSystem[])_e.Systems.GetValue(_server)!).OfType<ServerSystemBlockSimulation>().FirstOrDefault();
+        if (_blockSim != null)
+        {
+            _e.BlockTickRand.SetValue(_blockSim, new Random(RandSeed));
+            _blockTicksAt = now;
+        }
+    }
+
+    private PhysicsManager? _physicsManager;
+    private int _physicsThreadsBefore;
+
+    // World.Rand is the game thread's own (a ThreadLocal): seeded on the first pass, which runs there
+    private bool _seeded = true;
+
+    // The random block ticks' pick (which blocks get a tick: grass grows on soil, and so on) runs on the server's
+    // separate thread every GetUpdateInterval of wall time, with a Random of its own: which blocks, and when, came out
+    // differently each run (tall grass grew on a dug floor in one run, and the plan was made again round it). While a
+    // clock runs it is made on the game thread instead, every GetUpdateInterval of game time, its Random seeded.
+    private ServerSystemBlockSimulation? _blockSim;
+    private long _blockTicksAt;
+    [ThreadStatic] private static bool _lockstepBlockTicks;
+
+    // the separate thread's call: skipped while a clock runs on its server (the clock's own call goes through)
+    private static bool BeforeBlockTicks(ServerSystemBlockSimulation __instance) =>
+        _lockstepBlockTicks || _current is not { } clock || clock._blockSim != __instance;
+
+    // the chunks the block ticks' pick ticks while a clock runs: those it found round the players at its first pick,
+    // in order (chunks loaded later, on their own threads in wall time, would come in at a different tick each run)
+    private List<long>? _blockChunks;
+
+    // on the game thread, each pass: the block ticks' pick every its interval of game time
+    private void BlockTicksInLockstep()
+    {
+        if (_blockSim == null)
+            return;
+        long now = _elapsed / (Stopwatch.Frequency / 1000);
+        if (now - _blockTicksAt <= _blockSim.GetUpdateInterval())
+            return;
+        _blockTicksAt = now;
+        if (_blockChunks == null)
+        {
+            _lockstepBlockTicks = true;
+            try
+            {
+                _blockSim.OnSeparateThreadTick();
+            }
+            finally
+            {
+                _lockstepBlockTicks = false;
+            }
+            _blockChunks = ((IDictionary)_e.BlockTickChunks.GetValue(_blockSim)!).Keys.Cast<long>().Order().ToList();
+            return;
+        }
+        foreach (long index in _blockChunks)
+            if (_server.WorldMap.GetServerChunk(index) is { } chunk)
+            {
+                chunk.MarkFresh();
+                _e.TickChunk.Invoke(_blockSim, [index, chunk]);
+            }
     }
 
     /// <summary>
@@ -201,6 +334,10 @@ public sealed class VirtualClock : IDisposable
             return;
         _current = null;
         EidolonMinePlans.BudgetReads = _readsBefore;
+        if (_autosaveBefore != null)
+            _e.Autosave.SetValue(null, _autosaveBefore);
+        if (_physicsManager != null)
+            _e.PhysicsThreads.SetValue(_physicsManager, _physicsThreadsBefore);
         var watch = _server.totalUnpausedTime;
         // a resume (Suspend(false)) since the last pass started it: set it back to the virtual time
         watch.Stop();
@@ -272,6 +409,11 @@ public sealed class VirtualClock : IDisposable
 
     private void Advance()
     {
+        if (!_seeded)
+        {
+            _server.rand.Value = new Random(RandSeed);
+            _seeded = true;
+        }
         WaitForPhysics();
         WaitForHolds();
         var watch = _server.totalUnpausedTime;
@@ -280,6 +422,7 @@ public sealed class VirtualClock : IDisposable
         _elapsed += _step;
         _e.Elapsed.SetValue(watch, _elapsed);
         AdvanceCalendar();
+        BlockTicksInLockstep();
         Passes++;
     }
 
@@ -401,8 +544,20 @@ public sealed class VirtualClock : IDisposable
         public required FieldInfo OffthreadIdle { get; init; }
         public required FieldInfo OffthreadQueue { get; init; }
         public required FieldInfo FrameWatch { get; init; }
+        public required FieldInfo PhysicsAccum { get; init; }
+        public required FieldInfo PhysicsAttrAccum { get; init; }
+        public required FieldInfo ListenersEntity { get; init; }
+        public required FieldInfo ListenersBlock { get; init; }
+        public required FieldInfo Autosave { get; init; }
+        public required FieldInfo BlockTickRand { get; init; }
+        public required FieldInfo PhysicsThreads { get; init; }
+        public required FieldInfo BlockTickChunks { get; init; }
+        public required MethodInfo TickChunk { get; init; }
 
         private static readonly MethodInfo Process = AccessTools.Method(typeof(ServerMain), nameof(ServerMain.Process));
+
+        /// <summary>The random block ticks' pick, on the server's separate thread (<see cref="BeforeBlockTicks"/>).</summary>
+        public static readonly MethodInfo BlockTicks = AccessTools.Method(typeof(ServerSystemBlockSimulation), nameof(ServerSystemBlockSimulation.OnSeparateThreadTick));
 
         private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -414,6 +569,20 @@ public sealed class VirtualClock : IDisposable
                 var f = type?.GetField(name, Any);
                 if (f == null || !fieldType.IsAssignableFrom(f.FieldType))
                     missing.Add($"{type?.FullName ?? "?"}.{name} ({fieldType.Name})");
+                return f!;
+            }
+            MethodInfo Method(Type type, string name)
+            {
+                var m = type.GetMethod(name, Any);
+                if (m == null)
+                    missing.Add($"{type.FullName}.{name}()");
+                return m!;
+            }
+            FieldInfo Static(Type? type, string name)
+            {
+                var f = type?.GetField(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (f == null || !f.FieldType.IsPrimitive)
+                    missing.Add($"{type?.FullName ?? "Vintagestory.Server.MagicNum"}.{name} (a static number)");
                 return f!;
             }
             var offthread = Field(typeof(PhysicsManager), "offthreadProcess", typeof(object));
@@ -429,6 +598,15 @@ public sealed class VirtualClock : IDisposable
                 OffthreadIdle = Field(tasks, "idle", typeof(bool)),
                 OffthreadQueue = Field(tasks, "queue", typeof(ICollection)),
                 FrameWatch = Field(typeof(ServerMain), "lastFramePassedTime", typeof(Stopwatch)),
+                PhysicsAccum = Field(typeof(PhysicsManager), "physicsTickAccum", typeof(float)),
+                PhysicsAttrAccum = Field(typeof(PhysicsManager), "attrUpdateAccum", typeof(float)),
+                ListenersEntity = Field(typeof(Vintagestory.Common.EventManager), "GameTickListenersEntity", typeof(IEnumerable)),
+                ListenersBlock = Field(typeof(Vintagestory.Common.EventManager), "GameTickListenersBlock", typeof(IEnumerable)),
+                Autosave = Static(typeof(PhysicsManager).Assembly.GetType("Vintagestory.Server.MagicNum"), "ServerAutoSave"),
+                BlockTickRand = Field(typeof(ServerSystemBlockSimulation), "rand", typeof(Random)),
+                PhysicsThreads = Field(typeof(PhysicsManager), "maxPhysicsThreads", typeof(int)),
+                BlockTickChunks = Field(typeof(ServerSystemBlockSimulation), "chunksToBeTicked", typeof(IDictionary)),
+                TickChunk = Method(typeof(ServerSystemBlockSimulation), "tickChunk"),
             };
             if (missing.Count > 0)
                 throw new NotSupportedException("the virtual clock cannot run on this engine: missing " + string.Join(", ", missing)
@@ -451,7 +629,108 @@ public sealed class VirtualClock : IDisposable
         private static bool Patched()
         {
             var info = Harmony.GetPatchInfo(Process);
-            return info != null && info.Prefixes.Any(p => p.owner == HarmonyId) && info.Transpilers.Any(p => p.owner == HarmonyId);
+            return info != null && info.Prefixes.Any(p => p.owner == HarmonyId) && info.Transpilers.Any(p => p.owner == HarmonyId)
+                && TraverserMethods().Concat(UnstableMethods()).All(m => Harmony.GetPatchInfo(m)?.Transpilers.Any(p => p.owner == HarmonyId) == true)
+                && Harmony.GetPatchInfo(BlockTicks)?.Prefixes.Any(p => p.owner == HarmonyId) == true
+                && WorkerMethods().All(m => Harmony.GetPatchInfo(m)?.Transpilers.Any(p => p.owner == HarmonyId) == true);
+        }
+
+        // The eidolon mine planner's workers (a plan, a route solve: EidolonMinePlans' Task.Runs). Game time stands still
+        // while one runs (MinePlanHold), but the main thread may cancel one in the pass it started (a new plan come
+        // in): whether it had finished by then, its result taken, or not, its result dropped, was the threads' race.
+        private static IEnumerable<MethodBase> WorkerMethods() =>
+            new[]
+                {
+                    AccessTools.Method(typeof(EidolonMinePlans), "RouteStep"),
+                    AccessTools.Inner(typeof(EidolonMinePlans), "Work") is { } work
+                        ? AccessTools.Method(typeof(EidolonMinePlans), "Start", [work, typeof(Mod.Eidolon.Core.MineSite), typeof(double)]) : null,
+                }
+                .Select(m => m ?? throw new NotSupportedException("the virtual clock found no EidolonMinePlans.RouteStep or Start"));
+
+        // Task.Run(func) in the planner: RunInline(func) instead
+        private static IEnumerable<CodeInstruction> Inline(IEnumerable<CodeInstruction> instructions)
+        {
+            var code = instructions.ToList();
+            var inline = AccessTools.Method(typeof(VirtualClock), nameof(RunInline));
+            int replaced = 0;
+            for (int i = 0; i < code.Count; i++)
+                if (code[i].operand is MethodInfo { Name: "Run", IsGenericMethod: true } run && run.DeclaringType == typeof(Task)
+                    && run.GetParameters() is [{ ParameterType.IsGenericType: true } p] && p.ParameterType.GetGenericTypeDefinition() == typeof(Func<>))
+                {
+                    code[i] = new CodeInstruction(OpCodes.Call, inline.MakeGenericMethod(run.GetGenericArguments())).MoveLabelsFrom(code[i]);
+                    replaced++;
+                }
+            if (replaced == 0)
+                throw new NotSupportedException("the virtual clock found no Task.Run in the eidolon mine planner to run inline");
+            return code;
+        }
+
+        // The game's unstable rock and falling ground draw from World.Rand too (whether rock left hanging caves in,
+        // and how): the same shared stream, so a cave-in came in one run and not the next.
+        private static IEnumerable<MethodBase> UnstableMethods()
+        {
+            var rock = AccessTools.TypeByName("Vintagestory.GameContent.BlockBehaviorUnstableRock");
+            var falling = AccessTools.TypeByName("Vintagestory.GameContent.BlockBehaviorUnstableFalling");
+            if (rock == null || falling == null)
+                throw new NotSupportedException("the virtual clock found no Vintagestory.GameContent.BlockBehaviorUnstableRock or BlockBehaviorUnstableFalling");
+            return new[]
+                {
+                    AccessTools.Method(rock, "getNearestUnstableBlocks"), AccessTools.Method(rock, "collapseLayer"),
+                    AccessTools.Method(rock, "checkCollapsibleNeighbours"), AccessTools.Method(rock, "CheckCollapsible"),
+                    AccessTools.Method(falling, "TryFalling"),
+                }
+                .Select(m => m ?? throw new NotSupportedException("the virtual clock found no unstable rock or falling method it draws for"));
+        }
+
+        // world.Rand in an unstable block's behaviour: BlockRand(world) instead
+        private static IEnumerable<CodeInstruction> OwnBlockRand(IEnumerable<CodeInstruction> instructions)
+        {
+            var rand = AccessTools.PropertyGetter(typeof(Vintagestory.API.Common.IWorldAccessor), "Rand");
+            var own = AccessTools.Method(typeof(VirtualClock), nameof(BlockRand));
+            var code = instructions.ToList();
+            int replaced = 0;
+            for (int i = 0; i < code.Count; i++)
+                if (code[i].Calls(rand))
+                {
+                    code[i] = new CodeInstruction(OpCodes.Call, own).MoveLabelsFrom(code[i]);
+                    replaced++;
+                }
+            if (replaced == 0)
+                throw new NotSupportedException("the virtual clock found no world.Rand in an unstable block's behaviour to replace");
+            return code;
+        }
+
+        // The game's path traversers' draws from World.Rand (a turn rate as each walk begins, a stuck check): the game
+        // thread's one stream, which block ticks and the like draw from too, as many times as the chunks loaded by
+        // their own threads (wall time) give them, so where an eidolon's walk lands in it differs run to run.
+        private static IEnumerable<MethodBase> TraverserMethods()
+        {
+            var waypoints = AccessTools.TypeByName("Vintagestory.Essentials.WaypointsTraverser");
+            var straight = AccessTools.TypeByName("Vintagestory.Essentials.StraightLineTraverser");
+            if (waypoints == null || straight == null)
+                throw new NotSupportedException("the virtual clock found no Vintagestory.Essentials.WaypointsTraverser or StraightLineTraverser");
+            return new[] { AccessTools.Method(waypoints, "BeginGo"), AccessTools.Method(waypoints, "OnGameTick"), AccessTools.Method(straight, "BeginGo") }
+                .Select(m => m ?? throw new NotSupportedException("the virtual clock found no path traverser BeginGo or OnGameTick"));
+        }
+
+        // entity.World.Rand in a traverser: TraverserRand(entity) instead
+        private static IEnumerable<CodeInstruction> OwnRand(IEnumerable<CodeInstruction> instructions)
+        {
+            var world = AccessTools.Field(typeof(Vintagestory.API.Common.Entities.Entity), "World");
+            var rand = AccessTools.PropertyGetter(typeof(Vintagestory.API.Common.IWorldAccessor), "Rand");
+            var own = AccessTools.Method(typeof(VirtualClock), nameof(TraverserRand));
+            var code = instructions.ToList();
+            int replaced = 0;
+            for (int i = 0; i + 1 < code.Count; i++)
+                if (code[i].LoadsField(world) && code[i + 1].Calls(rand))
+                {
+                    code[i] = new CodeInstruction(OpCodes.Call, own).MoveLabelsFrom(code[i]);
+                    code[i + 1] = new CodeInstruction(OpCodes.Nop).MoveLabelsFrom(code[i + 1]);
+                    replaced++;
+                }
+            if (replaced == 0)
+                throw new NotSupportedException("the virtual clock found no entity.World.Rand in a path traverser to replace");
+            return code;
         }
 
         /// <summary>Who has patched Process, for the messages.</summary>
@@ -480,9 +759,17 @@ public sealed class VirtualClock : IDisposable
         {
             try
             {
-                new Harmony(HarmonyId).Patch(Process,
+                var harmony = new Harmony(HarmonyId);
+                harmony.Patch(Process,
                     prefix: new HarmonyMethod(typeof(VirtualClock), nameof(BeforePass)),
                     transpiler: new HarmonyMethod(typeof(Engine), nameof(SkipPacingSleep)));
+                foreach (var m in TraverserMethods())
+                    harmony.Patch(m, transpiler: new HarmonyMethod(typeof(Engine), nameof(OwnRand)));
+                foreach (var m in UnstableMethods())
+                    harmony.Patch(m, transpiler: new HarmonyMethod(typeof(Engine), nameof(OwnBlockRand)));
+                harmony.Patch(BlockTicks, prefix: new HarmonyMethod(typeof(VirtualClock), nameof(BeforeBlockTicks)));
+                foreach (var m in WorkerMethods())
+                    harmony.Patch(m, transpiler: new HarmonyMethod(typeof(Engine), nameof(Inline)));
             }
             catch (Exception ex)
             {
