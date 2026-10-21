@@ -174,7 +174,7 @@ public sealed class MillRenderer : IRenderer
         {
             var c = Middle;
             var light = Footprint.ToWorld(new Int3((int)MathF.Floor(c.X), 1, (int)MathF.Floor(c.Z)), _be.Side);
-            prog = rapi.PreparedStandardShader(pos.X + light.X, pos.Y + light.Y, pos.Z + light.Z);
+            prog = MachineShading.Prepare(_capi, pos.AddCopy(light.X, light.Y, light.Z));
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
