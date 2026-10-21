@@ -340,6 +340,15 @@ is left out when its switch is off or what it names is not registered.
   rule `dividedByOilFill`); `MachineOilSettings.CylinderBorer` the oil per cylinder and the tank. The bushings (the
   game's metal parts, a block), bar and feed are `kept`; the output is the bored cylinder (work unit `blocks`). The `CylinderBorer` switch leaves it
   out when off. Its mold's casting comes from the tool molds' reader, as every mold's does.
+- The slitting mill (`Recipes/SlittingMillExport.cs`, `RecipeSection.SlittingMill.cs`, type `slittingmill`,
+  shape `machine`): one record per plate metal, `slittingmill|game:metalplate-{metal}|0`, for the twelve metals it
+  slits whose plate and nails and strips are registered. `config/slittingmill-rig.json` gives the knife strokes a plate
+  (`work.end`), the plate and output codes (`slit.plate`, `slit.output`) and the turns a stroke as a fallback;
+  `SeraphHorizonsConfig.SlittingMillSettings` gives the turns a stroke (`TurnsPerStroke`), the nails a plate
+  (`NailsPerPlate`) and each metal's knife wear (`Metals[metal].KnifeWear`, rule `fixed`); `MachineOilSettings.SlittingMill`
+  the oil per plate and the tank. The five stages' materials are `kept`, summed by item; the knife is the game's three
+  cleavers (the variant's stacks, steel first); the output is the metal's nails and strips (work unit `strokes`). The
+  `SlittingMill` switch leaves it out when off. The cutters' anvil recipe is an ordinary smithing record.
 - The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
   shape `machine`): one record per metal, `pressbrake|seraphhorizons:halfplate-{metal}|0`.
   `config/pressbrake-rig.json` gives each class's half plate and angle (`fold.plates`,
@@ -503,6 +512,8 @@ details and the limits (facing, connectors).
 - the cylinder borer (`RecipeExportCylinderBorerScenarios.cs`): a record per metal, a rough cast cylinder in, its kept
   stages, the cutter head worn by the oil's fill, the oil and the bored cylinder; the mold's six-ingot casting; and
   ppex's engines' grid records taking the bored cylinder;
+- the slitting mill (`RecipeExportSlittingMillScenarios.cs`): a record per plate metal, the plate in, its kept stages,
+  the cleavers worn by the metal's figure, the oil and 20 nails and strips; the cutters' smithing record;
 - the amalgam pan (`RecipeExportAmalgamPanScenarios.cs`): a record per crushed gold or silver quartz and
   grade, its charge, mercury and water in, the muller and shoes kept, the amalgam and the quartz out;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its
