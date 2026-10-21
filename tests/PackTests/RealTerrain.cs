@@ -344,5 +344,20 @@ internal static class RealTerrain
         }
     }
 
+    /// <summary>Puts the server's autosave out of reach (MagicNum.ServerAutoSave, seconds; the world is thrown away after
+    /// the run): under load, an autosave while the chunk thread loads the columns a search asked for crashed the chunk
+    /// database thread ("Execute requires the command to have a transaction object", as tools/ore-survey found).
+    /// Process-wide, as the field is.</summary>
+    public static void NoAutosave(Action<string> log)
+    {
+        var field = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(a => a.GetType("Vintagestory.Server.MagicNum", false))
+            .FirstOrDefault(t => t != null)?.GetField("ServerAutoSave");
+        if (field == null)
+            throw new Xunit.Sdk.XunitException("MagicNum.ServerAutoSave not found: the engine changed (tools/ore-survey's NoAutosave too)");
+        field.SetValue(null, Convert.ChangeType(1_000_000_000, field.FieldType));
+        log("autosave put out of reach");
+    }
+
     public static string Describe(MarkArea a) => $"({a.Min.X},{a.Min.Y},{a.Min.Z})-({a.Max.X},{a.Max.Y},{a.Max.Z})";
 }

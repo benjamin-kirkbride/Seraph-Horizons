@@ -31,6 +31,7 @@ public abstract class EidolonRealTerrainBase(ITestOutputHelper output) : AtlasSc
     private protected async Task Mine(TerrainKind kind, int dx, int dz, int crew, string player, int sx = 16, int sy = 8, int sz = 12,
         double? minutes = null)
     {
+        RealTerrain.NoAutosave(Log);
         var spot = await RealTerrain.Find(World, kind, sx, sy, sz, World.Spawn.AddCopy(dx, 0, dz), 16, crew, Log);
         var run = await new RealMineRun(World, Log).Run(spot, crew, player, minutes, maxTicks: minutes is { } m ? (int)(m * 60 * 30) + 600 : 60_000);
         Assert.True(run.Faults.Count == 0, $"{kind} at {RealTerrain.Describe(spot.Area)} (seed {RealTerrain.Seed}), crew {crew}: "
