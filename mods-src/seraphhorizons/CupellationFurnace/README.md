@@ -157,6 +157,10 @@ The furnace has no moving part: the rig's parts have no drivers and read no inpu
 Everything that shows or not is a `requires`, gameplay's state: the stages, the coal and the fire, the lead and the
 cake, the running litharge and the litharge in the pot, the damper's place, the cap.
 
+**Particles.** Lit, the fired machines' flames at `fireDoor` and the row's chimney smoke. While the blast works the
+charge (the litharge running, `stream`), white litharge fume rises off the `dish` and the litharge drips glowing into
+the pot at `litharge`.
+
 ## The build (a proposal)
 
 The crucible furnace's pattern: an iron frame by grid recipe (placing it puts the controller and its ghosts down), then
