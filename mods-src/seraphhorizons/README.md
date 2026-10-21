@@ -34,7 +34,7 @@ it patches by name, so the mod builds from the game alone (`release.yml` needs n
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, routes a ported screw's items through its port, keeps chutes from sending items back, feeds the creative steam source, runs the creative item source and sink and runs `/clear`; Tidy Variants, cart reach, Carry On's
-icon reset, the creative search tweaks, the handbook's kept place, the NaN motion diagnostics and the info HUD's rounding run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+icon reset, the creative search tweaks, the handbook's kept place, the NaN motion diagnostics, the info HUD's rounding and hiding Biodiversity's welcome run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block). The
@@ -496,6 +496,22 @@ underscore (an identifier), a dotted run of digits (a version `1.22.7`, an addre
 logic is `Core/InfoTextRounding.cs`. Client side only, its own Harmony id
 (`seraphhorizons.wailarounding`), patched when the client side starts; a failure while rounding is
 logged once and turns the rounding off until the client restarts, leaving the text as it came.
+
+### Biodiversity's welcome message is not shown (`NoBiodiversityWelcome`)
+
+Biodiversity (`biodiversity`, 1.1.4) posts a welcome in chat every time a player joins a world:
+"Welcome, <name>! We hope you enjoy your time playing with Biodiversity!", its installed sub-mods,
+a link to its Discord, and a link to turn the message off. It comes from the client
+(`bdWelcomeSystem.Event_WelcomeMessage` on `PlayerJoin`), and Biodiversity's only way to stop it is
+a per-client setting, `DisableWelcomeMsg` in `ModConfig/biodiversity/client.json`, which its
+`.nobdwelcome` command sets. The pack's config defaults cannot set it (Settings follow the pack's
+defaults, below): the file is written only by a client, so it is in no snapshot and no pack value
+reaches it, and every player would see the message until they clicked it away.
+
+So a Harmony prefix (its own id, `seraphhorizons.biodiversitywelcome`) skips
+`Event_WelcomeMessage`, found by name; Biodiversity's file and command are left alone. If the method
+is gone the tweak logs a warning and the message shows as it ships; without Biodiversity it is
+skipped. Client side only, patched when the client side starts.
 
 ### Every food has a hydration value (`FoodHydration`)
 
