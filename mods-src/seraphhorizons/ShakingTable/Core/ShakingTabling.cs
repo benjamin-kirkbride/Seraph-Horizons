@@ -24,6 +24,15 @@ public static class ShakingTabling
     /// rig's <c>stroke.strokesPerTurn</c>.</summary>
     public const double StrokesPerTurn = 3;
 
+    /// <summary>The head shaft's angle into its turn (radians) where the deck's slow push ends and the quick return
+    /// starts, the bump: the rig's <c>stroke.bumpAt</c>.</summary>
+    public const double BumpAt = 2.177298;
+
+    /// <summary>Whether the axle's travel going from <paramref name="before"/> to <paramref name="now"/> (radians) passed
+    /// a bump (the head shaft turning <see cref="StrokesPerTurn"/> times the travel).</summary>
+    public static bool Bumped(double before, double now) =>
+        Math.Floor((StrokesPerTurn * now - BumpAt) / (2 * Math.PI)) != Math.Floor((StrokesPerTurn * before - BumpAt) / (2 * Math.PI));
+
     /// <summary>Units under this are nothing (a middlings stream with no locked units is not sent).</summary>
     public const double Nothing = 1e-9;
 
