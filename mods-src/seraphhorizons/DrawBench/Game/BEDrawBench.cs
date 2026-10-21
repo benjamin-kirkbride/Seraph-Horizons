@@ -42,8 +42,8 @@ public class BEDrawBench : BEMachine
     private string[]? _serverDieDraws;
     private readonly DrawBenchClock _clock = new();
     private double _lastPsi;
-    private float _dustTimer;
-    private float _dripTimer;
+    private readonly ParticleTimer _dust = new(DustInterval);
+    private readonly ParticleTimer _drip = new(DripInterval);
 
     public bool JobOn => _job.On && _hollow != null;
     public ItemStack? Hollow => _hollow;
@@ -324,16 +324,10 @@ public class BEDrawBench : BEMachine
         _clock.Advance(dt, turned, k, _job.Work, running, TurnsPerSection(k));
         if (!far && running && Rig is { } rig)
         {
-            if ((_dustTimer += dt) >= DustInterval)
-            {
-                _dustTimer = 0;
+            if (_dust.Due(dt))
                 SpawnDust(rig, k);
-            }
-            if (OilFill > 0 && (_dripTimer += dt) >= DripInterval)
-            {
-                _dripTimer = 0;
+            if (OilFill > 0 && _drip.Due(dt))
                 SpawnDrip(rig);
-            }
         }
         return _clock.Input(theta, psi, OilFill);
     }
@@ -342,23 +336,18 @@ public class BEDrawBench : BEMachine
     {
         var at = WorldPoint(rig.Die);
         // fine metal from the die's mouth: lead grey, copper red
-        int colour = k == 2 ? ColorUtil.ToRgba(220, 70, 120, 190) : ColorUtil.ToRgba(220, 120, 110, 105);
-        Api.World.SpawnParticles(2, colour,
-            at.AddCopy(-0.03, -0.03, -0.03), at.AddCopy(0.03, 0.03, 0.03),
-            new Vec3f(-0.3f, -0.1f, -0.3f), new Vec3f(0.3f, 0.3f, 0.3f), 0.6f, 1f, 0.15f, EnumParticleModel.Cube, null);
+        int colour = MachineParticles.MetalColour(k == 2 ? "copper" : "lead", 220, 0);
+        MachineParticles.Dust(colour).Spawn(Api.World, at, MachineParticles.Around(0.03));
         // and a wisp of the lubricant burning off
         if (OilFill > 0 && Api.World.Rand.NextDouble() < 0.25)
-            Api.World.SpawnParticles(1, ColorUtil.ToRgba(60, 200, 200, 200),
-                at, at.AddCopy(0.02, 0.02, 0.02),
-                new Vec3f(-0.05f, 0.1f, -0.05f), new Vec3f(0.05f, 0.25f, 0.05f), 1.2f, -0.02f, 0.4f, EnumParticleModel.Quad, null);
+            new Puff(1, ColorUtil.ToRgba(60, 200, 200, 200), new Vec3f(-0.05f, 0.1f, -0.05f), new Vec3f(0.05f, 0.25f, 0.05f), 1.2f, -0.02f, 0.4f)
+                .SpawnBetween(Api.World, at, at.AddCopy(0.02, 0.02, 0.02));
     }
 
     private void SpawnDrip(DrawBenchRig rig)
     {
         var at = WorldPoint(rig.Drip);
-        Api.World.SpawnParticles(1, ColorUtil.ToRgba(190, 40, 140, 190),
-            at.AddCopy(-0.01, -0.02, -0.01), at.AddCopy(0.01, 0, 0.01),
-            new Vec3f(0, -0.4f, 0), new Vec3f(0, -0.2f, 0), 0.6f, 1f, 0.12f, EnumParticleModel.Quad, null);
+        MachineParticles.Drip(MachineParticles.Oil).SpawnBetween(Api.World, at.AddCopy(-0.01, -0.02, -0.01), at.AddCopy(0.01, 0, 0.01));
     }
 
     /// <summary>The block's textures with the die's metal in place of <c>die</c>.</summary>
