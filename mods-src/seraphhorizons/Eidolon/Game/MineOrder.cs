@@ -755,8 +755,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var head = routes.Head(id);
             if (head == null)
             {
-                if (_queue.Count == 0 && routes.Unrouted(live))
-                    EidolonMinePlans.RequestRoutes(Cells, "empty", false);
+                // no stop: routes asked for, and a station taken at once by today's dispatch meanwhile (the next
+                // solve keeps it as its head), not waited for; one waited 38 s so with stations free
+                if (_queue.Count == 0)
+                {
+                    if (routes.Unrouted(live))
+                        EidolonMinePlans.RequestRoutes(Cells, "empty", true);
+                    RefillDispatch(eidolon, plan, live, workers, now, 1, routes.Routes.Where(r => r.Key != id)
+                        .SelectMany(r => r.Value.Stops).Where(x => x.Kind == MineStopKind.Station).Select(x => x.Station).ToHashSet());
+                }
                 return;
             }
             if (head.Kind == MineStopKind.Wait)
@@ -776,6 +783,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 continue;
             }
             var station = plan.Stations[head.Station];
+            // a stop whose way it found crossing another's claim, with another station clear (Approach): dropped,
+            // the routes solved again, not set off for again meanwhile
+            if (_crossedStands.TryGetValue(station.Stand, out double putBy) && now < putBy)
+            {
+                Repaired(DropStop(id, head.Station, now) ?? "crossed");
+                continue;
+            }
             var cells = (head.Cells.Count > 0 ? head.Cells : station.Cells).Where(live.Remaining.Contains).ToList();
             if (cells.Count == 0)
             {
@@ -1218,13 +1232,23 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             RefillRoute(eidolon, plan, live, workers, now);
             return;
         }
+        RefillDispatch(eidolon, plan, live, workers, now);
+    }
+
+    /// <summary>Today's dispatch (<see cref="MineDispatch.Next"/>): takes stations until it holds
+    /// <paramref name="most"/> (else <see cref="MineDispatch.QueueLength"/>, or one while another member present
+    /// holds none), each claimed on the board, none whose stand is put by for a crossed claim nor one of
+    /// <paramref name="others"/> (the stations other members' routes hold).</summary>
+    private void RefillDispatch(EntityLaborEidolon eidolon, MinePlan plan, MineState live, List<MineWorker> workers, double now, int? most = null,
+        IReadOnlySet<int>? others = null)
+    {
         if (_queue.Count == 0)
             _headAhead = false;
         long id = eidolon.EntityId;
         var board = Board;
         var parked = workers.Where(w => w.Queue.Count == 0).ToList();
         bool Clear(MarkPos c) => !parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c));
-        int length = _job != null && parked.Any(w => _job.Present.Contains(w.Id)) ? 1 : MineDispatch.QueueLength;
+        int length = most ?? (_job != null && parked.Any(w => _job.Present.Contains(w.Id)) ? 1 : MineDispatch.QueueLength);
         while (_queue.Count > Math.Max(1, length))
         {
             board?.Unclaim(id, _queue[^1].Id);
@@ -1234,7 +1258,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
             var next = MineDispatch.Next(plan, live, me, workers,
-                s => !Taken(s.Stand, workers) && !(_crossedStands.TryGetValue(s.Stand, out double until) && now < until)
+                s => !Taken(s.Stand, workers) && !(_crossedStands.TryGetValue(s.Stand, out double until) && now < until) && others?.Contains(s.Id) != true
                     && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
                 parked.Count > 0 ? Clear : null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
             // a station worked ahead of its band only as the one it works, nothing held behind it
@@ -1682,21 +1706,17 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             return true;
         }
         _occupiedSince = null;
-        if (CrossesClaims(eidolon, stand, now) && (_throughSince ??= now) > now - (routed ? MineRoutePlanner.PassAfter : ThroughSeconds))
+        // its way crosses the columns another holds: with another station it reaches clear now, that one, this
+        // stand put by for ThroughSeconds (on routes its stop dropped and the routes solved again); with none, it
+        // goes through at once rather than wait (waits for room, again and again, came to 30 s with stations free)
+        if (CrossesClaims(eidolon, stand, now) && ClearOther(eidolon, stand, routed, now))
         {
             Held(eidolon, "its way crosses another's claim", now);
+            _crossedStands[stand] = now + ThroughSeconds;
             DropQueue(eidolon);
-            if (!routed)
-            {
-                // today's dispatch: that stand put by while it waits, and another it reaches clear taken meanwhile;
-                // only with none does it wait, and go through once it has waited ThroughSeconds in all
-                _crossedStands[stand] = _throughSince!.Value + ThroughSeconds;
-                _phase = Phase.Seek;
-                return true;
-            }
-            _phase = Phase.Wait;
-            _waitCheckAt = now + WaitCheckSeconds;
-            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
+            if (routed)
+                Repaired(DropStop(eidolon.EntityId, head.Id, now) ?? "crossed");
+            _phase = Phase.Seek;
             return true;
         }
         if (_nav!.GoTo(new Vec3d(stand.X, stand.Y, stand.Z), false, () => { }, () => { }, arriveWithin: ArriveWithin))
@@ -1730,6 +1750,27 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         BadStand(eidolon, head, now);
         return true;
+    }
+
+    /// <summary>Whether another station than the one at <paramref name="stand"/> is free for it now, by today's
+    /// dispatch, none put by and (<paramref name="routed"/>) none another's route holds, whose way crosses no
+    /// column another holds.</summary>
+    private bool ClearOther(EntityLaborEidolon eidolon, PathCell stand, bool routed, double now)
+    {
+        if (Cells.Plan is not { } plan || Cells.Live is not { } live)
+            return false;
+        long id = eidolon.EntityId;
+        var board = Board;
+        var workers = Workers(eidolon);
+        var others = routed && Cells.Routes is { } routes
+            ? routes.Routes.Where(r => r.Key != id).SelectMany(r => r.Value.Stops).Where(x => x.Kind == MineStopKind.Station).Select(x => x.Station).ToHashSet()
+            : null;
+        var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, [], 0);
+        var next = MineDispatch.Next(plan, live, me, workers,
+            s => s.Stand != stand && !Taken(s.Stand, workers) && !(_crossedStands.TryGetValue(s.Stand, out double until) && now < until)
+                && others?.Contains(s.Id) != true && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
+            null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
+        return next != null && !CrossesClaims(eidolon, next.Stand, now);
     }
 
     /// <summary>Whether its way to <paramref name="stand"/> passes with its box over a column another member
