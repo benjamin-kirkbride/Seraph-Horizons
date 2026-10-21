@@ -12,7 +12,12 @@
 	shape: { base: "seraphhorizons:item/eidolontorso" },
 	attributes: {
 		displaycaseable: false,
-		shelvable: false
+		shelvable: false,
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:eidolontorso-handbook-title", text: "seraphhorizons:eidolontorso-handbook-text" }
+			]
+		}
 	},
 	creativeinventory: { "general": ["*"], "items": ["*"] },
 	materialDensity: 2000,
