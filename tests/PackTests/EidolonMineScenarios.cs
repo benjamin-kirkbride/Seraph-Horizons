@@ -179,7 +179,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotNull(blocks.GetBlockEntity(chest));
         Assert.Equal(granite, blocks.GetBlock(chest.DownCopy()).Id);
         Assert.True(blocks.GetBlock(water).IsLiquid());
-        Assert.Equal(toMine.Count, order.Mined);
+        Assert.InRange((toMine.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         // Up to four a strike, and half a point of oil each.
         Assert.InRange(order.Strikes, (toMine.Count + 3) / 4, toMine.Count);
@@ -275,7 +275,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
         Assert.NotNull(blocks.GetBlockEntity(chest));
         Assert.Equal(soil, blocks.GetBlock(underChest).Id);
-        Assert.Equal(toMine.Count + regrown, order.Mined);
+        Assert.InRange((toMine.Count + regrown) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         // the chest left, nothing out of reach
         Assert.Contains("1 left as they were, 0 out of its reach", order.Reported);

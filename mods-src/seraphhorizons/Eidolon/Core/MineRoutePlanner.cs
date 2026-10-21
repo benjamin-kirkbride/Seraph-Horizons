@@ -8,8 +8,10 @@ namespace SeraphHorizons.Mod.Eidolon.Core;
 /// free, takes of the stations it may dig then the one it would finish soonest (strike by strike,
 /// <see cref="MineCosts.WorkSeconds(MineSite, MineStation, MineTunnel?)"/>), its walk on the walk graph,
 /// crossing another's claim while it walks, or letting another's planned way cross its claim, only after
-/// waiting <see cref="PassAfter"/> for it (or by the way round, if not much longer), waiting its turn at every
-/// narrow way
+/// waiting <see cref="PassAfter"/> for it (or by the way round, if not much longer), and never passing by
+/// another's stand in the covered part while that one works there (nor letting another's way pass by its own):
+/// it waits for that one to be done, at most <see cref="CrossDelayMax"/>, or takes the way round the claims;
+/// waiting its turn at every narrow way
 /// (<see cref="MineSlots"/>), guard-checked against the world as it would be then with everyone's later
 /// stands kept
 /// (<see cref="MineDispatch.Executable(MinePlan, MineState, MineStation, IReadOnlyList{MineWorkerAt}, out MineRefusal, Func{MarkPos, bool}?, bool, IReadOnlyList{PathCell}?)"/>);
@@ -42,7 +44,15 @@ public static class MineRoutePlanner
     /// counts this much later in the choice.</summary>
     public const double AheadWaitSeconds = 10, AheadPenaltySeconds = 10;
 
+    /// <summary>A second face (another lane while another member holds one) counts this much later in the choice:
+    /// after the open part and work ahead (README "Eidolon", working together, *Spare work*).</summary>
+    public const double SecondFacePenaltySeconds = 2 * AheadPenaltySeconds;
+
     public const int Relocations = 16, Validations = 3;
+
+    /// <summary>A walk this long to a station is a long approach, and the stations within <see cref="ClusterSeconds"/>
+    /// of its stand share it: one member works them in one trip (README "Eidolon", working together, *Routes*).</summary>
+    public const double LongApproachSeconds = 15, ClusterSeconds = 6;
 
     /// <summary>The most a member puts off setting off for another's claim on its way.</summary>
     public const double CrossDelayMax = 30;
@@ -104,7 +114,8 @@ public static class MineRoutePlanner
     /// <summary>Seconds a whole-job simulation that stalled with cells left is charged on top.</summary>
     private const double Stalled = 3600;
 
-    /// <summary>How long a way across another's claim waits for it before it goes through (the live rule).</summary>
+    /// <summary>How long a way across another's claim waits for it before it goes through (the live rule: the plan's
+    /// ways never cross one, <see cref="CrossDelayMax"/>; this is for a world that ran off the plan).</summary>
     public const double PassAfter = 4;
 
     /// <summary>A station's work shaken by up to ±30 % by <paramref name="seed"/> (0: as estimated), the same for
@@ -385,6 +396,9 @@ public static class MineRoutePlanner
         public bool Retired;
         public readonly List<SimStop> Stops = new();
         public int Stations;
+        // where it came by a long walk (LongApproachSeconds) and still works, the stations a short walk from
+        // there its own (a cluster sharing one long approach, done in one trip)
+        public PathCell? Remote;
         public Queue<int>? Fixed;
         public double FixedSince = double.NaN;
         public PathCell Place(double t)
@@ -631,6 +645,10 @@ public static class MineRoutePlanner
             Take(open, PlanOrderPool);
             var pool = eligible.OrderBy(e => e.Station.Id).ToList();
             var candidates = Time(m, t, pool, ahead: false);
+            // a second face (another lane while one is held: MineDispatch.Rank) counts SecondFacePenaltySeconds later
+            bool faceHeld = bands?.Covered != null && _members.Any(o => o != m && !o.Retired
+                && o.Stops.Any(s => s.Kind == MineStopKind.Station && !s.Ahead && s.Finish > t && _c.Plan.Stations[s.Station].Kind == MineStationKind.Face));
+            bool SecondFace(Candidate c) => MineDispatch.Rank(c.Station, c.Ahead, faceHeld) == 3;
             if (candidates.Count == 0 || candidates.Min(c => c.Start) > t + AheadWaitSeconds)
             {
                 var ahead = new List<(MineStation Station, IReadOnlyList<MarkPos> Cells)>();
@@ -658,7 +676,11 @@ public static class MineRoutePlanner
             bool Busy(Member o) => o.Stops.Any(s => s.Kind == MineStopKind.Station && s.Depart <= t + 1e-9 && s.Finish > t + 1e-9);
             bool Left(Candidate c) => Variant.Leave && _members.Any(o => o != m && !o.Retired
                 && Math.Max(o.Free, t) + MineCosts.Estimate(o.At, c.Station.Stand) + MineCosts.ArriveSeconds + c.Work < c.Finish - (Busy(o) ? 1e-9 : LeaveMargin));
-            foreach (var c in candidates.Where(c => !Left(c)).OrderBy(Sooner).ThenBy(c => c.Finish + (c.Ahead ? AheadPenaltySeconds : 0) - Critical * Beneath(c.Station)).ThenBy(c => c.Station.Id))
+            // a cluster of stations sharing one long approach is one member's trip: the one there works the rest of it
+            // first, before it walks the long way back (the others are not kept off it: kept off, one far from
+            // every station was left with none)
+            bool Here(Candidate c) => m.Remote is { } here && MineCosts.Estimate(here, c.Station.Stand) <= ClusterSeconds;
+            foreach (var c in candidates.Where(c => !Left(c)).OrderBy(c => !Here(c)).ThenBy(Sooner).ThenBy(c => c.Finish + (c.Ahead ? AheadPenaltySeconds : 0) + (SecondFace(c) ? SecondFacePenaltySeconds : 0) - Critical * Beneath(c.Station)).ThenBy(c => c.Station.Id))
             {
                 if (tries++ >= GuardTries)
                     break;
@@ -723,12 +745,12 @@ public static class MineRoutePlanner
                 if (leg.Count == 0)
                     continue;
                 double release = _c.FirstEligible.GetValueOrDefault(f.Id, t);
-                if (Timed(m, t, f, ahead, leg, walk, release) is { } c)
+                var c = Timed(m, t, f, ahead, leg, walk, release);
+                // none clear within CrossDelayMax: the way round the others' claims, if not much longer
+                if (c == null && Round(m, t, f) is { } round && round.Seconds(f.Stand) is { } longer && longer <= walk + DetourSeconds)
+                    c = Timed(m, t, f, ahead, round.Path(f.Stand), longer, release);
+                if (c != null)
                     result.Add(c);
-                else if (Round(m, t, f) is { } round && round.Seconds(f.Stand) is { } longer && longer <= walk + DetourSeconds
-                    && Timed(m, t, f, ahead, round.Path(f.Stand), longer, release) is { } around)
-                    // its way crosses another's claim: the way round it, if not much longer
-                    result.Add(around);
             }
             return result;
         }
@@ -738,6 +760,7 @@ public static class MineRoutePlanner
             var runs = _c.Index.Timed(leg, holdEnd: true);
             var columns = LegColumns(leg);
             var claim = MineDispatch.Claim(f, _c.Plan.Tunnel).ToHashSet();
+            var stand = StandColumns(f.Stand);
             double work = Shaken(f.Id, MineCosts.WorkSeconds(_state.Site, f, _c.Plan.Tunnel));
             double depart = t;
             for (int round = 0; ; round++)
@@ -747,14 +770,19 @@ public static class MineRoutePlanner
                 if (double.IsPositiveInfinity(slot))
                     return null;
                 double finish = Math.Max(slot + walk + MineCosts.ArriveSeconds, release) + work;
-                double next = Math.Max(Crossing(m, columns, slot, slot + walk), Crossed(m, claim, slot, finish));
-                // a way across another's claim waits for it at most PassAfter, then goes (as the game goes through)
-                if (next <= slot || slot >= t + PassAfter - 1e-9)
+                double pass = Math.Max(Crossing(m, columns, slot, slot + walk), Crossed(m, claim, slot, finish));
+                // a way by another's stand in the covered part while it works there waits for it to be done, never
+                // going through: in a heading there is no room to pass, and in the game the walker stops short of the
+                // other, parts from it and waits again (on a hillside, then round over the hill: 40 s where the plan
+                // counted a 4 s pass); in the open the game's navigator goes round
+                double by = Math.Max(Passing(m, columns, slot, slot + walk), Passed(m, stand, slot, finish, Covered(f.Stand)));
+                // a way across the rest of another's claim waits for it at most PassAfter, then goes (as the game goes through)
+                if (by <= slot && (pass <= slot || slot >= t + PassAfter - 1e-9))
                 {
                     depart = slot;
                     break;
                 }
-                next = Math.Min(next, t + PassAfter);
+                double next = Math.Max(by, pass <= slot ? slot : Math.Min(pass, t + PassAfter));
                 if (next > t + CrossDelayMax || round == 7)
                     return null;
                 depart = next;
@@ -823,6 +851,49 @@ public static class MineRoutePlanner
             return end;
         }
 
+        // whether a stand is in the area's covered part (a heading, no room to pass one working there)
+        private bool Covered(PathCell stand) => _c.Plan.Tunnel is { } tunnel
+            && (tunnel.Covered.Contains((stand.X - 1, stand.Z - 1)) || tunnel.Covered.Contains((stand.X, stand.Z))
+                || tunnel.Covered.Contains((stand.X - 1, stand.Z)) || tunnel.Covered.Contains((stand.X, stand.Z - 1)));
+
+        // the columns of a stand's box: a way whose box meets them walks into one working there
+        private static HashSet<(int X, int Z)> StandColumns(PathCell stand) =>
+            [(stand.X - 1, stand.Z - 1), (stand.X - 1, stand.Z), (stand.X, stand.Z - 1), (stand.X, stand.Z)];
+
+        // the latest end of another's work at a stand in the covered part the leg's columns pass by while it walks
+        // (from - when none)
+        private double Passing(Member m, HashSet<(int X, int Z)> columns, double from, double to)
+        {
+            double end = double.NegativeInfinity;
+            foreach (var o in _members)
+            {
+                if (o == m)
+                    continue;
+                foreach (var s in o.Stops)
+                    if (s.Kind == MineStopKind.Station && s.Arrive < to && s.Finish > from && Covered(s.At) && StandColumns(s.At).Overlaps(columns))
+                        end = Math.Max(end, s.Finish);
+            }
+            return end;
+        }
+
+        // the latest arrival of another's way that passes by the stand, in the covered part, while it is worked
+        // (from - when none)
+        private double Passed(Member m, HashSet<(int X, int Z)> stand, double from, double to, bool covered)
+        {
+            double end = double.NegativeInfinity;
+            if (!covered)
+                return end;
+            foreach (var o in _members)
+            {
+                if (o == m)
+                    continue;
+                foreach (var s in o.Stops)
+                    if (s.Kind == MineStopKind.Station && s.Arrive > from && s.Depart < to && s.Leg.Count > 2 && (s.LegColumns ??= LegColumns(s.Leg)).Overlaps(stand))
+                        end = Math.Max(end, s.Arrive);
+            }
+            return end;
+        }
+
         private static bool Taken(PathCell at, PathCell stand) =>
             Math.Abs(at.X - stand.X) < 2 * EidolonMining.HalfWidth && Math.Abs(at.Z - stand.Z) < 2 * EidolonMining.HalfWidth && Math.Abs(at.Y - stand.Y) < 4;
 
@@ -866,6 +937,8 @@ public static class MineRoutePlanner
             _slots.Reserve(m.Id, stop.Seq, c.Depart, c.Runs);
             m.Stops.Add(stop);
             m.Stations++;
+            m.Remote = c.LegSeconds >= LongApproachSeconds ? stop.At
+                : m.Remote is { } here && MineCosts.Estimate(here, stop.At) <= ClusterSeconds ? here : null;
             m.At = stop.At;
             m.Free = stop.Finish;
             _pending.Add(stop);
@@ -1237,7 +1310,8 @@ public static class MineRoutePlanner
                     continue;
                 }
                 m.Through = null;
-                var cells = MineDispatch.Cells(_state, next);
+                // a station worked ahead of its band (none of the face nor of the open part to take) dug as one
+                var cells = MineDispatch.Cells(_state, next, MineDispatch.IsAhead(_state, next));
                 var station = next with { Cells = cells };
                 m.Station = station;
                 m.Claim = MineDispatch.Claim(station, _c.Plan.Tunnel).ToHashSet();

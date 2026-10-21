@@ -146,9 +146,18 @@ public class EidolonMinePlans : ModSystem
         // the members present the solve under way was made for (its choice is theirs)
         public long[] RoutingMembers = [];
 
+        // its members it could not place on the walk graph, where they stood and why (logged if they get no stops)
+        public List<(long Id, PathCell At, string Why)> RoutingUnplaced = [];
+
         public void Cancel()
         {
             CancelRouting();
+            // a grown window (Grow) being read or planned over is dropped: grown again at the next solve
+            if (Cells.Live != null)
+            {
+                Site = null;
+                Loading = null;
+            }
             Token?.Cancel();
             Token?.Dispose();
             Token = null;
@@ -231,7 +240,7 @@ public class EidolonMinePlans : ModSystem
             return;
         cells.StuckReplanned = false;
         var list = broken.ToList();
-        Take(cells, s => s.Apply(list));
+        Take(cells, s => s.Apply(list, exact: true));
         if (_work.FirstOrDefault(w => w.Cells == cells) is { } work)
             foreach (var cell in list)
                 Retry(work, cell);
@@ -262,6 +271,8 @@ public class EidolonMinePlans : ModSystem
         bool target = live.Remaining.Contains(cell);
         if (gone)
         {
+            if (target)
+                cells.Gone++;
             Take(cells, s => s.Apply([cell]));
             if (!target && was)
                 live.Stale = true;
@@ -269,10 +280,43 @@ public class EidolonMinePlans : ModSystem
         else
         {
             bool stale = (voxel.Solid && !was) || (voxel.Rule == MineRule.Mine && rule != MineRule.Mine) || EidolonMining.Holds(voxel.Rule);
+            if (voxel.Rule == MineRule.Mine && rule != MineRule.Mine && area.Contains(cell.X, cell.Y, cell.Z))
+                cells.Appeared++;
             Take(cells, s => s.Changed(cell, voxel, stale));
         }
         if (_work.FirstOrDefault(w => w.Cells == cells) is { } work)
             Retry(work, cell);
+    }
+
+    /// <summary>
+    /// The blocks round each of <paramref name="nodes"/> (its box and a column round it, from two under its feet
+    /// to its head) read again from the world into the job's live state (<see cref="Seen"/>), ahead of the sweep:
+    /// how many it had wrong. Asked before a stand is called bad (README "Eidolon", mining, *Stations*): the live
+    /// state can be behind the world there (a block that fell or caved in is seen only by the sweep), and a stand
+    /// it holds out on a block that is gone is no disagreement between the walk graph and the game's pathfinder.
+    /// </summary>
+    public int Look(MineJobCells cells, IEnumerable<PathCell> nodes)
+    {
+        if (cells.Live is not { } live || _work.FirstOrDefault(w => w.Cells == cells) is not { } work)
+            return 0;
+        var site = live.Site;
+        var seen = new HashSet<MarkPos>();
+        int wrong = 0;
+        foreach (var n in nodes)
+        for (int x = n.X - 2; x <= n.X + 1; x++)
+        for (int z = n.Z - 2; z <= n.Z + 1; z++)
+        for (int y = n.Y - 2; y <= n.Y + 3; y++)
+        {
+            var cell = new MarkPos(x, y, z);
+            if (!site.InWindow(x, y, z) || site.Unloaded(x, z) || !seen.Add(cell) || !work.World.Loaded(x, z))
+                continue;
+            var voxel = work.World.Read(x, y, z);
+            if (voxel.Solid == site.Solid(x, y, z))
+                continue;
+            wrong++;
+            Seen(cells, cell, voxel);
+        }
+        return wrong;
     }
 
     // A stand found bad near a block that changed is tried again, once.
@@ -375,10 +419,10 @@ public class EidolonMinePlans : ModSystem
                 Swap(work, made);
             return;
         }
-        // the first plan: the window read, a column at a time
-        if (cells.Live == null && work.Job == null)
+        // the first plan, or one over a window grown for members outside it (Grow): the window read, a column at a time
+        if ((cells.Live == null || work.Site != null) && work.Job == null)
         {
-            work.Site ??= new MineSite(work.Area, work.Step);
+            work.Site ??= new MineSite(work.Area, work.Step, FirstWindow(work));
             if (work.Roof == null)
             {
                 work.Loading ??= work.Site.Load(work.World).GetEnumerator();
@@ -457,6 +501,10 @@ public class EidolonMinePlans : ModSystem
                 return;
             }
             cells.RouteChoice.Made(made, work.RoutingMembers, work.Area);
+            if (!made.Today)
+                foreach (var (id, at, reason) in work.RoutingUnplaced)
+                    if (!made.Routes.TryGetValue(id, out var route) || route.Stops.All(s => s.Kind != MineStopKind.Station))
+                        _api!.Logger.Debug($"[eidolon-mine] eidolon {id} of {Describe(work.Area)} has no stops: it cannot be placed on the walk graph at ({at.X},{at.Y},{at.Z}), {reason}");
             if (made.Stats.KeptCurrent && cells.Routes != null)
                 return;
             // Members gone from the job while it was solved: their routes are taken out as Stop does, their
@@ -517,7 +565,18 @@ public class EidolonMinePlans : ModSystem
         var members = MineOrder.RouteMembers(job, jobs!, now);
         if (members.Count < 2)
             return;
-        var input = new MineRouteInput(cells.Plan!, cells.PlanVersion, live.Clone(), members, [], now,
+        // a member outside the window within MineSite.GrowColumns of the area: the window grown to take it in
+        // and the plan made again over it, the routes solved once that is in (one farther is not: it gets no stops)
+        var window = MineSite.Grown(work.Area, live.Site.Window, members.Select(m => m.At));
+        if (window != live.Site.Window)
+        {
+            Grow(work, window, members.Where(m => !MineSite.Holds(live.Site.Window, m.At) && MineSite.Off(work.Area, m.At) <= MineSite.GrowColumns));
+            return;
+        }
+        var state = live.Clone();
+        work.RoutingUnplaced = members.Select(m => (m.Id, m.At, Why: MineCosts.Unplaced(state, m.At)))
+            .Where(u => u.Why != null).Select(u => (u.Id, u.At, u.Why!)).ToList();
+        var input = new MineRouteInput(cells.Plan!, cells.PlanVersion, state, members, [], now,
             why == "periodic" ? cells.Routes!.Copy() : null, null)
         {
             Keep = choice,
@@ -549,6 +608,38 @@ public class EidolonMinePlans : ModSystem
                 return null;
             }
         });
+    }
+
+    /// <summary>
+    /// The job's window grown to <paramref name="window"/> for <paramref name="outside"/>, members standing
+    /// outside it that a solve could not place on the walk graph (README "Eidolon", working together, *Routes*):
+    /// read a column at a time and planned over as the first plan is (what changes meanwhile journalled from
+    /// the read's start), the old plan serving meanwhile. One window for the plan, the reach and the walk, so
+    /// every plan after keeps it; until its first solve the job is dispatched as today's.
+    /// </summary>
+    private void Grow(Work work, MarkArea window, IEnumerable<MineRouteMember> outside)
+    {
+        _api!.Logger.Debug($"[eidolon-mine] window of {Describe(work.Area)} grown to {Describe(window)} for "
+            + string.Join(", ", outside.Select(m => $"eidolon {m.Id} at ({m.At.X},{m.At.Y},{m.At.Z})")) + " outside it; planning again over it");
+        var cells = work.Cells;
+        work.Site = new MineSite(work.Area, work.Step, window);
+        work.Loading = null;
+        work.Roof = null;
+        work.Journal = new();
+        cells.Routes = null;
+        cells.RoutesWanted = null;
+        cells.RoutesUrgent = false;
+    }
+
+    // The window a job's first plan reads: grown round its members present, a crew (Grow), so its first solve places them.
+    private MarkArea FirstWindow(Work work)
+    {
+        var around = MineSite.Around(work.Area);
+        var jobs = _api == null ? null : EidolonJobSystem.Of(_api);
+        if (jobs?.Mining.Jobs.FirstOrDefault(j => j.Shared == work.Cells && !j.Closed) is not { Present.Count: >= 2 } job)
+            return around;
+        return MineSite.Grown(work.Area, around, job.Present.Select(jobs.Member).OfType<EntityLaborEidolon>()
+            .Where(e => e.Pos.Dimension == work.Dimension).Select(e => WidePath.NodeAt(e.Pos.X, e.Pos.Y, e.Pos.Z)));
     }
 
     // The roof check run on: true once done.
@@ -597,28 +688,30 @@ public class EidolonMinePlans : ModSystem
         var skip = new HashSet<MarkPos>(cells.Skip);
         skip.UnionWith(cells.Parked);
         var roof = work.Roof ?? new HashSet<MarkPos>();
+        var kept = cells.Plan is { } last ? new HashSet<MarkPos>(last.Held) : new HashSet<MarkPos>();
         var home = work.Home;
         var token = new CancellationTokenSource();
         var cancel = token.Token;
         work.Token = token;
-        work.Journal = cells.Live != null ? new() : null;
+        // a grown window's journal began with its read (Grow)
+        work.Journal = cells.Live == null ? null : site == work.Site ? work.Journal ?? new() : new();
         work.PlannedAt = now;
         work.Urgent = false;
         if (cells.Live != null)
             cells.Live.Stale = false;
         cells.Planning = true;
-        work.Job = Task.Run(() => Make(planSite, stateSite, home, skip, bad, roof, cancel));
+        work.Job = Task.Run(() => Make(planSite, stateSite, home, skip, bad, roof, kept, cancel));
     }
 
     // On the worker: the plan, and the live state over it, from what it was given alone. Never throws: a
     // failure comes back as the result's error, a cancelled one as null.
     private static Plan? Make(MineSite planSite, MineSite stateSite, PathCell? home, HashSet<MarkPos> skip, HashSet<PathCell> bad,
-        HashSet<MarkPos> roof, CancellationToken cancel)
+        HashSet<MarkPos> roof, HashSet<MarkPos> kept, CancellationToken cancel)
     {
         try
         {
             var clock = Stopwatch.StartNew();
-            var input = new MinePlanInput(new MineState(planSite, home, bad), home, skip.Contains, bad) { Roof = roof.Contains };
+            var input = new MinePlanInput(new MineState(planSite, home, bad), home, skip.Contains, bad) { Roof = roof.Contains, Kept = kept };
             var planner = new MinePlanner(input);
             while (!planner.Step(TimeSpan.FromMilliseconds(5)))
                 if (cancel.IsCancellationRequested)

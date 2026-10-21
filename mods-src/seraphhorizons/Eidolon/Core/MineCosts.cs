@@ -129,6 +129,21 @@ public static class MineCosts
         return result;
     }
 
+    /// <summary>Why a member at <paramref name="at"/> cannot be placed on <paramref name="state"/>'s walk graph
+    /// (no <see cref="Snap"/>: a solve gives it no stops), for the log; null when it can.</summary>
+    public static string? Unplaced(MineState state, PathCell at)
+    {
+        if (Snap(state.Walk, at) != null)
+            return null;
+        var (site, w) = (state.Site, state.Site.Window);
+        int off = MineSite.Off(site.Area, at);
+        // no braces: the game's log takes it as a format string
+        return MineSite.Holds(w, at)
+            ? "no out node a column or a step off where it stands"
+            : $"outside the window ({w.Min.X},{w.Min.Y},{w.Min.Z})-({w.Max.X},{w.Max.Y},{w.Max.Z}), {off} columns from the area"
+                + (off > MineSite.GrowColumns ? $" (beyond {MineSite.GrowColumns}: the window is not grown for it)" : "");
+    }
+
     /// <summary>The out node a walk from <paramref name="at"/> starts from: itself, or the nearest out node
     /// a column or a step off it; null for none.</summary>
     public static PathCell? Snap(MineWalk walk, PathCell at)
