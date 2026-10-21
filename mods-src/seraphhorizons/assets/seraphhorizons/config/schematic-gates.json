@@ -56,8 +56,6 @@
 		{ "machine": "buckingmill", "switch": "BuckingSawmill", "outputs": [ { "mod": "immersivewoodworking", "code": "seraphhorizons:buckingmill-frame-*" } ] },
 		{ "machine": "rosser", "switch": "Rosser", "outputs": [ { "mod": "immersivewoodworking", "code": "seraphhorizons:rosser-frame-*" } ] },
 		{ "machine": "gearbox", "outputs": [ { "mod": "mpegearbox", "code": "mpegearbox:gearbox*" } ] },
-		// The trestles are the first stage; the airframe is built on them.
-		{ "machine": "biplane", "outputs": [ { "mod": "flyingmachine", "code": "flyingmachine:trestles" } ] },
 		// The eidolon (#668): the gantry frame, its first stage, in which the body is built, the torso,
 		// the body's first stage, and the command tool that orders it.
 		{ "machine": "eidolon", "switch": "Eidolon", "outputs": [
@@ -187,7 +185,6 @@
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-buckingmill", "sellers": ["mechanic"], "tier": 2, "price": 40 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-rosser", "sellers": ["mechanic"], "tier": 2, "price": 40 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-gearbox", "sellers": ["smith"], "tier": 2, "price": 23 },
-		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-biplane", "sellers": ["mechanic"], "tier": 4, "price": 125 },
 		// The eidolon's, with the game's other exotic schematics.
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-eidolon", "sellers": ["curiodealer"], "tier": 3, "price": 90 },
 		// The pack's own machines.

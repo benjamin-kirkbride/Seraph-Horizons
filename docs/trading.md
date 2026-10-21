@@ -1045,7 +1045,7 @@ built). A gated recipe gets a new key in `Ingredients`, a new pattern and size, 
 (`GridGate.Place`: first empty slot, else a column, else a row, else two slots of the most frequent
 consumable ingredient merged at double quantity if the stack fits). `GridRecipe.Enabled` is only read
 at load, so removed recipes are taken out of `World.GridRecipes`. Non-grid construction (the water
-wheel's stages, ppex's exlib construction, the biplane on its trestles)
+wheel's stages, ppex's exlib construction)
 is gated through the grid recipe of its first stage. A one-slot, consumed, make-one recipe is a
 conversion (Scrolled, MadMechanics) and is neither gated, removed nor made to keep its input.
 
@@ -1077,7 +1077,7 @@ test reads them from the config class's source).
   uses (0 stranger … 4 partner); no group, their own. Locked rows are shown greyed with the tier
   that unlocks them. With standing off, everything in the catalog is unlocked.
 - **Flat price**: `price` gears, the same for every buyer: no standing factor, no regional supply,
-  no roll. The prices are half the shelves' last hand-set ones, rounded up (5 to 125 gears), but
+  no roll. The prices are half the shelves' last hand-set ones, rounded up (5 to 90 gears), but
   BetterRuins' mechanical blueprint, which makes axles and gears cheaply in bulk and also takes the
   transmission schematic: it moved from the smith (tier 1) to the mechanic at tier 3 and 60 gears.
 - **A purchase** (`TradeAction.BuySchematic` with the code and price seen, `SchematicsSystem.BuySchematic`,
