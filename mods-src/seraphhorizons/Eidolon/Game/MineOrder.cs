@@ -174,7 +174,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool _expectMates = true;
     private bool _finished;
     private readonly RimWait _rim = new(area, keepClear: true);
-    private double _waitCheckAt;
+    private double _waitCheckAt, _waitTakeAt;
     private int? _band;
     private MineSector? _sector;
     private readonly MineReturn _homeTries = new();
@@ -691,6 +691,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// (the job's routes are solved again).</summary>
     private const double RouteClaimSeconds = 2;
 
+    /// <summary>How much of a wait its route plans it may have left and still keep to it: with longer left and a
+    /// station free meanwhile, it works that one instead (<see cref="RefillRoute"/>).</summary>
+    private const double RouteWaitWorkSeconds = 8;
+
     /// <summary>How long it waits for another eidolon in its way before it passes it, within its share of
     /// passes (<see cref="MayPass"/>).</summary>
     private const double PassSeconds = 2;
@@ -750,7 +754,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>
     /// Holds its route's head (README "Eidolon", working together, *Routes*) in place of what dispatch would
     /// give it: a stop with nothing left is finished, a planned wait waited (ended at once when the station
-    /// after it is ready), and a station claimed when it may set off: at its planned time, or sooner when the
+    /// after it is ready, and given up for a station free meanwhile with over <see cref="RouteWaitWorkSeconds"/> of it left), and a station claimed when it may set off: at its planned time, or sooner when the
     /// station is ready for it and the plan has no other set off first there (<see cref="Ready"/>), and either way
     /// only with its stand out in the live state (one still shut at its time is dropped at once); a station whose
     /// claim stays taken for <see cref="RouteClaimSeconds"/> is dropped and the routes solved again.
@@ -791,6 +795,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 {
                     Repaired(routes.Waited(id, now));
                     continue;
+                }
+                // a long wait planned with a station free meanwhile: that station taken by today's dispatch (any but
+                // the heads the others hold, one later in another's route taken off it) and made its head, the wait
+                // given up; one waited 46 s so on the large real hillside with stations free (the solve's stops
+                // reach only so far, and its waits keep to them)
+                if (_queue.Count == 0 && head.Finish - now > RouteWaitWorkSeconds && now >= _waitTakeAt)
+                {
+                    _waitTakeAt = now + WaitCheckSeconds;
+                    RefillDispatch(eidolon, plan, live, workers, now, 1, OthersHeads(routes, id), int.MaxValue);
+                    if (Station is { } taken)
+                    {
+                        routes.Waited(id, now);
+                        routes.Adopt(id, taken, _headAhead, now);
+                        Repaired("wait");
+                        continue;
+                    }
                 }
                 _routeWait = head;
                 return;

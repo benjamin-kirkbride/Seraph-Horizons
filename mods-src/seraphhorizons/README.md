@@ -3874,7 +3874,9 @@ there, and either way only once its stand is out in the live state (the plan has
 another member's, open it by its time; set off for while still in rock, the game found no way to it and took
 it for a bad stand, 1 to 6 a run on the hillside, each one the plan made again; one still shut at its time is
 dropped at once, not waited for, as the stops opening it are late by however long they are), waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
-another walking up to it, crosses another's claim after 4 seconds (but see *Claims*: one with another station clear takes that), passes
+another walking up to it (but with over 8 seconds of it left and a station free meanwhile, it takes that
+station instead, the wait given up: the solve's stops reach only so far, and one waited 46 seconds with
+stations free on a large hillside), crosses another's claim after 4 seconds (but see *Claims*: one with another station clear takes that), passes
 another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
 standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
