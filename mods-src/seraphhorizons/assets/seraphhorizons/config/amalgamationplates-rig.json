@@ -14,6 +14,7 @@
 	"feedSpout": {"pos": [0.5, 0.7125, 0.8438]},
 	"spray": {"pos": [0.5, 0.61, 0.775]},
 	"amalgam": {"pos": [0.5, 0.5263, 1.5437]},
+	"lip": {"pos": [0.5, 0.4263, 2.35]},
 	"trapWell": {"pos": [0.5, 0.1062, 2.4406]},
 	"buildStages": [{"stage": 1, "name": "the table and plates", "adds": ["plates"]}, {"stage": 2, "name": "the mercury trap", "adds": ["trap"]}, {"stage": 3, "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}],
 	"amalgamStates": ["amalgam1", "amalgam2", "amalgam3"],

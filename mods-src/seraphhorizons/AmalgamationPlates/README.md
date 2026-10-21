@@ -46,9 +46,10 @@ continues (#939: the plates before the sluice).
 | `infeedCell`, `infeedFace` | `[0,0,0]`, `up` | The infeed: vanilla's straight chute section, upright, in the head cell's top face, flush with it; a chute in the cell above meets it with no gap or step. It ends in the distributor, over its floor |
 | `waterCell`, `waterFace` | `[0,0,0]`, `west` | The water: the water line's inlet, a short length of ppex's full 6 × 6 pipe, open on the head cell's west face on the face's centre, so a ppex pipe there meets it end to end (the rosser's rule); it narrows through a soldered reducer to the spray pipe |
 | `outputCell`, `outputFace` | `[0,0,2]`, `south` | The outlet: vanilla's straight chute section along z in the foot cell's end face, flush with it, its end butting the tail box's south wall, whose sill pours into its bore |
-| `feedSpout` | `[0.5, 0.7125, 0.8438]` | Where the pulp leaves the distributor through its holes onto the head of the plates |
-| `spray` | `[0.5, 0.61, 0.775]` | The spray's nozzles, over the head of the plates |
+| `feedSpout` | `[0.5, 0.7125, 0.8438]` | Where the pulp leaves the distributor through its holes onto the head of the plates: while it runs, slurry of the ore's colour |
+| `spray` | `[0.5, 0.61, 0.775]` | The spray's nozzles, over the head of the plates: while it runs, water falling across them |
 | `amalgam` | `[0.5, 0.5263, 1.5437]` | The middle of the plates, on the dressing: scraping sounds and particles |
+| `lip` | `[0.5, 0.4263, 2.35]` | The bed's foot, its lip, where the pulp falls into the tail box and the trap: while it runs, muddy drips |
 | `trapWell` | `[0.5, 0.1062, 2.4406]` | The mercury in the trap's well (the trap's clean-up) |
 | `buildStages` | | The build stages in order, each with the `requires` it adds: the table and plates, the trap, and last services (the chutes and the water line). The dressing is in none |
 | `amalgamStates` | | The three amalgam states, one drawn at a time |
@@ -317,8 +318,9 @@ What it reads of the rig:
   its state.
 - **Anchors.** The infeed at `infeedCell`/`infeedFace`, the water at `waterCell`/`waterFace` (the reservoir's
   pipe), the outlet at `outputCell`/`outputFace`, which carries the tailings on (with nothing there they are
-  dumped as sand beside it, #694); `spray` and `amalgam` for sounds and the scraped amalgam. `feedSpout` and
-  `trapWell` are not read.
+  dumped as sand beside it, #694); `spray` and `amalgam` for sounds and the scraped amalgam; `feedSpout`,
+  `spray` and `lip` for the particles while it runs (the work state, so only with ore going over the plates).
+  `trapWell` is not read.
 - **Tests.** `tests/AmalgamationPlates/PlateAmalgamationTests.cs` (the catch, the line figures, the limits, the
   build), Atlas `tests/PackTests/AmalgamationPlatesScenarios.cs` and `RecipeExportAmalgamationPlatesScenarios.cs`;
   `tools/tests/test_amalgamationplates_model.py` and `site/test/amalgamationplates.test.ts` hold the generated

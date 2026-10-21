@@ -24,15 +24,21 @@ namespace SeraphHorizons.Mod.AmalgamationPlates;
 /// the catchable free metal as amalgam, which builds up on them (three states drawn) until scraped off by hand,
 /// and the rock goes on amalgamated, by the outlet chute at the foot's end face for the concentrators, or
 /// discarded beside it as sand in its rock (#694). The dressing is mercury poured on from a container: each
-/// amalgam caught takes its mercury off it, and plates without it catch nothing. Nothing wears.
+/// amalgam caught takes its mercury off it, and plates without it catch nothing. Nothing wears. While it runs,
+/// the spray plays and the pulp leaves the distributor over the head of the plates, and drips off the bed's lip
+/// into the trap at the foot.
 /// </summary>
 public class BEAmalgamationPlates : BEOreMachine
 {
     public const string Output = "output";
     public const string MercuryCode = "em:mercuryportion";
 
-    /// <summary>The rig's <c>spray</c> and <c>amalgam</c> points.</summary>
-    private static readonly Float3 Spray = new(0.5f, 0.61f, 0.775f), AmalgamPoint = new(0.5f, 0.5263f, 1.5437f);
+    /// <summary>The rig's points: the distributor's holes, the spray's nozzles, the middle of the plates and the bed's
+    /// foot, its lip, where the pulp falls into the trap.</summary>
+    private const string FeedSpout = "feedSpout", Spray = "spray", AmalgamPoint = "amalgam", Lip = "lip";
+    private const float SprayInterval = 0.25f, FeedInterval = 0.35f, LipInterval = 0.4f;
+    // Across the plates' head, native: wide (x), hardly up or along.
+    private static readonly Float3 HeadSpread = new(0.3f, 0.01f, 0.03f);
     private static readonly AssetLocation RunSound = new("game", "sounds/environment/smallsplash");
     private static readonly AssetLocation ScrapeSound = new("game", "sounds/block/sand");
     private static readonly AssetLocation PourSound = new("game", "sounds/effect/water-pour");
@@ -42,6 +48,7 @@ public class BEAmalgamationPlates : BEOreMachine
     private readonly Dictionary<string, double> _amalgam = new(StringComparer.Ordinal);
     private int _amalgamState;
     private PlateVerdict? _last;
+    private readonly ParticleTimer _spray = new(SprayInterval), _feed = new(FeedInterval), _lip = new(LipInterval);
 
     public override OreMachine? Kind => OreMachine.AmalgamationPlates;
 
@@ -131,8 +138,33 @@ public class BEAmalgamationPlates : BEOreMachine
 
     protected override void OnWorked(ItemStack fed)
     {
-        var at = WorldPoint(Spray);
+        var at = At(Spray);
         Api.World.PlaySoundAt(RunSound, at.X, at.Y, at.Z, null, true, 12, 0.3f);
+    }
+
+    /// <summary>A point of the rig in the world; the block's middle if the rig has none of that name.</summary>
+    private Vec3d At(string point) => Rig?.Point(point) is { } p ? WorldPoint(p) : Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+
+    /// <summary>Nothing moves; while it runs, the spray falling over the head of the plates, the pulp (its ore's
+    /// colour) leaving the distributor onto them, and muddy water dripping off the lip into the trap.</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        if (far || !Running || Rig is not { } rig)
+            return input;
+        if (rig.Point(Spray) is { } spray && _spray.Due(dt))
+            (MachineParticles.Splash() with { Count = 2, MaxCount = 4, MinVelocity = new Vec3f(-0.1f, -0.5f, -0.1f), MaxVelocity = new Vec3f(0.1f, -0.1f, 0.1f), Size = 0.12f })
+                .Spawn(Api.World, WorldPoint(spray), MachineParticles.Around(HeadSpread, Side));
+        if (rig.Point(FeedSpout) is { } feed && _feed.Due(dt))
+        {
+            int colour = MachineParticles.MaterialColour(InfeedSlot.Itemstack, 200, MachineParticles.Slurry, Api as ICoreClientAPI);
+            (MachineParticles.SlurryDrops(colour) with { Count = 1, MaxCount = 2 })
+                .Spawn(Api.World, WorldPoint(feed), MachineParticles.Around(HeadSpread, Side));
+        }
+        if (rig.Point(Lip) is { } lip && _lip.Due(dt))
+            (MachineParticles.Drip(MachineParticles.MuddyWater) with { Count = 2 })
+                .Spawn(Api.World, WorldPoint(lip), MachineParticles.Around(new Float3(0.3f, 0.01f, 0.01f), Side));
+        return input;
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) =>
@@ -203,7 +235,7 @@ public class BEAmalgamationPlates : BEOreMachine
             var stack = new ItemStack(item, items);
             // what the player has no room for drops beside the plates
             if (!byPlayer.InventoryManager.TryGiveItemstack(stack, true) || stack.StackSize > 0)
-                Api.World.SpawnItemEntity(stack, WorldPoint(AmalgamPoint));
+                Api.World.SpawnItemEntity(stack, At(AmalgamPoint));
             if (left > 1e-9) _amalgam[code] = left;
             else _amalgam.Remove(code);
             any = true;
@@ -214,7 +246,7 @@ public class BEAmalgamationPlates : BEOreMachine
         _amalgamState = PlateAmalgamation.AmalgamState(AmalgamUnits, CapacityUnits);
         if (_last is PlateVerdict.Full)
             _last = null;
-        var at = WorldPoint(AmalgamPoint);
+        var at = At(AmalgamPoint);
         Api.World.PlaySoundAt(ScrapeSound, at.X, at.Y, at.Z, byPlayer, true, 12, 0.6f);
         MarkDirty(true);
         return true;
@@ -250,7 +282,7 @@ public class BEAmalgamationPlates : BEOreMachine
             {
                 var (items, _) = PlateAmalgamation.Scrape(units, Recovery.ConcentrateUnits);
                 if (items > 0 && Api.World.GetItem(new AssetLocation(code)) is { Id: > 0 } item)
-                    Api.World.SpawnItemEntity(new ItemStack(item, items), WorldPoint(AmalgamPoint));
+                    Api.World.SpawnItemEntity(new ItemStack(item, items), At(AmalgamPoint));
             }
         base.OnBlockRemoved();
     }
