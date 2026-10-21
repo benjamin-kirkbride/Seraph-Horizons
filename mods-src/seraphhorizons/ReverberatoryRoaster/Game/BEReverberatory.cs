@@ -362,6 +362,35 @@ public class BEReverberatory : BEFiredOreMachine
         return base.ShowsPart(requires);
     }
 
+    // ---- Client ----
+
+    private readonly ParticleTimer _doorFume = new(0.75f);
+    private int _lastBed = -1;
+
+    /// <summary>The fire's (<see cref="BEFiredOreMachine"/>); while the rabbles roast the bed, yellowish sulfur smoke
+    /// seeps out round a work door now and then; and as an item is roasted (the bed one less, lit) its hot calcine
+    /// falls glowing at the discharge tunnel's mouth with a puff of the smoke.</summary>
+    protected override void OnClientTick(float dt)
+    {
+        base.OnClientTick(dt);
+        int bed = InfeedSlot.StackSize, before = _lastBed;
+        _lastBed = bed;
+        if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Built)
+            return;
+        var outward = MachineParticles.WorldDirection(new Float3(1, 0, 0), Side);
+        if (Running && _doorFume.Due(dt) && rig.Point(capi.World.Rand.Next(2) == 0 ? "workDoor1" : "workDoor2") is { } door)
+            MachineParticles.Fume(MachineParticles.FumeSulfur).Toward(new Vec3f(outward.X * 0.1f, 0.15f, outward.Z * 0.1f), 0.05f)
+                .Spawn(capi.World, WorldPoint(new Float3(door.X + 0.16f, door.Y, door.Z)), MachineParticles.Around(new Float3(0.02f, 0.15f, 0.2f), Side));
+        if (_lit && before > 0 && bed < before && rig.Point("output") is { } mouth)
+        {
+            var at = WorldPoint(new Float3(mouth.X + 0.05f, mouth.Y, mouth.Z));
+            (MachineParticles.Dust(MachineParticles.Rgb(255, 230, 90, 30)) with { Count = 4, MaxCount = 6, VertexFlags = 160 })
+                .Toward(new Vec3f(outward.X * 0.4f, 0.1f, outward.Z * 0.4f), 0.2f)
+                .Spawn(capi.World, at, MachineParticles.Around(0.1));
+            MachineParticles.Fume(MachineParticles.FumeSulfur).Spawn(capi.World, at, MachineParticles.Around(0.1));
+        }
+    }
+
     // ---- Saving and syncing ----
 
     public override void ToTreeAttributes(ITreeAttribute tree)

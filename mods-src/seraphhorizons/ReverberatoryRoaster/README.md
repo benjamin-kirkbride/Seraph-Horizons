@@ -222,6 +222,10 @@ the discharge. Nothing moves before the drive is fitted.
 
 **The draught** (natural): in at the ash mouth, up between the step grate's treads, over the bridge, along the hearth under the arch, into the cavity and up the uptake to the outlet.
 
+**Particles.** Lit, the fired machines' flames at `fireDoor` and the row's chimney smoke. While the rabbles roast the
+bed, yellowish sulfur smoke seeps out round a work door (`workDoor1`, `workDoor2`) now and then; as each item is
+roasted, its hot calcine falls glowing at the discharge tunnel's mouth (`output`) with a puff of the smoke.
+
 ## Model
 
 Everything was made for this mod; no other mod's model is used, and the generator needs nothing from `build/mods`.
