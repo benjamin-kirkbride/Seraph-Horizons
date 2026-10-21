@@ -37,7 +37,8 @@ the shared ones):
 | `concentrateCell`, `concentrateFace` | `[0,0,0]`, north | The concentrate chute: vanilla's section along z from the front wall (the spout's lip in its mouth) out of the face, to a `chute-straight-ns` beyond |
 | `waterCell`, `waterFace` | `[0,0,1]`, south | A ppex pipe meets the water inlet end to end on the face's centre (x 8, y 8) |
 
-Also `sieve.pos` (the middle of the sieve's top: sounds and splashes), `levels` (the weir's sill, the
+Also `sieve.pos` (the middle of the sieve's top: sounds), `surface.pos` (the water's surface over it, at
+the weir's sill: while the jig works, muddy water splashes there at the bottom of each plunger stroke), `levels` (the weir's sill, the
 sieve's top and the rim, drawn as level lines in the viewer) and three keys the viewer lists as not
 drawn: `pipes`, `contents`, `drive`. No return water and no return-water anchor (#919, #694): the water is
 used up and leaves with the outputs.

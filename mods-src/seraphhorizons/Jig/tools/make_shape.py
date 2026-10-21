@@ -862,7 +862,7 @@ def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
 
 
-POINTS = ("sieve",)                          # point anchors (moved by the origin shift)
+POINTS = ("sieve", "surface")                # point anchors (moved by the origin shift)
 CELL_KEYS = ("powerCell", "infeedCell", "tailingsCell", "concentrateCell", "waterCell")
 
 
@@ -890,6 +890,7 @@ def make_rig(parts):
         "waterCell": list(WATER_CELL),
         "waterFace": WATER_FACE,
         "sieve": {"pos": pt((IN_X[0] + IN_X[1]) / 2, SIEVE_Y[1], (SIEVE_Z[0] + SIEVE_Z[1]) / 2)},
+        "surface": {"pos": pt((IN_X[0] + IN_X[1]) / 2, WEIR_Y, (SIEVE_Z[0] + SIEVE_Z[1]) / 2)},
         "buildStages": [{"stage": n, "name": name, "adds": list(req)} for n, (req, name) in enumerate(BUILD_STAGES, 1)],
         "levels": {"weirY": r6(WEIR_Y / B), "sieveY": r6(SIEVE_Y[1] / B), "rimY": r6(RIM / B),
                    "_comment": "Heights in blocks: the weir's sill (the water's level), the sieve's top, the hutch's rim."},
