@@ -680,6 +680,17 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                     // layer under it) struck from then on from any stand that reaches it.
                     if (_sweptAt == Stations.Count || _sweeps == MaxSweeps)
                     {
+                        // a band held for its approach with no station found: the wait is let go and the next band
+                        // opened before anything is taken out of its turn
+                        if (_bands.Waiting is { } held)
+                        {
+                            _bands.Release(held);
+                            Eligibility();
+                            _widened.AddRange(_bands.TakeWidened());
+                            _sweptAt = -1;
+                            _sweeps = 0;
+                            continue;
+                        }
                         // Precedence stalled with targets left: a last sweep takes any of them the guard
                         // lets it, whatever their band (the plan lets those be dug out of turn), so a
                         // face reached only by way of the next band's ground is struck from a step left

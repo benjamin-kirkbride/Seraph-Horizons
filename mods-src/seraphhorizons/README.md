@@ -3665,10 +3665,12 @@ much on a deep pit, and there the count is an upper bound). Precedence is by ban
 first, top down (*Tunnels*, below); in the open the highest layer with blocks left and the one under it
 (floors within a climb, `EidolonTeamwork.Lowest`), while a tunnel band is driven its approach (the open
 columns within 3 of a covered one, `MineBands.Approach`) never under that band's floor and the rest at most
-a climb under it, each with floors within a climb of its own, and the next band driven only once the approach
-has nothing left at or over this band's floor (driving it digs away the floor that is the only place those are
-reached from: the large hillside on real ground, its approach left a wall over a quarry 7 deep, 95 held out of
-reach); the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
+a climb under it, each with floors within a climb of its own, and in the plan's simulation the next band
+driven only once the approach has nothing left in this band's layers within reach of a covered column (driving
+it digs away the floor that is the only place those are reached from: the large hillside on real ground, its
+approach left a wall over a quarry 7 deep, 95 held out of reach), unless no station is found while it waits,
+when the wait is let go before anything is dug out of its turn (`MineBands.Covered`, `Release`; the live job
+follows the plan's order, its own bands never wait); the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
 open, rows a station wide along the area's longer side, from the far side back toward where it was
 ordered, each row the other way to the last (a sweep). When no station is left to place, every place it
 could stand is asked again (a few times at most: one the guard refused waits for a dig near it, and what
