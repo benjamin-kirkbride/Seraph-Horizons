@@ -57,8 +57,10 @@ public class MineCliffFootTests(ITestOutputHelper output)
         // a stand joined in the window to where it stands shuts nothing: it was only in the way for now
         var low = plan.Stations.First(s => path.Find(Foot, s.Stand, PlanRunner.MaxNodes) != null).Stand;
         Assert.Null(live.Walk.SideWays(low, Foot));
-        // nor one joined to where it was ordered from, wherever it stands now
-        Assert.Null(live.Walk.SideWays(low, new PathCell(511950, 140, 512029)));
+        // nor one joined to where it was ordered from, wherever it stands now (on the hilltop)
+        Assert.Null(live.Walk.SideWays(low, first));
+        // nor any, from where the graph has no node (in the air over the foot): what it is joined to is not known
+        Assert.Null(live.Walk.SideWays(first, new PathCell(511950, 140, 512029)));
 
         // planned again with them: the hilltop's blocks out of its reach (it reaches 3 over its feet, and from the
         // foot's slope that is 134 at most), and three at the foot dig all the plan has them dig, each walking to

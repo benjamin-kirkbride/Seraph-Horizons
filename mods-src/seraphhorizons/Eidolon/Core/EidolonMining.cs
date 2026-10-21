@@ -81,7 +81,8 @@ public sealed class MineJobCells
     /// plan is swapped in (the live state built with it shares it).</summary>
     public HashSet<PathCell> BadStands { get; set; } = new();
 
-    /// <summary>How many times a member found a stand bad over the job's life (each one the plan made again;
+    /// <summary>How many times a member found a stand bad over the job's life (each one the plan made again, but
+    /// past <see cref="BadSinceStrike"/>'s few with no strike between;
     /// <see cref="BadStands"/> forgets one tried again), for the log and the tests.</summary>
     public int BadStandsFound { get; set; }
 

@@ -2026,10 +2026,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         DropHead(eidolon);
         // with no strike between, only so many times: a plan that keeps sending them where none can get to digs
         // nothing, made again every two seconds for good; past that the stands are still found bad (each once, so it
-        // runs out) and the plan made again only when none is left to take (Idle)
+        // runs out) and the plan made again only when none is left to take (Idle), or for ways out by the side shut
+        // (each once too: they are bad from now on)
         if (Cells.BadSinceStrikeAt != Cells.LastStrikeAt)
             (Cells.BadSinceStrikeAt, Cells.BadSinceStrike) = (Cells.LastStrikeAt, 0);
-        if (++Cells.BadSinceStrike <= MostBadReplans)
+        if (++Cells.BadSinceStrike <= MostBadReplans || side != null)
             Plans?.Replan(Cells, false);
         else if (Cells.BadSinceStrike == MostBadReplans + 1)
             eidolon.World.Logger.Warning($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {Cells.BadSinceStrike} stands found bad "

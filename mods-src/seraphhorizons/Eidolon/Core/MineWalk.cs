@@ -566,13 +566,16 @@ public sealed class MineWalk : MineGraph
     /// world outside, which is all that joins those to where it stands; the pathfinder, which sees that world,
     /// found that it does not, so they are no ways out (the hilltop over a cliff whose foot it stands at, which
     /// the window's side touches: each stand on it found bad one at a time, and the plan made again with the next,
-    /// for good). Null when <paramref name="stand"/> is no node, or is joined in the window to where it stands, or
-    /// joined to no way out by the side. <paramref name="joined"/>, if given, is filled with the nodes joined to it
+    /// for good). Null when <paramref name="stand"/> is no node, when no node is within a block of
+    /// <paramref name="from"/> (where it stands is not known to the graph: outside the window, a partial block),
+    /// when the stand is joined in the window to where it stands, or joined to no way out by the side. <paramref name="joined"/>, if given, is filled with the nodes joined to it
     /// in the window (itself among them), which those ways out alone led out.
     /// </summary>
     public List<PathCell>? SideWays(PathCell stand, PathCell from, ISet<PathCell>? joined = null)
     {
-        if (!Node(stand))
+        // where it stands must be a node (or within a block of one) of the window: else what it is joined to is not
+        // known, and the stand's own part could be the one every way out is in
+        if (!Node(stand) || !Near(from))
             return null;
         int start = Site.Index(stand.X, stand.Y, stand.Z);
         var seen = new HashSet<int> { start };
@@ -599,6 +602,16 @@ public sealed class MineWalk : MineGraph
             foreach (var n in nodes)
                 joined.Add(n);
         return side;
+
+        bool Near(PathCell at)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            for (int dz = -1; dz <= 1; dz++)
+                if (Node(new PathCell(at.X + dx, at.Y + dy, at.Z + dz)))
+                    return true;
+            return false;
+        }
     }
 
     /// <summary>
