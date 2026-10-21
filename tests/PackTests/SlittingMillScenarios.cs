@@ -105,13 +105,17 @@ public partial class SharedWorldScenarios
         // the grid: the frame, of oak (two logs, two planks) and iron (two plates, two rods in one slot, 12 nails and strips)
         // and a hammer, no gearing
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:slittingmill-frame-north" && r.Enabled);
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("meteoriciron")));
+        // (two of each counted over the slots: the slitting mill's schematic, MachineSchematics, takes a slot
+        // of the full grid by putting two slots of one in one, Trading/Schematics/Core/GridGate.cs)
+        int Total(System.Func<CraftingRecipeIngredient, bool> what) => frame.ResolvedIngredients!.Where(i => i != null && what(i)).Sum(i => i!.Quantity);
+        Assert.Equal(2, Total(i => i.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("meteoriciron")));
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "rod-*" && i.Quantity == 2);
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 12);
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:log-placed-oak-ud"));
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:plank-oak"));
+        Assert.Equal(2, Total(i => i.Code?.ToString() == "game:log-placed-oak-ud"));
+        Assert.Equal(2, Total(i => i.Code?.ToString() == "game:plank-oak"));
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
-        Assert.DoesNotContain(frame.ResolvedIngredients!, i => i?.Code?.Domain == "seraphhorizons");
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:schematic-slittingmill" && !i.Consume);
+        Assert.DoesNotContain(frame.ResolvedIngredients!, i => i?.Code?.Domain == "seraphhorizons" && i.Code.Path != "schematic-slittingmill");
         // the anvil: two cutters from one steel ingot, steel only, by hand
         var smith = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == SlittingMillBuild.CutterCode);
         Assert.Equal(2, smith.Output!.ResolvedItemstack!.StackSize);

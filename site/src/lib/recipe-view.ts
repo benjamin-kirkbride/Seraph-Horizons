@@ -186,7 +186,9 @@ export function sourceRows(sources: readonly Source[]): SourceRow[] {
       key = JSON.stringify([s.type, s.note, blockType(s.from), extra, s.tool, s.price]);
     } else {
       const where = s.type === "other" ? [blockType(s.from), s.extra ?? null] : name;
-      key = JSON.stringify([s.type, where, s.quantity?.avg, s.quantity?.var, s.tool, s.price, s.note]);
+      // A pack trader's trades differ in what limits them (region, standing, catalog), all in extra.
+      const limits = typeof s.extra?.traderType === "string" ? s.extra : null;
+      key = JSON.stringify([s.type, where, s.quantity?.avg, s.quantity?.var, s.tool, s.price, s.note, limits]);
     }
     const chance = isPanned(s) ? panChance(s) : undefined;
     let row = rows.get(key);
@@ -445,6 +447,14 @@ export function machineLines(recipe: Recipe): string[] {
   const lines = [t.machineTurns(m.power, formatNumber(m.turns), work)];
   if (m.oil) lines.push(t.machineOil(formatNumber(m.oil.points), m.oil.tank, formatNumber(m.oil.points / 100)));
   return lines;
+}
+
+/**
+ * A grid ingredient the recipe needs but does not use up and that is no tool (`extra.consumed`
+ * false: the game's `consume: false`, e.g. a machine's schematic): it stays in the grid.
+ */
+export function isKept(ing: { isTool?: boolean; extra?: Record<string, unknown> } | undefined): boolean {
+  return ing !== undefined && !ing.isTool && ing.extra?.consumed === false;
 }
 
 /** What one ingredient is to a machine: kept, the worn tool, the oil, the machine itself, or consumed. */

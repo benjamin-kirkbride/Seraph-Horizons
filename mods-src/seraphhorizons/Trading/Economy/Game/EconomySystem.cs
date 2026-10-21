@@ -406,6 +406,7 @@ public class EconomySystem : ModSystem
         var collectible = stack.Collectible;
         string code = collectible.Code.ToString();
         if (Relations.IsRefused(code)) return Offer.Refused(Refusal.MapOrLead);
+        if (NeverBoughtBack(trader.Api, code)) return Offer.Refused(Refusal.Schematic);
         if (collectible.Attributes?["currency"]?.Exists == true) return Offer.Refused(Refusal.Currency);
         var values = ItemValuesSystem.For(trader.Api);
         double value = values.ValueOf(code);
@@ -420,6 +421,11 @@ public class EconomySystem : ModSystem
         return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, buyers), supply, modifiers,
             TradeUnit(collectible), Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
     }
+
+    /// <summary>A schematic or a rolled copy of one (<see cref="Schematics.Core.SchematicTable.NeverBoughtBack"/>):
+    /// no trader buys it, listed or not. Both sides.</summary>
+    public static bool NeverBoughtBack(ICoreAPI api, string code) =>
+        Schematics.SchematicsSystem.Of(api)?.Table?.NeverBoughtBack(code) == true;
 
     /// <summary>Whether the trader has the item on its selling shelf, in stock (by code; attributes
     /// are ignored): it then buys it back only off-market (<see cref="Pricing.OwnShelf"/>). Both

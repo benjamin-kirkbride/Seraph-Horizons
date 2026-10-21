@@ -217,6 +217,22 @@ public class StandingSystem : ModSystem, IStandingSource
 
     public int TierFor(IPlayer player, EntitySeraphTrader trader) => ViewFor(player.PlayerUID, trader).TierIndex;
 
+    /// <summary>The uids of everyone who shares a player group with the player (not the player).</summary>
+    public List<string> GroupMates(string playerUid)
+    {
+        var groups = Memberships(playerUid).Where(GroupExists).ToHashSet();
+        if (groups.Count == 0 || _sapi is null) return [];
+        return _sapi.PlayerData.PlayerDataByUid.Values
+            .Where(d => d.PlayerUID != playerUid && d.PlayerGroupMemberships?.Keys.Any(groups.Contains) == true)
+            .Select(d => d.PlayerUID).ToList();
+    }
+
+    /// <summary>The tier (index) that unlocks a trader's schematic catalog for the player: the best
+    /// among theirs and every group mate's there (<see cref="Schematics.Core.SchematicCatalog.GroupTier"/>).</summary>
+    public int GroupTierFor(string playerUid, EntitySeraphTrader trader) =>
+        Schematics.Core.SchematicCatalog.GroupTier(ViewFor(playerUid, trader).TierIndex,
+            GroupMates(playerUid).Select(uid => ViewFor(uid, trader).TierIndex));
+
     public TierUnlocks UnlocksFor(IPlayer player, EntitySeraphTrader trader) => ViewFor(player.PlayerUID, trader).Tier.Unlocks;
 
     public double PriceFactorFor(IPlayer player, EntitySeraphTrader trader, PriceSide side)

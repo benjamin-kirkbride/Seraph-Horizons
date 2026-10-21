@@ -71,13 +71,12 @@ public class ShippedListValueTests
     }
 
     [Fact]
-    public void MapsLeadsAndSchematicsAreTheOverridesTheyAlwaysWere()
+    public void MapsAndLeadsAreOverridesAndNoListHasASchematic()
     {
-        // The special entries are priced by the maps system; schematics have no value by rule.
+        // The special entries are priced by the maps system; schematics have no value by rule and
+        // are on no list (the catalogs of config/schematic-gates.json sell them, at their own prices).
         Assert.All(Entries().Where(t => t.Entry.Kind != null), t => Assert.NotNull(t.Entry.Price));
-        var schematics = Entries().Where(t => t.Entry.Code.Contains("schematic")).ToList();
-        Assert.NotEmpty(schematics);
-        Assert.All(schematics, t => Assert.True(t.Entry.Price != null, $"{t.Type} {t.Entry.Key} has no price override"));
+        Assert.DoesNotContain(Entries(), t => t.Entry.Code.Contains("schematic"));
     }
 
     [Fact]

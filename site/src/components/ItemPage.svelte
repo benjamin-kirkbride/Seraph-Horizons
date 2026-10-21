@@ -9,6 +9,7 @@
   import { initials } from "../lib/icons.ts";
   import { isFloorZero, isPerLitre } from "../lib/values.ts";
   import { groundStorageLines, itemPileLines, pileable } from "../lib/ground-storage.ts";
+  import { anyPackTrade, tradeNotes, tradePriceText } from "../lib/trades.ts";
   import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
@@ -95,7 +96,7 @@
   function sourceDetails(s: How): string {
     const note = noteKind(s) ? "" : (s.note ?? "");
     const stat = s.note === PANNED && typeof s.extra?.stat === "string" ? t.scalesWithStat(s.extra.stat) : "";
-    return [s.tool ? `${t.tool.toLowerCase()}: ${s.tool}` : "", s.price !== undefined ? t.price(s.price) : "", note, stat].filter(Boolean).join("; ");
+    return [s.tool ? `${t.tool.toLowerCase()}: ${s.tool}` : "", tradePriceText(s), ...tradeNotes(s), note, stat].filter(Boolean).join("; ");
   }
 </script>
 
@@ -213,6 +214,7 @@
             </tbody>
           </table>
         </div>
+        {#if anyPackTrade(detail.sources)}<p class="muted" data-testid="pack-prices">{t.packPricesVary}</p>{/if}
       </section>
     {/if}
 

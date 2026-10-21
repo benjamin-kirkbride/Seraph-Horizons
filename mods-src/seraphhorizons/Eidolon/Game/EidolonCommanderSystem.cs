@@ -19,9 +19,10 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// (<c>config/schematic-gates.json</c>, machine <c>eidolon</c>: the gantry frame and the command tool).
 ///
 /// With the <c>Eidolon</c> switch off the server leaves the command tool and its recipe out of the
-/// game (<see cref="Disable"/>) and the curio dealer does not stock the schematic or the pump head
-/// (<see cref="TradingSystem.Exclude"/>). The schematic item stays, as every machine schematic does,
-/// so a world that has one keeps it.
+/// game (<see cref="Disable"/>), the curio dealer does not stock the pump head
+/// (<see cref="TradingSystem.Exclude"/>), and its catalog does not sell the schematic (the gate's
+/// <c>switch</c>, <c>SchematicCatalog.ForSale</c>). The schematic item stays, as every machine
+/// schematic does, so a world that has one keeps it.
 ///
 /// <para>The tool's behaviour (#675) is <see cref="ItemEidolonCommander"/>: binding, the mode wheel
 /// (<see cref="EidolonCommandModes"/>, with follow and stay registered here) and marking. This system
@@ -47,8 +48,9 @@ public class EidolonCommanderSystem : ModSystem
         new(Domain, "recipes/grid/eidoloncommander.json"),
     ];
 
-    /// <summary>What the curio dealer stocks for the eidolon, left off the lists with the switch off.</summary>
-    public static readonly IReadOnlySet<string> TradeStock = new HashSet<string>(StringComparer.Ordinal) { SchematicCode, PumpHeadCode };
+    /// <summary>What the curio dealer shelves for the eidolon, left off the lists with the switch off
+    /// (the schematic is its catalog's, which the gate's switch takes out).</summary>
+    public static readonly IReadOnlySet<string> TradeStock = new HashSet<string>(StringComparer.Ordinal) { PumpHeadCode };
 
     // The files open with a comment, which a plain Parse keeps as a token or trips over.
     private static readonly JsonLoadSettings IgnoreComments = new() { CommentHandling = CommentHandling.Ignore };
