@@ -7,7 +7,7 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// An ore machine's rig as the shared game code reads it (#711; <c>config/{machine}-rig.json</c>,
 /// written by the machine's generator): its cells (native, south-facing frame, the controller at
 /// [0,0,0]), its anchors (every <c>{name}Cell</c>/<c>{name}Face</c> pair, <see cref="MachineAnchors"/>),
-/// its build stages' <c>requires</c> values and its moving parts. A part's <c>requires</c> is a build
+/// its named points (every <c>{name}: {pos}</c>, <see cref="RigPoints"/>), its build stages' <c>requires</c> values and its moving parts. A part's <c>requires</c> is a build
 /// stage's (<c>buildStages[].adds</c>) or one of the machine's own (<paramref name="extraRequires"/> of
 /// <see cref="Parse"/>: content drawn by the machine's state, the arrastra's charge). Unknown keys are the
 /// machine's own and ignored here. Throws <see cref="FormatException"/> naming what is wrong.
@@ -16,12 +16,14 @@ public sealed class OreMachineRig : IMachineRig
 {
     public IReadOnlyList<RigCell> Cells { get; }
     public IReadOnlyDictionary<string, MachineAnchor> Anchors { get; }
+    /// <summary>Its named points (<see cref="RigPoints"/>), by name in any case.</summary>
+    public IReadOnlyDictionary<string, Float3> Points { get; }
     /// <summary>Every <c>requires</c> the build stages add, in order.</summary>
     public IReadOnlyList<string> StageRequires { get; }
     public RigParts Parts { get; }
 
     public OreMachineRig(IReadOnlyList<RigCell> cells, IReadOnlyDictionary<string, MachineAnchor> anchors,
-        IReadOnlyList<string> stageRequires, RigParts parts)
+        IReadOnlyList<string> stageRequires, RigParts parts, IReadOnlyDictionary<string, Float3>? points = null)
     {
         var positions = cells.Select(c => c.Pos).ToHashSet();
         if (!positions.Contains(Int3.Zero))
@@ -41,6 +43,7 @@ public sealed class OreMachineRig : IMachineRig
         Anchors = anchors;
         StageRequires = stageRequires;
         Parts = parts;
+        Points = points ?? RigPoints.None;
     }
 
     public const string Power = "power", Infeed = "infeed", Water = "water";
@@ -53,6 +56,9 @@ public sealed class OreMachineRig : IMachineRig
 
     /// <summary>An anchor by name, or null.</summary>
     public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
+
+    /// <summary>A named point by name (in any case), or null.</summary>
+    public Float3? Point(string name) => Points.TryGetValue(name, out var p) ? p : null;
 
     /// <summary>The cells other than the controller's, in file order.</summary>
     public IEnumerable<RigCell> OtherCells => Cells.Where(c => c.Pos != Int3.Zero);
@@ -119,6 +125,6 @@ public sealed class OreMachineRig : IMachineRig
                 ? RigParts.Parse(partsJson, known, progress)
                 : throw new FormatException("\"parts\" must be an array")
             : new RigParts([], progress);
-        return new OreMachineRig(Cells(root), MachineAnchors.Read(root), stageRequires, parts);
+        return new OreMachineRig(Cells(root), MachineAnchors.Read(root), stageRequires, parts, RigPoints.Read(root));
     }
 }
