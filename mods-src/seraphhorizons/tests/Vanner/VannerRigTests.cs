@@ -47,6 +47,28 @@ public class VannerRigTests
     }
 
     [Fact]
+    public void The_shake_turns_back_where_the_rig_draws_the_frame_at_its_ends()
+    {
+        var rig = OreMachineRig.Parse(File("vanner-rig.json"));
+        Assert.NotNull(rig.Point("headBox"));
+        Assert.NotNull(rig.Point("foot"));
+        using var doc = JsonDocument.Parse(File("vanner-rig.json"));
+        Assert.Equal(1.0, doc.RootElement.GetProperty("drive").GetProperty("strokesPerTurn").GetDouble());
+        var parts = Shipped();
+        int shaker = parts.IndexOf("shaker");
+        double X(double theta) => parts.Matrices(new RigInput(theta))[shaker][12];
+        double most = Enumerable.Range(0, 3600).Max(k => Math.Abs(X(k * 2 * Math.PI / 3600)));
+        // at each end of the shake the frame is furthest across, and there are two a turn, either way round
+        foreach (double end in new[] { Math.PI / 2, 3 * Math.PI / 2 })
+        {
+            Assert.True(most - Math.Abs(X(end)) < 1e-5);
+            Assert.True(Mod.Vanner.Core.Vanning.ShakeTurned(end - 0.01, end + 0.01));
+            Assert.True(Mod.Vanner.Core.Vanning.ShakeTurned(end + 0.01, end - 0.01));
+        }
+        Assert.Equal(2, Enumerable.Range(0, 3600).Count(k => Mod.Vanner.Core.Vanning.ShakeTurned(k * 2 * Math.PI / 3600, (k + 1) * 2 * Math.PI / 3600)));
+    }
+
+    [Fact]
     public void The_shipped_rig_matches_the_python_reference_poses()
     {
         var parts = Shipped();

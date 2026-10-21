@@ -5,6 +5,7 @@ using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using SeraphHorizons.Mod.Sluice;
 using SeraphHorizons.Mod.Vanner.Core;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -28,11 +29,13 @@ public class BEVanner : BEOreMachine
 {
     public const string Concentrate = "concentrate";
 
-    /// <summary>Where the concentrate drops off the head into its box (the rig's head roller, native blocks).</summary>
-    private static readonly Float3 HeadBox = new(0.35f, 0.35f, 0.3f);
     private static readonly AssetLocation WashSound = new("game", "sounds/block/sand");
 
+    private const float TrickleInterval = 0.3f;
+
     private readonly UnitCarry _carry = new();
+    private readonly ParticleTimer _trickle = new(TrickleInterval);
+    private double _lastTheta;
 
     public override OreMachine? Kind => OreMachine.Vanner;
 
@@ -83,10 +86,41 @@ public class BEVanner : BEOreMachine
         return new ItemStack(c, count);
     }
 
+    /// <summary>The wash, where the concentrate drops off the head into its box (the rig's <c>headBox</c>).</summary>
     protected override void OnWorked(ItemStack fed)
     {
-        var at = WorldPoint(HeadBox);
+        if (Rig?.Point("headBox") is not { } head)
+            return;
+        var at = WorldPoint(head);
         Api.World.PlaySoundAt(WashSound, at.X, at.Y, at.Z, null, true, 12, 0.3f);
+    }
+
+    // ---- The renderer's ----
+
+    /// <summary>The default clock; while it vans a rock, a steady trickle of wash water and now and then a grain of
+    /// concentrate (the rock's colour) off the head roller into its box (<c>headBox</c>), and at each end of the shake
+    /// (<see cref="Vanning.ShakeTurned"/>) tailings slurry dripping off the foot roller (<c>foot</c>).</summary>
+    public override RigInput FrameInput(float dt, bool far)
+    {
+        var input = base.FrameInput(dt, far);
+        bool turned = Vanning.ShakeTurned(_lastTheta, input.Theta);
+        _lastTheta = input.Theta;
+        if (far || !Running || Rig is not { } rig)
+            return input;
+        var capi = Api as ICoreClientAPI;
+        var across = MachineParticles.Around(new Float3(0.3f, 0.02f, 0.02f), Side);
+        if (_trickle.Due(dt) && rig.Point("headBox") is { } head)
+        {
+            var at = WorldPoint(head);
+            (MachineParticles.Drip(MachineParticles.Water) with { Count = 2 }).Spawn(Api.World, at, across);
+            if (Api.World.Rand.NextDouble() < 0.4)
+                MachineParticles.Drip(MachineParticles.MaterialColour(InfeedSlot.Itemstack, 230, MachineParticles.Slurry, capi))
+                    .Spawn(Api.World, at, across);
+        }
+        if (turned && rig.Point("foot") is { } foot)
+            MachineParticles.SlurryDrops(MachineParticles.MaterialColour(InfeedSlot.Itemstack, 200, MachineParticles.Slurry, capi))
+                .Spawn(Api.World, WorldPoint(foot), across);
+        return input;
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) => SluiceSystem.FeedExamples(world);

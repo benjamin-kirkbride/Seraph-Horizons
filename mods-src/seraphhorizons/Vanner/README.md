@@ -293,7 +293,9 @@ is added to the shared rig maths.
   `slide` on the travel) and ride it too. No work, class or presence.
 - **Keys.** `cells` (six, each with its boxes and a `lid`), `powerCell`/`powerFace`, `waterCell`/`waterFace`,
   `infeedCell`/`infeedFace`, `concentrateCell`/`concentrateFace`, `tailingsCell`/`tailingsFace`, `pipes` (`requires`
-  per metal), `buildStages`, `drive` and `parts`. `requires` values: `countershaft`, `shaker`, `rollers`,
+  per metal), the points `headBox` (just off the head roller's front, over the concentrate box) and `foot` (just off
+  the foot roller's back, over the tailings box), where the wash's sound and the particles are, `buildStages`, `drive`
+  and `parts`. `requires` values: `countershaft`, `shaker`, `rollers`,
   `creep`, `belt`, `feedbox`, `chutes`, `pipecopper`, `pipelead`, or null.
 - **`buildStages`**: the stages after the placed frame, in order, each `{ "stage", "id", "name", "adds" }`,
   `adds` the `requires` it fits (services: `feedbox`, `chutes` and both water line metals, one of them fitted).
@@ -419,6 +421,10 @@ its products. Its pass is `Core/Vanning.cs`, on the concentrators' `Concentrator
   concentrate face a chute laid to take from it or a container; the tailings face the same, or the sand heap.
 - **Work.** `machines.vanner` (r 0.80, load 0.08 steady, 15 L a rock, 3 an hour at 0.6): each item one pass of the
   recovery core; whole-route concentrate is marked (`oreWhole`) and carried over apart from the rest.
+- **Particles.** While it vans a rock (working, a rock in the feed box): a steady trickle of wash water, now and then
+  a grain of concentrate in the rock's colour, off the head roller into its box (`headBox`); and at each end of the
+  shake (θ passing π/2 or 3π/2, `Vanning.ShakeTurned`: the frame goes across as a sine of θ) a few drops of tailings
+  slurry, the rock's colour, off the foot roller (`foot`).
 - **Tests.** `tests/Vanner/VannerRigTests.cs` (the rig through the shared parser, its reference poses),
   `tests/Vanner/VannerGameplayTests.cs` (its figures, its pass, its build), Atlas `tests/PackTests/VannerScenarios.cs`
   (placed, built with real items, powered by a creative rotor, fed by hand and chute, concentrate into a chest,
