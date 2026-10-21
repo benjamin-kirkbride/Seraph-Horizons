@@ -9,6 +9,11 @@ namespace SeraphHorizons.Mod.Eidolon.Core;
 public sealed record MinePlanInput(MineState State, PathCell? Home, Func<MarkPos, bool> Skip, IReadOnlySet<PathCell> BadStands)
 {
     public Func<MarkPos, bool>? Roof { get; init; }
+
+    /// <summary>What the job's last plan kept under cells out of its reach (<see cref="MinePlan.Held"/>):
+    /// one of those found out of reach now (dug round, a pillar left standing) is told as kept still, not
+    /// as newly out of reach.</summary>
+    public IReadOnlySet<MarkPos>? Kept { get; init; }
 }
 
 /// <summary>Where a plan is: its targets, the reach bound and the holds under what is out of reach, the
@@ -133,7 +138,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             var stairs = new StairWork();
             foreach (bool _ in Stairs(state, area, stairs))
                 yield return false;
-            var (stair, finalWalk) = (stairs.Stair, stairs.Final!);
+            var (stair, finalWalk, finalSite) = (stairs.Stair, stairs.Final!, stairs.FinalSite!);
 
             Phase = MinePlanPhase.Simulate;
             state.Bands = new MineBands(area, tunnel, stair, state.Remaining);
@@ -172,11 +177,39 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             var planned = dug.Concat(stair).ToHashSet();
             yield return false;
             Simulated = state;
+            // what was kept under what is out of reach stays kept, whatever is dug round it
+            var told = outOfReach;
+            var held = report.Held;
+            if (input.Kept is { Count: > 0 } kept && outOfReach.Any(kept.Contains))
+            {
+                told = outOfReach.Where(c => !kept.Contains(c)).ToHashSet();
+                held = report.Held.Concat(outOfReach.Where(kept.Contains)).ToHashSet();
+            }
+            // What is held out of reach that the way out stands on is the way out, with the column under it: a stair
+            // the simulation found only once its top step was held (a pit the job had dug round its old stair), told as
+            // the way out, never as out of reach
+            if (told.Count > 0)
+            {
+                var standsOn = new HashSet<MarkPos>();
+                foreach (bool _ in StandsOn(finalWalk, finalSite, told, standsOn))
+                    yield return false;
+                if (standsOn.Count > 0)
+                {
+                    foreach (var c in standsOn.ToList())
+                        for (int y = c.Y - 1; held.Contains(new MarkPos(c.X, y, c.Z)); y--)
+                            standsOn.Add(new MarkPos(c.X, y, c.Z));
+                    told = told.Where(c => !standsOn.Contains(c)).ToHashSet();
+                    held = held.Where(c => !standsOn.Contains(c)).ToHashSet();
+                    stair = stair.Concat(standsOn).ToHashSet();
+                    wayOut.UnionWith(standsOn);
+                    planned.UnionWith(standsOn);
+                }
+            }
             Plan = new MinePlan
             {
                 Stations = stations,
-                OutOfReach = outOfReach,
-                Held = report.Held,
+                OutOfReach = told,
+                Held = held,
                 Left = report.Left,
                 Stair = stair,
                 WayOut = wayOut,
@@ -187,6 +220,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 Area = area,
                 Targets = planned,
                 Reruns = run,
+                Free = simulation.Free.Where(dug.Contains).ToHashSet(),
             };
             Phase = MinePlanPhase.Done;
             yield return true;
@@ -208,6 +242,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
     {
         public HashSet<MarkPos> Stair { get; } = new();
         public MineWalk? Final { get; set; }
+        public MineSite? FinalSite { get; set; }
     }
 
     private sealed class Chosen
@@ -217,6 +252,27 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
 
     // How many units of work (cells dug, nodes looked at) between checkpoints in the stair's search.
     private const int StairUnits = 512;
+
+    /// <summary>How many cells held out of reach <see cref="StandsOn"/> asks of, at most (a walk graph built for each).</summary>
+    private const int StandsOnChecks = 32;
+
+    // Of cells kept in the final world, those whose dig would leave a node that is out now, and still a place to stand,
+    // with no way out: the way out stands on them.
+    private IEnumerable<bool> StandsOn(MineWalk final, MineSite finalSite, IEnumerable<MarkPos> cells, HashSet<MarkPos> result)
+    {
+        var outs = final.Nodes;
+        foreach (var c in cells.OrderBy(c => c.Y).ThenBy(c => c.X).ThenBy(c => c.Z).Take(StandsOnChecks))
+        {
+            var site = finalSite.Clone();
+            site.Dig(c);
+            var walk = new MineWalk(site, input.Home, input.BadStands);
+            foreach (bool _ in walk.Build())
+                yield return false;
+            MineWork.Add(outs.Count);
+            if (outs.Any(n => walk.Node(n) && !walk.Out(n)))
+                result.Add(c);
+        }
+    }
 
     private IEnumerable<bool> Stairs(MineState state, MarkArea area, StairWork result)
     {
@@ -233,6 +289,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
         foreach (bool _ in final.Build())
             yield return false;
         result.Final = final;
+        result.FinalSite = finalSite;
         var stuck = new List<PathCell>();
         var w = finalSite.Window;
         for (int x = area.Min.X; x <= area.Max.X + 1; x++)
@@ -268,6 +325,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             finalSite = b.Site;
             final = b.Walk;
             result.Final = final;
+            result.FinalSite = finalSite;
         }
     }
 
@@ -360,7 +418,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                         break;
                     MineWork.Add(unit.Columns.Count);
                     foreach (var (x, z) in unit.Columns)
-                        if (clearable.Contains(new MarkPos(x, feet - 1, z)))
+                        if (Tread(new MarkPos(x, feet - 1, z), clearable))
                             cells.Add(new MarkPos(x, feet - 1, z));
                 }
                 if (cells.Count == 0)
@@ -372,6 +430,12 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             }
         }
     }
+
+    // A cell a stair may keep: a target solid now. A target with no footing in it (grass grown on a dug floor, a plant)
+    // is no tread: kept, it would be set solid in the stair's world (Best) and pass a stair a step short (a pit, its top
+    // tread grass, its way out the blocks left in a corner, held as out of reach).
+    private bool Tread(MarkPos c, IReadOnlySet<MarkPos> clearable) =>
+        clearable.Contains(c) && input.State.Site.Solid(c.X, c.Y, c.Z);
 
     private static bool Reaches(PathCell n, IReadOnlySet<MarkPos> cells)
     {
@@ -452,7 +516,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                     for (int y = floor; y < tread; y++)
                     {
                         var c = alongX ? new MarkPos(along, y, across) : new MarkPos(across, y, along);
-                        if (clearable.Contains(c))
+                        if (Tread(c, clearable))
                             cells.Add(c);
                     }
                 }
@@ -545,9 +609,10 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
         private readonly Dictionary<(int, int), List<PathCell>> _parkedAt = new();
         private readonly Dictionary<(int Lane, int Y), int> _front = new();
         private int? _covered;
-        private int _openFloor;
+        private int _openFloor, _approachFloor;
         private bool _stairOpen;
         private bool _offLane;
+        private bool _free;
         private int _sweptAt = -1, _sweeps;
 
         public Simulation(MineState state, MineTunnel? tunnel, PathCell? home)
@@ -570,10 +635,13 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
 
         public List<MineStation> Stations { get; } = new();
 
+        /// <summary>The cells dug in the last sweep, whatever their band (<see cref="MinePlan.Free"/>).</summary>
+        public HashSet<MarkPos> Free { get; } = new();
+
         private void Eligibility()
         {
             _covered = _bands.Covered;
-            _openFloor = _bands.OpenFloor;
+            (_openFloor, _approachFloor) = (_bands.Floor(0), _bands.Floor(1));
             _stairOpen = _bands.StairOpen;
         }
 
@@ -611,7 +679,27 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                     // cannot finish (no stand in a lane reaches its face, which would hold every band and
                     // layer under it) struck from then on from any stand that reaches it.
                     if (_sweptAt == Stations.Count || _sweeps == MaxSweeps)
-                        break;
+                    {
+                        // a band held for its approach with no station found: the wait is let go and the next band
+                        // opened before anything is taken out of its turn
+                        if (_bands.Waiting is { } held)
+                        {
+                            _bands.Release(held);
+                            Eligibility();
+                            _widened.AddRange(_bands.TakeWidened());
+                            _sweptAt = -1;
+                            _sweeps = 0;
+                            continue;
+                        }
+                        // Precedence stalled with targets left: a last sweep takes any of them the guard
+                        // lets it, whatever their band (the plan lets those be dug out of turn), so a
+                        // face reached only by way of the next band's ground is struck from a step left
+                        // in it; what the guard still refuses is held.
+                        if (_free || !_state.Remaining.Any(c => _band[_site.Index(c.X, c.Y, c.Z)] != MineBands.Stair))
+                            break;
+                        _free = true;
+                        _sweeps = 0;
+                    }
                     _sweptAt = Stations.Count;
                     _sweeps++;
                     _offLane |= _covered != null;
@@ -668,6 +756,8 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             var cells = candidate.Cells.OrderByDescending(c => c.Y).ThenBy(c => c.X).ThenBy(c => c.Z).ToList();
             int slice = candidate.Kind == MineStationKind.Face ? cells.Min(c => _tunnel!.Slice(c.X, c.Z)) : -1;
             Stations.Add(new MineStation(Stations.Count, stand, cells, candidate.Band, candidate.Kind, candidate.Lane, slice));
+            if (_free)
+                Free.UnionWith(cells);
             _state.Apply(cells);
             foreach (var c in cells)
                 _band[_site.Index(c.X, c.Y, c.Z)] = MineBands.Never;
@@ -705,6 +795,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 if (x >= s.X - 1 && x <= s.X && z >= s.Z - 1 && z <= s.Z)
                     continue;
                 int column = _site.Column(x, z);
+                int openFloor = _bands.Approach(x, z) ? _approachFloor : _openFloor;
                 for (int y = Math.Max(s.Y - 1, _area.Min.Y); y <= Math.Min(s.Y + 3, _area.Max.Y); y++)
                 {
                     int band = _band[column + y];
@@ -716,6 +807,8 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                         if (_stairOpen)
                             (stair ??= new()).Add(c);
                     }
+                    else if (_free)
+                        (open ??= new()).Add(c);
                     else if (band < coveredBands)
                     {
                         // its own lane's; once the lanes alone have stalled, any lane's in its reach
@@ -724,7 +817,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                             continue;
                         (covered ??= new()).Add(c);
                     }
-                    else if (y >= _openFloor)
+                    else if (y >= openFloor)
                         (open ??= new()).Add(c);
                 }
             }
@@ -736,7 +829,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 return Make(s, covered, _covered!.Value, MineStationKind.Face, faceLane);
             }
             if (open != null)
-                return Make(s, open, _bands.OpenBand, MineStationKind.Bench, -1);
+                return Make(s, open, _free ? open.Min(c => _band[_site.Index(c.X, c.Y, c.Z)]) : _bands.OpenBand, MineStationKind.Bench, -1);
             if (stair != null)
                 return Make(s, stair, MineBands.Stair, MineStationKind.Stair, -1);
             return null;
@@ -824,7 +917,10 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             return _tunnel.AlongX ? across >= l.MinZ && across <= l.MaxZ : across >= l.MinX && across <= l.MaxX;
         }
 
-        // The first slice of a lane with a cell left at layer y (it only moves in as cells go).
+        // The first slice of a lane with a cell of the heading left at layer y (it only moves in as cells
+        // go). Only the heading's own cells: a cell of the open part in a lane (the hill's edge runs across
+        // the tunnel's bounds) is quarried with the open part, and one reached only from inside the tunnel
+        // would hold the face for good (as EidolonTunnels.LaneFront, which takes only the heading's).
         private int Front(int lane, int y)
         {
             int s = _front.GetValueOrDefault((lane, y), 0);
@@ -842,7 +938,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             for (int across = min; across <= max; across++)
             {
                 var (x, z) = _tunnel.Column(slice, across);
-                if (_site.InWindow(x, y, z) && _band[_site.Index(x, y, z)] != MineBands.Never)
+                if (_site.InWindow(x, y, z) && _band[_site.Index(x, y, z)] is var band && band != MineBands.Never && band < _bands.CoveredBands)
                     yield return new MarkPos(x, y, z);
             }
         }

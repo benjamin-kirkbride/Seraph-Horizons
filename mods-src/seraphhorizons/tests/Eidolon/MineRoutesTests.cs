@@ -109,6 +109,63 @@ public class MineRoutesTests(ITestOutputHelper output)
         }
     }
 
+    // No way walks into another's box at a stand in the covered part while that one works there (in a heading there is
+    // no room to pass, the game's walker stopping short of it and parting from it): it waits for it to be done, or
+    // goes round.
+    [Fact]
+    public void A_member_s_way_never_passes_by_another_s_stand_while_it_works_there()
+    {
+        foreach (string g in Geometries)
+        foreach (int crew in new[] { 2, 3 })
+        {
+            var start = Begin(MineCases.ByName(g, crew));
+            var routes = MineRoutePlanner.Solve(start.Input());
+            int legs = 0;
+            foreach (var r in routes.Routes.Values)
+            foreach (var leg in r.Stops.Where(s => s.Kind == MineStopKind.Station && s.Leg.Count > 2))
+            {
+                legs++;
+                var columns = Columns(leg.Leg);
+                foreach (var o in routes.Routes.Values.Where(o => o.Member != r.Member))
+                foreach (var stop in o.Stops.Where(s => s.Kind == MineStopKind.Station && s.Arrive < leg.Arrive && leg.Depart < s.Finish))
+                {
+                    bool by = false, covered = false;
+                    for (int x = stop.At.X - 1; x <= stop.At.X; x++)
+                    for (int z = stop.At.Z - 1; z <= stop.At.Z; z++)
+                    {
+                        by |= columns.Contains((x, z));
+                        covered |= start.Plan.Tunnel?.Covered.Contains((x, z)) == true;
+                    }
+                    if (!covered)
+                        continue;
+                    Assert.False(by, $"{g} x{crew}: {r.Member}'s way to {leg.At} ({leg.Depart:0.0}..{leg.Arrive:0.0}) walks into {o.Member}'s box at {stop.At} (#{stop.Station}, {stop.Arrive:0.0}..{stop.Finish:0.0})");
+                }
+            }
+            output.WriteLine($"{g} x{crew}: {legs} ways");
+        }
+    }
+
+    // Stations sharing one long approach (a far end of the area, a walk over LongApproachSeconds from the rest) are one
+    // member's trip: whoever goes there works the stations a short walk from it, and the others leave them to it.
+    [Fact]
+    public void A_cluster_at_the_end_of_a_long_walk_is_one_member_s_trip()
+    {
+        const int L = 10;
+        var c = new MineCase("far end", () => new MineTestWorld().Ground(L - 1), MineTestWorld.Area(0, 39, L - 1, L - 1, 0, 3),
+            new PathCell(-6, L, 0), [new PathCell(-6, L, 0), new PathCell(-6, L, 3)]);
+        var start = Begin(c);
+        var routes = MineRoutePlanner.Solve(start.Input());
+        foreach (var r in routes.Routes.Values)
+            output.WriteLine($"{r.Member}: " + string.Join(" ", r.Stops.Select(s => s.Kind == MineStopKind.Wait ? "w" : $"#{s.Station}@{s.At.X},{s.At.Z} {s.Leg.Count}")));
+        // the far end (stands x 25 on, over 15 s from where they start): all on one member, one after another
+        var far = routes.Routes.Values.Where(r => r.Stops.Any(s => s.Kind == MineStopKind.Station && s.At.X >= 25)).ToList();
+        var trip = Assert.Single(far);
+        var stations = trip.Stops.Where(s => s.Kind == MineStopKind.Station).ToList();
+        int first = stations.FindIndex(s => s.At.X >= 25), last = stations.FindLastIndex(s => s.At.X >= 25);
+        Assert.All(stations.Skip(first).Take(last - first + 1), s => Assert.True(s.At.X >= 25, $"#{s.Station} at {s.At} in the far trip"));
+        Assert.True(stations.Count(s => s.At.X >= 25) >= 4);
+    }
+
     [Fact]
     public void Narrow_way_slots_never_overlap()
     {

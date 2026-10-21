@@ -40,6 +40,8 @@
     <Compile Include="../MapReveal/Core/**/*.cs" Link="MapReveal/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../CreativeModTabs/Core/**/*.cs" Link="CreativeModTabs/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Machines/Core/**/*.cs" Link="Machines/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Mine plans' inputs dumped from live jobs on generated ground (tests/PackTests/RealMineRun.cs), planned again. -->
+    <None Include="Eidolon/fixtures/*.mine" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- The ore machines' shared code (#711, #694): every build file, checked against every rig. -->
     <None Include="../assets/seraphhorizons/config/builds/*.json" Link="builds/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/config/*-rig.json" Link="rigs/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

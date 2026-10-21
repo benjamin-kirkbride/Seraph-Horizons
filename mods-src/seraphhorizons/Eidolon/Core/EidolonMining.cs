@@ -81,6 +81,10 @@ public sealed class MineJobCells
     /// plan is swapped in (the live state built with it shares it).</summary>
     public HashSet<PathCell> BadStands { get; set; } = new();
 
+    /// <summary>How many times a member found a stand bad over the job's life (each one the plan made again;
+    /// <see cref="BadStands"/> forgets one tried again), for the log and the tests.</summary>
+    public int BadStandsFound { get; set; }
+
     /// <summary>The stands a member found no way to with another eidolon by them since the job's last strike,
     /// and how many times each, by any member (README "Eidolon", working together, *When none may work*):
     /// main thread only; one counted often enough is bad all the same.</summary>
@@ -129,6 +133,19 @@ public sealed class MineJobCells
     /// <summary>Whether the plan was made again because no member had a station it could work while
     /// cells were left (README "Eidolon", working together, *Dispatch*): once, until a block is broken.</summary>
     public bool StuckReplanned { get; set; }
+
+    /// <summary>How many of its targets went with no strike of its own (the game's rock caving in where a strike
+    /// left it hanging, granite breaking into its drops, or a player): what it mined and these are all that went.</summary>
+    public int Gone { get; set; }
+
+    /// <summary>How many blocks came to be ones it mines in the area with no doing of its own (grass grown on dug
+    /// ground, sand or gravel fallen into a dug cell, a block placed): what it mined is the area's blocks gone,
+    /// less <see cref="Gone"/>, and at most these more.</summary>
+    public int Appeared { get; set; }
+
+    /// <summary>The job's last strike (<see cref="LastStrikeAt"/>) when its owner was last told it looks stalled
+    /// (README "Eidolon", working together, *When none may work*), null never: told again only after another.</summary>
+    public double? StallToldStrike { get; set; }
 
     /// <summary>The job's route plan (README "Eidolon", working together, *Routes*), main thread only; null
     /// before the first, and while today's dispatch is used instead.</summary>

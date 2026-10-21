@@ -142,20 +142,40 @@ public static class MineDispatch
         return stands;
     }
 
+    /// <summary>Stations worked ahead of their band the guard is asked of, a look with nothing else to take.</summary>
+    public const int AheadTries = 8;
+
     /// <summary>How near a station's cells, in columns, an earlier one's stand is kept for it (<see cref="Before"/>).</summary>
     public const int Near = 8;
 
+    /// <summary>What a member takes first while a covered band is driven (README "Eidolon", working together,
+    /// *Spare work*): the face while no other member holds a station of it (0); else the open part (1); else work
+    /// ahead of the band (2, <see cref="MineAhead"/>); a second face, another lane beside the one held, only when
+    /// there is none of those (3). With no covered band, the stair or the open part alone, all are 1.</summary>
+    public static int Rank(MineStation station, bool ahead, bool faceHeld) =>
+        ahead ? 2 : station.Kind != MineStationKind.Face ? 1 : faceHeld ? 3 : 0;
+
+    /// <summary>Whether a member of <paramref name="others"/> holds a station of the face (not one worked ahead).</summary>
+    public static bool FaceHeld(MineState live, IEnumerable<MineWorker> others) =>
+        others.Any(o => o.Queue.Any(s => s.Kind == MineStationKind.Face && Cells(live, s).Count > 0));
+
+    /// <summary>Whether a station is one worked ahead of its band: it has cells ahead and none it may dig now.</summary>
+    public static bool IsAhead(MineState live, MineStation station) =>
+        live.Bands != null && Cells(live, station).Count == 0 && Cells(live, station, true).Count > 0;
+
     /// <summary>The station <paramref name="worker"/> takes next, or null for none: of the first
-    /// <see cref="Front"/> in plan order not in anyone's queue, <paramref name="free"/> (its claim free on
+    /// <paramref name="front"/> (<see cref="Front"/>) in plan order not in anyone's queue, <paramref name="free"/> (its claim free on
     /// the board) and with cells it may dig now, those <see cref="Executable"/> (the guard asked of these
-    /// only, the earlier stations' stands found once), the one no other would reach sooner, then the one it reaches
-    /// soonest, then the first. With <paramref name="usable"/>, a station's cells are first cut to those
+    /// only, the earlier stations' stands found once), by <see cref="Rank"/> (the face, held by none; the open
+    /// part; a second face), then the one no other would reach sooner, then the one it reaches soonest, then the
+    /// first. While a covered band is driven, with none of the face nor of the open part, a station worked ahead of
+    /// its band (its cells cut to those, <see cref="IsAhead"/>) comes before a second face. With <paramref name="usable"/>, a station's cells are first cut to those
     /// it allows (the game: none in the columns of an eidolon standing there, which may be no worker, so the
     /// rest of a station round one parked in the area is dug and what is under it waits), and the station
     /// is given back so cut. With <paramref name="fit"/>, a station is first made to fit round what the
     /// others hold (<see cref="Fit"/>; null: none of it does).</summary>
     public static MineStation? Next(MinePlan plan, MineState live, MineWorker worker, IReadOnlyList<MineWorker> others, Func<MineStation, bool> free,
-        Func<MarkPos, bool>? usable = null, Func<MineStation, MineStation?>? fit = null)
+        Func<MarkPos, bool>? usable = null, Func<MineStation, MineStation?>? fit = null, int front = Front)
     {
         // stations held: those of this plan (a queue may still hold a replaced plan's, until its next look)
         var taken = others.SelectMany(o => o.Queue).Concat(worker.Queue)
@@ -163,7 +183,7 @@ public static class MineDispatch
         var at = others.Select(o => new MineWorkerAt(o.Id, o.X, o.Feet, o.Z, o.Queue.Select(s => s.Stand).ToList())).ToList();
         var alive = Alive(plan, live, usable);
         // the front: the first Front not held, that fit and whose cells may be dug now; then the guard
-        var front = new List<MineStation>();
+        var looked = new List<MineStation>();
         foreach (var listed in alive)
         {
             if (taken.Contains(listed.Id))
@@ -180,18 +200,51 @@ public static class MineDispatch
             }
             if (Cells(live, station).Count == 0)
                 continue;
-            front.Add(station);
-            if (front.Count == Front)
+            looked.Add(station);
+            if (looked.Count == front)
                 break;
         }
-        var found = front.Where(s => Executable(live, s, at, out _, alive)).ToList();
+        bool held = FaceHeld(live, others);
+        var found = looked.Where(s => Executable(live, s, at, out _, alive)).ToList();
+        if (!found.Any(s => Rank(s, false, held) < 2) && live.Bands?.Covered != null
+            && Ahead(plan, live, taken, alive, fit, free, usable, at) is { } ahead)
+            return ahead;
         return found
             .Select(s => (Station: s, Mine: Arrival(worker, s)))
-            .OrderBy(s => others.Any(o => Arrival(o, s.Station) < s.Mine))
+            .OrderBy(s => Rank(s.Station, false, held))
+            .ThenBy(s => others.Any(o => Arrival(o, s.Station) < s.Mine))
             .ThenBy(s => s.Mine)
             .ThenBy(s => s.Station.Id)
             .Select(s => s.Station)
             .FirstOrDefault();
+    }
+
+    // The first station in plan order worked ahead of its band that fits, is free and passes the guard (asked
+    // as for one ahead), cut to its cells ahead; the guard asked of AheadTries at most.
+    private static MineStation? Ahead(MinePlan plan, MineState live, HashSet<int> taken, List<MineStation> alive,
+        Func<MineStation, MineStation?>? fit, Func<MineStation, bool> free, Func<MarkPos, bool>? usable, List<MineWorkerAt> at)
+    {
+        int looked = 0;
+        foreach (var listed in alive)
+        {
+            if (taken.Contains(listed.Id) || Cells(live, listed).Count > 0)
+                continue;
+            var cells = Cells(live, listed, true);
+            if (usable != null)
+                cells = cells.Where(usable).ToList();
+            if (cells.Count == 0)
+                continue;
+            if ((fit == null ? listed : fit(listed)) is not { } planned || !free(planned))
+                continue;
+            var station = planned with { Cells = cells.Where(planned.Cells.Contains).ToList() };
+            if (station.Cells.Count == 0)
+                continue;
+            if (Executable(live, station, at, out _, alive, ahead: true))
+                return station;
+            if (++looked == AheadTries)
+                break;
+        }
+        return null;
     }
 
     /// <summary>
@@ -260,4 +313,78 @@ public static class MineDispatch
 
     /// <summary>How many may work a covered band's face at once: one a lane.</summary>
     public static int FaceCap(MineTunnel tunnel) => tunnel.Lanes.Count;
+
+    /// <summary>
+    /// The first station of the plan (in its order) that could be worked with <paramref name="others"/> where
+    /// they stand (none: the others out of the way), or null for none (README "Eidolon", working together,
+    /// *When none may work*): with cells it may dig now (its band's turn come) that pass the guard against the
+    /// live state (<see cref="Executable"/>), its stand in no other's box. What the board and the routes hold
+    /// (claims, turns at a face or on a route) is never asked: it clears by itself. With none, what the plan
+    /// and the world hold (the way out, another station's stand, a stand found bad) keeps every station from
+    /// any member for good.
+    /// </summary>
+    public static MineStation? Workable(MinePlan plan, MineState live, IReadOnlyList<MineWorkerAt>? others = null)
+    {
+        others ??= [];
+        var alive = Alive(plan, live, null);
+        foreach (var s in alive)
+            if (!others.Any(o => OnStand(o, s.Stand)) && Executable(live, s, others, out _, alive))
+                return s;
+        return null;
+    }
+
+    // Whether another's box is over a stand (dispatch never makes for one another stands at).
+    private static bool OnStand(MineWorkerAt o, PathCell stand) =>
+        Math.Abs(o.X - stand.X) < 2 * EidolonMining.HalfWidth && Math.Abs(o.Z - stand.Z) < 2 * EidolonMining.HalfWidth && Math.Abs(o.Feet - stand.Y) < 4;
+
+    /// <summary>Why each of <paramref name="cells"/> (targets still to dig) is left, by the guard as
+    /// <see cref="Workable"/> asks it: a cell of a station that passes it with the others out of the way is
+    /// <see cref="MineLeftWhy.UnderEidolon"/> when it fails it with <paramref name="at"/> (every eidolon where it
+    /// stood) and <see cref="MineLeftWhy.Untaken"/> when it passes both; one of none still to work
+    /// <see cref="MineLeftWhy.NoStation"/>, one whose band's turn has not come <see cref="MineLeftWhy.NotTheirTurn"/>,
+    /// else its first station's refusal.</summary>
+    public static Dictionary<MineLeftWhy, int> WhyLeft(MinePlan plan, MineState live, IEnumerable<MarkPos> cells,
+        IReadOnlyList<MineWorkerAt>? at = null)
+    {
+        at ??= [];
+        var alive = Alive(plan, live, null);
+        var why = new Dictionary<MarkPos, MineLeftWhy>();
+        foreach (var s in alive)
+        {
+            var refusal = Executable(live, s, [], out var r, alive) ? MineRefusal.None : r;
+            var reason = refusal switch
+            {
+                MineRefusal.None => at.Any(o => OnStand(o, s.Stand)) || !Executable(live, s, at, out _, alive)
+                    ? MineLeftWhy.UnderEidolon : MineLeftWhy.Untaken,
+                MineRefusal.NotStandable => MineLeftWhy.NoStand,
+                MineRefusal.NotOut => MineLeftWhy.NoWay,
+                MineRefusal.CutsOff => MineLeftWhy.CutsOff,
+                MineRefusal.Starves => MineLeftWhy.Starves,
+                MineRefusal.CutsOffStation => MineLeftWhy.UnderStand,
+                _ => MineLeftWhy.NotTheirTurn,
+            };
+            foreach (var c in s.Cells)
+                if (live.Remaining.Contains(c) && (!why.TryGetValue(c, out var had) || Rank(reason) < Rank(had)))
+                    why[c] = reason;
+        }
+        var counts = new Dictionary<MineLeftWhy, int>();
+        foreach (var c in cells)
+        {
+            var w = !why.TryGetValue(c, out var found) ? MineLeftWhy.NoStation
+                : Rank(found) > 1 && live.Bands?.Eligible(c) == false ? MineLeftWhy.NotTheirTurn : found;
+            counts[w] = counts.GetValueOrDefault(w) + 1;
+        }
+        return counts;
+    }
+
+    // A cell of several stations is said to be left for the most workable of them.
+    private static int Rank(MineLeftWhy why) => why switch { MineLeftWhy.Untaken => 0, MineLeftWhy.UnderEidolon => 1, _ => 2 };
 }
+
+/// <summary>Why a target was left when its job finished (<see cref="MineDispatch.WhyLeft"/>, the report's
+/// reasons): a station that could have been worked but none took it;
+/// one that only an eidolon standing on its cells or its stand kept from any member;
+/// in no station still to work; its band's turn never came (blocks before it were left); no place to
+/// stand for it; no way out from its stand; digging it would cut off its stand's way out, leave other
+/// blocks with nowhere to stand, or take a stand other blocks are worked from.</summary>
+public enum MineLeftWhy { Untaken, UnderEidolon, NoStation, NotTheirTurn, NoStand, NoWay, CutsOff, Starves, UnderStand }

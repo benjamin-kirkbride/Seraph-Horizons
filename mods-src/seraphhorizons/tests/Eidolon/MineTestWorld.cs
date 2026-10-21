@@ -55,9 +55,9 @@ internal sealed class MineTestWorld : IMineWorld
     public static MarkArea Area(int x0, int x1, int y0, int y1, int z0, int z1) =>
         MarkArea.Between(new MarkPos(x0, y0, z0), new MarkPos(x1, y1, z1));
 
-    public MineSite Site(MarkArea area, int step = 2)
+    public MineSite Site(MarkArea area, int step = 2, MarkArea? window = null)
     {
-        var site = new MineSite(area, step);
+        var site = new MineSite(area, step, window);
         foreach (var _ in site.Load(this)) { }
         return site;
     }
@@ -66,6 +66,64 @@ internal sealed class MineTestWorld : IMineWorld
         new(new MineState(Site(area), home), home, skip ?? (_ => false), new HashSet<PathCell>());
 
     public MinePlan Plan(MarkArea area, PathCell home) => MinePlanner.Run(Input(area, home));
+
+    /// <summary>A live job's plan input as tests/PackTests/RealMineRun dumps it from ground of the game's own generation
+    /// (tests/Eidolon/fixtures/*.mine): its area, its window, the climb (step), home, bad stands, the window's blocks a
+    /// column a line from its bottom up as runs of <c>count:code</c> (code: rule × 2 + solid), and the cells over the
+    /// area that roof it.</summary>
+    public sealed record Dump(MineTestWorld World, MarkArea Area, MarkArea Window, int Step, PathCell? Home,
+        HashSet<PathCell> Bad, HashSet<MarkPos> Roof)
+    {
+        public MineSite Site() => World.Site(Area, Step, Window);
+
+        public MinePlanInput Input() =>
+            new(new MineState(Site(), Home, Bad), Home, _ => false, Bad) { Roof = Roof.Contains };
+    }
+
+    public static Dump FromDump(string name)
+    {
+        var world = new MineTestWorld();
+        MarkArea area = default, window = default;
+        int step = 2;
+        PathCell? home = null;
+        var bad = new HashSet<PathCell>();
+        var roof = new HashSet<MarkPos>();
+        foreach (var line in File.ReadLines(Path.Combine(AppContext.BaseDirectory, name)))
+        {
+            var p = line.Split(' ');
+            int I(int i) => int.Parse(p[i]);
+            switch (p[0])
+            {
+                case "area": area = new MarkArea(new MarkPos(I(1), I(2), I(3)), new MarkPos(I(4), I(5), I(6))); break;
+                case "window": window = new MarkArea(new MarkPos(I(1), I(2), I(3)), new MarkPos(I(4), I(5), I(6))); break;
+                case "step": step = I(1); break;
+                case "home": home = new PathCell(I(1), I(2), I(3)); break;
+                case "bad": bad.Add(new PathCell(I(1), I(2), I(3))); break;
+                case "r":
+                    for (int k = 3; k < p.Length; k++)
+                        roof.Add(new MarkPos(I(1), I(k), I(2)));
+                    break;
+                case "c":
+                    int x = I(1), z = I(2), y = window.Min.Y;
+                    for (int k = 3; k < p.Length; k++)
+                    {
+                        var run = p[k].Split(':');
+                        int count = int.Parse(run[0]), code = int.Parse(run[1]);
+                        bool solid = (code & 1) == 1;
+                        var rule = (MineRule)(code >> 1);
+                        for (int n = 0; n < count; n++, y++)
+                        {
+                            if (solid)
+                                world.Solid.Add((x, y, z));
+                            if (!(solid && rule == MineRule.Mine) && code != 0)
+                                world.Rules[new MarkPos(x, y, z)] = new MineVoxel(solid, rule);
+                        }
+                    }
+                    break;
+            }
+        }
+        return new Dump(world, area, window, step, home, bad, roof);
+    }
 }
 
 /// <summary>
@@ -150,6 +208,7 @@ internal sealed class TeamRunner
         public PathCell Struck = at;
         public double FreeAt;
         public MineStation? Station;
+        public bool Ahead;
         public int Mined;
         public bool Done;
         public bool Waiting;
@@ -293,6 +352,7 @@ internal sealed class TeamRunner
                 }
                 w.ThroughSince = null;
                 w.Station = next;
+                w.Ahead = MineDispatch.IsAhead(_live, next);
                 w.FreeAt = now + (route!.Count - 1) * MineDispatch.WalkSecondsPerBlock;
                 w.Walked += route.Count - 1;
                 w.At = next.Stand;
@@ -300,8 +360,8 @@ internal sealed class TeamRunner
                 continue;
             }
             var station = w.Station;
-            var group = MineStations.NextGroup(station, _plan.Tunnel, c => _live.Remaining.Contains(c) && _live.Bands!.Eligible(c),
-                w.At.X, w.At.Y, w.At.Z);
+            var group = MineStations.NextGroup(station, _plan.Tunnel,
+                c => _live.Remaining.Contains(c) && (_live.Bands!.Eligible(c) || w.Ahead && MineAhead.Eligible(_live, c)), w.At.X, w.At.Y, w.At.Z);
             var at = _workers.Where(o => o != w).Select(o => new MineWorkerAt(o.Id, o.At.X, o.At.Y, o.At.Z,
                 o.Station is { } s ? [s.Stand] : [])).ToList();
             var before = group == null ? [] : MineDispatch.Before(_plan, _live, station);
@@ -789,7 +849,8 @@ internal sealed class RouteRunner
     private void TodayWork(Worker w, double now)
     {
         var station = w.Station!;
-        var group = MineStations.NextGroup(station, _plan.Tunnel, c => _live.Remaining.Contains(c) && _live.Bands!.Eligible(c), w.At.X, w.At.Y, w.At.Z);
+        var group = MineStations.NextGroup(station, _plan.Tunnel,
+            c => _live.Remaining.Contains(c) && (_live.Bands!.Eligible(c) || w.Ahead && MineAhead.Eligible(_live, c)), w.At.X, w.At.Y, w.At.Z);
         var others = _workers.Where(o => o != w).ToList();
         var at = others.Select(o => new MineWorkerAt(o.Id, o.At.X, o.At.Y, o.At.Z, o.Station is { } s ? [s.Stand] : [])).ToList();
         var before = group == null ? [] : MineDispatch.Before(_plan, _live, station);
@@ -886,7 +947,7 @@ internal sealed class RouteRunner
         Assert.True(_board.TryClaim(w.Id, next.Id, MineDispatch.Claim(next, _plan.Tunnel), now), "a claim that fit is taken");
         Log.Add($"{now:0.0}: {w.Id} (today's) sets off for #{next.Id} at {next.Stand}, {route.Count - 1} steps");
         w.Station = next;
-        w.Ahead = false;
+        w.Ahead = MineDispatch.IsAhead(_live, next);
         w.Started = true;
         w.Waiting = false;
         w.FreeAt = now + (route.Count - 1) * MineDispatch.WalkSecondsPerBlock;

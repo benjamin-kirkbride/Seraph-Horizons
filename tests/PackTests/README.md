@@ -68,12 +68,36 @@ public async Task It_digs_the_pit()
 ### Still on wall time
 
 Off-thread work: chunk loading, generation and compression threads, `Task.Run` work, and physics' sender.
-Seen from the virtual clock it is about 20× slower. The mine planner's and route solver's workers are held
-(above); a route solve starts on the tick it is due, with no wall-time budget. The planner's
+Seen from the virtual clock it is about 20× slower. The mine planner's and route solver's workers run inline
+(below; held, above, before that); a route solve starts on the tick it is due, with no wall-time budget. The planner's
 main-thread slices, which in the game stop each tick after `MinePlanner.BudgetMs` (2 ms) of wall time, are
 counted in blocks read while a clock is on (`EidolonMinePlans.BudgetReads`, set by `Start` to
 `TypicalReads`, about what 2 ms reads, and put back by `Dispose`), so a job's window is read in the same
 ticks on any runner and a plan starts on the same tick every run.
+
+### Every run alike
+
+A scenario on the clock plays the same every run, its eidolons' positions alike to the last digit, whatever
+the runner's load (two hillside runs and two of the look-ahead class compared tick by tick). `Start` makes
+everything the engine keeps in game time start from it alone, and takes the off-thread work that decides what
+happens onto the game thread:
+
+- the master clock is put on a whole millisecond (the passes then step 33, 33, 34 ms alike), and every server
+  system's last tick, every tick listener's last call and physics' accumulators are set to it;
+- physics runs on the game thread alone (`maxPhysicsThreads` 1: over 800 entities it would split across its
+  workers);
+- the game thread's `World.Rand` is seeded (`RandSeed`: 1, or `SH_CLOCK_SEED` from the environment), and the
+  path traversers and unstable rock and falling ground, which drew from that shared stream, draw from streams of
+  their own (Harmony transpilers: one per entity in the order each first draws, one for the blocks);
+- random block ticks pick their blocks on the game thread every their interval of game time, over the chunks
+  they found at their first pick, their `Random` seeded (on the separate thread they picked in wall time);
+- the eidolon mine planner's plans and route solves run inline, so none is cancelled in a race with its own
+  result;
+- autosave is off (it fell at a game time set by how long the server ran before `Start`, and runs the master
+  clock on wall time while it saves).
+
+What a seed gives is one outcome of many: to measure a scenario, run it with several (`SH_CLOCK_SEED=1` to `6`)
+and compare means; a check against a measured number holds for the seed it runs.
 
 ### When not to use it
 
