@@ -52,7 +52,7 @@ public static class GearConsumers
     /// <summary>The patch files, by the mod each is for (<c>game</c>: the game's own recipes).</summary>
     public static readonly string[] PatchedMods =
     [
-        "game", "ppex", "smex", "betterruins", "butchering", "flyingmachine", "immersivewoodworking",
+        "game", "ppex", "smex", "betterruins", "butchering", "immersivewoodworking",
         "playercorpseforked", "spinningwheel", "sprinklersmod",
     ];
 
