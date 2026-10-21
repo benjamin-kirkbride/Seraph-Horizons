@@ -166,6 +166,8 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
                 }
                 if (plan.OutOfReach.Count > 0 && shared.Live is { } live)
                 {
+                    if (Environment.GetEnvironmentVariable("SH_MINE_DUMP") is { } dumps)
+                        Dump(Path.Combine(dumps, $"{spot.Kind}-{RealTerrain.Seed}-plan{plans}.mine"), area, step, live, shared, blocks);
                     var reachable = InReach(reader, area, step, live, plan.Targets.Concat(plan.OutOfReach).Concat(plan.Held), plan.OutOfReach);
                     if (reachable.Count > 0)
                         faults.Add($"plan {plans} at {now - start:0} s holds {reachable.Count} of its {plan.OutOfReach.Count} out of reach that the bound reaches: "
@@ -432,6 +434,53 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
     /// it (README "Eidolon", working together) is told apart from one free and clear. For the log only.</summary>
     private static bool CrossesClaims(MineOrder order, EntityLaborEidolon eidolon, PathCell stand, double now) =>
         (bool)CrossesClaimsMethod.Invoke(order, [eidolon, stand, now])!;
+
+    /// <summary>A plan's input as the job's live state holds it, in the unit tests' fixture format
+    /// (mods-src/seraphhorizons/tests/Eidolon/fixtures/*.mine, <c>MineTestWorld.FromDump</c>), for one that holds cells out of
+    /// reach to be planned again there: its area, window, climb, home and bad stands, the window's blocks a column a line
+    /// from its bottom up as runs of <c>count:code</c> (code: rule × 2 + solid), and the cells over the area that roof it.</summary>
+    private static void Dump(string path, MarkArea area, int step, MineState live, MineJobCells shared, IBlockAccessor blocks)
+    {
+        var w = live.Site.Window;
+        var lines = new List<string>
+        {
+            $"area {area.Min.X} {area.Min.Y} {area.Min.Z} {area.Max.X} {area.Max.Y} {area.Max.Z}",
+            $"window {w.Min.X} {w.Min.Y} {w.Min.Z} {w.Max.X} {w.Max.Y} {w.Max.Z}",
+            $"step {step}",
+        };
+        if (live.Home is { } h)
+            lines.Add($"home {h.X} {h.Y} {h.Z}");
+        lines.AddRange(shared.BadStands.Select(b => $"bad {b.X} {b.Y} {b.Z}"));
+        for (int x = w.Min.X; x <= w.Max.X; x++)
+        for (int z = w.Min.Z; z <= w.Max.Z; z++)
+        {
+            var runs = new List<string>();
+            int last = -1, n = 0;
+            for (int y = w.Min.Y; y <= w.Max.Y; y++)
+            {
+                int code = (int)live.Site.Rule(new MarkPos(x, y, z)) * 2 + (live.Site.Solid(x, y, z) ? 1 : 0);
+                if (code == last)
+                    n++;
+                else
+                {
+                    if (last >= 0)
+                        runs.Add($"{n}:{last}");
+                    (last, n) = (code, 1);
+                }
+            }
+            runs.Add($"{n}:{last}");
+            if (runs.Count > 1 || last != 0)
+                lines.Add($"c {x} {z} {string.Join(" ", runs)}");
+        }
+        for (int x = area.Min.X; x <= area.Max.X; x++)
+        for (int z = area.Min.Z; z <= area.Max.Z; z++)
+        {
+            var roofs = Enumerable.Range(area.Max.Y + 1, EidolonTunnels.RoofRise).Where(y => RealTerrain.Roof(blocks.GetBlock(new BlockPos(x, y, z)))).ToList();
+            if (roofs.Count > 0)
+                lines.Add($"r {x} {z} {string.Join(" ", roofs)}");
+        }
+        File.WriteAllLines(path, lines);
+    }
 
     /// <summary>Those of <paramref name="check"/> a fresh reach bound (<see cref="MineReach"/>) over the world as it is
     /// now clears: the window the job's live state reads, its home and bad stands, over <paramref name="targets"/>
