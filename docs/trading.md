@@ -1086,6 +1086,15 @@ test reads them from the config class's source).
   refuses them before any value is read, and `SeraphTraderInventory.MayPlace` keeps them out of the
   sell slots even if a list should name one. The curio dealer's and treasure hunter's diving gear
   buying entries (10 gears) are gone.
+- **In the handbook** (`Core/SchematicHandbook.cs`, drawn by `ValueHandbook` in place of the value
+  line): a schematic's page lists who sells it from `SchematicCatalog.Sellers`, a line per trader
+  type with the rusty gear's icon ("Mechanic: 40 rusty gears, from standing Regular"; "with no
+  standing needed" at tier 0 or with `TraderStanding` off), then "Traders do not buy schematics.".
+  A rolled copy, or a machine schematic whose switch is off, has only that last line. The client
+  reads the tier codes from `standing-tiers.json` itself (the standing system is the server's) and
+  the switches from the world config's `seraphhorizons:switchesOff`. No vanilla-format trade list
+  names a schematic (`SchematicTests`), so the game's own "Sold by" section never shows on these
+  pages. `TraderSchematics` does not enter into it: the catalogs sell with it off too.
 - **Consolidated** (2026-10-20): the centred spur gear's schematic folded into the transmission's
   (its outputs are the transmission gate's now), and the hand crank's went (its recipe takes none);
   both item states, their names and texts are deleted, not kept as legacy items.

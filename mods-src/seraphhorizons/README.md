@@ -7899,6 +7899,13 @@ not sold.
 (`rolledCopies`, `*:*rolled-schematic-*`), listed or not: the sell slots refuse them ("Traders do not
 buy schematics", `Refusal.Schematic`).
 
+**In the handbook**: a schematic's page has no value line. In its place it says who sells it, a
+line per trader type with the rusty gear's icon, the flat price and the tier that unlocks it
+("Mechanic: 40 rusty gears, from standing Regular"; "with no standing needed" at tier 0 or with
+`TraderStanding` off), then "Traders do not buy schematics." A rolled copy, or a machine schematic
+whose switch is off, has only that last line (`Trading/Schematics/Core/SchematicHandbook.cs`, drawn
+by `Trading/Values/Game/ValueHandbook.cs`).
+
 **The catalog API** (`Trading/Schematics/Core/SchematicCatalog.cs`, game-independent, for anything
 that says who sells a schematic, such as a handbook "Sold by" line):
 
@@ -7915,7 +7922,7 @@ that says who sells a schematic, such as a handbook "Sold by" line):
   `SchematicsSystem.Of(api).Table` on either side. On the server `SchematicsSystem.Catalog(type, tier)`
   and `CatalogFor(player, trader)` give the rows whose item exists in the game.
 
-Tests: `tests/Trading/Schematics/` (the table, its switch names against the config class, the item
+Tests: `tests/Trading/Schematics/` (the handbook section, the table, its switch names against the config class, the item
 variants and their text, no list selling or buying a schematic, the catalogs by type, switch and
 tier, the group tier, what is never bought back, slot placement, the recipe rules, `standingTier`);
 `tests/Trading/Window/TradeWindowModelTests.cs` (the tab, its rows and the refusal);
