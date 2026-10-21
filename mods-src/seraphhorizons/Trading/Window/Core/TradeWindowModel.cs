@@ -345,13 +345,11 @@ public static class TradeWindowModel
 
     /// <summary>A camp lead offered to this player (off the shelf): the camp's type, how far
     /// (<see cref="Distance(double)"/>, never its ring) and which way from the trader; the prospector
-    /// kept for first says so, and the player's very first map (the pity map) says it is their first.</summary>
+    /// kept for first says so.</summary>
     public static OfferRow CampLeadRow(LeadOfferRow row)
     {
         var details = new List<object>();
-        if (row.Pity) details.Add(new Text("trading-window-offer-firstmap"));
         if (row.Prospector) details.Add(new Text("trading-window-offer-nearest-prospector"));
-        else if (row.Pity) details.Add(new Text("trading-window-offer-nearest-camp"));
         details.Add(new Text("trading-window-offer-way", Distance(row.Distance), Direction(row.Dx, row.Dz)));
         return new OfferRow(OfferGroup.Leads, CampTitle(row.Type), details, row.Price, MapOfferStatus.Available);
     }

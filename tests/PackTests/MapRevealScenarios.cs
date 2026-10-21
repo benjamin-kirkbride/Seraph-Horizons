@@ -20,7 +20,8 @@ namespace SeraphHorizons.PackTests;
 /// scenario requires that nothing generates the columns at the rim of its area, and trader maps'
 /// deposit checks (#693) generate a deposit's nine columns as a player nears a camp, wherever the
 /// deposit lies. Its ModConfig (fixtures/mapreveal) turns those approach checks off
-/// (<c>DepositCheckApproachMetres</c> 0), which the shared world, starting from an empty ModConfig,
+/// (<c>DepositCheckApproachMetres</c> 0), and so the spawn mark's settling of the nearest
+/// prospector's camp (<c>SpawnProspectorMark</c> off), which the shared world, starting from an empty ModConfig,
 /// cannot. In CI it rides in the <c>woodworking-eidolon</c> shard, which has the room.</para>
 /// </summary>
 [AtlasWorld]

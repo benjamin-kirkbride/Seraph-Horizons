@@ -5,13 +5,16 @@ namespace SeraphHorizons.Mod.Trading.Maps.Core;
 
 /// <summary>One group's lead history: maps bought per trader (never decays), the traders that sold
 /// it its stranger's map, and the camps it has visited (met the trader at). On a player's own key
-/// only, whether they have had their very first map (the pity map, since version 2).</summary>
+/// only, whether they have had their spawn mark (the nearest prospector marked on their first join,
+/// <see cref="SpawnMark"/>).</summary>
 public sealed class GroupLeads
 {
     [JsonPropertyName("bought")] public Dictionary<string, int> Bought { get; set; } = new();
     [JsonPropertyName("strangerMaps")] public HashSet<string> StrangerMaps { get; set; } = new();
     [JsonPropertyName("visited")] public HashSet<string> Visited { get; set; } = new();
-    [JsonPropertyName("pityMap")] public bool PityMap { get; set; }
+    /// <summary>The spawn mark was given (or spent on a player from before it). Absent in saves from
+    /// before it, read as false: the join decides then (<see cref="SpawnMark.Decide"/>).</summary>
+    [JsonPropertyName("spawnMark")] public bool SpawnMarked { get; set; }
 }
 
 /// <summary>
@@ -20,10 +23,15 @@ public sealed class GroupLeads
 /// (<c>player:&lt;uid&gt;</c>). As standing pools by company, every write goes to the player's own
 /// key and their company's, and a read takes the most of them: the higher count, a stranger's map
 /// had by either, the camps visited by either. So leaving a company keeps what the player did, and
-/// joining one does not wipe the slate. The pity map (a player's very first map) is the player's
-/// alone, kept on their own key only: every new company member gets their own.
+/// joining one does not wipe the slate. The spawn mark is the player's alone, kept on their own key
+/// only: every new company member has their own.
 ///
-/// Versions: 1 (#615) had no pity map; read as version 2, every player in it has not had theirs yet.
+/// Versions: 1 (#615); 2 added <c>pityMap</c>, a player's first map bought, on their own key. The pity
+/// map is gone (the spawn mark replaced it), so <c>pityMap</c> in a saved book is ignored and dropped
+/// at the next save, and both versions read as they are. The spawn mark's flag
+/// (<see cref="GroupLeads.SpawnMarked"/>, <c>spawnMark</c>) came within version 2: a book saved before
+/// it lacks the key and reads as nobody having had theirs, which the join's veteran rule settles; a
+/// build from before it reads a newer book and drops the key.
 /// </summary>
 public sealed class LeadBook
 {
@@ -70,12 +78,11 @@ public sealed class LeadBook
         }
     }
 
-    /// <summary>Whether the player has had their very first map (their own key only, never the
-    /// company's).</summary>
-    public bool PityUsed(string uid) => Get(PlayerKey(uid))?.PityMap == true;
+    /// <summary>Whether the player has had their spawn mark (their own key only).</summary>
+    public bool SpawnMarkGiven(string uid) => Get(PlayerKey(uid))?.SpawnMarked == true;
 
-    /// <summary>The player has had their very first map.</summary>
-    public void RecordPity(string uid) => GetOrAdd(PlayerKey(uid)).PityMap = true;
+    /// <summary>The player has had their spawn mark (or it was spent on them as a veteran).</summary>
+    public void RecordSpawnMark(string uid) => GetOrAdd(PlayerKey(uid)).SpawnMarked = true;
 
     /// <summary>The group met the trader of camp <paramref name="camp"/>; whether that is new.</summary>
     public bool RecordVisit(IEnumerable<string> keys, string camp)
@@ -103,14 +110,7 @@ public sealed class LeadBook
         return book;
     }
 
-    /// <summary>Brings a book read from an older version up to <see cref="Version"/>. 1 to 2: the pity
-    /// map is new, so nobody in a version 1 book has had theirs (<see cref="GroupLeads.PityMap"/>
-    /// false); the rest reads as it was.</summary>
-    public static void Migrate(LeadBook book)
-    {
-        if (book.SavedVersion < 2)
-            foreach (var g in book.Groups.Values)
-                g.PityMap = false;
-        book.SavedVersion = Version;
-    }
+    /// <summary>Brings a book read from an older version up to <see cref="Version"/>. 1 to 2 changes
+    /// nothing that is still read (version 2's <c>pityMap</c> is gone), so the book reads as it was.</summary>
+    public static void Migrate(LeadBook book) => book.SavedVersion = Version;
 }

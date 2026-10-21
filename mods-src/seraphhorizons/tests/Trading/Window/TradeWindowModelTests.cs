@@ -351,17 +351,6 @@ public class TradeWindowModelTests
     }
 
     [Fact]
-    public void ThePityMapsRowSaysItIsTheFirstMap()
-    {
-        var pity = new LeadOfferRow { Cell = "1,1", Type = "prospector", Distance = 2900, Dx = 2000, Dz = 2000, Price = 10, Ring = 1, Prospector = true, Pity = true };
-        Assert.Equal("trading-window-offer-firstmap · trading-window-offer-nearest-prospector · trading-window-offer-way(map-distance-km(3), trading-window-dir-se)",
-            Details(TradeWindowModel.CampLeadRow(pity)));
-        Assert.Equal("trading-window-offer-firstmap · trading-window-offer-nearest-camp · trading-window-offer-way(map-distance-under, trading-window-dir-here)",
-            Details(TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Pity = true })));
-        Assert.True(TradeWindowState.FromJson(new TradeWindowState { LeadOffers = [pity] }.ToJson()).LeadOffers.Single().Pity);
-    }
-
-    [Fact]
     public void StandingSectionsSayHowFarToTheNextTier()
     {
         var sections = TradeWindowModel.StandingSections(State());

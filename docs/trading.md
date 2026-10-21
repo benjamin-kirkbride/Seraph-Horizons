@@ -1304,36 +1304,19 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     | trusted | 3 | 9 | 2.25 | 5.14 | 76 |
     | partner | 5 | 0 | 2.34 | 1 | 11 |
     | partner | 5 | 12 | 2.34 | 4.85 | 55 |
-  - *The pity map* (a player's very first map, `campLeads.pity`: `price` 10, `reach` 10 rings): a
-    flat 10 gears, to a prospector. Offered by every trader but a prospector, first on the tab, while
-    the player has not had it (`LeadBook.PityUsed`) and nothing of theirs is being drawn, at any
-    standing: a stranger gets it too, even when the group's stranger map from this trader is spent
-    (a company member had it, or a version 1 save recorded it before the first map existed; until
-    this change that withheld it from strangers only, `CampLeadsFor`'s `pityHere` and `Pick`'s early
-    `StrangerUsed` return, while known and up got it). Its camp (`PityMap.Target`): the
-    nearest seeded prospector cell (`TraderGrid.IsProspector`; the lattice puts one within ring 2 of
-    every cell) to the selling trader, ring by ring, that the buyer lacks and that can take a camp
-    or has one (`Site`: placed, or a spot left; Failed and Open cells can't); none out to ring 10,
-    the nearest camp of any type that exists or can be placed. A cell's seeded type is never
-    changed: the search only chooses among cells as seeded. To a stranger it is the trader's only
-    offer; from known up the tier's offers follow it (its camp left out of them). The buy names
-    `pity` as its `Code` (`MapsSystem.PityCode`), not the cell: `ResolveCamp` settles its cell, and
-    if that places none the cell joins `_noCamp` and the next target is settled, from where the
-    trader stood (at most `PityTries`, 16 cells), a refund only when none places. Placed: it counts
-    as a lead bought here and spends this trader's stranger map (`RecordBought(asStranger: true)`
-    whatever the tier), and the player's pity is spent (`RecordPity`). Being a lead like any other,
-    its prospector is had from then on and not offered again; it doesn't hold the prospector-first
-    slot, which still goes to a prospector in reach while the buyer has none marked there. It
-    measures from the selling trader, so it is the same wherever a player spawns. Two players buying
-    at once are safe: buys run on the server thread, the registry (`CampRegistry`) is locked, and a
-    cell settled for both leads both to the one camp.
+  - *The pity map* (removed): a player's very first map, a flat 10 gears from any trader but a
+    prospector to the nearest prospector (`campLeads.pity`, `PityMap.Target`, `LeadBook.PityUsed`,
+    the buy's `pity` code, "your first map" in the window) was sold until the spawn mark (below)
+    replaced it: the mark gives a new player the same nearest prospector for nothing on their first
+    join. Its config entry, offer, window row, lang keys and admin output are gone; a save's
+    `pityMap` flag is ignored (see *Saved*).
   - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector,
-    ring, pity), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab
-    lists them under its Leads heading, the pity map first, each a row like the shelf's offers with
-    a Buy button (`TradeAction.BuyLead`, the cell, or `pity`, as `Code`, the price seen as `Price`;
+    ring), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab lists
+    them under its Leads heading, each a row like the shelf's offers with a Buy button
+    (`TradeAction.BuyLead`, the cell as `Code`, the price seen as `Price`;
     `TradeWindowModel.CampLeadRow`). A lead's row says how far and which way its camp is from the
-    trader, never its ring ("Cook's camp", "about 4 km north", 24 g); the pity map's says "your
-    first map · nearest prospector · about 3 km northeast". The
+    trader, never its ring ("Cook's camp", "about 4 km north", 24 g), and the prospector kept for
+    the first slot says "nearest prospector". The
     Standing tab's tier lines say "maps to n traders within about k km" (`TierView.LeadMaps`, and
     `LeadReach` in rings as k = `MapDistance.ReachKm`: (rings + ½) × 2,048 blocks rounded, 3, 5, 7
     and 11 km for 1, 2, 3 and 5 rings) or, for a stranger, "one map onward, to the nearest trader
@@ -1353,20 +1336,48 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     `ResolveCamp` (its next spots' chunks loaded until the camp is placed or none is left, as
     `/sh trade tp` does). Placed: the group's count here goes up (and a stranger's lead is spent),
     and the pending lead becomes the lead to where the camp stands. None: the gears come back from
-    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place
-    (the pity map goes on to its next target first, above).
+    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place.
   - *Saved* (`LeadBook`, savegame key `seraphhorizons:leads`, `{"version": 2, "groups": {...}}`):
     per group key `player:<uid>` and `company:<group uid>` (standing's company), maps bought per
     trader id, traders that sold the stranger's lead, camps visited, and on the player's own key
-    only `pityMap` (their first map had). Written to the player's key and their company's, read as
-    the most of them (the higher count, either's stranger lead, the union of visits), as standing
-    pools; the pity is read from the player's key alone, so a new company member gets their own. A
-    version 1 save (#615) migrates (`LeadBook.Migrate`): nobody in it has had their first map. A
-    newer version than the code knows, or a save that does not parse, starts empty with a warning; a
-    world from before has none.
+    only `spawnMark` (the spawn mark given, below). Written to the player's key and their company's,
+    read as the most of them (the higher count, either's stranger lead, the union of visits), as
+    standing pools; the spawn mark is read from the player's key alone, so a new company member has
+    their own. Version 2 added `pityMap` (the removed pity map's flag): a save that has it loads,
+    the key is ignored and gone at the next save, so neither version 1 (#615) nor 2 needs more than
+    `LeadBook.Migrate` setting the version. `spawnMark` came within version 2 without a bump: a book
+    saved before it lacks the key, read as not given, which the join's veteran rule settles (below);
+    an older build reading a newer book drops it. A newer version than the code knows, or a save
+    that does not parse, starts empty with a warning; a world from before has none.
   - *Admin*: `/sh trade leads [player] [trader]`, the history per group key, whether the player has
-    had their first map, and the trader's offers to the player with ring and price, the first map
-    marked (`--json` too: `pityUsed`, `reach`, and per offer `ring` and `pity`).
+    had their spawn mark, and the trader's offers to the player with ring and price (`--json` too:
+    `spawnMark`, per group `spawnMark`, `reach`, and per offer `ring`).
+  - *The spawn mark* (switch `SpawnProspectorMark`, default on, effective with `TraderMaps` and the
+    grid; `Core/SpawnMark.cs`, `Game/MapsSystem.SpawnMark.cs`): on a player's first join
+    (`PlayerNowPlaying`) the nearest prospector's camp goes on their map as a bought lead's would:
+    target `camp:x,z`, `LeadPrecision`, titled `map-waypoint-lead` ("Trader camp (prospector)
+    (approximate, ±64 m)"), the trader icon and colour, so it counts as had wherever leads look,
+    and meeting its trader (`EntitySeraphTrader.Met`) makes it exact. A chat line says how far and
+    which way (`trading-maps-spawnmark`: "The nearest prospector's camp is marked on your map, about
+    2 km northeast", `MapDistance` wording, the window's eight-point direction), or with no world
+    map the leads' `trading-maps-lead-distance` line. *Which camp* (`SpawnMark.Target`): the seeded
+    prospector cells (`TraderGrid.IsProspector`) around the cell the player joined in (their spawn),
+    their own cell included, out to `SpawnMark.Reach` (3) rings, with a site (`Site`: placed, or a
+    spot left) the player lacks, by real distance from where they joined; rings are searched until
+    the next one cannot hold anything nearer (`SpawnMark.Clearance`, the distance to the edge of the
+    inner rings), so a camp just inside ring 2 beats a far corner of ring 1. *Settling*: as a lead's
+    sale, `ResolveCamp` loads the cell's next spots' chunks after the join, so the marker lands a few
+    seconds late; a cell that places none joins `_noCamp` and the next target is tried, at most
+    `SpawnMarkTries` (16) cells. *Once*: `LeadBook` `spawnMark` on the player's own key, set when it
+    is marked (or found already marked, or there is no world map, or no prospector is in reach); not
+    on respawn, rejoin or after the waypoint is deleted. A player who leaves while it settles has
+    nothing set and tries again at their next join. *Veterans*: with the flag absent (a world from
+    before), a player who has any remembered `camp:` marker (`MarkBook`) has the flag set and no mark
+    (`SpawnMark.Decide`). *With leads*: the camp being had, a stranger's map and the tiers' offers
+    pass it over like any camp they have, and the prospector-first slot goes to a prospector in reach
+    only while they have none there. It replaced the pity map (above), which measured from the
+    selling trader. Atlas: `TradingSpawnMarkScenarios` (`trading-misc`); `TradingMapsScenarios` has
+    the mark off (fixtures/nospawnmark), its scenarios counting a fresh player's trader markers.
   - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
     left on a shelf until its next restock show sold out and are refused.
 - **Ore map prices** (`MapPriceTable.OrePrice`): `bandMiddleIngots × ingotValue × share[precision] ×
@@ -1538,7 +1549,7 @@ pack's traders and keeps the quests: `Trading/Core/StoryTraders.cs` (game-indepe
   `TraderTypes.Listed` (camp types, visitors, story) is what the lists load and `Problems` accepts.
   Being an `EntitySeraphTrader`, everything that tests for the pack's traders takes it: the shelves,
   economy, standing, orders, deliveries (as a sender; destinations are camps), maps and leads (gravel
-  maps, camp leads from its cell, the first map), the trade window and the admin tools.
+  maps, camp leads from its cell), the trade window and the admin tools.
 - **Outfit and name**: vanilla's treasure hunter has no outfit set of its own (its outfits are the
   generic `trader-{gender}-*-{climate}` keys) and the shared random names, so the pack's variant of the
   same humanoid looks and is named the same way.

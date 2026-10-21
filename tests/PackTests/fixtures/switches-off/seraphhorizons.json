@@ -81,6 +81,7 @@
   "SlowerRailVehicles": false,
   "SmallerDeposits": false,
   "SmallerRockStacks": false,
+  "SpawnProspectorMark": false,
   "Springs": false,
   "SteelBitsRecovery": false,
   "TidyVariants": false,
