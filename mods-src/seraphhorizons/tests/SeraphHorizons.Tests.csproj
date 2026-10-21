@@ -206,6 +206,8 @@
     <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/schematic.json" Link="schematic-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/lang/en.json" Link="lang-en.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The config class's source, read for its switch names (the gates' "switch"). -->
+    <None Include="../SeraphHorizons.cs" Link="schematic-switches/SeraphHorizons.cs.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- Standing orders and deliveries (#453, #454): generation, premiums, deadlines, state machines. -->
     <Compile Include="../Trading/Orders/Core/**/*.cs" Link="Trading/Orders/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Trading/Deliveries/Core/**/*.cs" Link="Trading/Deliveries/Core/%(RecursiveDir)%(Filename)%(Extension)" />

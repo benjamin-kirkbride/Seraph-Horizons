@@ -464,14 +464,14 @@ Its own trader's list (trader-domesticanimal, 101 entries), by kind:
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
 | luxuries | sell | `walkingstick:walkingstick-forlorn` | curiodealer sell |
-| treasurehunter | sell | `walkingstick:schematic-flintlock` | curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `walkingstick:schematic-flintlock` | schematic catalog (curiodealer, treasurehunter) |
 
 ### Abyssal Depths 1.0.20
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
-| treasurehunter | sell | `abyssaldepths:ad-schematic-divinggear` | curiodealer sell, treasurehunter sell |
-| treasurehunter | buy | `abyssaldepths:ad-schematic-divinggear` | curiodealer buy, treasurehunter buy |
+| treasurehunter | sell | `abyssaldepths:ad-schematic-divinggear` | schematic catalog (curiodealer, treasurehunter) |
+| treasurehunter | buy | `abyssaldepths:ad-schematic-divinggear` | never bought (traders do not buy schematics) |
 
 ### Translocator Map
 
@@ -555,7 +555,7 @@ stood in for since 2026-10-06 (`ShippedListPayTests` and its outlier fixture are
 
 `price` survives only as an override, gears per entry stack, that must carry a `priceReason`
 (`TradeListResolver.Problems` reports one without; `ShippedListValueTests` holds the shipped lists to
-it): schematics (hand-set gates, 10–250 gears; they have no value by rule), the special `kind`
+it): the special `kind`
 entries (maps and leads, priced by the maps system; the 1 there is a placeholder), the curio
 dealer's found tapestries (one code for every picture, not in the recipe export) and BetterRuins'
 locator maps (priced by what they lead to). An override is not rolled. Every other entry needs a
@@ -829,9 +829,9 @@ goods (× the fit).
 
 - **Schematics** have no value: they are kept on crafting and traders are their only source, so
   `tools/item-values` never prices one, and a recipe that uses one (MachineSchematics' gates) is
-  priced by its consumed parts and labour only. A trader sells them at the price its list entry
-  overrides by hand (`price`, `priceReason`), and the curio dealer buys back the diving gear
-  schematic at its entry's price; the value check asks them for that override instead. (#506)
+  priced by its consumed parts and labour only. Traders sell them from their catalogs at a price
+  set by hand (`config/schematic-gates.json` "sales", "Schematics" below), never from a list, and
+  no trader buys one back. (#506)
 - **The stainless gear** (`seraphhorizons:gear-stainless`, the steel gear until the stainless
   rework) takes its cheapest route, like any item: the gear cutter, or the reclamation lottery (ten
   neutralized gears less the nine stainless bits the failed rolls give). The large stainless gear
@@ -1007,10 +1007,10 @@ goods (× the fit).
 ## Schematics (#468, #469)
 
 `Trading/Schematics/`, switches `TraderSchematics` and `MachineSchematics`, data in
-`config/schematic-gates.json` ("sold": the schematic code patterns; "gates": machine → gated recipe
-outputs, each with its mod; "sales": seller types and standing tier per schematic, which
-`tests/Trading/Schematics` holds the trade lists to). Server side only: clients get item types and
-recipes from the server.
+`config/schematic-gates.json` ("sold": the schematic code patterns; "rolledCopies": Scrolled's rolled
+copies; "gates": machine → gated recipe outputs, each with its mod, and the switch its machine needs;
+"sales": the catalogs, seller types, standing tier and flat price per schematic). Clients get item
+types and recipes from the server; the table loads on both sides for the refusal below.
 
 **Where schematics came from** (1.22.7 and the pinned mods):
 
@@ -1053,15 +1053,48 @@ walking stick's on the server only), so we enforce `Consume = false` on recipe s
 non-consumed ingredient returns early in `OnConsumedByCrafting`, so a `returnedStack` would not
 double, but it is cleared anyway.
 
-**Standing gate.** `TradeEntry.StandingTier` (default 0): `TradeListResolver.Resolve(def, region,
-tier)` leaves out entries above the tier; the core is the ungated entries, then the gated ones lowest
-tier first, cut at 16. `Problems` counts every core entry (the top tier) against the 16 slots. The
-trader's restock passes the shelf tier (see "Wave 2 glue"). Slot pressure decided the
-sellers: the issue's mapping put 20+ schematics on the mechanic and carpenter, so the wooden machines
-went to the carpenter, the metal gear work to the smith, chest/crate/candle/toymaker/artisan and the
-hand crank to the general store, book/alchemist/texture flipper to the curio dealer, and a few plain
-core goods (the carpenter's planks, the mechanic's ppex gears and blades, the smith's charcoal, borax
-and copper nails) moved to rotating; every list keeps at most 14 core entries at the top tier.
+**The catalogs** (the owner's call after the playtest, 2026-10-20). Schematics were core entries of
+the trade lists, one in stock, restocked weekly, at hand-set prices, gated by `standingTier` and
+squeezed into the 16 shared shelf slots, the shelf's tier the best recent customer's. Now no list
+holds one (`SchematicTests`): each trader type sells the table's `sales` for it off the shelf, on
+the trade window's own **Schematics** tab, never sold out and never restocked.
+`Core/SchematicCatalog.cs` resolves a catalog: sales × trader type × switches × tier → rows
+`CatalogRow(Code, Price, Tier, Unlocked)`, lowest tier first, then cheapest. A machine schematic
+(`seraphhorizons:schematic-*`) is in it only with `MachineSchematics` on and its gate's `switch`
+(`BuckingSawmill`, `Rosser`, `Eidolon`) on; this replaced `TradingSystem.Exclude` for schematics
+(it still takes the eidolon's pump head off the curio dealer's list). `SchematicTable.Problems`
+checks a switch is one of `SeraphHorizonsConfig`'s bools (the server passes their names; the unit
+test reads them from the config class's source).
+- **Unlocked by standing, per group**: a row is unlocked when the best tier with that trader among
+  the player and everyone sharing a player group with them (`StandingSystem.GroupTierFor`, the
+  game's groups, not only the designated company) reaches its tier, the same tier index standing
+  uses (0 stranger … 4 partner); no group, their own. Locked rows are shown greyed with the tier
+  that unlocks them. With standing off, everything in the catalog is unlocked.
+- **Flat price**: `price` gears, the same for every buyer: no standing factor, no regional supply,
+  no roll. The prices are half the shelves' last hand-set ones, rounded up (5 to 125 gears), but
+  BetterRuins' mechanical blueprint, which makes axles and gears cheaply in bulk and also takes the
+  transmission schematic: it moved from the smith (tier 1) to the mechanic at tier 3 and 60 gears.
+- **A purchase** (`TradeAction.BuySchematic` with the code and price seen, `SchematicsSystem.BuySchematic`,
+  the camp leads' pattern): refused if the row is gone or locked or the price changed, then room
+  (`HasRoom`) and gears; the gears go into the trader's wallet, `Standing.OnDeal` credits the buyer
+  as any deal, and the schematic is given (dropped at their feet if their bags filled meanwhile).
+- **Never sold back** (`Refusal.Schematic`, "Traders do not buy schematics."): `SchematicTable.NeverBoughtBack`
+  is every "sold" pattern and Scrolled's rolled copies (`*:*rolled-schematic-*`, which otherwise took
+  a 0.417 family value from `scrolled:br-rolled-`, the rolled locator maps'). `EconomySystem.QuoteOffList`
+  refuses them before any value is read, and `SeraphTraderInventory.MayPlace` keeps them out of the
+  sell slots even if a list should name one. The curio dealer's and treasure hunter's diving gear
+  buying entries (10 gears) are gone.
+- **Consolidated** (2026-10-20): the centred spur gear's schematic folded into the transmission's
+  (its outputs are the transmission gate's now), and the hand crank's went (its recipe takes none);
+  both item states, their names and texts are deleted, not kept as legacy items.
+
+The core was cut at 16 slots with the gated entries lowest tier first; slot pressure had decided
+the sellers (the wooden machines at the carpenter, the metal gear work at the smith, five
+BetterRuins families at the general store, three at the curio dealer) and moved a few plain core
+goods to rotating (the carpenter's planks, the mechanic's ppex gears and blades, the smith's
+charcoal, borax and copper nails). With schematics off the shelves that pressure is gone; the
+sellers and the lists stay as they were, and every list keeps at most 14 core entries at the top
+tier. `TradeEntry.StandingTier` still gates other goods (the pump head, the inns' rare goods).
 
 ## Orders and deliveries (#453, #454)
 
@@ -1578,10 +1611,10 @@ pack's traders and keeps the quests: `Trading/Core/StoryTraders.cs` (game-indepe
   `trader-treasurehunter` and of the mods' patches into it (the fixture's `list:
   "trader-treasurehunter"` rows, each now homed `treasurehunter sell|buy` too) but the lore scroll
   (lore is never priced), with the game's stack and stock and the flags the pack's lists already give
-  the same goods (player-supplied, rare, the schematics' and BetterRuins' maps' price overrides).
-  Core: the gravel map and lead entries, the treasure map, three loot vessels, lapis, and the diving
-  gear and flintlock schematics at tier 3 (both now sold by the curio dealer and the treasure hunter,
-  `schematic-gates.json`); 49 more in rotation (6 slots). Buying: bronze tools, bombs, the backpack,
+  the same goods (player-supplied, rare, BetterRuins' maps' price overrides).
+  Core: the gravel map and lead entries, the treasure map, three loot vessels and lapis; the diving
+  gear and flintlock schematics are its catalog's at tier 3, as the curio dealer's
+  (`schematic-gates.json`); 49 more in rotation (6 slots). Buying: bronze tools, bombs, the backpack,
   linen sack and bread in the core, 25 more in rotation (8 slots). Wallet 120 ± 20, `campWeight` 0. The
   curio dealer keeps its copies. Every entry is priced by the value table (`tools/item-values check`
   passes: all of them were already on other lists).
@@ -1646,7 +1679,7 @@ the same way, so every economy patch and list keeps working), set before vanilla
 (`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and the buying cart (nothing is
 ever put in it by a click) and passes the four selling-cart slots through: those are the window's
 sell slots (36 to 39), `ItemSlotSell` (`NewSlot`), which take anything but money, delivery
-packages and what the trader refuses outright (maps and leads, worthless goods: `MayPlace`),
+packages and what the trader refuses outright (maps and leads, schematics, worthless goods: `MayPlace`),
 whether the trader buys it now or not (vanilla's `ItemSlotBuying` takes only what it buys). The selling cart belongs to its owner, the trading player when the window opened
 (`OwnerUid`; vanilla's `tradingPlayerUID` is cleared by the walk-away tick before the inventory
 closes): only they may move stacks in it (slot packets from anyone else are rolled back), sell from
@@ -1659,10 +1692,11 @@ a deal that throws restores the carts, the rest of a sold stack and the side bud
 **Network.** One channel, `seraphhorizons-trade`, one protobuf message (`TradeWindowPacket`: kind,
 trader entity id, JSON). Client to server: a `TradeRequest` (`Refresh`, `Buy` with a selling slot,
 `Sell`, `TakeOrder`/`HandInOrder` with an order id, `TakeDelivery`, `HandInDelivery`,
-`MarkDelivery` with a delivery id or 0 for the offer). Server to client: a `TradeResult` (done or
+`MarkDelivery` with a delivery id or 0 for the offer, `BuyLead`, `BuySchematic` with the code and
+price seen). Server to client: a `TradeResult` (done or
 refused, a lang key and its arguments, formatted in the player's language) after each, and a
 `TradeWindowState` (standing with every tier, orders, the delivery offer or why there is none, the
-player's deliveries from or to this trader, locked stock, which features are on) after each, when
+player's deliveries from or to this trader, locked stock, the schematic catalog, which features are on) after each, when
 the window opens, and when a conversation with the trader starts (for the dialogue). The shelves
 are not in it: the client has them from the trader's inventory (packet 1234 and the watched
 attribute, as vanilla).
@@ -1746,7 +1780,7 @@ below itself) at the right edge, its tab row below the lowest right-top HUD; wit
 sits left of them. A local render harness (not in the repository) drew every tab with long content
 at several screen sizes and GUI scales with the game's Cairo text code to check it. A header with the trader's name, type and region and
 the player's tier with a bar to the next and the raw numbers ("Regular [310 / 800]"); tabs Trade,
-Orders (n), Deliveries (n), Maps & leads and Standing; a footer with the player's gears, the
+Orders (n), Deliveries (n), Maps & leads, Schematics and Standing; a footer with the player's gears, the
 trader's and its side budget ("for goods off her list 21 g"). A feature that is switched off
 (`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`; the side budget with
 `EverythingHasAPrice`) has no tab or line. The Trade tab's shelves are the trader's own slots (price
@@ -1766,7 +1800,11 @@ slot, code and price seen, as a completed hold did, a camp lead `TradeAction.Buy
 checks are unchanged. One that can't be bought has its button off, labelled Sold out, Locked, Have
 it or Surveying (`TradeWindowModel.BuyButton`). The notes on leads (each costs more than the last,
 why there are none, the tier that sells settlement ground unless a locked row says it) sit quietly
-under the Leads rows. Locked stock (`LockedStock`): what the selling list would shelve
+under the Leads rows. The Schematics tab (shown when the trader's catalog has anything,
+`TradeWindowState.Schematics`) lays out the same way, one group: each schematic's icon and name, a
+locked one's "unlocks at" tier, its price and Buy (`TradeAction.BuySchematic`), Locked while the
+group's best tier is short of it (`TradeWindowModel.SchematicRow`); the note under it says they never
+sell out and cost everyone the same. Locked stock (`LockedStock`): what the selling list would shelve
 at the top tier with rare stock, less what the player's own tier gets, less what is on the shelf
 anyway, hatched (`GuiElementSlotHatch`) with the tier that unlocks it (its `standingTier`, or the
 first tier with `rareStock`). The Standing tab lists the five tiers with their thresholds, the

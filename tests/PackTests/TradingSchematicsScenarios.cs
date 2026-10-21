@@ -4,6 +4,7 @@ using SeraphHorizons.Mod.Trading;
 using SeraphHorizons.Mod.Trading.Core;
 using SeraphHorizons.Mod.Trading.Schematics;
 using SeraphHorizons.Mod.Trading.Schematics.Core;
+using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -14,8 +15,9 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// mods-src/seraphhorizons/Trading/Schematics (#468, #469) against the pinned mods: the machines'
 /// first-stage recipes take their schematic (kept on crafting), no recipe makes or copies a
-/// schematic, recipes using one keep it, the loot lists and structures hand none out, and the trade
-/// lists sell each from the table's sellers at its tier. The plain world is enough, so it shares
+/// schematic, recipes using one keep it, the loot lists and structures hand none out, no trade list
+/// sells or buys one, every seller's catalog has its schematics, and one is bought off the catalog
+/// through the trade window at its flat price once standing reaches it, and never bought back. The plain world is enough, so it shares
 /// <see cref="TradingScenarios"/>' boot with the other plain-world trading features.
 /// </summary>
 public partial class TradingScenarios
@@ -187,21 +189,71 @@ public partial class TradingScenarios
     }
 
     [AtlasScenario]
-    public void Every_schematic_is_in_its_sellers_core_at_its_tier()
+    public void No_trade_list_sells_or_buys_a_schematic_and_every_catalog_schematic_exists()
     {
         var lists = TradingSystem.Of(Api)?.Lists ?? throw new Xunit.Sdk.XunitException("the trade lists did not load");
-        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("schematic"));
+        foreach (string type in TraderTypes.All.Concat(TraderTypes.Story))
+        {
+            if (lists.For(type) is not { } def) continue;
+            var entries = new[] { def.Selling, def.Buying }.SelectMany(s => s.Core.Concat(s.Rotating.List)
+                .Concat(s.Regional.Values.SelectMany(r => r.Core.Concat(r.Rotating))));
+            Assert.DoesNotContain(entries, e => Table.NeverBoughtBack(e.Code));
+        }
         foreach (var sale in Table.Sales)
             foreach (string seller in sale.Sellers)
             {
-                var def = lists.For(seller)!;
-                var entry = def.Selling.Core.SingleOrDefault(e => CodePattern.Normalise(e.Code) == sale.Code);
-                Assert.True(entry != null, $"{seller} does not sell {sale.Code}");
-                Assert.Equal(sale.Tier, entry!.StandingTier);
-                Assert.NotNull(lists.ItemFor(entry).Resolve(W).Stack);
-                var region = Region.All.First();
-                Assert.DoesNotContain(TradeListResolver.Resolve(def, region, sale.Tier - 1).Selling.Core, e => e == entry);
-                Assert.Contains(TradeListResolver.Resolve(def, region, sale.Tier).Selling.Core, e => e == entry);
+                var row = Schematics.Catalog(seller, sale.Tier).SingleOrDefault(r => r.Code == CodePattern.Normalise(sale.Code));
+                Assert.True(row != null, $"{seller}'s catalog has no {sale.Code}");
+                Assert.Equal((sale.Price, sale.Tier, true), (row!.Price, row.Tier, row.Unlocked));
+                if (sale.Tier > 0) Assert.False(Schematics.Catalog(seller, sale.Tier - 1).Single(r => r.Code == row.Code).Unlocked);
             }
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_schematic_is_bought_off_the_catalog_at_its_flat_price_once_standing_reaches_it_and_never_bought_back()
+    {
+        FreshSupply();
+        var trader = await SpawnTrader("carpenter", 45, -75);
+        var p = await At(await Customer(), trader);
+        var sp = (IServerPlayer)p.Player;
+        var gear = W.GetItem(new AssetLocation("game:gear-rusty"))!;
+        Assert.True(sp.Entity.TryGiveItemStack(new ItemStack(gear, 64)));
+        Assert.True(trader.BeginTrade(sp));
+        string id = Standing.TraderIdOf(trader);
+        const string code = "seraphhorizons:schematic-windmill";
+        var sale = Table.Sales.Single(s => s.Code == code);
+
+        // A stranger sees it, locked.
+        var row = WindowSystem.BuildState(sp, trader).Schematics.Single(r => r.Code == code);
+        Assert.Equal((sale.Price, sale.Tier, false), (row.Price, row.Tier, row.Unlocked));
+        var locked = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.BuySchematic, Code = code, Price = row.Price });
+        Assert.False(locked.Ok);
+        Assert.Equal("trading-schematics-error-locked", locked.Key);
+
+        // Known: unlocked, bought at the flat price into the trader's wallet, earning standing.
+        Assert.True((await World.ExecuteCommand($"/sh trade standing set {sp.PlayerName} {id} 100")).Ok);
+        row = WindowSystem.BuildState(sp, trader).Schematics.Single(r => r.Code == code);
+        Assert.True(row.Unlocked);
+        int gears = Gears(sp), wallet = trader.Inventory.GetTraderAssets();
+        var bought = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.BuySchematic, Code = code, Price = sale.Price });
+        Assert.True(bought.Ok, bought.Key);
+        Assert.Equal(gears - sale.Price, Gears(sp));
+        Assert.Equal(wallet + sale.Price, trader.Inventory.GetTraderAssets());
+        Assert.True(Standing.Ledger.Personal(sp.PlayerUID, id)!.Points > 100);
+        Assert.Contains(sp.InventoryManager.GetOwnInventory(Vintagestory.API.Config.GlobalConstants.hotBarInvClassName)!
+            .Concat(sp.InventoryManager.GetOwnInventory(Vintagestory.API.Config.GlobalConstants.backpackInvClassName)!),
+            s => s.Itemstack?.Collectible.Code.ToString() == code);
+        // Never sold out, and a price the player did not see is refused.
+        Assert.True(WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.BuySchematic, Code = code, Price = sale.Price }).Ok);
+        Assert.Equal("trading-window-changed",
+            WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.BuySchematic, Code = code, Price = sale.Price + 1 }).Key);
+
+        // Never bought back, nor a rolled copy.
+        var stack = new ItemStack(W.GetItem(new AssetLocation(code))!);
+        Assert.False(((SeraphTraderInventory)trader.Inventory).MayPlace(stack));
+        Assert.Equal(SeraphHorizons.Mod.Trading.Economy.Core.Refusal.Schematic, Economy.QuoteOffList(trader, stack).Refusal);
+        if (W.GetItem(new AssetLocation("scrolled:br-rolled-schematic-door")) is { } rolled)
+            Assert.Equal(SeraphHorizons.Mod.Trading.Economy.Core.Refusal.Schematic, Economy.QuoteOffList(trader, new ItemStack(rolled)).Refusal);
+        trader.Die(EnumDespawnReason.Removed);
     }
 }

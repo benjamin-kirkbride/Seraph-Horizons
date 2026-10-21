@@ -770,10 +770,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
-    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, and the curio dealer stocks
-    /// neither the eidolon schematic nor the Jonas pump head (the pump head is left out by the
-    /// eidolon's own rule: MachineSchematics, off here too, only takes the schematic). The schematic
-    /// item and the pump head still exist.</summary>
+    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, the curio dealer does not
+    /// stock the Jonas pump head (the eidolon's own rule) and its catalog does not sell the eidolon
+    /// schematic (the gate's switch; MachineSchematics, off here too, would take it as well). The
+    /// schematic item and the pump head still exist.</summary>
     [AtlasScenario]
     public void Eidolon_off_there_is_no_command_tool_and_no_eidolon_stock()
     {
@@ -786,8 +786,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var lists = SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Lists!;
         var core = lists.For("curiodealer")!.Selling.Core;
         Assert.DoesNotContain(core, e => SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.IsTradeStock(e.Code));
-        Assert.Contains(core, e => e.Code == "game:schematic-glider");
-        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
+        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead"));
+        var schematics = SeraphHorizons.Mod.Trading.Schematics.SchematicsSystem.Of(World.Api)!;
+        Assert.True(schematics.IsOff("Eidolon"));
+        var catalog = schematics.Catalog("curiodealer", null);
+        Assert.DoesNotContain(catalog, r => r.Code == SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.SchematicCode);
+        Assert.Contains(catalog, r => r.Code == "game:schematic-glider");
     }
 
     /// <summary><c>Riddle</c>: no riddle block and no recipe for its frame, no link to it in the mod's own text,
@@ -1717,7 +1721,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>TraderSchematics</c>, <c>MachineSchematics</c>: loot is not scrubbed, no recipe is
-    /// gated or removed, and the traders' lists keep no machine schematic.</summary>
+    /// gated or removed, and no catalog sells a machine schematic (the others' stay).</summary>
     [AtlasScenario]
     public void Schematics_off_loot_and_recipes_are_as_the_mods_ship_them()
     {
@@ -1730,6 +1734,9 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Harmony.GetPatchInfo(m)?.Owners.Contains(SeraphHorizons.Mod.Trading.Schematics.SchematicsSystem.HarmonyId) == true);
         Assert.DoesNotContain(W.GridRecipes, r => (r.ResolvedIngredients ?? []).Any(i =>
             i?.Code?.Domain == "seraphhorizons" && i.Code.Path.StartsWith("schematic-", StringComparison.Ordinal)));
+        foreach (string type in new[] { "carpenter", "mechanic", "smith", "curiodealer" })
+            Assert.DoesNotContain(schematics.Catalog(type, null), r => schematics.Table!.IsMachineSchematic(r.Code));
+        Assert.Contains(schematics.Catalog("mechanic", null), r => r.Code == "betterruins:br-schematic-mechanical");
     }
 
     /// <summary><c>AdminTools</c>: no admin map, no overlays, no admin subcommands.</summary>

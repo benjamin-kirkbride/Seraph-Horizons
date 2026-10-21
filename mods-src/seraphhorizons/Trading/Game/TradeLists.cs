@@ -41,7 +41,7 @@ public sealed class TradeLists
     public IReadOnlyDictionary<string, double> CampWeights =>
         _lists.Where(kv => TraderTypes.All.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value.CampWeight);
 
-    /// <param name="exclude">Entries a switched-off feature takes out (the machines' schematics);
+    /// <param name="exclude">Entries a switched-off feature takes out (the eidolon's pump head);
     /// dropped quietly, not counted as unresolved.</param>
     public static TradeLists Load(ICoreAPI api, Predicate<TradeEntry>? exclude = null)
     {

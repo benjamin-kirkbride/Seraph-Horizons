@@ -24,30 +24,39 @@ public sealed class SchematicGate
     /// <summary>The recipe outputs gated: the machine's first stage where it is built in stages.</summary>
     public List<ModCode> Outputs { get; set; } = [];
 
+    /// <summary>The pack's ModConfig switch (a <c>SeraphHorizonsConfig</c> bool) the machine needs,
+    /// or null: with it off, the schematic is for sale nowhere (<see cref="SchematicCatalog"/>).</summary>
+    public string? Switch { get; set; }
+
     public string Schematic => SchematicTable.MachineSchematicPrefix + Machine;
 }
 
-/// <summary>Where a schematic is sold: the trader types whose core carries it, and the standing
-/// tier from which it is there. The trade lists hold the real entries (with prices); this is what
-/// the tests hold them to.</summary>
+/// <summary>A schematic in the catalogs (the trade window's Schematics tab, never a shelf): the
+/// trader types that sell it, the standing tier (an index, 0 stranger … 4 partner) from which it
+/// is unlocked, and its flat price in gears.</summary>
 public sealed class SchematicSale
 {
     public string Code { get; set; } = "";
     public string Mod { get; set; } = "game";
     public List<string> Sellers { get; set; } = [];
     public int Tier { get; set; }
+    /// <summary>Gears, the same for every buyer: no standing factor, no supply, no variation.</summary>
+    public int Price { get; set; }
 }
 
 /// <summary>
 /// <c>config/schematic-gates.json</c> (#468, #469): which collectibles are schematics sold only by
-/// traders (<see cref="Sold"/>: taken out of loot and structures, not copyable, kept on crafting),
-/// the machines' gates (<see cref="Gates"/>), and who sells each schematic (<see cref="Sales"/>).
+/// traders (<see cref="Sold"/>: taken out of loot and structures, not copyable, kept on crafting,
+/// never bought back), Scrolled's rolled copies of them (<see cref="RolledCopies"/>, never bought
+/// back either), the machines' gates (<see cref="Gates"/>), and each trader type's catalog
+/// (<see cref="Sales"/>, resolved by <see cref="SchematicCatalog"/>).
 /// </summary>
 public sealed class SchematicTable
 {
     public const string MachineSchematicPrefix = "seraphhorizons:schematic-";
 
     public List<ModCode> Sold { get; set; } = [];
+    public List<ModCode> RolledCopies { get; set; } = [];
     public List<SchematicGate> Gates { get; set; } = [];
     public List<SchematicSale> Sales { get; set; } = [];
     /// <summary>What a schematic in a structure's chest becomes.</summary>
@@ -66,15 +75,27 @@ public sealed class SchematicTable
 
     public bool IsSold(string code) => Sold.Any(s => s.Matches(code));
 
+    /// <summary>A trader never buys it, listed or not (<c>Refusal.Schematic</c>): a sold schematic
+    /// or a rolled copy of one.</summary>
+    public bool NeverBoughtBack(string code) => IsSold(code) || RolledCopies.Any(r => r.Matches(code));
+
     public bool IsMachineSchematic(string code) => CodePattern.Normalise(code).StartsWith(MachineSchematicPrefix, StringComparison.Ordinal);
 
     /// <summary>The gate of a recipe output, among the gates whose mods are loaded.</summary>
     public SchematicGate? GateFor(string outputCode, Func<string, bool> modLoaded) =>
         Gates.FirstOrDefault(g => g.Outputs.Any(o => modLoaded(o.Mod) && o.Matches(outputCode)));
 
+    /// <summary>The gate whose schematic <paramref name="schematicCode"/> is, or null (not a machine's).</summary>
+    public SchematicGate? GateOf(string schematicCode)
+    {
+        string code = CodePattern.Normalise(schematicCode);
+        return Gates.FirstOrDefault(g => g.Schematic == code);
+    }
+
     /// <summary>What is wrong with the table: a gate without outputs, a machine twice, an output in
-    /// two gates, a sale without sellers or out of the tier range, a machine sold nowhere.</summary>
-    public List<string> Problems(IReadOnlyCollection<string> traderTypes, int maxTier)
+    /// two gates, a switch that is not one of <paramref name="switches"/> (when given), a sale
+    /// without sellers, out of the tier range or without a price, a machine sold nowhere.</summary>
+    public List<string> Problems(IReadOnlyCollection<string> traderTypes, int maxTier, IReadOnlyCollection<string>? switches = null)
     {
         var problems = new List<string>();
         foreach (var dup in Gates.GroupBy(g => g.Machine).Where(g => g.Count() > 1))
@@ -84,6 +105,8 @@ public sealed class SchematicTable
             if (string.IsNullOrWhiteSpace(g.Machine) || g.Machine.Contains(' ')) problems.Add($"gate '{g.Machine}' has no usable name");
             if (g.Outputs.Count == 0) problems.Add($"{g.Schematic} gates nothing");
             if (!Sales.Any(s => CodePattern.Normalise(s.Code) == g.Schematic)) problems.Add($"{g.Schematic} is sold by no one");
+            if (g.Switch is { } sw && (sw.Length == 0 || switches != null && !switches.Contains(sw)))
+                problems.Add($"{g.Schematic}: no switch '{sw}'");
         }
         foreach (var dup in Gates.SelectMany(g => g.Outputs.Select(o => (o.Code, g.Machine))).GroupBy(x => x.Code).Where(x => x.Count() > 1))
             problems.Add($"output {dup.Key} is in gates {string.Join(", ", dup.Select(x => x.Machine))}");
@@ -92,7 +115,10 @@ public sealed class SchematicTable
             if (!IsSold(s.Code)) problems.Add($"{s.Code} is sold but not in 'sold'");
             if (s.Sellers.Count == 0) problems.Add($"{s.Code} has no sellers");
             foreach (string t in s.Sellers.Where(t => !traderTypes.Contains(t))) problems.Add($"{s.Code}: no trader type '{t}'");
-            if (s.Tier < 1 || s.Tier > maxTier) problems.Add($"{s.Code}: tier {s.Tier} is outside 1..{maxTier}");
+            foreach (var dup in s.Sellers.GroupBy(t => t).Where(g => g.Count() > 1)) problems.Add($"{s.Code}: seller '{dup.Key}' twice");
+            if (s.Tier < 0 || s.Tier > maxTier) problems.Add($"{s.Code}: tier {s.Tier} is outside 0..{maxTier}");
+            if (s.Price <= 0) problems.Add($"{s.Code} has no price");
+            if (IsMachineSchematic(s.Code) && GateOf(s.Code) is null) problems.Add($"{s.Code} is a machine schematic with no gate");
         }
         foreach (var dup in Sales.GroupBy(s => CodePattern.Normalise(s.Code)).Where(g => g.Count() > 1))
             problems.Add($"{dup.Key} is in 'sales' {dup.Count()} times");
