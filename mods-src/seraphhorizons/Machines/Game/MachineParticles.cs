@@ -82,7 +82,15 @@ public sealed record Puff(int Count, int Colour, Vec3f MinVelocity, Vec3f MaxVel
 /// <para>
 /// A machine spawns from its <see cref="BEMachine.FrameInput"/> (each frame, client side; <c>far</c> true past the
 /// renderer's detail range, where it spawns nothing) at a point of its rig turned into the world
-/// (<see cref="BEMachine.WorldPoint"/>; the generic rigs' named points are <see cref="OreMachineRig.Point"/>):
+/// (<see cref="BEMachine.WorldPoint"/>; the generic rigs' named points are <see cref="OreMachineRig.Point"/>).
+/// </para>
+/// <para>
+/// The rule (the owner's): work particles only while the machine works something, material in and being worked;
+/// a fired machine's fire only while lit. Gate on <see cref="BEMachine.Running"/> (its state is
+/// <see cref="MachineState.Working"/>, which needs <see cref="BEMachine.HasWork"/>, and a hand machine held) plus
+/// what the machine's own work needs (a blank on, the leaf folding, a trunk under the heads), never on the shaft
+/// turning or the handle held alone. The dry machine's smoke (<see cref="MachineOiling"/>) is a warning, not work,
+/// and is gated on <see cref="BEMachine.Running"/> too.
 /// </para>
 /// <list type="bullet">
 /// <item>A steady effect while something lasts (the cut runs, the tank has oil): a <see cref="ParticleTimer"/> field
