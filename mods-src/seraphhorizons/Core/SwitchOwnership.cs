@@ -48,6 +48,8 @@ public sealed class SwitchOwnership
         new("DrawBench", [], [], ["drawbench"]),
         // The exporter's own recipe type for the cylinder borer's process (tools/recipe-export, Recipes/CylinderBorerExport.cs).
         new("CylinderBorer", [], [], ["cylinderborer"]),
+        // The exporter's own recipe type for the slitting mill's process (tools/recipe-export, Recipes/SlittingMillExport.cs).
+        new("SlittingMill", [], [], ["slittingmill"]),
         // The exporter's own recipe type for the press brake's process (tools/recipe-export, Recipes/PressBrakeExport.cs).
         new("PressBrake", [], [], ["pressbrake"]),
         // The exporter's own recipe type for the squaring shear's process (tools/recipe-export, Recipes/SquaringShearExport.cs).

@@ -42,6 +42,8 @@ public enum OilMachine
     ReverberatoryRoaster,
     /// <summary>This mod's Parkes kettle: its stirrer's shaft.</summary>
     ParkesKettle,
+    /// <summary>This mod's slitting mill.</summary>
+    SlittingMill,
 }
 
 /// <summary>What a dry tank does to a machine (<c>BEMachine.DryEffect</c>): most turn harder, their load on
@@ -225,6 +227,9 @@ public class MachineOilConfig
     /// <summary>Per cylinder bored, either metal. As the gear cutter's, the borer's load on its shaft never
     /// changes with its oil: the oil wears its cutter head instead (CylinderBorerSettings).</summary>
     public OilMachineConfig CylinderBorer { get; set; } = new(1000, 10f);
+
+    /// <summary>Per plate slit into nails and strips, whatever its metal (five knife strokes).</summary>
+    public OilMachineConfig SlittingMill { get; set; } = new(1000, 5f);
 
     // The ore machines' tanks and drains are scaled by load (each machine's README, "Oil"): a tank of 5000
     // points a unit of working load, and 2 points a job for each unit of load times the shaft turns the job

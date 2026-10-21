@@ -181,6 +181,13 @@ public static class Consumers
             Idle = SeraphIdle, Oil = "CylinderBorer", OilDryLoadFixed = true,
             Note = "a dry tank does not raise its load: it wears the cutter head faster instead",
         },
+        new("BEBehaviorMachineMP", "machine", Cfg("LightestResistance", "SeraphHorizons.Mod.SlittingMill.SlittingMillSystem", "LightestResistance", 0.2, "ModConfig/seraphhorizons.json (SlittingMillSettings.Metals)"))
+        {
+            Mod = Seraph, Id = "seraphhorizons:slittingmill", ItemPrefix = "seraphhorizons:slittingmill-frame", Name = "Slitting mill", ByFrame = true,
+            Max = Cfg("HeaviestResistance", "SeraphHorizons.Mod.SlittingMill.SlittingMillSystem", "HeaviestResistance", 0.5, "ModConfig/seraphhorizons.json (SlittingMillSettings.Metals)"),
+            Idle = SeraphIdle, Oil = "SlittingMill",
+            Note = "each plate metal's Resistance in SlittingMillSettings.Metals: gold and silver the lightest, empty too, steel the heaviest",
+        },
     };
 
     /// <summary>MPE's brass gearboxes have the same name as the wooden ones.</summary>

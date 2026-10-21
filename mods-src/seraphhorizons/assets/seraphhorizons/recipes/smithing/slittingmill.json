@@ -1,0 +1,24 @@
+// The slitting mill's slitter cutters (SlittingMill/, README "Slitting mill"), two from one steel ingot (32
+// voxels of its 42: a thin 7 x 7 collar with the arbor's bore through the middle, parted into two), steel
+// only. Named slittercutter, not plate or blistersteel, the only names the game's helve hammer works
+// (ItemWorkItem.GetHelveWorkableMode), so they are smithed by hand. The server disables them with
+// SlittingMill off.
+[
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "slittercutter",
+		code: "slittercutter-{metal}",
+		pattern: [
+			[
+				"__###__",
+				"_#####_",
+				"###_###",
+				"##___##",
+				"###_###",
+				"_#####_",
+				"__###__"
+			]
+		],
+		output: { type: "item", code: "seraphhorizons:slittercutter-{metal}", stacksize: 2 }
+	}
+]
