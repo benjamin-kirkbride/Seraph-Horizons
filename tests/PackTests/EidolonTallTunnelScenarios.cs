@@ -184,7 +184,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.Empty(faults);
         Assert.Null(e.Orders!.OrderCode);
         Assert.All(toMine, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, order.Mined + (order.Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         Assert.Equal(0, order.EmptyStrikes);
         Assert.Null(order.ToldOutOfReach);
@@ -218,7 +218,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.Empty(faults);
         Assert.Null(e.Orders!.OrderCode);
         Assert.All(toMine, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, order.Mined + (order.Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         Assert.Equal(0, order.EmptyStrikes);
         Assert.Contains("0 out of its reach", order.Reported);
@@ -252,7 +252,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         // the pit in front mined, every covered block still there
         Assert.All(toMine, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c).Id));
         Assert.All(covered, c => Assert.Equal(Granite, W.BlockAccessor.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, order.Mined + (order.Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(outOfReach, order.Plan!.OutOfReach.ToHashSet());
         Assert.Equal(high == 6 ? 32 : 64, order.Unreachable);
         Assert.Equal(96, order.Plan.Held.Count);
@@ -318,7 +318,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.Empty(faults);
         Assert.Empty(watch.Faults);
         Assert.All(toMine, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, orders.Sum(o => o.Mined) + (orders[0].Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count) - (orders.Sum(o => o.Mined)), -(orders[0].Job?.Shared.Gone ?? 0), orders[0].Job?.Shared.Gone ?? 0);
         Assert.Equal(0, orders[0].Unreachable);
         // each a real share: none idled the whole job
         Assert.All(orders, o => Assert.True(o.Mined >= toMine.Count / 4, $"{orders[0].Mined} and {orders[1].Mined} of {toMine.Count}"));
@@ -350,7 +350,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         // all dug but some of its stair, its way out, which it left and climbed out by
         Assert.NotEmpty(left);
         Assert.Subset(order.Stair.ToHashSet(), left);
-        Assert.Equal(toMine.Count - left.Count, order.Mined + (order.Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count - left.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         Assert.Contains($"{left.Count} left as its way out", order.Reported);
         AssertHome(e, ordered);
@@ -410,7 +410,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.NotEmpty(left);
         Assert.Subset(orders[0].Stair.ToHashSet(), left);
         Assert.All(orders, o => Assert.True(o.Mined > 0, $"{orders[0].Mined} and {orders[1].Mined}"));
-        Assert.Equal(toMine.Count - left.Count, orders.Sum(o => o.Mined) + (orders[0].Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count - left.Count) - (orders.Sum(o => o.Mined)), -(orders[0].Job?.Shared.Gone ?? 0), orders[0].Job?.Shared.Gone ?? 0);
         var report = Assert.Single(lines);
         Assert.Contains($"{left.Count} left as their way out", report);
         Assert.Null(watch.ContactFault());

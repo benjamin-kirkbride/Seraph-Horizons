@@ -200,7 +200,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         await World.Until(() => miner.Orders.OrderCode == null, 3000);
         Log($"after: {order.Mined} mined, {order.Unreachable} out of reach; {order.Reported}");
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, order.Mined + (order.Job?.Shared.Gone ?? 0));
+        Assert.InRange((toMine.Count) - (order.Mined), -(order.Job?.Shared.Gone ?? 0), order.Job?.Shared.Gone ?? 0);
         Assert.Equal(0, order.Unreachable);
         Assert.Contains("0 out of its reach", order.Reported);
         miner.Die(EnumDespawnReason.Removed);
