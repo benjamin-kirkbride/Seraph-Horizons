@@ -2,8 +2,9 @@
 #extension GL_ARB_explicit_attrib_location: enable
 
 // Seraph Horizons: a copy of the game's shaders/standard.fsh (Vintage Story 1.22.7) for the machine shader
-// program (Machines/Game/MachineShading.cs, `.sh machinelight`). Changed lines are marked "SH:"; with
-// chunkShadow and chunkBoost 0 it shades exactly as standard.fsh does.
+// program (Machines/Game/MachineShading.cs). Changed lines are marked "SH:": it combines the shadow map and
+// the normal shading, and applies the daylight gain, as chunkopaque does for placed blocks, so machine parts
+// shade as the blocks around them.
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outGlow;
@@ -37,12 +38,6 @@ uniform float depthOffset;
 #endif
 #endif
 uniform vec4 averageColor;
-// SH: the `.sh machinelight` toggles. chunkShadow: combine the shadow map and the normal shading as
-// chunkopaque does, min(shadow, nb) with chunkopaque.vsh's floor, where standard.fsh multiplies them (so
-// faces turned from the sun come out about twice as dark and show the shadow map's acne). chunkBoost: the
-// daylight gain chunkopaque.fsh applies (applyFogAndShadowFromBrightness), which standard.fsh lacks.
-uniform int chunkShadow = 0;
-uniform int chunkBoost = 0;
 
 in vec2 uv;
 in vec4 color;
@@ -60,14 +55,16 @@ flat in int renderFlags;
 #include noise2d.ash
 #include underwatereffects.fsh
 
-// SH: applyFogAndShadow (fogandlight.fsh) with the two toggles. normalB is the normal shading not yet
-// applied (1 when standard.fsh's multiply has already been done).
+// SH: applyFogAndShadow (fogandlight.fsh) shading as chunkopaque does. normalB is the normal shading, not
+// yet applied (1 when the part is not normal shaded).
 vec4 applyMachineFogAndShadow(vec4 rgbaPixel, float fogWeight, float normalB) {
 	float b = getBrightnessFromShadowMap();
-	// SH: chunkopaque.fsh takes min(b, nb) where standard.fsh's applyFogAndShadow multiplies
-	if (chunkShadow > 0) b = min(b, normalB);
-	// SH: chunkopaque.fsh's daylight gain, from applyFogAndShadowFromBrightness
-	if (chunkBoost > 0) b *= 1+max(0.0, shadowIntensity * 2.0 - 1.66) / 1.5;
+	// SH: chunkopaque.fsh takes min(b, nb), with chunkopaque.vsh's floor, where standard.fsh multiplies the
+	// normal shading in and then applyFogAndShadow multiplies by the shadow map, so faces turned from the sun
+	// come out about twice as dark as a block's and show the shadow map's acne
+	b = min(b, normalB);
+	// SH: chunkopaque.fsh's daylight gain (applyFogAndShadowFromBrightness), which standard.fsh lacks
+	b *= 1+max(0.0, shadowIntensity * 2.0 - 1.66) / 1.5;
 	rgbaPixel *= vec4(b, b, b, 1);
 	return applyFog(rgbaPixel, fogWeight);
 }
@@ -117,19 +114,14 @@ void main() {
 
 	float normalB = 1;  // SH: the normal shading left for applyMachineFogAndShadow
 	if (normalShaded > 0) {
-		if (chunkShadow > 0) {
-			// SH: chunkopaque.vsh's nb, whose floor drops from 0.45 with shadows on (it says 0.45 shows
-			// shadow acne); kept for the min with the shadow map instead of multiplied in here
+		// SH: chunkopaque.vsh's nb, whose floor drops from 0.45 with shadows on (it says 0.45 shows shadow
+		// acne); kept for the min with the shadow map instead of multiplied in here as standard.fsh does
 #if SHADOWQUALITY > 0
-			float intensity = 0.34 + (1 - shadowIntensity)/8.0;
+		float intensity = 0.34 + (1 - shadowIntensity)/8.0;
 #else
-			float intensity = 0.45;
+		float intensity = 0.45;
 #endif
-			normalB = min(1, max(max(intensity, 0.5 + 0.5 * dot(normal, lightPosition)), normal.y * 0.95) + min(0.5, glowLevel));
-		} else {
-			float b = min(1, getBrightnessFromNormal(normal, 1, 0.45) + min(0.5, glowLevel));
-			outColor *= vec4(b, b, b, 1);
-		}
+		normalB = min(1, max(max(intensity, 0.5 + 0.5 * dot(normal, lightPosition)), normal.y * 0.95) + min(0.5, glowLevel));
 	}
 	
 	float murkiness=skyShaded > 0 ? getSkyMurkiness() : getUnderwaterMurkiness();

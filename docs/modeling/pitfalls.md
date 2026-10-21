@@ -134,7 +134,9 @@ at the machine in the game. Where a check now exists, it is named, so a new mode
 - **Draw the shadow passes too,** or the moving parts cast no shadow while the frame does. But the
   game's `standard` shader then shadows them on themselves: it multiplies its normal shading by the
   shadow map, where the chunk shader takes the smaller of the two, so parts come out darker than the
-  frame, with flickering shadow acne (`MachineShading` in the pack's mod, `.sh machinelight`).
+  frame, with flickering shadow acne. The pack's mod draws machine parts with its own copy of
+  `standard` that combines them, and adds the daylight gain, as the chunk shader does
+  (`MachineShading`).
 - **Take the light from a cell that is not inside the model,** or the moving parts draw dark.
 - **A big jump in a shown value needs easing; small steps need following.** Easing everything
   makes the parts lag the mechanism.
