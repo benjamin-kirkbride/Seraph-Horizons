@@ -87,8 +87,12 @@ describe("the arrastra's rig against its rig-reference.json", () => {
 
 describe("the arrastra's anchors: batch, loaded, watered and emptied by hand", () => {
   it("has the power at the back and the draw gate at the front, at the controller, and no load anchor or pipe", () => {
-    const keys = discoverAnchors(rig).anchors.map((a) => a.key);
-    expect(keys).toEqual(["powerCell", "drawCell"]);
+    const anchors = discoverAnchors(rig).anchors;
+    expect(anchors.filter((a) => a.kind !== "point").map((a) => a.key)).toEqual(["powerCell", "drawCell"]);
+    // beside them only the particles' points, one a drag stone, carried round by the stones
+    expect(anchors.filter((a) => a.kind === "point").map((a) => [a.key, a.kind === "point" ? a.part : null])).toEqual(
+      [1, 2, 3, 4].map((n) => [`stone${n}`, "stones"]),
+    );
     expect([rig.powerCell, rig.powerFace]).toEqual([[0, 1, 1], "south"]);
     expect([rig.drawCell, rig.drawFace]).toEqual([[0, 0, 0], "north"]);
     // nothing automated feeds or empties it: no load, feed, chute, pour or water anchor, and no hopper a chute could meet
