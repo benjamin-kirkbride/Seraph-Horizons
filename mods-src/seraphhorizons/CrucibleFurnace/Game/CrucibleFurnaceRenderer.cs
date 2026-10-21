@@ -215,7 +215,7 @@ public sealed class CrucibleFurnaceRenderer : IRenderer
         {
             // light from over the hole's front row, which nothing fills but the swinging lid
             var light = _be.CellPos(new Int3(0, 2, 0));
-            prog = rapi.PreparedStandardShader(light.X, light.Y, light.Z);
+            prog = MachineShading.Prepare(_capi, light);
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
