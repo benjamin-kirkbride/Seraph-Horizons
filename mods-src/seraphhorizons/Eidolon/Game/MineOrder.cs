@@ -364,6 +364,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// its job to that station for good, each member taking it, failing and taking it again.</summary>
     private const int BlockedTries = 3;
 
+    /// <summary>The most stands found bad, with no strike by any member between, that each make the plan again
+    /// (<see cref="BadStand"/>).</summary>
+    internal const int MostBadReplans = 8;
+
     /// <summary>How long a run of stations let go for one reason, with no strike, goes on before it is logged
     /// (at Debug, <c>[eidolon-mine]</c>), and how often at most after that.</summary>
     private const double HeldLogSeconds = 30;
@@ -1404,7 +1408,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
             var next = MineDispatch.Next(plan, live, me, workers,
                 s => !Taken(s.Stand, workers) && !(_crossedStands.TryGetValue(s.Stand, out double until) && now < until) && others?.Contains(s.Id) != true
-                    && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
+                    && !Cells.ShutOff(s.Stand) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
                 parked.Count > 0 ? Clear : null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)), front);
             // a station worked ahead of its band only as the one it works, nothing held behind it
             bool ahead = next != null && MineDispatch.IsAhead(live, next);
@@ -1930,7 +1934,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, [], 0);
         var next = MineDispatch.Next(plan, live, me, workers,
             s => s.Stand != stand && !Taken(s.Stand, workers) && !(_crossedStands.TryGetValue(s.Stand, out double until) && now < until)
-                && others?.Contains(s.Id) != true && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
+                && others?.Contains(s.Id) != true && !Cells.ShutOff(s.Stand) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
             null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
         return next != null && _nav?.FindPath(new Vec3d(next.Stand.X, next.Stand.Y, next.Stand.Z)) != null && _nav.LastWentAround
             && !CrossesClaims(eidolon, next.Stand, now);
@@ -1975,11 +1979,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _nav?.Stop();
         var stand = head.Stand;
         int wrong = Plans?.Look(Cells, [stand, WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z)]) ?? 0;
-        if (wrong > 0 || Cells.Live is { } live && !live.Walk.Out(stand))
+        bool shut = Cells.ShutOff(stand);
+        if (wrong > 0 || shut || Cells.Live is { } live && !live.Walk.Out(stand))
         {
             Held(eidolon, "its stand is not open", now);
             eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId}: no way to stand ({stand.X},{stand.Y},{stand.Z}) (station {head.Id}), "
-                + (wrong > 0 ? $"{wrong} blocks round it not as the live state had them" : "not out in the live state") + ": let go, not bad");
+                + (wrong > 0 ? $"{wrong} blocks round it not as the live state had them"
+                    : shut ? "joined to it only by ways out by the window's side found none" : "not out in the live state") + ": let go, not bad");
             DropQueue(eidolon);
             if (Routed(eidolon))
                 Repaired(DropStop(eidolon.EntityId, head.Id, now) ?? "shut");
@@ -2005,10 +2011,29 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         Held(eidolon, "no way to its stand", now);
         Cells.BadStands.Add(head.Stand);
         Cells.BadStandsFound++;
+        // joined to where it stands only by the window's side: those are no ways out, and no stand they alone led
+        // out is taken until the plan made again without them is in (MineWalk.SideWays)
+        var joined = new HashSet<PathCell>();
+        var side = Cells.Live?.Walk.SideWays(stand, WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z), joined);
+        if (side != null)
+        {
+            Cells.BadStands.UnionWith(side);
+            Cells.SideShut.Add((side.ToHashSet(), joined));
+        }
         eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}"
-            + (by.Count > 0 ? $", with another by it once more than {BlockedTries} times" : "") + ": bad");
+            + (by.Count > 0 ? $", with another by it once more than {BlockedTries} times" : "") + ": bad"
+            + (side != null ? $"; joined to it only by the window's side, so are the {side.Count} ways out there" : ""));
         DropHead(eidolon);
-        Plans?.Replan(Cells, false);
+        // with no strike between, only so many times: a plan that keeps sending them where none can get to digs
+        // nothing, made again every two seconds for good; past that the stands are still found bad (each once, so it
+        // runs out) and the plan made again only when none is left to take (Idle)
+        if (Cells.BadSinceStrikeAt != Cells.LastStrikeAt)
+            (Cells.BadSinceStrikeAt, Cells.BadSinceStrike) = (Cells.LastStrikeAt, 0);
+        if (++Cells.BadSinceStrike <= MostBadReplans)
+            Plans?.Replan(Cells, false);
+        else if (Cells.BadSinceStrike == MostBadReplans + 1)
+            eidolon.World.Logger.Warning($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {Cells.BadSinceStrike} stands found bad "
+                + "with no strike between: not planned again for those");
         _phase = Phase.Seek;
         if (++_pathFails >= PathTries)
         {
