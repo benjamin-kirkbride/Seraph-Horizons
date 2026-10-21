@@ -116,7 +116,7 @@ public class BEArrastra : BEOreMachine
             MinVelocity = new Vec3f(-0.2f, 0.15f, -0.2f), MaxVelocity = new Vec3f(0.2f, 0.4f, 0.2f), Life = 0.5f,
         }).Spawn(Api.World, at, round);
         if (Api.World.Rand.NextDouble() < 0.5)
-            (MachineParticles.Splash(MachineParticles.MuddyWater) with { Count = 1, MaxCount = 2, Size = 0.15f }).Spawn(Api.World, at, round);
+            (MachineParticles.Splash(MachineParticles.Rgb(150, 135, 120, 100)) with { Count = 1, MaxCount = 2, Size = 0.15f }).Spawn(Api.World, at, round);
     }
 
     protected override bool Work(double radians)
