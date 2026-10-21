@@ -66,6 +66,64 @@ internal sealed class MineTestWorld : IMineWorld
         new(new MineState(Site(area), home), home, skip ?? (_ => false), new HashSet<PathCell>());
 
     public MinePlan Plan(MarkArea area, PathCell home) => MinePlanner.Run(Input(area, home));
+
+    /// <summary>A live job's plan input as tests/PackTests/RealMineRun dumps it from ground of the game's own generation
+    /// (tests/Eidolon/fixtures/*.mine): its area, its window, the climb (step), home, bad stands, the window's blocks a
+    /// column a line from its bottom up as runs of <c>count:code</c> (code: rule × 2 + solid), and the cells over the
+    /// area that roof it.</summary>
+    public sealed record Dump(MineTestWorld World, MarkArea Area, MarkArea Window, int Step, PathCell? Home,
+        HashSet<PathCell> Bad, HashSet<MarkPos> Roof)
+    {
+        public MineSite Site() => World.Site(Area, Step, Window);
+
+        public MinePlanInput Input() =>
+            new(new MineState(Site(), Home, Bad), Home, _ => false, Bad) { Roof = Roof.Contains };
+    }
+
+    public static Dump FromDump(string name)
+    {
+        var world = new MineTestWorld();
+        MarkArea area = default, window = default;
+        int step = 2;
+        PathCell? home = null;
+        var bad = new HashSet<PathCell>();
+        var roof = new HashSet<MarkPos>();
+        foreach (var line in File.ReadLines(Path.Combine(AppContext.BaseDirectory, name)))
+        {
+            var p = line.Split(' ');
+            int I(int i) => int.Parse(p[i]);
+            switch (p[0])
+            {
+                case "area": area = new MarkArea(new MarkPos(I(1), I(2), I(3)), new MarkPos(I(4), I(5), I(6))); break;
+                case "window": window = new MarkArea(new MarkPos(I(1), I(2), I(3)), new MarkPos(I(4), I(5), I(6))); break;
+                case "step": step = I(1); break;
+                case "home": home = new PathCell(I(1), I(2), I(3)); break;
+                case "bad": bad.Add(new PathCell(I(1), I(2), I(3))); break;
+                case "r":
+                    for (int k = 3; k < p.Length; k++)
+                        roof.Add(new MarkPos(I(1), I(k), I(2)));
+                    break;
+                case "c":
+                    int x = I(1), z = I(2), y = window.Min.Y;
+                    for (int k = 3; k < p.Length; k++)
+                    {
+                        var run = p[k].Split(':');
+                        int count = int.Parse(run[0]), code = int.Parse(run[1]);
+                        bool solid = (code & 1) == 1;
+                        var rule = (MineRule)(code >> 1);
+                        for (int n = 0; n < count; n++, y++)
+                        {
+                            if (solid)
+                                world.Solid.Add((x, y, z));
+                            if (!(solid && rule == MineRule.Mine) && code != 0)
+                                world.Rules[new MarkPos(x, y, z)] = new MineVoxel(solid, rule);
+                        }
+                    }
+                    break;
+            }
+        }
+        return new Dump(world, area, window, step, home, bad, roof);
+    }
 }
 
 /// <summary>

@@ -3665,7 +3665,10 @@ much on a deep pit, and there the count is an upper bound). Precedence is by ban
 first, top down (*Tunnels*, below); in the open the highest layer with blocks left and the one under it
 (floors within a climb, `EidolonTeamwork.Lowest`), while a tunnel band is driven its approach (the open
 columns within 3 of a covered one, `MineBands.Approach`) never under that band's floor and the rest at most
-a climb under it, each with floors within a climb of its own; the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
+a climb under it, each with floors within a climb of its own, and the next band driven only once the approach
+has nothing left at or over this band's floor (driving it digs away the floor that is the only place those are
+reached from: the large hillside on real ground, its approach left a wall over a quarry 7 deep, 95 held out of
+reach); the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
 open, rows a station wide along the area's longer side, from the far side back toward where it was
 ordered, each row the other way to the last (a sweep). When no station is left to place, every place it
 could stand is asked again (a few times at most: one the guard refused waits for a dig near it, and what
@@ -3681,8 +3684,11 @@ again, not held. *The stair*: where the
 last places it would stand to clear the area would have no way out (a pit deeper than it climbs with no
 shelf), the plan leaves a stair: a straight one 2 wide against the side facing the way out, rising 2 a
 column, or, for a pit deeper than about twice its width, a spiral round its walls, 2 wide, a step of 2 a
-column and a landing at each corner (`MinePlan.Stair`); it is dug last, and what it must stand on to
-leave stays, its way out (`MinePlan.WayOut`). In the game a block of it whose loss would leave another of
+column and a landing at each corner (`MinePlan.Stair`), its treads solid ground (not grass grown on a dug
+floor, which, taken for a tread, passed a stair a step short); it is dug last, and what it must stand on to
+leave stays, its way out (`MinePlan.WayOut`). What the plan holds as out of reach that its way out stands on
+(a stair found only once its top step was held, the job having dug round its old one) is told as the way
+out, with the column under it. In the game a block of it whose loss would leave another of
 it with nothing under it or beside it is left too (the game's rock caves in where it hangs free, and a
 tread that fell would take the way out with it: `MineOrder.Unhung`); and a plan made again late, which
 would take what is left of the stair for blocks out of reach, does not make them so: the job keeps every

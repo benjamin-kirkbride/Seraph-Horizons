@@ -227,16 +227,33 @@ public sealed class MineBands
     public int Bottom(int band) =>
         _tunnel == null ? _area.Min.Y : Math.Max(_area.Min.Y, _tunnel.Top - band * EidolonTunnels.HeadingHeight - EidolonTunnels.HeadingHeight + 1);
 
-    /// <summary>The covered band being driven: the lowest with a cell left; null for none.</summary>
+    /// <summary>The covered band being driven: the lowest with a cell left, or one with none left while the approach
+    /// still has cells at or over its floor and a band under it has cells; null for none.</summary>
     public int? Covered
     {
         get
         {
             for (int b = 0; b < CoveredBands; b++)
+            {
                 if (_covered[b] > 0)
                     return b;
+                // done with its own cells, it is still the band driven while the approach has cells at or over its
+                // floor and a band under it has cells left: driving the next would dig away the floor this one's
+                // stands are on, the only places the approach's cells there are reached from
+                if (_layer[1] >= 0 && _area.Min.Y + _layer[1] >= Bottom(b) && Under(b))
+                    return b;
+            }
             return null;
         }
+    }
+
+    // Whether a covered band under the band has cells left.
+    private bool Under(int band)
+    {
+        for (int b = band + 1; b < CoveredBands; b++)
+            if (_covered[b] > 0)
+                return true;
+        return false;
     }
 
     /// <summary>The highest open layer with a cell left; null for none.</summary>

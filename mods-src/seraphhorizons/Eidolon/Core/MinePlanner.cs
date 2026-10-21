@@ -138,7 +138,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             var stairs = new StairWork();
             foreach (bool _ in Stairs(state, area, stairs))
                 yield return false;
-            var (stair, finalWalk) = (stairs.Stair, stairs.Final!);
+            var (stair, finalWalk, finalSite) = (stairs.Stair, stairs.Final!, stairs.FinalSite!);
 
             Phase = MinePlanPhase.Simulate;
             state.Bands = new MineBands(area, tunnel, stair, state.Remaining);
@@ -185,6 +185,26 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 told = outOfReach.Where(c => !kept.Contains(c)).ToHashSet();
                 held = report.Held.Concat(outOfReach.Where(kept.Contains)).ToHashSet();
             }
+            // What is held out of reach that the way out stands on is the way out, with the column under it: a stair
+            // the simulation found only once its top step was held (a pit the job had dug round its old stair), told as
+            // the way out, never as out of reach
+            if (told.Count > 0)
+            {
+                var standsOn = new HashSet<MarkPos>();
+                foreach (bool _ in StandsOn(finalWalk, finalSite, told, standsOn))
+                    yield return false;
+                if (standsOn.Count > 0)
+                {
+                    foreach (var c in standsOn.ToList())
+                        for (int y = c.Y - 1; held.Contains(new MarkPos(c.X, y, c.Z)); y--)
+                            standsOn.Add(new MarkPos(c.X, y, c.Z));
+                    told = told.Where(c => !standsOn.Contains(c)).ToHashSet();
+                    held = held.Where(c => !standsOn.Contains(c)).ToHashSet();
+                    stair = stair.Concat(standsOn).ToHashSet();
+                    wayOut.UnionWith(standsOn);
+                    planned.UnionWith(standsOn);
+                }
+            }
             Plan = new MinePlan
             {
                 Stations = stations,
@@ -222,6 +242,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
     {
         public HashSet<MarkPos> Stair { get; } = new();
         public MineWalk? Final { get; set; }
+        public MineSite? FinalSite { get; set; }
     }
 
     private sealed class Chosen
@@ -231,6 +252,27 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
 
     // How many units of work (cells dug, nodes looked at) between checkpoints in the stair's search.
     private const int StairUnits = 512;
+
+    /// <summary>How many cells held out of reach <see cref="StandsOn"/> asks of, at most (a walk graph built for each).</summary>
+    private const int StandsOnChecks = 32;
+
+    // Of cells kept in the final world, those whose dig would leave a node that is out now, and still a place to stand,
+    // with no way out: the way out stands on them.
+    private IEnumerable<bool> StandsOn(MineWalk final, MineSite finalSite, IEnumerable<MarkPos> cells, HashSet<MarkPos> result)
+    {
+        var outs = final.Nodes;
+        foreach (var c in cells.OrderBy(c => c.Y).ThenBy(c => c.X).ThenBy(c => c.Z).Take(StandsOnChecks))
+        {
+            var site = finalSite.Clone();
+            site.Dig(c);
+            var walk = new MineWalk(site, input.Home, input.BadStands);
+            foreach (bool _ in walk.Build())
+                yield return false;
+            MineWork.Add(outs.Count);
+            if (outs.Any(n => walk.Node(n) && !walk.Out(n)))
+                result.Add(c);
+        }
+    }
 
     private IEnumerable<bool> Stairs(MineState state, MarkArea area, StairWork result)
     {
@@ -247,6 +289,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
         foreach (bool _ in final.Build())
             yield return false;
         result.Final = final;
+        result.FinalSite = finalSite;
         var stuck = new List<PathCell>();
         var w = finalSite.Window;
         for (int x = area.Min.X; x <= area.Max.X + 1; x++)
@@ -282,6 +325,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             finalSite = b.Site;
             final = b.Walk;
             result.Final = final;
+            result.FinalSite = finalSite;
         }
     }
 
@@ -374,7 +418,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                         break;
                     MineWork.Add(unit.Columns.Count);
                     foreach (var (x, z) in unit.Columns)
-                        if (clearable.Contains(new MarkPos(x, feet - 1, z)))
+                        if (Tread(new MarkPos(x, feet - 1, z), clearable))
                             cells.Add(new MarkPos(x, feet - 1, z));
                 }
                 if (cells.Count == 0)
@@ -386,6 +430,12 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             }
         }
     }
+
+    // A cell a stair may keep: a target solid now. A target with no footing in it (grass grown on a dug floor, a plant)
+    // is no tread: kept, it would be set solid in the stair's world (Best) and pass a stair a step short (a pit, its top
+    // tread grass, its way out the blocks left in a corner, held as out of reach).
+    private bool Tread(MarkPos c, IReadOnlySet<MarkPos> clearable) =>
+        clearable.Contains(c) && input.State.Site.Solid(c.X, c.Y, c.Z);
 
     private static bool Reaches(PathCell n, IReadOnlySet<MarkPos> cells)
     {
@@ -466,7 +516,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                     for (int y = floor; y < tread; y++)
                     {
                         var c = alongX ? new MarkPos(along, y, across) : new MarkPos(across, y, along);
-                        if (clearable.Contains(c))
+                        if (Tread(c, clearable))
                             cells.Add(c);
                     }
                 }

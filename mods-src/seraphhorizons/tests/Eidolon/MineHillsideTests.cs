@@ -129,8 +129,10 @@ public class MineHillsideTests(ITestOutputHelper output)
     public void A_ceiling_held_up_by_the_next_bands_ground_is_struck_from_a_step_left_in_it()
     {
         // Precedence alone (the bands, the lanes) runs dry with blocks left that the bound reaches; the last
-        // sweep digs them whatever their band, and the plan lets the job dig those out of turn.
-        var world = Hillside(3, 2);
+        // sweep digs them whatever their band, and the plan lets the job dig those out of turn. (With the step 2
+        // high, it ran dry only once the next band was driven under the approach's last blocks, which it no longer
+        // is, MineBands.Covered: the hill with no step still runs dry.)
+        var world = Hillside(3, 0);
         var area = Area(0, 13, L, L + 7, 0, 13);
         var home = new PathCell(6, L, -8);
         var plan = world.Plan(area, home);
