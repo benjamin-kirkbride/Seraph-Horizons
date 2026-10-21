@@ -226,9 +226,17 @@ internal sealed class RealMineRun(IWorldSession world, Action<string> log)
                 stuck = Stuck(eidolons, orders, job!.Shared, now - start);
                 return true;
             }
+            // reported: each walks back and its order ends
+            if (reportedAt is { } told && now - told > StuckSeconds && eidolons.Any(e => e.Orders?.OrderCode != null))
+            {
+                stuck = $"{StuckSeconds} s after the report, still on their orders: " + string.Join(" | ", eidolons.Where(e => e.Orders?.OrderCode != null)
+                    .Select(e => $"{e.EntityId} at {e.Pos.X:0.00},{e.Pos.Y:0.00},{e.Pos.Z:0.00}: {(e.Orders?.Current as MineOrder)?.DebugState}"))
+                    + "; the others at " + string.Join(", ", eidolons.Where(e => e.Orders?.OrderCode == null).Select(e => $"{e.EntityId} {e.Pos.X:0.00},{e.Pos.Y:0.00},{e.Pos.Z:0.00}"));
+                return true;
+            }
             if (++ticks % 900 == 0)
                 log($"{now - start:0} s: {string.Join(" + ", orders.Select(o => o.Mined))} mined, {orders[0].Unreachable} out of reach; "
-                    + string.Join(" | ", orders.Select(o => o.DebugState)));
+                    + string.Join(" | ", orders.Select((o, i) => eidolons[i].Orders?.OrderCode == null ? "order ended" : o.DebugState)));
             return now >= end || eidolons.All(e => e.Orders?.OrderCode == null);
         }, maxTicks);
         double seconds = (reportedAt ?? EidolonJobSystem.Now(W)) - start;
