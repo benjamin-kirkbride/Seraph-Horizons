@@ -70,4 +70,16 @@ public class EidolonPartingTests
         // after three changes over: the one that gives way has had two turns to step away, the other one
         Assert.Equal(3, (int)(EidolonParting.GiveUpSeconds / EidolonParting.SwapSeconds));
     }
+
+    [Fact]
+    public void A_moment_apart_while_one_presses_against_another_is_not_parted()
+    {
+        // pressing against one it cannot pass, it rocks back and forth: clear of it for a tick now and then
+        Assert.False(EidolonParting.Parted(0));
+        Assert.False(EidolonParting.Parted(0.1));
+        Assert.False(EidolonParting.Parted(EidolonParting.ApartSeconds - 0.01));
+        Assert.True(EidolonParting.Parted(EidolonParting.ApartSeconds));
+        // longer than the look for a touch, so a tick clear never begins the touch over
+        Assert.True(EidolonParting.ApartSeconds > EidolonParting.TouchSeconds);
+    }
 }

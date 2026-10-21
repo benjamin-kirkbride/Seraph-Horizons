@@ -33,6 +33,14 @@ public static class EidolonParting
     /// parting (<see cref="GiveUpSeconds"/>).</summary>
     public static bool GivesUp(double touching) => touching >= GiveUpSeconds;
 
+    /// <summary>How long two must stay apart to count as parted: one pressing against another it cannot pass rocks
+    /// back and forth, their boxes clear of each other for a tick now and then, and its time touching unparted
+    /// (<see cref="GivesUp"/>, <see cref="Moves"/>) is not begun again for that.</summary>
+    public const double ApartSeconds = 2;
+
+    /// <summary>Whether two apart for <paramref name="apart"/> seconds have parted (<see cref="ApartSeconds"/>).</summary>
+    public static bool Parted(double apart) => apart >= ApartSeconds;
+
     /// <summary>Whether it steps away now (else it waits for the other): <paramref name="givesWay"/> by the
     /// rule of who gives way, turned round for each whole <see cref="SwapSeconds"/> the two have touched
     /// unparted (<paramref name="touching"/>).</summary>

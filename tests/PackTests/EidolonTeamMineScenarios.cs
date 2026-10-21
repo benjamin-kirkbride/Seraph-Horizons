@@ -364,9 +364,11 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// one walking back touches another already home, its order ended, where there is nowhere to step aside. A crew by
     /// routes parts two touching before the rest of the order runs, and the one that must step away (the other has no
     /// mining order, so never does) found nowhere and tried again every 0.6 s for ever: its walk back, its tries and
-    /// its clocks never ran and its order never ended. Here the two are put in a pocket 2 columns wide and 3 long (their
-    /// boxes, 1.7 wide, touch however they stand), the one walking back on its order: it stops parting after
-    /// <see cref="EidolonParting.GiveUpSeconds"/>, its walk back finds no way out, and its order ends.</summary>
+    /// its clocks never ran and its order never ended. Here the one walking back is put in a pocket one place big, its
+    /// mouth toward its place, and the other stands in the mouth (held there, as one at home stands): its way back is
+    /// through the other, their boxes (1.7 wide) touch wherever it stands in the pocket, and it has nowhere to step
+    /// aside to. It stops parting after <see cref="EidolonParting.GiveUpSeconds"/>, stops short of the other on its walk
+    /// back until it gives that up too (<see cref="MineReturn.Bumps"/>), and its order ends.</summary>
     [AtlasScenario(TimeoutMs = 90_000)]
     public async Task One_walking_back_into_one_already_home_with_nowhere_to_part_still_ends_its_order()
     {
@@ -392,15 +394,18 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         typeof(MineRouteChoice).GetProperty(nameof(MineRouteChoice.Index))!.SetValue(job.Shared.RouteChoice, 0);
         Assert.True(walking.Returning || far.Orders!.OrderCode == null, $"the far one is {walking.DebugState}");
         Assert.True(far.Orders!.OrderCode != null, "the far one was home already: nothing to walk back");
-        // the near one already home, its order ended; the two in a pocket, walled round, apart from the pit
+        // the near one already home, its order ended; a pocket 2 x 2 apart from the pit, walled round but for its
+        // mouth (z -1) toward the far one's place, a way 2 wide on from it: the far one in the pocket, the near one in
+        // the mouth
         near.Orders!.ClearOrder();
         var pocket = site.AddCopy(9, 0, 6);
         for (int x = -1; x <= 2; x++)
-        for (int z = -1; z <= 3; z++)
+        for (int z = -4; z <= 2; z++)
         for (int y = 0; y <= 4; y++)
-            blocks.SetBlock(x is >= 0 and <= 1 && z is >= 0 and <= 2 ? 0 : granite, pocket.AddCopy(x, y, z));
+            blocks.SetBlock(x is >= 0 and <= 1 && z <= 1 ? 0 : granite, pocket.AddCopy(x, y, z));
         far.TeleportToDouble(pocket.X + 1, pocket.Y, pocket.Z + 1.0);
-        near.TeleportToDouble(pocket.X + 1, pocket.Y, pocket.Z + 2.1);
+        var mouth = new Vec3d(pocket.X + 1, pocket.Y, pocket.Z - 0.3);
+        near.TeleportToDouble(mouth.X, mouth.Y, mouth.Z);
         await World.Ticks(5);
         Assert.Equal(MineOrder.OrderCode, far.Orders.OrderCode);
         Assert.True(walking.Returning, walking.DebugState);
@@ -408,10 +413,13 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         int ticks = 0;
         await World.Until(() =>
         {
+            // the one at home stands its ground
+            if (near.Pos.XYZ.SquareDistanceTo(mouth) > 0.01)
+                near.TeleportToDouble(mouth.X, mouth.Y, mouth.Z);
             if (++ticks % 150 == 0)
-                Log($"{EidolonJobSystem.Now(W) - from:0} s in the pocket: {State(far)} at {far.Pos.XYZ}, the other at {near.Pos.XYZ}");
-            return far.Orders.OrderCode == null || EidolonJobSystem.Now(W) - from > 2 * EidolonParting.GiveUpSeconds + 30;
-        }, 6000);
+                Log($"{EidolonJobSystem.Now(W) - from:0} s in the pocket: {walking.DebugState} at {far.Pos.XYZ}, the other at {near.Pos.XYZ}");
+            return far.Orders.OrderCode == null || EidolonJobSystem.Now(W) - from > 240;
+        }, 9000);
         double took = EidolonJobSystem.Now(W) - from;
         Log($"its order {(far.Orders.OrderCode == null ? "ended" : "still on")} after {took:0} s in the pocket: {walking.DebugState}");
         Assert.True(far.Orders.OrderCode == null, $"still on its order after {took:0} s touching the other in the pocket: {walking.DebugState}");

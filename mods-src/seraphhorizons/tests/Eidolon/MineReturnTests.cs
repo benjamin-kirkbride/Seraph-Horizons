@@ -43,4 +43,23 @@ public class MineReturnTests
         Assert.True(other.Bumped());
         Assert.Equal($"{MineReturn.Tries}/{MineReturn.Tries} tries, 1/{MineReturn.Bumps} bumps", other.ToString());
     }
+
+    [Fact]
+    public void A_walk_that_gets_no_nearer_is_stopped_short_and_one_getting_nearer_is_not()
+    {
+        // pressing against one it cannot pass: walking all the while, as the game's walk sees it, never nearer
+        var back = new MineReturn();
+        back.SetOff(100);
+        Assert.False(back.Stalled(12, 100));
+        Assert.False(back.Stalled(12.3, 100 + MineReturn.StallSeconds - 0.1));
+        Assert.True(back.Stalled(11.8, 100 + MineReturn.StallSeconds));
+        // a slow walk home, a block nearer every few seconds, never is
+        var slow = new MineReturn();
+        slow.SetOff(0);
+        for (int t = 0; t <= 60; t++)
+            Assert.False(slow.Stalled(40 - t / 3.0, t));
+        // set off again, the walk is measured afresh
+        back.SetOff(200);
+        Assert.False(back.Stalled(11.8, 200 + MineReturn.StallSeconds - 0.1));
+    }
 }
