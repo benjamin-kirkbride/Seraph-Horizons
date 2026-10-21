@@ -36,7 +36,7 @@ public class EidolonHillsideScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// <summary>What main mined here before the work it guards, and the share more it must mine: the mean of 1005,
     /// 1149, 979, 889, 1046 and 994 blocks, this scenario on main at 6ccd75e (when two took turns at the face) on the
     /// virtual clock with SH_CLOCK_SEED 1 to 6 (each seed plays the same every run; this branch, the same seeds:
-    /// 1169, 1153, 1147, 1120, 1090, 1225, a mean of 1151). The scenario runs seed 1.</summary>
+    /// 1168, 1275, 1171, 1268, 1215, 1206, a mean of 1217). The scenario runs seed 1.</summary>
     private const int Before = 1010;
     private const double Faster = 1.1;
 
