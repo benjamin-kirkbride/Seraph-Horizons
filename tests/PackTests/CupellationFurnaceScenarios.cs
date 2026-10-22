@@ -130,6 +130,8 @@ public partial class MillWorldScenarios
         await World.Ticks(10);
         Assert.Equal(0, furnace.Done, 6);
         Assert.Equal(CupellingRefusal.None, furnace.ChargeRefusal());
+        // worked by the hour, not a shaft: a wrench shows no count of shaft turns
+        Assert.DoesNotContain("shaft turns", MachineTest.WrenchInfo(furnace, player));
 
         // a chimney of six fire brick blocks and a top on the outlet
         var b = furnace.CellPos(rig.ChimneyBase);

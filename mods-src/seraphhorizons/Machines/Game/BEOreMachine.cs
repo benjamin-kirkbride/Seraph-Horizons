@@ -60,6 +60,11 @@ public abstract class BEOreMachine : BEMachine
     /// other way (in-game hours, a charge's turns, a burn) gives its own, from what it saves and syncs.</summary>
     public override double? WorkProgress => Spec is { TurnsPerItem: > 0 } spec ? _turns.Progress(spec.TurnsPerItem) : null;
 
+    /// <summary>Whether the default <see cref="Work"/> drives the machine, counting its shaft turns toward the next
+    /// item (<see cref="Turns"/>), so a wrench shows them. A machine worked some other way (in-game hours, a fire, a
+    /// charge's or its own turns) turns it off, and shows its own work, if any, in its <see cref="AppendDetail"/>.</summary>
+    protected virtual bool CountsTurns => true;
+
     public override string InventoryClassName => "oremachine";
 
     /// <summary>The infeed slot.</summary>
@@ -459,11 +464,21 @@ public abstract class BEOreMachine : BEMachine
                 dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-held", slot.StackSize, slot.Itemstack!.GetName()));
     }
 
-    /// <summary>The turns toward the item in hand, of its turns an item, for a wrench.</summary>
+    /// <summary>The turns toward the item in hand, of its turns an item, for a wrench (where they drive it:
+    /// <see cref="CountsTurns"/>).</summary>
     protected override void AppendDetail(StringBuilder dsc)
     {
-        if (Built && Spec is { TurnsPerItem: > 0 } spec)
+        if (Built && CountsTurns && Spec is { TurnsPerItem: > 0 } spec)
             dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-turns",
                 _turns.Turns.ToString("0.##", CultureInfo.InvariantCulture), spec.TurnsPerItem.ToString("0.##", CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>For a wrench on a machine worked by the hour (<see cref="WorkHours"/>): the in-game hours toward the
+    /// item in hand, of the hours an item takes.</summary>
+    protected void AppendHours(StringBuilder dsc, WorkHours hours)
+    {
+        if (Built && Spec is { ItemsPerHour: > 0 } spec)
+            dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-hours",
+                (hours.Items / spec.ItemsPerHour).ToString("0.###", CultureInfo.InvariantCulture), (1 / spec.ItemsPerHour).ToString("0.###", CultureInfo.InvariantCulture)));
     }
 }
