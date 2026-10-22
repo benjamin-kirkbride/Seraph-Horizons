@@ -559,6 +559,62 @@ public sealed class MineWalk : MineGraph
     }
 
     /// <summary>
+    /// The ways out by the window's side alone of <paramref name="stand"/>, a node the game's pathfinder found no
+    /// way to from <paramref name="from"/> (README "Eidolon", mining, bad stands): the nodes on the window's side
+    /// joined to it in the window, when neither <paramref name="from"/> (or a node within a block of it) nor where
+    /// it was ordered from is. Every node of the window's side is taken as joined to every other through the
+    /// world outside, which is all that joins those to where it stands; the pathfinder, which sees that world,
+    /// found that it does not, so they are no ways out (the hilltop over a cliff whose foot it stands at, which
+    /// the window's side touches: each stand on it found bad one at a time, and the plan made again with the next,
+    /// for good). Null when <paramref name="stand"/> is no node, when no node is within a block of
+    /// <paramref name="from"/> (where it stands is not known to the graph: outside the window, a partial block),
+    /// when the stand is joined in the window to where it stands, or joined to no way out by the side. <paramref name="joined"/>, if given, is filled with the nodes joined to it
+    /// in the window (itself among them), which those ways out alone led out.
+    /// </summary>
+    public List<PathCell>? SideWays(PathCell stand, PathCell from, ISet<PathCell>? joined = null)
+    {
+        // where it stands must be a node (or within a block of one) of the window: else what it is joined to is not
+        // known, and the stand's own part could be the one every way out is in
+        if (!Node(stand) || !Near(from))
+            return null;
+        int start = Site.Index(stand.X, stand.Y, stand.Z);
+        var seen = new HashSet<int> { start };
+        var queue = new Queue<int>([start]);
+        var side = new List<PathCell>();
+        var nodes = new List<PathCell>();
+        var next = new int[40];
+        while (queue.TryDequeue(out int u))
+        {
+            var p = Site.At(u).ToCell();
+            if (Math.Abs(p.X - from.X) <= 1 && Math.Abs(p.Y - from.Y) <= 1 && Math.Abs(p.Z - from.Z) <= 1 || p == HomeNode)
+                return null;
+            nodes.Add(p);
+            if (Site.OnRing(p.X, p.Z))
+                side.Add(p);
+            int count = NeighboursOf(u, next);
+            for (int k = 0; k < count; k++)
+                if (seen.Add(next[k]))
+                    queue.Enqueue(next[k]);
+        }
+        if (side.Count == 0)
+            return null;
+        if (joined != null)
+            foreach (var n in nodes)
+                joined.Add(n);
+        return side;
+
+        bool Near(PathCell at)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            for (int dz = -1; dz <= 1; dz++)
+                if (Node(new PathCell(at.X + dx, at.Y + dy, at.Z + dz)))
+                    return true;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// After <see cref="MineSite.Dig"/> of <paramref name="cell"/>: the nodes round it tested again
     /// (those whose box or footing holds it), those gone taken out with what they led out, those new, or
     /// beside it and not out (a join through it may be new), grown from.

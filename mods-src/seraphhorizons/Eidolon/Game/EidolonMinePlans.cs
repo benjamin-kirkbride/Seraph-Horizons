@@ -734,6 +734,8 @@ public class EidolonMinePlans : ModSystem
     {
         var cells = work.Cells;
         var state = made.State;
+        // ways out by the side found none before this plan was begun: it has them bad, and no stand they led out out
+        cells.SideShut.RemoveAll(s => s.Side.All(made.Bad.Contains));
         made.Bad.UnionWith(cells.BadStands);
         cells.BadStands = made.Bad;
         foreach (var change in work.Journal ?? [])
