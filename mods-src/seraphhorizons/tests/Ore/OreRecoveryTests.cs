@@ -384,10 +384,10 @@ public class OreRecoveryTests
         Assert.Equal(0.8, R.LoadAt(OreMachine.JawBreaker, 2), 9);
         Assert.Equal(0.5, R.LoadAt(OreMachine.Reverberatory, 1), 9);
         Assert.Equal(0.2, R.LoadAt(OreMachine.ParkesKettle, 1), 9);
-        // Batch: the arrastra's charge of 2 in 7.5 hours.
+        // Batch: the arrastra's charge of 16 in 7.5 hours.
         var arrastra = R.Machine(OreMachine.Arrastra);
         Assert.True(arrastra.Batch);
-        Assert.Equal(2 / 7.5, arrastra.ItemsPerHour, 9);
+        Assert.Equal(16 / 7.5, arrastra.ItemsPerHour, 9);
         Assert.Equal(95.5 * 0.6 * 7.5, arrastra.TurnsPerCharge, 9);
         Assert.Equal("concentrate", R.Machine(OreMachine.Reverberatory).Item);
         Assert.Equal("unit", R.Machine(OreMachine.AcidParting).Item);
