@@ -2032,9 +2032,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             (Cells.BadSinceStrikeAt, Cells.BadSinceStrike) = (Cells.LastStrikeAt, 0);
         if (++Cells.BadSinceStrike <= MostBadReplans || side != null)
             Plans?.Replan(Cells, false);
-        else if (Cells.BadSinceStrike == MostBadReplans + 1)
-            eidolon.World.Logger.Warning($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {Cells.BadSinceStrike} stands found bad "
-                + "with no strike between: not planned again for those");
+        else
+        {
+            // owed once: with none left to take, Idle's stuck plan is made with every stand found bad, so the job
+            // ends with what they alone led to out of reach, not left as it was
+            Cells.StuckReplanned = false;
+            if (Cells.BadSinceStrike == MostBadReplans + 1)
+                eidolon.World.Logger.Warning($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {Cells.BadSinceStrike} stands found bad "
+                    + "with no strike between: not planned again for those");
+        }
         _phase = Phase.Seek;
         if (++_pathFails >= PathTries)
         {
