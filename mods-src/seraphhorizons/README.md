@@ -3743,7 +3743,14 @@ game's pathfinder finds no way to (a *bad stand*, partial blocks the plan took a
 two places exactly where the pathfinder steps from one to the other, `MineWalkPathTests`, so first the blocks
 round the stand and round where it stands are read again into the live state, `EidolonMinePlans.Look`, and a
 stand the live state had wrong there, a block fallen or caved in that only the sweep would have seen, or one it
-does not hold out, is no bad stand but one not open: the station is let go and the plan kept); a target turned into one it
+does not hold out, is no bad stand but one not open: the station is let go and the plan kept. The walk graph
+takes every place on the window's side as joined to every other through the world outside; a bad stand joined
+to where its member stands only that way, not in the window, shows that the world outside does not join them,
+so the places on the window's side it was joined to are bad too, and no stand they alone led out is taken until
+the plan made without them is in, `MineWalk.SideWays`, `MineJobCells.SideShut`: three at a cliff's foot whose
+hilltop the window's side touched were sent to the hilltop, found one stand after another bad, the plan made
+again each time, and dug nothing, for good, `EidolonCliffFootScenarios`, `MineCliffFootTests`. With no strike
+between, only the first 8 bad stands make the plan again; past that each is still bad, once, so they run out); a target turned into one it
 leaves, a liquid over dug ground, a thin cover (snow, a carpet: under half a block counts as air) or a
 change more than 5 columns from the area does not. It is made again at most every 2 seconds, from a copy
 of the live state, the old plan serving meanwhile and the new one swapped in whole; a member walking to a

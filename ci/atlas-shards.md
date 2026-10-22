@@ -87,7 +87,9 @@ across the area (EidolonOverhangScenarios, a long dig), `eidolon-fell` felling a
 (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-orders` carrying and guarding
 (EidolonCarryScenarios, EidolonGuardScenarios), `eidolon-hillside` two on a player's hillside
 for 8 minutes of game time (EidolonHillsideScenarios: its export placed, then the longest
-single run of mining in these shards), the three `eidolon-real-*` mining on ground from the
+single run of mining in these shards), `eidolon-cliff` three at the foot of a cliff on a
+player's area run to the job's end (EidolonCliffFootScenarios: its export placed, about 9 minutes
+of game time, 80 s here with the boot; beside the hillside's it would pass 270 s), the three `eidolon-real-*` mining on ground from the
 game's own world generation (each a seeded standard world, seed 31337, its spots found near
 spawn: tests/PackTests/RealTerrain.cs): `eidolon-real-slopes` a hillside and two cuts into a
 mountain (EidolonRealSlopeScenarios), `eidolon-real-ground` a pit and rough ground
