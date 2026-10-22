@@ -98,6 +98,10 @@ public abstract class BEFiredOreMachine : BEOreMachine, IFiredMachine
     protected string RowLine() =>
         Flue is { } flue ? _firing.RowLine(flue, (key, args) => Lang.Get($"seraphhorizons:{Machine}-info-{key}", args)) : "";
 
+    /// <summary>Each counts its own work (a burn's or a charge's hours, the reverberatory's and the kettle's turns at
+    /// its pace), never the default <see cref="BEOreMachine.Work"/>'s turns.</summary>
+    protected override bool CountsTurns => false;
+
     // ---- Fire ----
 
     public override bool Ignitable => Built;

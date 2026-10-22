@@ -1,3 +1,4 @@
+using System.Text;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore;
@@ -51,6 +52,9 @@ public class BESluice : BEOreMachine
 
     /// <summary>The in-game hours counted toward the next item.</summary>
     public override double? WorkProgress => _hours.Progress;
+
+    /// <summary>Worked by the hour, with no shaft (<see cref="WorkUnpowered"/>).</summary>
+    protected override bool CountsTurns => false;
 
     protected override bool WorkUnpowered(float dt)
     {
@@ -138,6 +142,9 @@ public class BESluice : BEOreMachine
     }
 
     protected override ItemStack[] FeedStacks(IWorldAccessor world) => SluiceSystem.FeedExamples(world);
+
+    /// <summary>For a wrench: the hours toward the next item, of an item's.</summary>
+    protected override void AppendDetail(StringBuilder dsc) => AppendHours(dsc, _hours);
 
     // ---- Saving ----
 

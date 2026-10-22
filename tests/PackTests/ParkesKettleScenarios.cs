@@ -129,6 +129,10 @@ public partial class MillWorldScenarios
         Assert.Equal(3, KettleClick(player, pos, CutterItem(ParkesKettling.ZincBit, 8))?.StackSize);
         Assert.Equal(KettlePhase.Stirring, kettle.Phase);
         Assert.True(kettle.ShowsPart("zinc"));
+        // a wrench reads the charge's stirring turns, not the shared count toward an item
+        var wrench = MachineTest.WrenchInfo(kettle, player);
+        Assert.Contains(Lang.Get("seraphhorizons:parkeskettle-info-turns", "0", kettle.TurnsNeeded.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)), wrench);
+        Assert.DoesNotContain("shaft turns toward the next item", wrench);
         Assert.Equal(1, KettleClick(player, pos, CutterItem(GalenaBullion, 1))?.StackSize);
 
         // the grate: 8 coal of 10; lit as the forge is
