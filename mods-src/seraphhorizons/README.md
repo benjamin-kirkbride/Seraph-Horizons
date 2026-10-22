@@ -7043,7 +7043,11 @@ and its rig, and calls `MachinesSystem.Disable` with its switch off.
   infeed (slot 0: a chute into the infeed cell's face fills that cell's buffer, a hand puts in what `Takes`
   accepts, up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, held
   (up to four kinds an anchor) while a chute or container there is full, else dropped in front of the face, or
-  for `tailings` put on the heap; `Outlet.Fate`).
+  for `tailings` put on the heap; `Outlet.Fate`). A wrench reads the shaft turns toward the next item of the
+  turns an item only where the default `Work` drives the machine (`CountsTurns`); the sluice and the plates,
+  worked by the hour, read the hours toward it of an item's (`AppendHours`), the arrastra, the reverberatory
+  roaster and the Parkes kettle their own turns (a charge's, or at the furnace's pace and by the item's weight),
+  and the other fired machines nothing more than their block info's percent.
 - `MachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
   axis) and ψ. A machine may draw its parts in textures of its own (`PartTextures`); the meshes are built

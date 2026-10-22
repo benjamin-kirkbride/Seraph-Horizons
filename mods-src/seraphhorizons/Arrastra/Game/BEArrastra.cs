@@ -80,6 +80,9 @@ public class BEArrastra : BEOreMachine
     /// <summary>The charge's turns ground, of a charge's (<see cref="ArrastraCharge.Progress"/>).</summary>
     public override double? WorkProgress => HasWork && Spec is { } spec ? Charge.Progress(spec.TurnsPerCharge) : null;
 
+    /// <summary>It grinds a charge, not an item at a time (its own <see cref="Work"/>).</summary>
+    protected override bool CountsTurns => false;
+
     /// <summary>The charge's water is in the pit; with nothing to grind it is not "dry".</summary>
     protected override bool Wet => !HasWork || Charge.CanGrind(Water.Litres, WaterPerItem);
 
@@ -280,6 +283,14 @@ public class BEArrastra : BEOreMachine
                 Math.Floor(100 * progress).ToString(CultureInfo.InvariantCulture)));
             dsc.AppendLine(InfeedSlot.Itemstack.GetName());
         }
+    }
+
+    /// <summary>For a wrench: the shaft turns ground into the charge, of the turns it takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (Built && HasWork && Spec is { TurnsPerCharge: > 0 } spec && Charge is var charge)
+            dsc.AppendLine(Lang.Get("seraphhorizons:arrastra-info-turns", charge.Turns.ToString("0.##", CultureInfo.InvariantCulture),
+                ArrastraCharge.TurnsFor(charge.Count, Capacity, spec.TurnsPerCharge).ToString("0.##", CultureInfo.InvariantCulture)));
     }
 
     public override void ToTreeAttributes(ITreeAttribute tree)

@@ -118,6 +118,11 @@ public partial class MillWorldScenarios
         await World.Until(() => arrastra.State == MachineState.Dry, 5000);
         Assert.Equal(0, arrastra.Charge.Turns);
         Assert.Contains(Lang.Get("seraphhorizons:arrastra-state-dry"), MachineTest.Info(arrastra, player));
+        // a wrench reads the charge's turns (a rock, half a charge), not the shared count toward an item
+        var wrench = MachineTest.WrenchInfo(arrastra, player);
+        Assert.Contains(Lang.Get("seraphhorizons:arrastra-info-turns", "0",
+            ArrastraCharge.TurnsFor(1, arrastra.Capacity, arrastra.Spec!.TurnsPerCharge).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)), wrench);
+        Assert.DoesNotContain("shaft turns toward the next item", wrench);
         // its load is the arrastra's, constant once built
         Assert.Equal(0.1f, arrastra.Resistance, 3);
 
