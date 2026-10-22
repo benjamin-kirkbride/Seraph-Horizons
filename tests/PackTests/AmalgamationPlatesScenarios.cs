@@ -136,6 +136,10 @@ public partial class MillWorldScenarios
         // undressed, dry: it waits for water; with water, gold quartz goes by unchanged
         Assert.Null(CutterClick(player, pos, QuartzCrushed("quartz_nativegold", "rich", 1)));
         Assert.Equal(MachineState.Dry, await MillStateSoon(plates));
+        // a wrench reads the hours toward the next item, of an item's: it has no shaft to count turns of
+        var wrench = MachineTest.WrenchInfo(plates, player);
+        Assert.Contains(Lang.Get("seraphhorizons:machine-info-hours", "0", (1 / plates.Spec!.ItemsPerHour).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)), wrench);
+        Assert.DoesNotContain("shaft turns", wrench);
         plates.FillWater(plates.ReservoirCapacity);
         await PlatesUntil(plates, () => ChestGold() >= 1);
         var passed = OreStreamAttributes.Read(chest.Inventory.First(s => !s.Empty).Itemstack)!;

@@ -189,6 +189,10 @@ public partial class MillWorldScenarios
         await World.Ticks(20);
         Assert.Equal(MachineState.Idle, f.State);
         Assert.Equal(0, ReverbChestCount(chest, roasted));
+        // a wrench reads its own turns, a concentrate's at its pace (weight 1), not the shared count it never advances
+        var wrench = MachineTest.WrenchInfo(f, player);
+        Assert.Contains(Lang.Get("seraphhorizons:reverberatory-info-turns", "0", f.Spec!.TurnsPerItem.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)), wrench);
+        Assert.DoesNotContain("shaft turns toward the next item", wrench);
 
         // a chimney of six fire brick blocks and a top on the outlet
         var b = f.CellPos(rig.ChimneyBase);

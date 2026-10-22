@@ -438,4 +438,13 @@ public class BEReverberatory : BEFiredOreMachine
         if (_lit && Row.Works && _damper == Damper.Half)
             dsc.AppendLine(L("halfpace", (int)Math.Round(100 * Pace)));
     }
+
+    /// <summary>For a wrench: the turns put into the item at the discharge (at the furnace's pace), of the turns its
+    /// weight takes.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (Built && !InfeedSlot.Empty && Spec is { TurnsPerItem: > 0 } spec)
+            dsc.AppendLine(Lang.Get("seraphhorizons:reverberatory-info-turns", _progress.ToString("0.##", CultureInfo.InvariantCulture),
+                (spec.TurnsPerItem * WeightOf(InfeedSlot.Itemstack)).ToString("0.##", CultureInfo.InvariantCulture)));
+    }
 }

@@ -586,4 +586,12 @@ public class BEParkesKettle : BEFiredOreMachine
         }
         dsc.AppendLine(RowLine());
     }
+
+    /// <summary>For a wrench: the turns stirred into the charge (at the fire's heat), of <see cref="TurnsNeeded"/>.</summary>
+    protected override void AppendDetail(StringBuilder dsc)
+    {
+        if (Built && Phase == KettlePhase.Stirring)
+            dsc.AppendLine(Lang.Get("seraphhorizons:parkeskettle-info-turns", _progress.ToString("0.##", CultureInfo.InvariantCulture),
+                TurnsNeeded.ToString("0.##", CultureInfo.InvariantCulture)));
+    }
 }

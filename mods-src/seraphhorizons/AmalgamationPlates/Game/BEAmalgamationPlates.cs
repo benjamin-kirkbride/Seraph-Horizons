@@ -96,6 +96,9 @@ public class BEAmalgamationPlates : BEOreMachine
     /// <summary>The in-game hours counted toward the next item.</summary>
     public override double? WorkProgress => _hours.Progress;
 
+    /// <summary>Worked by the hour, with no shaft (<see cref="WorkUnpowered"/>).</summary>
+    protected override bool CountsTurns => false;
+
     protected override bool WorkUnpowered(float dt)
     {
         if (Spec is not { ItemsPerHour: > 0 } spec)
@@ -305,6 +308,9 @@ public class BEAmalgamationPlates : BEOreMachine
         if (_last == PlateVerdict.Full)
             dsc.AppendLine(Lang.Get("seraphhorizons:amalgamationplates-info-full"));
     }
+
+    /// <summary>For a wrench: the hours toward the next item, of an item's.</summary>
+    protected override void AppendDetail(StringBuilder dsc) => AppendHours(dsc, _hours);
 
     private static string Litres(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
