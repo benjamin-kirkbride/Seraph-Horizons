@@ -81,9 +81,26 @@ public sealed class MineJobCells
     /// plan is swapped in (the live state built with it shares it).</summary>
     public HashSet<PathCell> BadStands { get; set; } = new();
 
-    /// <summary>How many times a member found a stand bad over the job's life (each one the plan made again;
+    /// <summary>How many times a member found a stand bad over the job's life (each one the plan made again, but
+    /// past <see cref="BadSinceStrike"/>'s few with no strike between;
     /// <see cref="BadStands"/> forgets one tried again), for the log and the tests.</summary>
     public int BadStandsFound { get; set; }
+
+    /// <summary>How many stands were found bad since the job's last strike (<see cref="BadSinceStrikeAt"/>, the
+    /// <see cref="LastStrikeAt"/> they were counted from): each makes the plan again only up to a few
+    /// (MineOrder.MostBadReplans). Main thread only.</summary>
+    public int BadSinceStrike { get; set; }
+
+    public double BadSinceStrikeAt { get; set; }
+
+    /// <summary>Ways out by the window's side found to be none (<see cref="MineWalk.SideWays"/>: a stand joined to
+    /// where its member stood only by them was found bad), each with the stands they alone led out: those are taken
+    /// as no station's until a plan made with those ways out among its bad stands comes in (the live state, made
+    /// before, still has them out). Main thread only.</summary>
+    public List<(IReadOnlySet<PathCell> Side, IReadOnlySet<PathCell> Joined)> SideShut { get; } = new();
+
+    /// <summary>Whether <paramref name="stand"/> is one of <see cref="SideShut"/>'s.</summary>
+    public bool ShutOff(PathCell stand) => SideShut.Count > 0 && SideShut.Any(s => s.Joined.Contains(stand));
 
     /// <summary>The stands a member found no way to with another eidolon by them since the job's last strike,
     /// and how many times each, by any member (README "Eidolon", working together, *When none may work*):
