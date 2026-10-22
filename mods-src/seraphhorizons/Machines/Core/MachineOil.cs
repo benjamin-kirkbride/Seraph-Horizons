@@ -242,7 +242,7 @@ public class MachineOilConfig
     public OilMachineConfig StampBattery { get; set; } = new(3750, 14.3f);
 
     /// <summary>Per rock of a charge ground, drained when the charge is.</summary>
-    public OilMachineConfig Arrastra { get; set; } = new(500, 43f);
+    public OilMachineConfig Arrastra { get; set; } = new(500, 5.4f);
 
     /// <summary>Per rock ground.</summary>
     public OilMachineConfig BallMill { get; set; } = new(5500, 21f);

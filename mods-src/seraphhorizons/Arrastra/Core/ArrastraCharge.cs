@@ -30,9 +30,9 @@ public enum WaterVerdict
 
 /// <summary>
 /// The arrastra's batch (#732, epic #684): game-independent, so its rules are tested without the game.
-/// <para>The player tips crushed rock into the pit, up to the charge (2 rock) of one ore and grade (it
-/// lies in the pit as one stack), and pours water after it,
-/// a bucket (10 L) a rock (the owner's ruling: watered by bucket, no pipe). The drag stones grind the
+/// <para>The player tips crushed rock into the pit, up to the charge (16 rock, a stack) of one ore and grade
+/// (it lies in the pit as one stack), and pours water after it, 1.25 L a rock, two buckets (20 L) a full
+/// charge (the owner's ruling: watered by bucket, no pipe). The drag stones grind the
 /// charge while the shaft turns (rate in proportion to speed, #711) and the pit holds the charge's water:
 /// with the charge dry it does not grind. A full charge takes <c>chargeHours</c> (7.5) at the reference
 /// speed, <see cref="TurnsFor"/> turns; a part charge its share of that, so a rock always takes the same

@@ -352,7 +352,7 @@ def check_pit(v):
 # ---------------------------------------------------------------- the charge's way
 def check_flow(v):
     """The charge's way, by hand. In: the player tips the charge straight into the open pit over its low curb, and
-    pours a bucket of water a rock after it, so the curb is a rim to tip over (no higher than TIP_RIM_MAX) and the pit
+    pours its water after it by the bucket, so the curb is a rim to tip over (no higher than TIP_RIM_MAX) and the pit
     is open from above either side of the head frame: no fixed part of the machine stands over the pit outside the
     middle column above the curb's top (only the sweep passes there). The contents lie on the paving inside the curb,
     clear of the footstep, the drag stones standing out of them. Out: the gate's threshold is below the contents' tops
