@@ -35,7 +35,7 @@ take Jonas parts, gears, rods, plates and metal parts, except the cutters, the o
 
 | # | Stage | Takes | Why |
 |---|---|---|---|
-| 1 | `rolls`, slitter rolls | Ten `seraphhorizons:slittercutter-steel`, two rods (iron, meteoric iron or steel) | The model's five cutters an arbor, on two arbors. The cutter is forged on the anvil, two from a steel ingot. |
+| 1 | `rolls`, slitter rolls | Ten `seraphhorizons:slittercutter-steel`, two rods (iron, meteoric iron or steel) | The model's five cutters an arbor, on two arbors. The cutter is forged on the anvil, one from a steel ingot. |
 | 2 | `pinions`, pinions and great wheel | A Jonas gear frame (`jonasframes-gears01` or `-gears02`), one `metal-parts` (a block) | A matched pair and the large wheel from salvaged gearing, as the gear cutter's dividing head takes; the parts for the hub and the keys |
 | 3 | `drive` | A Jonas gearbox (`jonasframes-gearbox01` or `-gearbox02`), two rods | The rectifier and the cone clutch in one gearbox, as the draw bench's clutch is; the rectified shaft and the crankshaft |
 | 4 | `shear` (and `knife`) | A heavy bracket and a plate (iron, meteoric iron or steel), then the knife | The crank, yoke and crosshead; the bed knife; the knife the wearing part |

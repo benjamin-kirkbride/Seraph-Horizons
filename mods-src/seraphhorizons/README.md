@@ -2861,7 +2861,7 @@ nothing for.
 | 4 | `shear` (and `knife`) | A heavy bracket (`game:bracket-heavy-iron`, `-meteoriciron` or `-steel`), a plate (`game:metalplate-iron`, `-meteoriciron` or `-steel`) and the knife: a cleaver (`game:cleaver-iron`, `-meteoriciron` or `-steel`), the wearing part | The crank disc, the bed knife; the knife, its crosshead, ram and yoke while a cleaver is in |
 | 5 | `pusher` | Two rods and an oak plank (`game:plank-oak`) | The operator's push bar |
 
-The **slitter cutter** is smithed: one steel ingot (32 voxels, a thin collar with the arbor's bore) makes two,
+The **slitter cutter** is smithed: one steel ingot (32 voxels, a thin collar with the arbor's bore) makes one,
 steel only; its recipe is named `slittercutter`, not `plate`, so the helve hammer does not work it. It is drawn
 as the collars are in the machine, a 12-sided ring (`shapes/item/slittercutter.json`). The **knife** is the game's
 cleaver, a heavy square blade, the nearest thing the game has to a guillotine's knife, and a tool with durability
@@ -8912,7 +8912,7 @@ mold's casting record (six ingots, iron and steel); and the engines' grid record
 
 `tests/PackTests/SlittingMillScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires the slitting
 mill's blocks, every stage's material, the cleavers' durability as the knife's uses, a plate and nails and strips for
-each of its twelve metals, its grid recipe (no pack item in it) and the cutters' smithing recipe (two from a steel
+each of its twelve metals, its grid recipe (no pack item in it) and the cutters' smithing recipe (one from a steel
 ingot, steel only), the game's anvil nails left as they are, the settings' pace the rig's and the machine oil page
 naming it; placing on all four facings, every cell pointing home, the power cell a block up at the near end with its
 face native east turned with the facing, and every cell cleared and the frame dropped on breaking; the stages fitted in
