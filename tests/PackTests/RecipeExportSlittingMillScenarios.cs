@@ -62,12 +62,12 @@ public partial class RecipeExportScenarios
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
-    public void Slitter_cutters_are_forged_two_from_a_steel_ingot()
+    public void Slitter_cutters_are_forged_one_from_a_steel_ingot()
     {
         var r = Assert.Single(Doc["recipes"]!.Cast<JObject>(), r => (string?)r["type"] == "smithing"
             && r["outputs"]!.Any(o => (string?)o["code"] == "seraphhorizons:slittercutter-{metal}"));
         Assert.Equal("SlittingMill", (string?)r["switch"]);
-        Assert.Equal(2, (double)r["outputs"]![0]!["quantity"]!, 6);
+        Assert.Equal(1, (double)r["outputs"]![0]!["quantity"]!, 6);
         var variant = Assert.Single(r["variants"]!);
         Assert.Equal("game:ingot-steel", (string?)variant["ingredients"]![0]![0]!["code"]);
         Assert.Equal(new[] { "seraphhorizons:slittercutter-steel" }, Codes(variant["outputs"]!).Select(c => (string)c!));
