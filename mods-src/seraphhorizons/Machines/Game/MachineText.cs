@@ -158,7 +158,8 @@ public static class MachineText
     public static void AppendWater(StringBuilder sb, MachineReservoir water, double capacity, double perItem) =>
         sb.AppendLine(Lang.Get(P + "info-water", Litres(water.Litres), Litres(capacity), Litres(perItem)));
 
-    private static string Litres(double l) => l.ToString(l < 10 ? "0.#" : "0", CultureInfo.InvariantCulture);
+    /// <summary>Under 10 L to two places, so the arrastra's 1.25 L a rock reads as it is.</summary>
+    private static string Litres(double l) => l.ToString(l < 10 ? "0.##" : "0", CultureInfo.InvariantCulture);
 
     /// <summary>The message for a right-click that took nothing; null when it took something.</summary>
     public static string? Error(AssemblyClick click, IWorldAccessor world, string machine, MachineAssembly assembly)
