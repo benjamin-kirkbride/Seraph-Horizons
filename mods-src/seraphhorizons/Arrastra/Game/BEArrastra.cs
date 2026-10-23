@@ -20,9 +20,9 @@ namespace SeraphHorizons.Mod.Arrastra;
 /// (#711 rule 2): no anchor but the axle and the draw gate, nothing automated feeds it or takes from it.
 /// <list type="bullet">
 /// <item>The pit is the infeed slot: the charge of crushed ore, one ore and grade, up to the config's
-/// <c>charge</c> (2), tipped in a rock a right-click; once ground, the same slot holds the ground ore.</item>
-/// <item>The water is the shared reservoir (20 L, a charge's worth), filled from a bucket by right-click
-/// (the rocker's <see cref="Rocker.RockerWater"/>; no pipe). The charge grinds only with its water in the pit (10 L a rock),
+/// <c>charge</c> (16, a stack), tipped in a rock a right-click; once ground, the same slot holds the ground ore.</item>
+/// <item>The water is the shared reservoir (20 L, a full charge's worth: two buckets), filled from a bucket by right-click
+/// (the rocker's <see cref="Rocker.RockerWater"/>; no pipe). The charge grinds only with its water in the pit (1.25 L a rock),
 /// spent when it is ground.</item>
 /// <item>Grinding counts shaft turns (<see cref="ArrastraCharge"/>): a full charge in the config's
 /// <c>chargeHours</c> (7.5) at the reference speed, a part charge its share; then every rock becomes its
@@ -58,7 +58,7 @@ public class BEArrastra : BEOreMachine
     protected override IReadOnlyList<string> OutputAnchors => [];
 
     /// <summary>Rock a charge holds (the config's <c>charge</c>).</summary>
-    public int Capacity => Spec is { ChargeItems: > 0 } spec ? spec.ChargeItems : 2;
+    public int Capacity => Spec is { ChargeItems: > 0 } spec ? spec.ChargeItems : 16;
 
     public bool IsGround => _ground && !InfeedSlot.Empty;
 

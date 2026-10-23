@@ -10,7 +10,7 @@ import { compileGlobs, fitted, flattenShape, partMatrices, partOf, requiresValue
 // reference maths. Its rig reads θ alone (the axle's angle): the power shaft turns with it, the post at a third of it
 // through the wooden gearing (a lantern pinion and a cog wheel), the arms and stones ride the post; everything else stands still. The machine is built in
 // stages by requires on a placed frame, and the page fits them from a Build select; the pit's contents wait on the
-// whole build. Nothing automated feeds it: the charge and its bucket of water are tipped straight into the open pit
+// whole build. Nothing automated feeds it: the charge and its water are tipped straight into the open pit
 // by hand, so there is no load anchor, no hopper, no pipe and no water anchor; only the draw gate is a hand anchor.
 // tools/tests/test_arrastra_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";

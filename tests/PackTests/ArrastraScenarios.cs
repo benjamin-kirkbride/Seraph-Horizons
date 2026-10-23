@@ -126,14 +126,14 @@ public partial class MillWorldScenarios
         // its load is the arrastra's, constant once built
         Assert.Equal(0.1f, arrastra.Resistance, 3);
 
-        // a bucket of 10 L: a rock's water
+        // a bucket of 10 L: half a full charge's water, eight rock's
         var bucket = CutterClick(player, pos, WaterBucket(10))!;
         Assert.Equal(10, arrastra.Water.Litres, 3);
         Assert.Equal(0, SeraphHorizons.Mod.Rocker.RockerWater.Litres(bucket), 3);
 
         await World.Until(() => arrastra.Charge.Turns > 0, 5000);
         Assert.Equal(MachineState.Working, arrastra.State);
-        // a rock is half a charge: about 215 shaft turns, some 14,000 ticks at this speed
+        // a rock is a sixteenth of a charge: about 27 shaft turns, some 1,800 ticks at this speed
         using (var clock = VirtualClock.Start(World))
             for (int k = 0; k < 60 && !arrastra.IsGround; k++)
                 await World.Ticks(600);
@@ -146,7 +146,8 @@ public partial class MillWorldScenarios
         var stream = OreStreamAttributes.Read(ground)!;
         Assert.True(stream.State.HasFlag(OreState.Ground));
         Assert.Equal(OreProducts.RawUnits("hematite", "poor")!.Value, stream.Units, 6);
-        Assert.Equal(0, arrastra.Water.Litres, 3);
+        // a rock's 1.25 L spent, the rest of the bucket left in the pit
+        Assert.Equal(8.75, arrastra.Water.Litres, 3);
         Assert.True(arrastra.ShowsPart("paste"));
         Assert.False(arrastra.ShowsPart("charge"));
         // no rock goes in on the paste

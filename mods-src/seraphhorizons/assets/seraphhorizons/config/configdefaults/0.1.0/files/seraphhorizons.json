@@ -214,7 +214,7 @@
     },
     "Arrastra": {
       "Tank": 500.0,
-      "DrainPerJob": 43.0
+      "DrainPerJob": 5.4
     },
     "BallMill": {
       "Tank": 5500.0,
