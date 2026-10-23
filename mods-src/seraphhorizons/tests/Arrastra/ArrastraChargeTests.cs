@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SeraphHorizons.Mod.Arrastra.Core;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
 
 namespace SeraphHorizons.Tests.Arrastra;
@@ -16,15 +17,37 @@ public class ArrastraChargeTests
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })!);
 
     [Fact]
-    public void ShippedFiguresAreACharge_Of2In7_5Hours()
+    public void ShippedFiguresAreACharge_Of16In7_5Hours()
     {
         var spec = R.Machine(OreMachine.Arrastra);
-        Assert.Equal(2, spec.ChargeItems);
-        Assert.Equal(10, spec.WaterPerItem);
+        Assert.Equal(16, spec.ChargeItems);
+        Assert.Equal(1.25, spec.WaterPerItem);
         Assert.Equal(0.1, spec.Load);
-        // 429.75 shaft turns a full charge at any speed; at 0.6 that is 7.5 in-game hours
+        // 429.75 shaft turns a full charge at any speed; at 0.6 that is 7.5 in-game hours, 26.9 a rock
         Assert.Equal(95.5 * 0.6 * 7.5, spec.TurnsPerCharge, 9);
-        Assert.Equal(spec.TurnsPerCharge / 2, ArrastraCharge.TurnsFor(1, 2, spec.TurnsPerCharge), 9);
+        Assert.Equal(26.859375, ArrastraCharge.TurnsFor(1, 16, spec.TurnsPerCharge), 9);
+    }
+
+    [Fact]
+    public void ShippedReservoir_HoldsAFullChargesWater_TwoBuckets()
+    {
+        // 16 rock at 1.25 L is 20 L, the shared reservoir exactly: two vanilla buckets
+        var spec = R.Machine(OreMachine.Arrastra);
+        double capacity = MachineReservoir.Capacity(new OreMachinesConfig(), spec.WaterPerItem);
+        var c = new ArrastraCharge(spec.ChargeItems);
+        for (int i = 0; i < spec.ChargeItems; i++)
+            c.Load(Poor);
+        Assert.Equal(20, c.WaterNeeded(spec.WaterPerItem), 9);
+        Assert.Equal(c.WaterNeeded(spec.WaterPerItem), capacity, 9);
+        Assert.True(c.CanGrind(capacity, spec.WaterPerItem));
+        Assert.False(c.CanGrind(10, spec.WaterPerItem)); // one bucket: half a charge's
+        // a part charge needs only its share: one bucket waters 8 rock
+        var part = new ArrastraCharge(spec.ChargeItems);
+        for (int i = 0; i < 8; i++)
+            part.Load(Poor);
+        Assert.True(part.CanGrind(10, spec.WaterPerItem));
+        part.Load(Poor);
+        Assert.False(part.CanGrind(10, spec.WaterPerItem));
     }
 
     [Theory]
@@ -56,7 +79,7 @@ public class ArrastraChargeTests
     }
 
     [Fact]
-    public void Dry_DoesNotGrind_ABucketARockDoes()
+    public void Dry_DoesNotGrind_ItsWaterInThePitDoes()
     {
         var c = new ArrastraCharge(2);
         c.Load(Poor);

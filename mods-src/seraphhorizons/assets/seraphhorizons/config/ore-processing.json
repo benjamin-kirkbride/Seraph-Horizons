@@ -80,7 +80,7 @@
   "machines": {
     "jawbreaker":         { "load": 0.8,  "emptyLoad": 0.16,  "perHour": 24 },
     "stampbattery":       { "load": 0.75, "emptyLoad": 0.15,  "water": 40, "perHour": 6 },
-    "arrastra":           { "load": 0.1,  "emptyLoad": 0.02,  "water": 10, "charge": 2, "chargeHours": 7.5 },
+    "arrastra":           { "load": 0.1,  "emptyLoad": 0.02,  "water": 1.25, "charge": 16, "chargeHours": 7.5 },
     "ballmill":           { "load": 1.1,  "emptyLoad": 0.22,  "water": 25, "perHour": 6 },
     "amalgamationplates": { "recovery": 0.65, "water": 5, "perHour": 8 },
     "sluice":             { "recovery": 0.55, "water": 10, "perHour": 16 },

@@ -7,8 +7,8 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// The arrastra (mods-src/seraphhorizons/Arrastra/, #732): its build is the shared ore machines'
 /// <c>construction</c> record, and its grinding a hand-written <c>machine</c> record per crushed ore
-/// (RecipeSection.Arrastra.cs): the rock, its 10 L of water and the arrastra as the station; one ground ore
-/// of the same ore and grade, a rock's share of a charge's turns (95.5 × 0.6 × 7.5 / 2).
+/// (RecipeSection.Arrastra.cs): the rock, its 1.25 L of water and the arrastra as the station; one ground ore
+/// of the same ore and grade, a rock's share of a charge's turns (95.5 × 0.6 × 7.5 / 16).
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -25,10 +25,10 @@ public partial class RecipeExportScenarios
         var r = Recipe("arrastra|seraphhorizons:crushedore-hematite-poor|0");
         var ingredients = (JArray)r["ingredients"]!;
         Json("""{ "code": "seraphhorizons:crushedore-hematite-poor", "kind": "item", "quantity": 1 }""", ingredients[0]);
-        Json("""{ "code": "game:waterportion", "kind": "item", "quantity": 1000, "litres": 10, "role": "liquid" }""", ingredients[1]);
+        Json("""{ "code": "game:waterportion", "kind": "item", "quantity": 125, "litres": 1.25, "role": "liquid" }""", ingredients[1]);
         Json("""{ "code": "seraphhorizons:arrastra-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[2]);
         Json("""[{ "code": "seraphhorizons:groundore-hematite-poor", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
-        Json("""{ "power": "mechanical", "turns": 214.875 }""", r["machine"]!);
+        Json("""{ "power": "mechanical", "turns": 26.859375 }""", r["machine"]!);
         Assert.Equal("Arrastra", (string?)r["switch"]);
 
         var build = Recipe("construction|seraphhorizons:arrastra-north|0");

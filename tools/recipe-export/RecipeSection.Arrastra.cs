@@ -52,8 +52,8 @@ public static partial class RecipeSection
     }
 
     /// <summary>
-    /// One crushed ore ground in the arrastra: the crushed rock (consumed), its water (role liquid, a
-    /// bucket a rock, used up) and the arrastra (role station); one ground ore of the same ore and grade,
+    /// One crushed ore ground in the arrastra: the crushed rock (consumed), its water (role liquid, its
+    /// share of a charge's, used up) and the arrastra (role station); one ground ore of the same ore and grade,
     /// nothing lost. A rock's share of a charge's turns (power mechanical); a batch machine, loaded,
     /// watered and drawn by hand (<c>requirements</c>).
     /// </summary>
@@ -87,7 +87,7 @@ public static partial class RecipeSection
                 ["turns"] = Num(turnsPerRock),
             },
             ["requirements"] = new JArray(
-                $"Batch, by hand: a charge of up to {charge} rock tipped into the pit, a bucket of water a rock poured after it, "
+                $"Batch, by hand: a charge of up to {charge} rock tipped into the pit, its water ({Num(litres * charge)} L a full charge) poured after it by bucket, "
                 + $"ground in {Num(hours)} hours at speed 0.6 (a full charge) and drawn out by the gate"),
             ["extra"] = new JObject
             {
