@@ -1,6 +1,6 @@
 // The slitting mill's slitter cutter (SlittingMill/, README "Slitting mill"; the slitter rolls' stage takes
 // ten, five on each arbor): a steel collar, a thin disc with a bore for the arbor, the one part of the mill
-// the game has nothing for. Two are forged from one steel ingot (recipes/smithing/slittingmill.json). Drawn
+// the game has nothing for. One is forged from one steel ingot (recipes/smithing/slittingmill.json). Drawn
 // as the collars are in the machine, a 12-sided ring (shapes/item/slittercutter.json). The server disables
 // it with SlittingMill off.
 {
