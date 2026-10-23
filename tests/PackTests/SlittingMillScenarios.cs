@@ -116,9 +116,9 @@ public partial class SharedWorldScenarios
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:schematic-slittingmill" && !i.Consume);
         Assert.DoesNotContain(frame.ResolvedIngredients!, i => i?.Code?.Domain == "seraphhorizons" && i.Code.Path != "schematic-slittingmill");
-        // the anvil: two cutters from one steel ingot, steel only, by hand
+        // the anvil: one cutter from one steel ingot, steel only, by hand
         var smith = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == SlittingMillBuild.CutterCode);
-        Assert.Equal(2, smith.Output!.ResolvedItemstack!.StackSize);
+        Assert.Equal(1, smith.Output!.ResolvedItemstack!.StackSize);
         Assert.True(smith.Ingredient!.SatisfiesAsIngredient(CutterItem("game:ingot-steel")));
         Assert.False(smith.Ingredient.SatisfiesAsIngredient(CutterItem("game:ingot-iron")));
         Assert.InRange(smith.Voxels.Cast<bool>().Count(v => v), 1, 42);
