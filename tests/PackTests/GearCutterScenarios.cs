@@ -96,10 +96,11 @@ public partial class SharedWorldScenarios
         // the grid: the frame only (the spindle and the index are fed at the frame)
         Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString().StartsWith("seraphhorizons:gearcutter") == true);
         var frame = W.GridRecipes.Single(r => r.Output?.Code?.ToString() == "seraphhorizons:gearcutter-frame-north");
-        // the end-game machine: 4 steel ingots in each of its two ingot slots (steel only), 32 nails and strips
-        var ingots = frame.ResolvedIngredients!.Where(i => i?.Code?.Path == "ingot-*").ToList();
-        Assert.Equal(2, ingots.Count);
-        Assert.All(ingots, i => { Assert.Equal(new[] { "steel" }, i!.AllowedVariants); Assert.Equal(4, i.Quantity); });
+        // the cast bed and column: 8 plates (a full stack) in each of its two plate slots, iron or better, 32 nails and strips
+        Assert.DoesNotContain(frame.ResolvedIngredients!, i => i?.Code?.Path == "ingot-*");
+        var plates = frame.ResolvedIngredients!.Where(i => i?.Code?.Path == "metalplate-*").ToList();
+        Assert.Equal(2, plates.Count);
+        Assert.All(plates, i => { Assert.Equal(new[] { "iron", "meteoriciron", "steel" }, i!.AllowedVariants); Assert.Equal(8, i.Quantity); });
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 32);
         // 3 stainless gears for the gearing the frame carries (the feed rectifier, the camshaft's worm wheel)
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 3);

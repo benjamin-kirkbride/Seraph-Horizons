@@ -474,11 +474,12 @@ the renderer draws the parts with the block's texture source). It is placed as t
 (`GearCutterRig`'s `IMachineRig.PlacedSide`: `Footprint.PlacedFacing`, the column's back away from the player).
 Placement, the cells, their repair, breaking through a cell and the boxes (selection from the rig's cells,
 collision with their lids) are the shared base's. The frame recipe (`recipes/grid/gearcutter.json`):
-8 steel ingots (4 in each ingot slot, steel only), 4 planks, 32 nails and strips of iron, meteoric
-iron or steel, 3 stainless gears (`seraphhorizons:gear-stainless`, in the bottom middle slot, for the gearing
+16 metal plates (8 in each plate slot, a full stack), 4 planks, 32 nails and strips, both of iron,
+meteoric iron or steel as the other frames, 3 stainless gears (`seraphhorizons:gear-stainless`, in the bottom middle slot, for the gearing
 the frame carries: the feed rectifier's train and the camshaft's worm wheel; every other machine in the
-pack pays stainless gears for its gears, #473, and the first come from reclaiming rusty gears) and a hammer. The pack's other machine frames cost iron, but this is the end-game
-machine of the gears epic, and a cast bed and column are a lot of metal. The cost is in the recipe
+pack pays stainless gears for its gears, #473, and the first come from reclaiming rusty gears) and a hammer. The frame model is nearly all iron by volume (the cast bed and column,
+`gearcutter_frame.json`), and a cast bed and column are a lot of metal: 16 plates are 32 ingots' worth, the
+heaviest frame in the pack. The stainless gears, not the metal, keep it end-game. The cost is in the recipe
 itself (the cutter does not need Immersive Woodworking, so it is not in
 `patches/woodworking-machine-costs.json`).
 
