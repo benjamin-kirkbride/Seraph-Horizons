@@ -148,7 +148,7 @@ class Anchors(unittest.TestCase):
         self.assertEqual(cells, {(x, 0, z) for x in (-1, 0, 1) for z in (0, 1)} | {(0, 1, 0), (0, 1, 1)})
         got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "draw")}
         self.assertEqual(got, {"power": ((0, 1, 1), "south"), "draw": ((0, 0, 0), "north")})
-        # batch equipment, loaded, watered (a bucket a rock) and emptied by hand, nothing automated feeding it: no load,
+        # batch equipment, loaded, watered (by the bucket) and emptied by hand, nothing automated feeding it: no load,
         # feed, chute, pour or water anchor, no output, no return
         self.assertFalse([k for k in RIG if re.search(r"load|feed|chute|hopper|pour|water|output|return|fill|input", k, re.I)])
         self.assertFalse([e.name for e in flatten(SHAPE["elements"], textures={}) if re.search(r"hopper|spout|chute", e.name)])

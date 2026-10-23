@@ -3,7 +3,7 @@
 Part of the Seraph Horizons mod (`../README.md`): the ore line's **small grinder** (behaviour #732, model #733,
 epic #684). A mule-sized arrastra: a stone-paved pit where four heavy stones are dragged round and round over the
 ore by a turning post's arms. Batch, worked by hand: the player tips a charge of crushed rock straight into the pit
-and pours a bucket of water a rock after it, the stones grind it to a paste, and the player draws it out. It lifts poor ore's × 0.4
+and pours its water after it (two buckets a full charge), the stones grind it to a paste, and the player draws it out. It lifts poor ore's × 0.4
 and loses no metal. One machine, built in stages on its frame (the crucible furnace's pattern); its
 continuous successor is the ball mill (#915, its own machine).
 
@@ -74,9 +74,10 @@ the machine over the pit outside the middle column, so the pit lies open from ab
 ### Water by the bucket
 
 The arrastra is watered by hand, not by pipe (the owner's ruling). The period's water went in with the charge: it
-was damped to a paste and a little more added as needed [Louis 1902, p. 292], barrels a charge, not a flow. #732's
-own figure is 10 L a rock, and a charge is 2 rock: a vanilla bucket (10 L) a rock. So the player pours a bucket of
-water a rock straight into the pit after the charge, over the curb, as the charge went in. Neither the charge nor
+was damped to a paste and a little more added as needed [Louis 1902, p. 292], barrels a charge, not a flow. A
+charge is 16 rock (a stack) and takes 1.25 L a rock: two vanilla buckets (20 L) a full charge (#732's first figures,
+10 L a rock and a charge of 2, ground too slowly to be worth building). So the player pours the charge's water
+straight into the pit after it, over the curb, as the charge went in. Neither the charge nor
 the water has an anchor: anchors are where a service or a chute meets a machine, and nothing automated feeds the
 arrastra. Nothing of a water inlet is drawn: no pipe, no cut-down curb stone, no water anchor.
 
@@ -103,7 +104,7 @@ the game's granite gravel and sand: a renderer may set either code to the charge
    outside the middle column (checked). Period arrastras were charged the same way, by the shovel and the barrow
    over the curb.
 5. **The water by the bucket, with the charge** (the owner's ruling): the charge is damped, then ground to a paste
-   [Louis 1902, p. 292], a bucket a rock poured into the pit. Nothing is drawn for it, and there is no water anchor.
+   [Louis 1902, p. 292], two buckets a full charge poured into the pit. Nothing is drawn for it, and there is no water anchor.
 
 ### Powered substitute for the mule
 
@@ -129,7 +130,7 @@ The gearing is wood, as on period arrastras and every mill of their kind: a mill
   at most 7.6. Eighteen cogs on that rim would be a pitch of 2.4, finer than the 2.6 of the iron teeth this
   replaces; twelve give 3.5, so the cogs and staves are 1.5 to 1.6 thick against the iron teeth's 1.0. Going back
   to 6:18 means dropping the wooden proportions or making the machine wider than its middle column up top. Gearing ratios are the model's (the turns the post makes per axle turn);
-gameplay's rate is its own (#732: a charge of 2 rock in 7.5 hours at the reference speed 0.6). At that speed the
+gameplay's rate is its own (#732: a charge of 16 rock in 7.5 hours at the reference speed 0.6). At that speed the
 axle turns 0.48 a second and the post 9.6 a minute, against the period's 12 for a 12 ft power arrastra
 [Louis 1902, p. 294]; the viewer's Play starts at it.
 
@@ -199,19 +200,19 @@ machine (none hollow). No lids: whether the top is walked on is open.
 ## Gameplay
 
 The arrastra is a **batch** machine worked by hand (#711 rule 2, #732): nothing automated feeds it or takes from it.
-Its figures are ore-core's (`config/ore-processing.json`, `machines.arrastra`, #765): load 0.1 (0.02 empty), 10 L of
-water a rock, a charge of 2 rock in 7.5 hours at the reference speed 0.6.
+Its figures are ore-core's (`config/ore-processing.json`, `machines.arrastra`, #765): load 0.1 (0.02 empty), 1.25 L
+of water a rock, a charge of 16 rock (a stack) in 7.5 hours at the reference speed 0.6: 2.1 rock an hour.
 
 - **Tipping in.** With crushed ore in hand (`seraphhorizons:crushedore-*`), a right-click anywhere on the built
-  machine tips one rock into the pit, up to the charge (2). A charge is **one ore and grade** with the same stream
+  machine tips one rock into the pit, up to the charge (16). A charge is **one ore and grade** with the same stream
   (it lies in the pit as one stack, the shared machine's infeed slot); another is refused (`Mixed`), as is any rock
   once the ground charge waits in the pit. Any grade grinds; only poor ore gains.
 - **Water by the bucket** (the owner's ruling): a right-click with a bucket (any liquid container) of fresh water
   pours as much as the pit still takes into its reservoir, which holds 20 L (`OreMachinesSettings.ReservoirLitres`,
-  a charge's worth). The charge grinds only with its water in the pit, 10 L a rock; with less it stops (Dry) and
-  resumes when watered. No pipe and no water anchor.
+  two buckets, exactly a full charge's water). The charge grinds only with its water in the pit, 1.25 L a rock (a
+  part charge its share); with less it stops (Dry) and resumes when watered. No pipe and no water anchor.
 - **Grinding.** While the shaft turns at 0.05 or faster (either way), the turns count toward the charge: a full
-  charge takes 95.5 × 0.6 × 7.5 = 429.75 turns, a part charge its share (a rock 214.9). The rate follows the shaft's
+  charge takes 95.5 × 0.6 × 7.5 = 429.75 turns, a part charge its share (a rock 26.9). The rate follows the shaft's
   speed with no cap (#711). When the turns are in, every rock of the charge becomes its ground ore at once
   (`seraphhorizons:groundore-{ore}-{grade}`), keeping its stream and lifted by `OreState.Ground` (#765: poor ore's
   × 0.4 lifted), and its water is spent. **No metal is lost**, one ground rock for one crushed.
@@ -225,7 +226,7 @@ water a rock, a charge of 2 rock in 7.5 hours at the reference speed 0.6.
 - **Breaking** the frame or any cell gives back the frame, every stage's materials and what is in the pit.
 
 The recipe browser shows its build (the shared `construction` record) and a grinding record per crushed ore
-(`tools/recipe-export/RecipeSection.Arrastra.cs`, type `arrastra`: the rock, its 10 L of water, the arrastra as the
+(`tools/recipe-export/RecipeSection.Arrastra.cs`, type `arrastra`: the rock, its 1.25 L of water, the arrastra as the
 station; a rock's share of a charge's turns). Its handbook is the frame's `extraSections` from the player card
 (`seraphhorizons:arrastra-handbook-*`). Atlas: `tests/PackTests/ArrastraScenarios.cs`.
 
@@ -356,7 +357,7 @@ gaps, containment, cells, z-fighting, the stage-floating rule). Changed to #733 
 - **One machine**: the ball mill's parts are gone; the arrastra's parts are the build's stages (`post`, `pinion`,
   `step`, `arms`, `stones`).
 - **No water inlet**: the grinder's soldered ppex inlet (`build_inlet`, `pipe_copies`) is gone, and with it the water
-  anchor. The arrastra is watered by hand, a bucket a rock into the pit (the owner's ruling, [Water by the
+  anchor. The arrastra is watered by hand, two buckets a full charge into the pit (the owner's ruling, [Water by the
   bucket](#water-by-the-bucket)).
 - **Only the draw is an anchor**: `drawCell` (the gate). The grinder's infeed face, for a while `loadCell`, went with
   the hopper.
@@ -375,13 +376,13 @@ lump of rendered fat (the mod's README, "Machines need oil"). Its job is a rock 
 | Setting (`MachineOilSettings.Arrastra`) | Default | |
 |---|---|---|
 | `Tank` | 500 (5 L) | 5000 points a unit of working load: 0.1 × 5000 |
-| `DrainPerJob` | 43 | 2 points a unit of load and a shaft turn: 2 × 0.1 × its turns a job |
+| `DrainPerJob` | 5.4 | 2 points a unit of load and a shaft turn: 2 × 0.1 × its turns a job |
 
 **Scaled by load.** The workshop machines set the scale: the bucking mill (load 0.17) and the draw bench (0.2, 0.35 on
 copper) have a 1000 point tank, about 5000 points a unit of load, and drain 2 points a job for 1.4 load·turns (the
 mill's stored log, 0.17 × 8 turns) and 1.0 (the bench's copper section, 0.35 × 2.75), about 2 points a load·turn. The
-arrastra's load is 0.1; it works a charge of 2 rocks in 7.5 hours at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
-hour), so 57.3 × 7.5 / 2 = 215 turns a rock, and 2 × load × turns rounds to 43. A full tank is 11.6 rocks, almost six charges, about 44 hours of work at the
+arrastra's load is 0.1; it works a charge of 16 rocks in 7.5 hours at the reference speed 0.6 (`ore-processing.json`, 57.3 shaft turns an
+hour), so 57.3 × 7.5 / 16 = 26.9 turns a rock, and 2 × load × turns rounds to 5.4. A full tank is 93 rocks, almost six charges, about 43 hours of work at the
 reference speed, as every ore machine's: a heavier machine has the bigger tank and drinks more a job, so the stamp
 battery's 14.3 a rock is ten times the jig's 1.4. `MachineOilTests.An_ore_machines_oil_is_scaled_by_its_load` holds
 the defaults to the shipped figures.
@@ -392,7 +393,7 @@ the defaults to the shipped figures.
    arrastra reaches the two upper cells over the pit's back corners (the head frame and the drive are all in the
    middle column), so they are dropped as the front corners were. Ten is `EMPTY_CELLS` less two entries;
    the two cells would then be hollow, holding nothing.
-2. **Loading with no anchor.** The charge and its bucket of water go straight into the pit by hand, over the low
+2. **Loading with no anchor.** The charge and its water go straight into the pit by hand, over the low
    curb (6 voxels), from the open front corners or a side; gameplay decides what is clicked to load (any pit cell or
    the curb, with the charge or the bucket in hand). The model only draws the pit open for it. The draw could be on
    a side instead (east or west, any curb stone); the front keeps both sides free for a row of arrastras.
@@ -400,7 +401,7 @@ the defaults to the shipped figures.
    the machine's top read as a place a chute could meet). The machine's top is now the head frame's stringers, at
    y 31, and the upper front cell holds only the head frame's front. #732's "the hopper's rim" becomes the pit's
    rim, the curb.
-4. **The water by bucket** (the owner's ruling): poured straight into the pit after the charge, a bucket a rock,
+4. **The water by bucket** (the owner's ruling): poured straight into the pit after the charge, two buckets a full charge,
    with no anchor; the model draws nothing for it.
 5. **The stages and their order** (pit, post, arms, stones on a placed head frame and shaft) are a proposal; the
    frame's recipe and each stage's items and materials are open (#733).
