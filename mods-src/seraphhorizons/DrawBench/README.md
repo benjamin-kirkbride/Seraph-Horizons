@@ -433,7 +433,7 @@ strips of the same metals, two stainless gears (`seraphhorizons:gear-stainless`,
 the rectifier's A1, A2, B1, B2 and idler, the return shaft's gear and the barrel gear; every other machine
 in the pack pays stainless gears for its gears, #473), two oak logs (the sills), oak planks (the bed) and a
 hammer: about 11 ingots of iron (a plate 2, a rod 1, 12 nails and strips 3), under the gear cutter's
-frame (8 steel ingots, 32 nails and strips and 3 stainless gears).
+frame (16 plates, 32 nails and strips and 3 stainless gears).
 
 **Stages** (`config/builds/drawbench.json`, kept by the base's `MachineAssembly`), in order, the next
 missing stage the only one a click fills (a later stage's item is `OutOfOrder`, one whose stage is in

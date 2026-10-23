@@ -2093,8 +2093,9 @@ gameplay, in `GearCutter/` (rules in `GearCutter/Core/`, the game side in `GearC
 `"mill"`, `Footprint.PlacedFacing`: the machine runs away from the player), with the shared machine cell in
 each of the rig's other seven cells and the shared power cell (`machine-cellpower-{face}`), which takes the
 axle on the column's back face (native west). Its build is `config/builds/gearcutter.json`.
-The frame is a grid recipe: eight steel ingots (four in each ingot slot; steel only, as the end of
-the gears epic), four planks and 32 iron (or meteoric iron or steel) nails and strips, with a hammer.
+The frame is a grid recipe: 16 metal plates (eight in each plate slot, for the cast bed and column),
+four planks and 32 nails and strips, the plates and nails of iron, meteoric iron or steel, and three
+stainless gears, with a hammer.
 
 **Stages.** Fitted by right-click on the frame or any of its cells with the item, in this order only; the
 next missing stage is the only one a click fills, and anything of a later stage is refused with a
