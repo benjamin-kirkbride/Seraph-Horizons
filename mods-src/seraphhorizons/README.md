@@ -1643,7 +1643,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `SlittingMill` | tank 1000, 5 a plate | Any metal ("Slitting mill") |
 | `JawBreaker` | tank 4000, 3.8 a rock | The ore machines' are scaled by load (below) |
 | `StampBattery` | tank 3750, 14.3 a rock | |
-| `Arrastra` | tank 500, 43 a rock | Drained a charge at a time |
+| `Arrastra` | tank 500, 5.4 a rock | Drained a charge at a time |
 | `BallMill` | tank 5500, 21 a rock | |
 | `Jig` | tank 500, 1.4 a rock | |
 | `ShakingTable` | tank 500, 1.6 a rock | |
@@ -7518,9 +7518,9 @@ machine on the shared ore machine (`BEArrastra` on `BEOreMachine`, the frame `se
 frame (a grid recipe: 9 support beams, a steel rod, 3 iron nails and strips, with a hammer) is placed, then the pit,
 the post and gearing (a wooden axle is the post), the sweep arms and the drag stones (4 loose stones) are fitted by
 right-click (`config/builds/arrastra.json`). **Batch, by hand**: a right-click with crushed ore tips a rock into the
-pit, up to a charge of 2 of one ore and grade; a bucket of water poured in by right-click fills the pit's 20 L, 10 L a
-rock (the owner's ruling: no pipe); the shaft's turns grind the charge, a full one in 7.5 hours at speed 0.6 (429.75
-turns, a part charge its share), and only with its water in the pit; then every rock becomes its ground ore at once,
+pit, up to a charge of 16 (a stack) of one ore and grade; buckets of water poured in by right-click fill the pit's
+20 L, 1.25 L a rock, two buckets a full charge (the owner's ruling: no pipe); the shaft's turns grind the charge, a
+full one in 7.5 hours at speed 0.6 (429.75 turns, a part charge its share), and only with its water in the pit; then every rock becomes its ground ore at once,
 its stream lifted by `OreState.Ground` (poor ore's × 0.4, #765), no metal lost, and the water is spent. An empty
 hand draws the pit out by the gate (a charge not yet ground comes back crushed). Load 0.1 constant once built; no
 oil, no wear, no tailings. Needs `OreProcessing`; off, its frame and recipe do not exist and arrastras placed are
